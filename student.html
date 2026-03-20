@@ -1,0 +1,2012 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="theme-color" content="#667eea">
+<title>Hero's Academy Points</title>
+<link rel="manifest" href="manifest.json">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+<style>
+:root {
+  --primary: #667eea;
+  --primary-dark: #764ba2;
+  --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-light: linear-gradient(135deg, #667eea33 0%, #764ba233 100%);
+  --bg: #f0f2f8;
+  --card: #ffffff;
+  --text: #2d3748;
+  --text-light: #718096;
+  --text-white: #ffffff;
+  --success: #48bb78;
+  --warning: #f6ad55;
+  --danger: #fc8181;
+  --info: #63b3ed;
+  --shadow: 0 4px 15px rgba(102, 126, 234, 0.15);
+  --shadow-lg: 0 10px 30px rgba(102, 126, 234, 0.2);
+  --radius: 16px;
+  --radius-sm: 10px;
+  --bottom-nav-h: 70px;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Noto Sans JP', -apple-system, BlinkMacSystemFont, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  min-height: 100vh;
+  overflow-x: hidden;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.screen { display: none; padding-bottom: calc(var(--bottom-nav-h) + 20px); }
+.screen.active { display: block; }
+.screen-login { padding-bottom: 0; }
+
+/* ===== Header ===== */
+.header {
+  background: var(--gradient);
+  color: var(--text-white);
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+.header-title { font-size: 18px; font-weight: 700; }
+.header-back {
+  background: none; border: none; color: white; font-size: 22px;
+  cursor: pointer; padding: 4px 8px; margin-left: -8px;
+}
+.header-action {
+  background: rgba(255,255,255,0.2); border: none; color: white;
+  padding: 6px 12px; border-radius: 20px; font-size: 13px; cursor: pointer;
+}
+
+/* ===== Cards ===== */
+.card {
+  background: var(--card);
+  border-radius: var(--radius);
+  padding: 20px;
+  margin: 12px 16px;
+  box-shadow: var(--shadow);
+}
+.card-gradient {
+  background: var(--gradient);
+  color: var(--text-white);
+}
+
+/* ===== Buttons ===== */
+.btn {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 12px 24px; border-radius: 12px; border: none;
+  font-size: 15px; font-weight: 600; cursor: pointer;
+  font-family: inherit; transition: all 0.2s; gap: 8px;
+  -webkit-tap-highlight-color: transparent;
+}
+.btn:active { transform: scale(0.96); }
+.btn-primary { background: var(--gradient); color: white; }
+.btn-primary:hover { box-shadow: var(--shadow-lg); }
+.btn-secondary { background: #edf2f7; color: var(--text); }
+.btn-success { background: var(--success); color: white; }
+.btn-danger { background: var(--danger); color: white; }
+.btn-outline {
+  background: transparent; border: 2px solid var(--primary);
+  color: var(--primary);
+}
+.btn-block { display: flex; width: 100%; }
+.btn-lg { padding: 16px 32px; font-size: 17px; border-radius: 14px; }
+.btn-sm { padding: 8px 16px; font-size: 13px; border-radius: 8px; }
+.btn:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* ===== Bottom Navigation ===== */
+.bottom-nav {
+  position: fixed; bottom: 0; left: 0; right: 0;
+  height: var(--bottom-nav-h);
+  background: white;
+  display: flex; align-items: center; justify-content: space-around;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+  z-index: 200;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+.nav-item {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 2px; cursor: pointer; padding: 6px 12px;
+  color: var(--text-light); transition: color 0.2s;
+  -webkit-tap-highlight-color: transparent;
+  background: none; border: none; font-family: inherit;
+}
+.nav-item.active { color: var(--primary); }
+.nav-icon { font-size: 24px; }
+.nav-label { font-size: 10px; font-weight: 600; }
+.nav-badge {
+  position: absolute; top: 2px; right: 2px;
+  background: var(--danger); color: white;
+  font-size: 9px; font-weight: 700;
+  width: 16px; height: 16px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* ===== Login Screen ===== */
+.login-screen {
+  min-height: 100vh; display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  background: var(--gradient); padding: 24px;
+}
+.login-logo { font-size: 60px; margin-bottom: 8px; }
+.login-title { font-size: 26px; font-weight: 900; color: white; margin-bottom: 4px; }
+.login-subtitle { font-size: 14px; color: rgba(255,255,255,0.8); margin-bottom: 32px; }
+.login-card {
+  background: white; border-radius: var(--radius); padding: 28px;
+  width: 100%; max-width: 360px; box-shadow: var(--shadow-lg);
+}
+.login-card h2 { font-size: 20px; text-align: center; margin-bottom: 24px; color: var(--text); }
+.form-group { margin-bottom: 18px; }
+.form-label { display: block; font-size: 13px; font-weight: 600; color: var(--text-light); margin-bottom: 6px; }
+.form-input {
+  width: 100%; padding: 12px 16px; border: 2px solid #e2e8f0;
+  border-radius: var(--radius-sm); font-size: 16px; font-family: inherit;
+  transition: border-color 0.2s; background: #f7fafc;
+}
+.form-input:focus { outline: none; border-color: var(--primary); background: white; }
+.form-input::placeholder { color: #cbd5e0; }
+.pin-input {
+  text-align: center; letter-spacing: 12px; font-size: 24px; font-weight: 700;
+}
+.login-error { color: var(--danger); font-size: 13px; text-align: center; margin-top: 12px; display: none; }
+
+/* ===== Home Screen ===== */
+.home-hero {
+  background: var(--gradient); color: white;
+  padding: 24px 20px; border-radius: 0 0 28px 28px;
+  margin-bottom: -12px; position: relative;
+}
+.home-greeting { font-size: 14px; opacity: 0.9; }
+.home-name { font-size: 26px; font-weight: 900; margin: 4px 0 16px; }
+.home-stats {
+  display: grid; grid-template-columns: 1fr 1fr 1fr;
+  gap: 10px;
+}
+.home-stat {
+  background: rgba(255,255,255,0.15);
+  border-radius: 12px; padding: 12px 8px; text-align: center;
+  backdrop-filter: blur(10px);
+}
+.home-stat-value { font-size: 22px; font-weight: 900; }
+.home-stat-label { font-size: 10px; opacity: 0.85; margin-top: 2px; }
+.home-guild-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.2); padding: 6px 14px;
+  border-radius: 20px; font-size: 13px; margin-bottom: 12px;
+}
+.home-level-bar {
+  background: rgba(255,255,255,0.2); height: 8px;
+  border-radius: 4px; margin-top: 16px; overflow: hidden;
+}
+.home-level-fill {
+  height: 100%; background: rgba(255,255,255,0.7);
+  border-radius: 4px; transition: width 0.6s ease;
+}
+.home-level-text { font-size: 11px; opacity: 0.85; margin-top: 4px; text-align: right; }
+
+.quick-actions {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; margin: 0 16px; padding-top: 24px;
+}
+.quick-action {
+  background: white; border-radius: var(--radius); padding: 18px 14px;
+  text-align: center; box-shadow: var(--shadow); cursor: pointer;
+  transition: transform 0.2s; border: none; font-family: inherit;
+}
+.quick-action:active { transform: scale(0.96); }
+.quick-action-icon { font-size: 32px; margin-bottom: 6px; }
+.quick-action-label { font-size: 13px; font-weight: 600; color: var(--text); }
+
+.home-section-title {
+  font-size: 16px; font-weight: 700; padding: 20px 20px 8px;
+}
+
+/* ===== Condition ===== */
+.condition-slider-group { margin-bottom: 24px; }
+.condition-label { font-size: 15px; font-weight: 600; margin-bottom: 10px; display: flex; align-items: center; gap: 6px; }
+.emoji-row {
+  display: flex; justify-content: space-between; gap: 4px;
+}
+.emoji-btn {
+  flex: 1; padding: 12px 4px; border: 2px solid #e2e8f0;
+  border-radius: 12px; background: white; cursor: pointer;
+  text-align: center; font-size: 24px; transition: all 0.2s;
+  font-family: inherit;
+}
+.emoji-btn.selected { border-color: var(--primary); background: var(--gradient-light); transform: scale(1.08); }
+.emoji-btn-label { display: block; font-size: 9px; color: var(--text-light); margin-top: 2px; }
+
+.condition-note {
+  width: 100%; border: 2px solid #e2e8f0; border-radius: var(--radius-sm);
+  padding: 12px; font-size: 14px; font-family: inherit; resize: vertical; min-height: 60px;
+}
+.condition-note:focus { outline: none; border-color: var(--primary); }
+
+/* ===== Tasks ===== */
+.task-item {
+  display: flex; align-items: center; gap: 14px;
+  background: white; border-radius: var(--radius); padding: 16px;
+  margin: 8px 16px; box-shadow: var(--shadow); cursor: pointer;
+  transition: transform 0.2s;
+}
+.task-item:active { transform: scale(0.98); }
+.task-icon { font-size: 28px; flex-shrink: 0; }
+.task-info { flex: 1; }
+.task-title { font-size: 15px; font-weight: 600; }
+.task-desc { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+.task-points {
+  background: var(--gradient); color: white; padding: 6px 12px;
+  border-radius: 20px; font-size: 13px; font-weight: 700; flex-shrink: 0;
+}
+.task-completed {
+  background: var(--success); color: white; padding: 4px 10px;
+  border-radius: 20px; font-size: 11px; font-weight: 600;
+}
+
+/* ===== Study Mode Select ===== */
+.mode-section { margin: 0 16px 16px; }
+.mode-section-title { font-size: 14px; font-weight: 700; color: var(--text-light); margin-bottom: 10px; padding-left: 4px; }
+.mode-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+.mode-btn {
+  display: flex; flex-direction: column; align-items: center;
+  gap: 4px; padding: 16px 8px; background: white;
+  border: 2px solid #e2e8f0; border-radius: var(--radius);
+  cursor: pointer; transition: all 0.2s; font-family: inherit;
+}
+.mode-btn.selected { border-color: var(--primary); background: var(--gradient-light); }
+.mode-btn-icon { font-size: 28px; }
+.mode-btn-label { font-size: 12px; font-weight: 600; color: var(--text); }
+.mode-grid-2 { grid-template-columns: 1fr 1fr; }
+
+/* ===== Timer ===== */
+.timer-container { text-align: center; padding: 24px 16px; }
+.timer-subject-badge {
+  display: inline-flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.15); padding: 8px 18px;
+  border-radius: 20px; font-size: 14px; margin-bottom: 20px;
+}
+.timer-circle {
+  width: 240px; height: 240px; border-radius: 50%;
+  background: rgba(255,255,255,0.1); margin: 0 auto 24px;
+  display: flex; flex-direction: column; align-items: center;
+  justify-content: center; position: relative;
+  border: 6px solid rgba(255,255,255,0.3);
+}
+.timer-display { font-size: 52px; font-weight: 900; font-variant-numeric: tabular-nums; }
+.timer-label { font-size: 13px; opacity: 0.8; margin-top: 4px; }
+.timer-pomodoro-info { font-size: 13px; opacity: 0.9; margin-bottom: 20px; }
+.timer-controls { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+.timer-btn {
+  width: 60px; height: 60px; border-radius: 50%;
+  border: none; font-size: 24px; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.2s;
+}
+.timer-btn:active { transform: scale(0.9); }
+.timer-btn-start { background: white; color: var(--primary); }
+.timer-btn-pause { background: var(--warning); color: white; }
+.timer-btn-stop { background: rgba(255,255,255,0.2); color: white; }
+
+/* ===== Study Complete ===== */
+.complete-screen { text-align: center; }
+.celebration { font-size: 80px; margin: 20px 0; animation: bounce 1s infinite; }
+@keyframes bounce {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+.complete-points {
+  font-size: 48px; font-weight: 900; color: var(--primary);
+  margin: 8px 0;
+}
+.complete-label { color: var(--text-light); font-size: 14px; }
+.complete-stats {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+  margin: 20px 16px;
+}
+.complete-stat {
+  background: #f7fafc; border-radius: 12px; padding: 14px;
+}
+.complete-stat-val { font-size: 20px; font-weight: 700; color: var(--primary); }
+.complete-stat-lbl { font-size: 11px; color: var(--text-light); }
+.badge-notification {
+  background: var(--gradient); color: white;
+  border-radius: var(--radius); padding: 16px; margin: 12px 16px;
+  animation: slideUp 0.5s ease;
+}
+@keyframes slideUp {
+  from { opacity: 0; transform: translateY(20px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.raid-notification {
+  background: linear-gradient(135deg, #e53e3e, #c53030);
+  color: white; border-radius: var(--radius); padding: 16px; margin: 12px 16px;
+}
+
+/* ===== Ranking ===== */
+.ranking-tabs {
+  display: flex; gap: 0; margin: 12px 16px; background: #edf2f7;
+  border-radius: var(--radius-sm); overflow: hidden;
+}
+.ranking-tab {
+  flex: 1; padding: 10px; text-align: center; font-size: 13px;
+  font-weight: 600; cursor: pointer; background: none; border: none;
+  font-family: inherit; color: var(--text-light); transition: all 0.2s;
+}
+.ranking-tab.active { background: var(--gradient); color: white; border-radius: var(--radius-sm); }
+.ranking-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 20px; border-bottom: 1px solid #f0f0f0;
+}
+.ranking-item.self { background: var(--gradient-light); }
+.ranking-rank {
+  width: 32px; height: 32px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 700; font-size: 14px; flex-shrink: 0;
+}
+.rank-1 { background: #ffd700; color: #7c5e00; }
+.rank-2 { background: #c0c0c0; color: #555; }
+.rank-3 { background: #cd7f32; color: #fff; }
+.rank-other { background: #edf2f7; color: var(--text-light); }
+.ranking-name { flex: 1; font-weight: 600; font-size: 14px; }
+.ranking-pts { font-weight: 700; color: var(--primary); font-size: 15px; }
+
+/* ===== Prizes ===== */
+.prize-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 0 16px; }
+.prize-card {
+  background: white; border-radius: var(--radius); padding: 16px;
+  box-shadow: var(--shadow); text-align: center; cursor: pointer;
+  transition: transform 0.2s;
+}
+.prize-card:active { transform: scale(0.97); }
+.prize-icon { font-size: 40px; margin-bottom: 6px; }
+.prize-name { font-size: 14px; font-weight: 600; margin-bottom: 4px; }
+.prize-cost { font-size: 13px; color: var(--primary); font-weight: 700; }
+.prize-stock { font-size: 11px; color: var(--text-light); }
+.prize-unavailable { opacity: 0.5; }
+.current-points-banner {
+  background: var(--gradient); color: white; text-align: center;
+  padding: 14px; margin: 12px 16px; border-radius: var(--radius);
+  font-weight: 700; font-size: 16px;
+}
+
+/* ===== History ===== */
+.history-date-header {
+  font-size: 13px; font-weight: 700; color: var(--text-light);
+  padding: 12px 20px 4px; background: var(--bg);
+}
+.history-item {
+  display: flex; align-items: center; gap: 14px;
+  padding: 14px 20px; background: white; border-bottom: 1px solid #f7f7f7;
+}
+.history-subject-icon { font-size: 24px; }
+.history-info { flex: 1; }
+.history-subject { font-weight: 600; font-size: 14px; }
+.history-meta { font-size: 11px; color: var(--text-light); }
+.history-points { font-weight: 700; color: var(--success); font-size: 14px; }
+
+/* ===== Badges ===== */
+.badge-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin: 0 16px; }
+.badge-item {
+  background: white; border-radius: var(--radius); padding: 14px 8px;
+  text-align: center; box-shadow: var(--shadow);
+}
+.badge-item.locked { opacity: 0.35; filter: grayscale(1); }
+.badge-icon { font-size: 36px; margin-bottom: 4px; }
+.badge-name { font-size: 11px; font-weight: 600; }
+.badge-desc { font-size: 9px; color: var(--text-light); margin-top: 2px; }
+.badge-count { text-align: center; padding: 12px; color: var(--text-light); font-size: 14px; font-weight: 600; }
+
+/* ===== Messages ===== */
+.msg-item {
+  padding: 14px 20px; border-bottom: 1px solid #f0f0f0;
+  cursor: pointer; transition: background 0.2s;
+}
+.msg-item.unread { background: var(--gradient-light); }
+.msg-item:active { background: #f0f2f8; }
+.msg-from { font-size: 12px; color: var(--primary); font-weight: 600; }
+.msg-content { font-size: 14px; margin-top: 4px; }
+.msg-time { font-size: 11px; color: var(--text-light); margin-top: 4px; }
+.msg-reply-box {
+  display: flex; gap: 8px; padding: 12px 16px;
+  background: white; border-top: 1px solid #eee;
+  position: fixed; bottom: var(--bottom-nav-h); left: 0; right: 0;
+}
+.msg-reply-input {
+  flex: 1; border: 2px solid #e2e8f0; border-radius: 20px;
+  padding: 10px 16px; font-size: 14px; font-family: inherit;
+}
+.msg-reply-input:focus { outline: none; border-color: var(--primary); }
+.msg-reply-btn {
+  background: var(--gradient); border: none; color: white;
+  padding: 10px 18px; border-radius: 20px; font-weight: 600;
+  cursor: pointer; font-family: inherit; font-size: 14px;
+}
+
+/* ===== Guild ===== */
+.guild-header-card {
+  text-align: center; padding: 24px;
+}
+.guild-icon { font-size: 50px; }
+.guild-name { font-size: 22px; font-weight: 900; margin: 8px 0 4px; }
+.guild-points { font-size: 14px; opacity: 0.9; }
+.guild-members-title { font-size: 14px; font-weight: 700; color: var(--text-light); padding: 16px 20px 8px; }
+.guild-member {
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 20px; border-bottom: 1px solid #f0f0f0;
+}
+.guild-member-avatar {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: var(--gradient); display: flex; align-items: center;
+  justify-content: center; color: white; font-weight: 700; font-size: 16px;
+}
+.guild-member-name { flex: 1; font-weight: 600; font-size: 14px; }
+.guild-member-pts { font-size: 13px; color: var(--text-light); }
+
+/* ===== Raid Boss ===== */
+.raid-card {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  color: white; border-radius: var(--radius); margin: 12px 16px;
+  padding: 20px; position: relative; overflow: hidden;
+}
+.raid-card::before {
+  content: ''; position: absolute; top: -50%; right: -50%;
+  width: 100%; height: 100%; background: radial-gradient(circle, rgba(255,0,0,0.1) 0%, transparent 70%);
+}
+.raid-boss-icon { font-size: 60px; text-align: center; margin-bottom: 8px; position: relative; }
+.raid-boss-name { font-size: 20px; font-weight: 900; text-align: center; position: relative; }
+.raid-hp-bar {
+  background: rgba(255,255,255,0.15); height: 20px;
+  border-radius: 10px; overflow: hidden; margin: 14px 0 6px; position: relative;
+}
+.raid-hp-fill {
+  height: 100%; border-radius: 10px; transition: width 0.8s ease;
+  background: linear-gradient(90deg, #fc5c7d, #e74c3c);
+}
+.raid-hp-text { font-size: 12px; text-align: center; opacity: 0.8; position: relative; }
+.raid-reward { font-size: 13px; text-align: center; margin-top: 10px; color: #ffd700; position: relative; }
+.raid-defeated {
+  position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  font-size: 36px; font-weight: 900; color: #ffd700;
+  text-shadow: 0 0 20px rgba(255,215,0,0.5);
+}
+.raid-damage-log { margin: 0 16px; }
+.raid-damage-item {
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 0; border-bottom: 1px solid #f0f0f0;
+  font-size: 13px;
+}
+
+/* ===== Loading / Toast ===== */
+.loading-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(255,255,255,0.85); z-index: 500;
+  display: none; align-items: center; justify-content: center;
+  flex-direction: column; gap: 12px;
+}
+.loading-overlay.show { display: flex; }
+.spinner {
+  width: 40px; height: 40px; border: 4px solid #e2e8f0;
+  border-top-color: var(--primary); border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
+
+.toast {
+  position: fixed; bottom: calc(var(--bottom-nav-h) + 20px);
+  left: 50%; transform: translateX(-50%) translateY(100px);
+  background: #2d3748; color: white; padding: 12px 24px;
+  border-radius: 12px; font-size: 14px; font-weight: 500;
+  z-index: 600; opacity: 0; transition: all 0.3s;
+  max-width: calc(100% - 40px); text-align: center;
+}
+.toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+/* ===== Empty State ===== */
+.empty-state {
+  text-align: center; padding: 40px 20px; color: var(--text-light);
+}
+.empty-icon { font-size: 48px; margin-bottom: 12px; }
+.empty-text { font-size: 14px; }
+
+/* ===== Modal ===== */
+.modal-overlay {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.5); z-index: 400;
+  display: none; align-items: center; justify-content: center; padding: 20px;
+}
+.modal-overlay.show { display: flex; }
+.modal {
+  background: white; border-radius: var(--radius); padding: 24px;
+  max-width: 340px; width: 100%; text-align: center;
+  animation: scaleIn 0.2s ease;
+}
+@keyframes scaleIn { from { transform: scale(0.9); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.modal-icon { font-size: 48px; margin-bottom: 12px; }
+.modal-title { font-size: 18px; font-weight: 700; margin-bottom: 8px; }
+.modal-text { font-size: 14px; color: var(--text-light); margin-bottom: 20px; }
+.modal-btns { display: flex; gap: 10px; }
+.modal-btns .btn { flex: 1; }
+
+/* ===== Confetti ===== */
+.confetti-container {
+  position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none; z-index: 300; overflow: hidden;
+}
+.confetti {
+  position: absolute; width: 10px; height: 10px;
+  top: -10px; animation: confettiFall 3s ease-in forwards;
+}
+@keyframes confettiFall {
+  to { top: 110vh; transform: rotate(720deg) translateX(100px); opacity: 0; }
+}
+
+/* ===== Responsive ===== */
+@media (min-width: 480px) {
+  .badge-grid { grid-template-columns: repeat(4, 1fr); }
+  .quick-actions { grid-template-columns: 1fr 1fr 1fr; max-width: 480px; margin: 0 auto; padding-top: 24px; }
+}
+@media (min-width: 768px) {
+  body { max-width: 480px; margin: 0 auto; }
+  .bottom-nav { max-width: 480px; left: 50%; transform: translateX(-50%); }
+}
+</style>
+</head>
+<body>
+
+<!-- Loading Overlay -->
+<div id="loadingOverlay" class="loading-overlay">
+  <div class="spinner"></div>
+  <div style="font-size:14px;color:var(--text-light);">読み込み中...</div>
+</div>
+
+<!-- Toast -->
+<div id="toast" class="toast"></div>
+
+<!-- Modal -->
+<div id="modalOverlay" class="modal-overlay" onclick="closeModal()">
+  <div class="modal" onclick="event.stopPropagation()">
+    <div id="modalIcon" class="modal-icon"></div>
+    <div id="modalTitle" class="modal-title"></div>
+    <div id="modalText" class="modal-text"></div>
+    <div id="modalBtns" class="modal-btns"></div>
+  </div>
+</div>
+
+<!-- Confetti Container -->
+<div id="confettiContainer" class="confetti-container"></div>
+
+<!-- ========== 1. ログイン画面 ========== -->
+<div id="screenLogin" class="screen screen-login active">
+  <div class="login-screen">
+    <div class="login-logo">🏫</div>
+    <div class="login-title">Hero's Academy</div>
+    <div class="login-subtitle">ポイントシステム</div>
+    <div class="login-card">
+      <h2>ログイン</h2>
+      <div class="form-group">
+        <label class="form-label">ニックネーム</label>
+        <input type="text" id="loginNickname" class="form-input" placeholder="ニックネームを入力" autocomplete="off">
+      </div>
+      <div class="form-group">
+        <label class="form-label">PIN（4桁）</label>
+        <input type="tel" id="loginPin" class="form-input pin-input" maxlength="4" placeholder="••••" inputmode="numeric">
+      </div>
+      <button class="btn btn-primary btn-block btn-lg" onclick="handleLogin()">ログイン</button>
+      <div id="loginError" class="login-error">ニックネームまたはPINが正しくありません</div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 2. ホーム画面 ========== -->
+<div id="screenHome" class="screen">
+  <div class="home-hero">
+    <div class="home-greeting" id="homeGreeting">こんにちは！</div>
+    <div class="home-name" id="homeName">---</div>
+    <div id="homeGuildBadge" class="home-guild-badge" style="display:none"></div>
+    <div class="home-stats">
+      <div class="home-stat">
+        <div class="home-stat-value" id="homePoints">0</div>
+        <div class="home-stat-label">ポイント</div>
+      </div>
+      <div class="home-stat">
+        <div class="home-stat-value" id="homeLevel">1</div>
+        <div class="home-stat-label">レベル</div>
+      </div>
+      <div class="home-stat">
+        <div class="home-stat-value" id="homeStreak">0</div>
+        <div class="home-stat-label">🔥 連続日数</div>
+      </div>
+    </div>
+    <div class="home-level-bar">
+      <div class="home-level-fill" id="homeLevelFill" style="width:0%"></div>
+    </div>
+    <div class="home-level-text" id="homeLevelText"></div>
+  </div>
+
+  <div class="quick-actions">
+    <button class="quick-action" onclick="navigate('condition')">
+      <div class="quick-action-icon">😊</div>
+      <div class="quick-action-label">コンディション</div>
+    </button>
+    <button class="quick-action" onclick="navigate('studyMode')">
+      <div class="quick-action-icon">📚</div>
+      <div class="quick-action-label">学習スタート</div>
+    </button>
+    <button class="quick-action" onclick="navigate('tasks')">
+      <div class="quick-action-icon">✅</div>
+      <div class="quick-action-label">タスク</div>
+    </button>
+    <button class="quick-action" onclick="navigate('prizes')">
+      <div class="quick-action-icon">🎁</div>
+      <div class="quick-action-label">景品交換</div>
+    </button>
+    <button class="quick-action" onclick="navigate('raidBoss')">
+      <div class="quick-action-icon">👹</div>
+      <div class="quick-action-label">レイドボス</div>
+    </button>
+    <button class="quick-action" onclick="navigate('messages')">
+      <div class="quick-action-icon">💬</div>
+      <div class="quick-action-label">メッセージ</div>
+    </button>
+  </div>
+
+  <div class="home-section-title">最近の学習</div>
+  <div id="homeRecentLogs"></div>
+</div>
+
+<!-- ========== 3. コンディション記録 ========== -->
+<div id="screenCondition" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="navigate('home')">←</button>
+    <div class="header-title">コンディション記録</div>
+    <div></div>
+  </div>
+  <div class="card">
+    <div class="condition-slider-group">
+      <div class="condition-label">😊 気分</div>
+      <div class="emoji-row" id="moodRow">
+        <button class="emoji-btn" data-val="1" onclick="selectEmoji('mood',1,this)">😢<span class="emoji-btn-label">最悪</span></button>
+        <button class="emoji-btn" data-val="2" onclick="selectEmoji('mood',2,this)">😟<span class="emoji-btn-label">悪い</span></button>
+        <button class="emoji-btn" data-val="3" onclick="selectEmoji('mood',3,this)">😐<span class="emoji-btn-label">普通</span></button>
+        <button class="emoji-btn" data-val="4" onclick="selectEmoji('mood',4,this)">😊<span class="emoji-btn-label">良い</span></button>
+        <button class="emoji-btn" data-val="5" onclick="selectEmoji('mood',5,this)">😄<span class="emoji-btn-label">最高</span></button>
+      </div>
+    </div>
+    <div class="condition-slider-group">
+      <div class="condition-label">⚡ エネルギー</div>
+      <div class="emoji-row" id="energyRow">
+        <button class="emoji-btn" data-val="1" onclick="selectEmoji('energy',1,this)">😴<span class="emoji-btn-label">ヘトヘト</span></button>
+        <button class="emoji-btn" data-val="2" onclick="selectEmoji('energy',2,this)">🥱<span class="emoji-btn-label">低い</span></button>
+        <button class="emoji-btn" data-val="3" onclick="selectEmoji('energy',3,this)">🙂<span class="emoji-btn-label">普通</span></button>
+        <button class="emoji-btn" data-val="4" onclick="selectEmoji('energy',4,this)">💪<span class="emoji-btn-label">元気</span></button>
+        <button class="emoji-btn" data-val="5" onclick="selectEmoji('energy',5,this)">🔥<span class="emoji-btn-label">絶好調</span></button>
+      </div>
+    </div>
+    <div class="condition-slider-group">
+      <div class="condition-label">🎯 やる気</div>
+      <div class="emoji-row" id="motivationRow">
+        <button class="emoji-btn" data-val="1" onclick="selectEmoji('motivation',1,this)">😑<span class="emoji-btn-label">ゼロ</span></button>
+        <button class="emoji-btn" data-val="2" onclick="selectEmoji('motivation',2,this)">😕<span class="emoji-btn-label">低い</span></button>
+        <button class="emoji-btn" data-val="3" onclick="selectEmoji('motivation',3,this)">🙂<span class="emoji-btn-label">普通</span></button>
+        <button class="emoji-btn" data-val="4" onclick="selectEmoji('motivation',4,this)">😤<span class="emoji-btn-label">高い</span></button>
+        <button class="emoji-btn" data-val="5" onclick="selectEmoji('motivation',5,this)">🚀<span class="emoji-btn-label">MAX</span></button>
+      </div>
+    </div>
+    <div class="form-group" style="margin-top:8px">
+      <label class="form-label">📝 ひとこと（任意）</label>
+      <textarea id="conditionNote" class="condition-note" placeholder="今日の気持ちをひとことで..."></textarea>
+    </div>
+    <button class="btn btn-primary btn-block btn-lg" onclick="submitCondition()" style="margin-top:8px">記録する</button>
+  </div>
+</div>
+
+<!-- ========== 4. タスク一覧 ========== -->
+<div id="screenTasks" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="navigate('home')">←</button>
+    <div class="header-title">タスク一覧</div>
+    <div></div>
+  </div>
+  <div id="tasksList"></div>
+</div>
+
+<!-- ========== 5. 学習モード選択 ========== -->
+<div id="screenStudyMode" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="navigate('home')">←</button>
+    <div class="header-title">学習モード選択</div>
+    <div></div>
+  </div>
+
+  <div class="mode-section" style="margin-top:16px">
+    <div class="mode-section-title">📖 科目を選択</div>
+    <div class="mode-grid" id="subjectGrid">
+      <button class="mode-btn" onclick="selectMode('subject','国語',this)"><div class="mode-btn-icon">📕</div><div class="mode-btn-label">国語</div></button>
+      <button class="mode-btn" onclick="selectMode('subject','数学',this)"><div class="mode-btn-icon">📐</div><div class="mode-btn-label">数学</div></button>
+      <button class="mode-btn" onclick="selectMode('subject','英語',this)"><div class="mode-btn-icon">🔤</div><div class="mode-btn-label">英語</div></button>
+      <button class="mode-btn" onclick="selectMode('subject','理科',this)"><div class="mode-btn-icon">🔬</div><div class="mode-btn-label">理科</div></button>
+      <button class="mode-btn" onclick="selectMode('subject','社会',this)"><div class="mode-btn-icon">🌍</div><div class="mode-btn-label">社会</div></button>
+      <button class="mode-btn" onclick="selectMode('subject','その他',this)"><div class="mode-btn-icon">📝</div><div class="mode-btn-label">その他</div></button>
+    </div>
+  </div>
+
+  <div class="mode-section">
+    <div class="mode-section-title">📍 場所を選択</div>
+    <div class="mode-grid mode-grid-2" id="locationGrid" style="grid-template-columns:1fr 1fr 1fr;">
+      <button class="mode-btn" onclick="selectMode('location','塾',this)"><div class="mode-btn-icon">🏫</div><div class="mode-btn-label">塾</div></button>
+      <button class="mode-btn" onclick="selectMode('location','自宅',this)"><div class="mode-btn-icon">🏠</div><div class="mode-btn-label">自宅</div></button>
+      <button class="mode-btn" onclick="selectMode('location','Zoom',this)"><div class="mode-btn-icon">💻</div><div class="mode-btn-label">Zoom</div></button>
+    </div>
+  </div>
+
+  <div class="mode-section">
+    <div class="mode-section-title">⏱️ 学習方法を選択</div>
+    <div class="mode-grid mode-grid-2">
+      <button class="mode-btn" onclick="selectMode('method','normal',this)"><div class="mode-btn-icon">⏱️</div><div class="mode-btn-label">通常タイマー</div></button>
+      <button class="mode-btn" onclick="selectMode('method','pomodoro',this)"><div class="mode-btn-icon">🍅</div><div class="mode-btn-label">ポモドーロ</div></button>
+    </div>
+  </div>
+
+  <div style="padding:0 16px 16px;">
+    <button id="startStudyBtn" class="btn btn-primary btn-block btn-lg" onclick="startStudy()" disabled>学習スタート！</button>
+  </div>
+</div>
+
+<!-- ========== 6. タイマー画面 ========== -->
+<div id="screenTimer" class="screen" style="padding-bottom:0;">
+  <div style="background:var(--gradient);min-height:100vh;color:white;padding-top:20px;">
+    <div class="header" style="background:transparent;">
+      <button class="header-back" onclick="confirmStopStudy()">←</button>
+      <div class="header-title">学習中</div>
+      <div></div>
+    </div>
+    <div class="timer-container">
+      <div class="timer-subject-badge" id="timerSubjectBadge"></div>
+      <div class="timer-circle">
+        <div class="timer-display" id="timerDisplay">00:00</div>
+        <div class="timer-label" id="timerLabel">経過時間</div>
+      </div>
+      <div class="timer-pomodoro-info" id="timerPomodoroInfo" style="display:none"></div>
+      <div class="timer-controls">
+        <button class="timer-btn timer-btn-start" id="timerStartBtn" onclick="toggleTimer()">▶</button>
+        <button class="timer-btn timer-btn-stop" onclick="confirmStopStudy()">■</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 7. 学習完了画面 ========== -->
+<div id="screenComplete" class="screen">
+  <div class="header">
+    <div></div>
+    <div class="header-title">学習完了！</div>
+    <div></div>
+  </div>
+  <div class="complete-screen">
+    <div class="celebration">🎉</div>
+    <div class="complete-label">獲得ポイント</div>
+    <div class="complete-points" id="completePoints">+0</div>
+    <div class="complete-stats">
+      <div class="complete-stat">
+        <div class="complete-stat-val" id="completeDuration">0分</div>
+        <div class="complete-stat-lbl">学習時間</div>
+      </div>
+      <div class="complete-stat">
+        <div class="complete-stat-val" id="completeSubject">-</div>
+        <div class="complete-stat-lbl">科目</div>
+      </div>
+      <div class="complete-stat">
+        <div class="complete-stat-val" id="completePomodoro" style="display:none">0回</div>
+        <div class="complete-stat-lbl" id="completePomodoroLabel" style="display:none">ポモドーロ</div>
+      </div>
+      <div class="complete-stat">
+        <div class="complete-stat-val" id="completeTotalPts">0</div>
+        <div class="complete-stat-lbl">累計ポイント</div>
+      </div>
+    </div>
+    <div id="completeBadges"></div>
+    <div id="completeRaid"></div>
+    <div style="padding:0 16px 20px;">
+      <button class="btn btn-primary btn-block btn-lg" onclick="navigate('home')">ホームに戻る</button>
+    </div>
+  </div>
+</div>
+
+<!-- ========== 8. ランキング画面 ========== -->
+<div id="screenRanking" class="screen">
+  <div class="header">
+    <div></div>
+    <div class="header-title">ランキング</div>
+    <div></div>
+  </div>
+  <div class="ranking-tabs">
+    <button class="ranking-tab active" onclick="switchRankingTab('points',this)">ポイント</button>
+    <button class="ranking-tab" onclick="switchRankingTab('streak',this)">連続日数</button>
+    <button class="ranking-tab" onclick="switchRankingTab('level',this)">レベル</button>
+  </div>
+  <div id="rankingList"></div>
+</div>
+
+<!-- ========== 9. 景品画面 ========== -->
+<div id="screenPrizes" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="navigate('home')">←</button>
+    <div class="header-title">景品交換</div>
+    <div></div>
+  </div>
+  <div class="current-points-banner" id="prizePointsBanner">所持ポイント: 0 pt</div>
+  <div id="prizeGrid" class="prize-grid"></div>
+</div>
+
+<!-- ========== 10. 履歴画面 ========== -->
+<div id="screenHistory" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="navigate('home')">←</button>
+    <div class="header-title">学習履歴</div>
+    <div></div>
+  </div>
+  <div id="historyList"></div>
+</div>
+
+<!-- ========== 11. バッジ画面 ========== -->
+<div id="screenBadges" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="navigate('home')">←</button>
+    <div class="header-title">バッジコレクション</div>
+    <div></div>
+  </div>
+  <div id="badgeCount" class="badge-count"></div>
+  <div id="badgeGrid" class="badge-grid"></div>
+</div>
+
+<!-- ========== 12. メッセージ画面 ========== -->
+<div id="screenMessages" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="navigate('home')">←</button>
+    <div class="header-title">メッセージ</div>
+    <div></div>
+  </div>
+  <div id="messagesList"></div>
+  <div class="msg-reply-box">
+    <input type="text" id="replyInput" class="msg-reply-input" placeholder="メッセージを入力...">
+    <button class="msg-reply-btn" onclick="sendReply()">送信</button>
+  </div>
+</div>
+
+<!-- ========== 13. ギルド画面 ========== -->
+<div id="screenGuild" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="navigate('home')">←</button>
+    <div class="header-title">ギルド</div>
+    <div></div>
+  </div>
+  <div id="guildContent"></div>
+</div>
+
+<!-- ========== 14. レイドボス画面 ========== -->
+<div id="screenRaidBoss" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="navigate('home')">←</button>
+    <div class="header-title">レイドボス</div>
+    <div></div>
+  </div>
+  <div id="raidBossContent"></div>
+</div>
+
+<!-- ========== Bottom Navigation ========== -->
+<nav id="bottomNav" class="bottom-nav" style="display:none;">
+  <button class="nav-item active" onclick="navTo('home')">
+    <span class="nav-icon">🏠</span>
+    <span class="nav-label">ホーム</span>
+  </button>
+  <button class="nav-item" onclick="navTo('studyMode')">
+    <span class="nav-icon">📚</span>
+    <span class="nav-label">学習</span>
+  </button>
+  <button class="nav-item" onclick="navTo('ranking')">
+    <span class="nav-icon">🏆</span>
+    <span class="nav-label">ランキング</span>
+  </button>
+  <button class="nav-item" style="position:relative" onclick="navTo('profile')">
+    <span class="nav-icon">👤</span>
+    <span class="nav-label">マイページ</span>
+    <span id="navMsgBadge" class="nav-badge" style="display:none">0</span>
+  </button>
+</nav>
+
+<!-- Firebase SDKs -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="db.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<script>
+// ============================================
+// State
+// ============================================
+let currentStudent = null;
+let currentScreen = 'login';
+let studySession = { subject: null, location: null, method: null };
+let timerState = { running: false, elapsed: 0, interval: null, pomodoroCount: 0, pomodoroPhase: 'work', pomodoroTime: 0 };
+let conditionValues = { mood: 0, energy: 0, motivation: 0 };
+let rankingData = [];
+let profileMenuOpen = false;
+
+// Subject icon map
+const SUBJECT_ICONS = { '国語': '📕', '数学': '📐', '英語': '🔤', '理科': '🔬', '社会': '🌍', 'その他': '📝' };
+
+// Level thresholds for progress bar
+const LEVEL_THRESHOLDS = [0, 50, 200, 400, 700, 1000, 1500, 2000, 3000, 5000, 99999];
+
+// ============================================
+// Navigation
+// ============================================
+function navigate(screen) {
+  document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+  const el = document.getElementById('screen' + screen.charAt(0).toUpperCase() + screen.slice(1));
+  if (el) {
+    el.classList.add('active');
+    currentScreen = screen;
+  }
+
+  // Show/hide bottom nav
+  const nav = document.getElementById('bottomNav');
+  nav.style.display = (screen === 'login') ? 'none' : 'flex';
+
+  // Update nav active states
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+
+  // Load screen data
+  switch(screen) {
+    case 'home': loadHome(); highlightNav(0); break;
+    case 'studyMode': resetStudyMode(); highlightNav(1); break;
+    case 'ranking': loadRanking(); highlightNav(2); break;
+    case 'condition': resetCondition(); break;
+    case 'tasks': loadTasks(); break;
+    case 'prizes': loadPrizes(); break;
+    case 'history': loadHistory(); break;
+    case 'badges': loadBadges(); break;
+    case 'messages': loadMessages(); break;
+    case 'guild': loadGuild(); break;
+    case 'raidBoss': loadRaidBoss(); break;
+  }
+}
+
+function navTo(target) {
+  if (target === 'profile') {
+    showProfileMenu();
+    return;
+  }
+  navigate(target);
+}
+
+function highlightNav(idx) {
+  const items = document.querySelectorAll('.nav-item');
+  items.forEach(n => n.classList.remove('active'));
+  if (items[idx]) items[idx].classList.add('active');
+}
+
+function showProfileMenu() {
+  highlightNav(3);
+  // Show a simple profile submenu via modal
+  showModal('👤', 'マイページ', currentStudent ? currentStudent.name : '', `
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('history')" style="margin-bottom:8px">📊 学習履歴</button>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('badges')" style="margin-bottom:8px">🏅 バッジ</button>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('guild')" style="margin-bottom:8px">⚔️ ギルド</button>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('condition')" style="margin-bottom:8px">😊 コンディション</button>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('messages')" style="margin-bottom:8px">💬 メッセージ</button>
+    <button class="btn btn-block btn-danger" onclick="closeModal();logout()">ログアウト</button>
+  `, true);
+}
+
+// ============================================
+// Login
+// ============================================
+async function handleLogin() {
+  const nickname = document.getElementById('loginNickname').value.trim();
+  const pin = document.getElementById('loginPin').value.trim();
+  const errEl = document.getElementById('loginError');
+  errEl.style.display = 'none';
+
+  if (!nickname || !pin || pin.length !== 4) {
+    errEl.textContent = 'ニックネームと4桁のPINを入力してください';
+    errEl.style.display = 'block';
+    return;
+  }
+
+  showLoading();
+  try {
+    const student = await StudentsDB.getByNicknameAndPin(nickname, pin);
+    if (!student) {
+      errEl.textContent = 'ニックネームまたはPINが正しくありません';
+      errEl.style.display = 'block';
+      hideLoading();
+      return;
+    }
+    currentStudent = student;
+    localStorage.setItem('heroAcademy_student', JSON.stringify({ id: student.id, nickname, pin }));
+    navigate('home');
+  } catch(e) {
+    console.error(e);
+    errEl.textContent = 'ログインに失敗しました。通信状態を確認してください。';
+    errEl.style.display = 'block';
+  }
+  hideLoading();
+}
+
+function logout() {
+  currentStudent = null;
+  localStorage.removeItem('heroAcademy_student');
+  document.getElementById('loginNickname').value = '';
+  document.getElementById('loginPin').value = '';
+  navigate('login');
+}
+
+async function tryAutoLogin() {
+  const saved = localStorage.getItem('heroAcademy_student');
+  if (!saved) return;
+  try {
+    const { id, nickname, pin } = JSON.parse(saved);
+    showLoading();
+    const student = await StudentsDB.getByNicknameAndPin(nickname, pin);
+    if (student) {
+      currentStudent = student;
+      navigate('home');
+    }
+  } catch(e) { console.error(e); }
+  hideLoading();
+}
+
+// ============================================
+// Home
+// ============================================
+async function loadHome() {
+  if (!currentStudent) return;
+  // Refresh student data
+  try {
+    const fresh = await StudentsDB.getById(currentStudent.id);
+    if (fresh) currentStudent = fresh;
+  } catch(e) {}
+
+  const s = currentStudent;
+  const hour = new Date().getHours();
+  let greeting = 'こんにちは！';
+  if (hour < 10) greeting = 'おはよう！';
+  else if (hour >= 18) greeting = 'こんばんは！';
+
+  document.getElementById('homeGreeting').textContent = greeting;
+  document.getElementById('homeName').textContent = s.name + ' さん';
+  document.getElementById('homePoints').textContent = (s.currentPoints || 0).toLocaleString();
+  const level = calcLevel(s.totalPoints || 0);
+  document.getElementById('homeLevel').textContent = level;
+  document.getElementById('homeStreak').textContent = s.streak || 0;
+
+  // Guild badge
+  const guildBadge = document.getElementById('homeGuildBadge');
+  if (s.guildId) {
+    try {
+      const guild = await GuildsDB.getById(s.guildId);
+      if (guild) {
+        guildBadge.innerHTML = `${guild.icon} ${guild.name}`;
+        guildBadge.style.display = 'inline-flex';
+      }
+    } catch(e) { guildBadge.style.display = 'none'; }
+  } else {
+    guildBadge.style.display = 'none';
+  }
+
+  // Level progress bar
+  const currentThreshold = LEVEL_THRESHOLDS[level - 1] || 0;
+  const nextThreshold = LEVEL_THRESHOLDS[level] || 99999;
+  const pts = s.totalPoints || 0;
+  const progress = Math.min(100, ((pts - currentThreshold) / (nextThreshold - currentThreshold)) * 100);
+  document.getElementById('homeLevelFill').style.width = progress + '%';
+  document.getElementById('homeLevelText').textContent = `Lv.${level} → Lv.${level + 1} まであと ${Math.max(0, nextThreshold - pts)} pt`;
+
+  // Recent logs
+  try {
+    const logs = await StudyLogsDB.getByStudent(s.id, 5);
+    const container = document.getElementById('homeRecentLogs');
+    if (logs.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-icon">📚</div><div class="empty-text">まだ学習記録がありません</div></div>';
+    } else {
+      container.innerHTML = logs.map(l => `
+        <div class="history-item">
+          <div class="history-subject-icon">${SUBJECT_ICONS[l.subject] || '📝'}</div>
+          <div class="history-info">
+            <div class="history-subject">${l.subject}</div>
+            <div class="history-meta">${l.date} / ${l.duration}分 / ${l.location || '塾'}</div>
+          </div>
+          <div class="history-points">+${l.points}pt</div>
+        </div>
+      `).join('');
+    }
+  } catch(e) {}
+
+  // Check unread messages
+  try {
+    const count = await MessagesDB.getUnreadCount(s.id);
+    const badge = document.getElementById('navMsgBadge');
+    if (count > 0) {
+      badge.textContent = count;
+      badge.style.display = 'flex';
+    } else {
+      badge.style.display = 'none';
+    }
+  } catch(e) {}
+}
+
+// ============================================
+// Condition
+// ============================================
+function resetCondition() {
+  conditionValues = { mood: 0, energy: 0, motivation: 0 };
+  document.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('conditionNote').value = '';
+}
+
+function selectEmoji(type, val, btn) {
+  conditionValues[type] = val;
+  const row = btn.parentElement;
+  row.querySelectorAll('.emoji-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+}
+
+async function submitCondition() {
+  if (!conditionValues.mood || !conditionValues.energy || !conditionValues.motivation) {
+    showToast('全ての項目を選択してください');
+    return;
+  }
+  showLoading();
+  try {
+    await ConditionsDB.add({
+      studentId: currentStudent.id,
+      studentName: currentStudent.name,
+      mood: conditionValues.mood,
+      energy: conditionValues.energy,
+      motivation: conditionValues.motivation,
+      note: document.getElementById('conditionNote').value.trim()
+    });
+    showToast('コンディションを記録しました！');
+    navigate('home');
+  } catch(e) {
+    console.error(e);
+    showToast('記録に失敗しました');
+  }
+  hideLoading();
+}
+
+// ============================================
+// Tasks
+// ============================================
+async function loadTasks() {
+  showLoading();
+  try {
+    const [tasks, completions] = await Promise.all([
+      TasksDB.getActive(),
+      TasksDB.getCompletions(currentStudent.id)
+    ]);
+    const completedIds = new Set(completions.map(c => c.taskId));
+    const container = document.getElementById('tasksList');
+
+    if (tasks.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-icon">✅</div><div class="empty-text">現在アクティブなタスクはありません</div></div>';
+    } else {
+      container.innerHTML = tasks.map(t => {
+        const done = completedIds.has(t.id);
+        return `
+          <div class="task-item ${done ? '' : ''}" onclick="${done ? '' : `completeTask('${t.id}','${t.title}',${t.points})`}" style="${done ? 'opacity:0.6' : ''}">
+            <div class="task-icon">${done ? '✅' : (t.category === 'study' ? '📖' : t.category === 'behavior' ? '🌟' : '🎯')}</div>
+            <div class="task-info">
+              <div class="task-title">${t.title}</div>
+              <div class="task-desc">${t.description || ''}</div>
+            </div>
+            ${done ? '<span class="task-completed">完了</span>' : `<span class="task-points">+${t.points}pt</span>`}
+          </div>
+        `;
+      }).join('');
+    }
+  } catch(e) {
+    console.error(e);
+    showToast('タスクの読み込みに失敗しました');
+  }
+  hideLoading();
+}
+
+async function completeTask(taskId, title, points) {
+  showModal('✅', 'タスク完了', `「${title}」を完了して ${points}pt を獲得しますか？`, `
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" onclick="closeModal();doCompleteTask('${taskId}',${points})">完了！</button>
+  `, true);
+}
+
+async function doCompleteTask(taskId, points) {
+  showLoading();
+  try {
+    await TasksDB.complete(taskId, currentStudent.id, currentStudent.name);
+    await StudentsDB.addPoints(currentStudent.id, points);
+
+    // Guild points
+    if (currentStudent.guildId) {
+      await GuildsDB.addPoints(currentStudent.guildId, points);
+    }
+
+    showToast(`+${points}pt 獲得！`);
+    await loadTasks();
+  } catch(e) {
+    console.error(e);
+    showToast('完了に失敗しました');
+  }
+  hideLoading();
+}
+
+// ============================================
+// Study Mode Selection
+// ============================================
+function resetStudyMode() {
+  studySession = { subject: null, location: null, method: null };
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
+  document.getElementById('startStudyBtn').disabled = true;
+}
+
+function selectMode(type, value, btn) {
+  studySession[type] = value;
+  const grid = btn.parentElement;
+  grid.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+
+  // Enable start button when all selected
+  document.getElementById('startStudyBtn').disabled =
+    !(studySession.subject && studySession.location && studySession.method);
+}
+
+// ============================================
+// Timer
+// ============================================
+function startStudy() {
+  if (!studySession.subject || !studySession.location || !studySession.method) return;
+
+  timerState = { running: false, elapsed: 0, interval: null, pomodoroCount: 0, pomodoroPhase: 'work', pomodoroTime: 25 * 60 };
+
+  const badge = document.getElementById('timerSubjectBadge');
+  badge.innerHTML = `${SUBJECT_ICONS[studySession.subject] || '📝'} ${studySession.subject} / ${studySession.location}`;
+
+  const pomoInfo = document.getElementById('timerPomodoroInfo');
+  if (studySession.method === 'pomodoro') {
+    pomoInfo.style.display = 'block';
+    pomoInfo.textContent = '🍅 ポモドーロ 1回目 - 作業時間 25:00';
+    document.getElementById('timerLabel').textContent = '残り時間';
+    updateTimerDisplay(timerState.pomodoroTime);
+  } else {
+    pomoInfo.style.display = 'none';
+    document.getElementById('timerLabel').textContent = '経過時間';
+    updateTimerDisplay(0);
+  }
+
+  document.getElementById('timerStartBtn').innerHTML = '▶';
+  navigate('timer');
+}
+
+function toggleTimer() {
+  if (timerState.running) {
+    pauseTimer();
+  } else {
+    resumeTimer();
+  }
+}
+
+function resumeTimer() {
+  timerState.running = true;
+  document.getElementById('timerStartBtn').innerHTML = '⏸';
+  document.getElementById('timerStartBtn').className = 'timer-btn timer-btn-pause';
+
+  timerState.interval = setInterval(() => {
+    timerState.elapsed++;
+
+    if (studySession.method === 'pomodoro') {
+      timerState.pomodoroTime--;
+      updateTimerDisplay(Math.max(0, timerState.pomodoroTime));
+
+      const pomoInfo = document.getElementById('timerPomodoroInfo');
+      if (timerState.pomodoroTime <= 0) {
+        if (timerState.pomodoroPhase === 'work') {
+          timerState.pomodoroCount++;
+          timerState.pomodoroPhase = 'break';
+          timerState.pomodoroTime = 5 * 60;
+          pomoInfo.textContent = `🍅 ${timerState.pomodoroCount}回完了！ 休憩 5:00`;
+          showToast('ポモドーロ完了！5分休憩です');
+          try { navigator.vibrate && navigator.vibrate(500); } catch(e) {}
+        } else {
+          timerState.pomodoroPhase = 'work';
+          timerState.pomodoroTime = 25 * 60;
+          pomoInfo.textContent = `🍅 ポモドーロ ${timerState.pomodoroCount + 1}回目 - 作業時間 25:00`;
+          showToast('休憩終了！次のポモドーロ開始');
+          try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch(e) {}
+        }
+      } else {
+        const phase = timerState.pomodoroPhase === 'work' ? '作業時間' : '休憩';
+        pomoInfo.textContent = `🍅 ${timerState.pomodoroPhase === 'work' ? `ポモドーロ ${timerState.pomodoroCount + 1}回目` : `${timerState.pomodoroCount}回完了！`} - ${phase}`;
+      }
+    } else {
+      updateTimerDisplay(timerState.elapsed);
+    }
+  }, 1000);
+}
+
+function pauseTimer() {
+  timerState.running = false;
+  clearInterval(timerState.interval);
+  document.getElementById('timerStartBtn').innerHTML = '▶';
+  document.getElementById('timerStartBtn').className = 'timer-btn timer-btn-start';
+}
+
+function updateTimerDisplay(seconds) {
+  const m = Math.floor(seconds / 60);
+  const s = seconds % 60;
+  document.getElementById('timerDisplay').textContent =
+    String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+}
+
+function confirmStopStudy() {
+  if (timerState.elapsed < 60) {
+    // Less than 1 minute, just go back
+    stopStudy(false);
+    return;
+  }
+  showModal('⏱️', '学習を終了しますか？', `${Math.floor(timerState.elapsed / 60)}分間 学習しました`, `
+    <button class="btn btn-secondary" onclick="closeModal()">続ける</button>
+    <button class="btn btn-primary" onclick="closeModal();stopStudy(true)">終了して記録</button>
+  `, true);
+}
+
+async function stopStudy(save) {
+  pauseTimer();
+  clearInterval(timerState.interval);
+
+  if (!save || timerState.elapsed < 60) {
+    navigate('home');
+    return;
+  }
+
+  showLoading();
+  const duration = Math.floor(timerState.elapsed / 60);
+  // Points: 1pt per minute base, pomodoro bonus
+  let points = duration;
+  if (studySession.method === 'pomodoro' && timerState.pomodoroCount > 0) {
+    points += timerState.pomodoroCount * 5; // 5pt bonus per pomodoro
+  }
+
+  try {
+    // Save study log
+    await StudyLogsDB.add({
+      studentId: currentStudent.id,
+      studentName: currentStudent.name,
+      subject: studySession.subject,
+      duration: duration,
+      points: points,
+      location: studySession.location,
+      method: studySession.method,
+      pomodoroCount: timerState.pomodoroCount
+    });
+
+    // Add points to student
+    await StudentsDB.addPoints(currentStudent.id, points);
+
+    // Update streak
+    await updateStreak();
+
+    // Refresh student
+    currentStudent = await StudentsDB.getById(currentStudent.id);
+
+    // Guild points
+    if (currentStudent.guildId) {
+      try {
+        await GuildsDB.addPoints(currentStudent.guildId, points);
+      } catch(e) {}
+    }
+
+    // Raid boss damage
+    let raidResults = [];
+    try {
+      const activeBosses = await RaidBossDB.getActive();
+      for (const boss of activeBosses) {
+        const result = await RaidBossDB.damage(boss.id, currentStudent.id, currentStudent.name, points);
+        if (result) {
+          raidResults.push({ ...result, bossName: boss.name, bossIcon: boss.icon });
+          if (result.defeated) {
+            await StudentsDB.addPoints(currentStudent.id, result.reward);
+            await BadgesDB.award(currentStudent.id, 'raid_killer');
+          }
+        }
+      }
+    } catch(e) {}
+
+    // Check badges
+    let newBadges = [];
+    try {
+      const allLogs = await StudyLogsDB.getByStudent(currentStudent.id, 500);
+      const stats = {
+        totalStudySessions: allLogs.length,
+        streak: currentStudent.streak || 0,
+        totalPoints: currentStudent.totalPoints || 0,
+        totalMinutes: allLogs.reduce((s, l) => s + (l.duration || 0), 0),
+        totalPomodoros: allLogs.reduce((s, l) => s + (l.pomodoroCount || 0), 0),
+        subjectCount: new Set(allLogs.map(l => l.subject)).size,
+        homeStudyCount: allLogs.filter(l => l.location === '自宅').length,
+        zoomStudyCount: allLogs.filter(l => l.location === 'Zoom').length
+      };
+      newBadges = await BadgesDB.checkAndAward(currentStudent.id, stats);
+    } catch(e) {}
+
+    // Refresh student again after possible raid rewards
+    currentStudent = await StudentsDB.getById(currentStudent.id);
+
+    // Show complete screen
+    showCompleteScreen(duration, points, newBadges, raidResults);
+  } catch(e) {
+    console.error(e);
+    showToast('記録に失敗しました');
+    navigate('home');
+  }
+  hideLoading();
+}
+
+async function updateStreak() {
+  try {
+    const today = getToday();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+    // Check if studied yesterday
+    const yesterdayLogs = await StudyLogsDB.getByDate(yesterdayStr);
+    const todayLogs = await StudyLogsDB.getByDate(today);
+
+    const studiedYesterday = yesterdayLogs.some(l => l.studentId === currentStudent.id);
+    const studiedToday = todayLogs.filter(l => l.studentId === currentStudent.id).length;
+
+    if (studiedToday <= 1) {
+      // First study today
+      if (studiedYesterday) {
+        await StudentsDB.update(currentStudent.id, {
+          streak: firebase.firestore.FieldValue.increment(1)
+        });
+      } else {
+        await StudentsDB.update(currentStudent.id, { streak: 1 });
+      }
+    }
+  } catch(e) { console.error(e); }
+}
+
+function showCompleteScreen(duration, points, newBadges, raidResults) {
+  document.getElementById('completePoints').textContent = `+${points}`;
+  document.getElementById('completeDuration').textContent = `${duration}分`;
+  document.getElementById('completeSubject').textContent = studySession.subject;
+  document.getElementById('completeTotalPts').textContent = (currentStudent.totalPoints || 0).toLocaleString();
+
+  const pomoEl = document.getElementById('completePomodoro');
+  const pomoLabel = document.getElementById('completePomodoroLabel');
+  if (studySession.method === 'pomodoro' && timerState.pomodoroCount > 0) {
+    pomoEl.textContent = timerState.pomodoroCount + '回';
+    pomoEl.style.display = 'block';
+    pomoLabel.style.display = 'block';
+  } else {
+    pomoEl.style.display = 'none';
+    pomoLabel.style.display = 'none';
+  }
+
+  // Badges
+  const badgesEl = document.getElementById('completeBadges');
+  if (newBadges.length > 0) {
+    const badgeDefs = newBadges.map(id => BADGE_DEFINITIONS.find(b => b.id === id)).filter(Boolean);
+    badgesEl.innerHTML = badgeDefs.map(b => `
+      <div class="badge-notification">
+        <div style="font-size:13px;opacity:0.9">🏅 新しいバッジ獲得！</div>
+        <div style="font-size:28px;margin:6px 0">${b.icon}</div>
+        <div style="font-weight:700">${b.name}</div>
+        <div style="font-size:12px;opacity:0.9">${b.desc}</div>
+      </div>
+    `).join('');
+  } else {
+    badgesEl.innerHTML = '';
+  }
+
+  // Raid
+  const raidEl = document.getElementById('completeRaid');
+  if (raidResults.length > 0) {
+    raidEl.innerHTML = raidResults.map(r => `
+      <div class="raid-notification">
+        <div style="font-size:13px;opacity:0.9">⚔️ レイドボスにダメージ！</div>
+        <div style="font-size:24px;margin:6px 0">${r.bossIcon || '👹'} ${r.bossName || 'ボス'}</div>
+        <div style="font-weight:700">${points}ダメージ</div>
+        ${r.defeated ? '<div style="color:#ffd700;font-weight:700;margin-top:4px">🎉 討伐成功！ +' + r.reward + 'pt ボーナス！</div>' : ''}
+      </div>
+    `).join('');
+  } else {
+    raidEl.innerHTML = '';
+  }
+
+  navigate('complete');
+  fireConfetti();
+}
+
+// ============================================
+// Ranking
+// ============================================
+async function loadRanking(sortBy = 'points') {
+  showLoading();
+  try {
+    const students = await StudentsDB.getAll();
+    rankingData = students;
+    renderRanking(sortBy);
+  } catch(e) {
+    console.error(e);
+    showToast('ランキングの読み込みに失敗しました');
+  }
+  hideLoading();
+}
+
+function switchRankingTab(sortBy, btn) {
+  document.querySelectorAll('.ranking-tab').forEach(t => t.classList.remove('active'));
+  btn.classList.add('active');
+  renderRanking(sortBy);
+}
+
+function renderRanking(sortBy) {
+  let sorted;
+  switch(sortBy) {
+    case 'streak': sorted = [...rankingData].sort((a, b) => (b.streak || 0) - (a.streak || 0)); break;
+    case 'level': sorted = [...rankingData].sort((a, b) => calcLevel(b.totalPoints || 0) - calcLevel(a.totalPoints || 0)); break;
+    default: sorted = [...rankingData].sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0)); break;
+  }
+
+  const container = document.getElementById('rankingList');
+  container.innerHTML = sorted.map((s, i) => {
+    const rank = i + 1;
+    const isSelf = currentStudent && s.id === currentStudent.id;
+    const rankClass = rank <= 3 ? `rank-${rank}` : 'rank-other';
+    let value;
+    switch(sortBy) {
+      case 'streak': value = (s.streak || 0) + '日'; break;
+      case 'level': value = 'Lv.' + calcLevel(s.totalPoints || 0); break;
+      default: value = (s.totalPoints || 0).toLocaleString() + 'pt'; break;
+    }
+    return `
+      <div class="ranking-item ${isSelf ? 'self' : ''}">
+        <div class="ranking-rank ${rankClass}">${rank <= 3 ? ['🥇','🥈','🥉'][rank-1] : rank}</div>
+        <div class="ranking-name">${s.name}${isSelf ? ' (あなた)' : ''}</div>
+        <div class="ranking-pts">${value}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+// ============================================
+// Prizes
+// ============================================
+async function loadPrizes() {
+  showLoading();
+  try {
+    const fresh = await StudentsDB.getById(currentStudent.id);
+    if (fresh) currentStudent = fresh;
+    const pts = currentStudent.currentPoints || 0;
+    document.getElementById('prizePointsBanner').textContent = `所持ポイント: ${pts.toLocaleString()} pt`;
+
+    const prizes = await PrizesDB.getAll();
+    const activePrizes = prizes.filter(p => p.active !== false);
+    const container = document.getElementById('prizeGrid');
+
+    if (activePrizes.length === 0) {
+      container.innerHTML = '<div class="empty-state" style="grid-column:span 2"><div class="empty-icon">🎁</div><div class="empty-text">景品はまだ登録されていません</div></div>';
+    } else {
+      container.innerHTML = activePrizes.map(p => {
+        const canAfford = pts >= p.cost;
+        const inStock = p.stock === -1 || p.stock > 0;
+        const available = canAfford && inStock;
+        return `
+          <div class="prize-card ${available ? '' : 'prize-unavailable'}" onclick="${available ? `exchangePrize('${p.id}','${p.name.replace(/'/g,"\\'")}',${p.cost})` : ''}">
+            <div class="prize-icon">${p.icon || '🎁'}</div>
+            <div class="prize-name">${p.name}</div>
+            <div class="prize-cost">${p.cost.toLocaleString()} pt</div>
+            ${p.stock >= 0 ? `<div class="prize-stock">残り${p.stock}個</div>` : ''}
+            ${!canAfford ? '<div class="prize-stock" style="color:var(--danger)">ポイント不足</div>' : ''}
+          </div>
+        `;
+      }).join('');
+    }
+  } catch(e) {
+    console.error(e);
+    showToast('景品の読み込みに失敗しました');
+  }
+  hideLoading();
+}
+
+function exchangePrize(prizeId, name, cost) {
+  showModal('🎁', '景品交換', `「${name}」を ${cost}pt で交換しますか？`, `
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" onclick="closeModal();doExchange('${prizeId}','${name.replace(/'/g,"\\'")}',${cost})">交換する</button>
+  `, true);
+}
+
+async function doExchange(prizeId, name, cost) {
+  showLoading();
+  try {
+    await PrizesDB.exchange(prizeId, currentStudent.id, currentStudent.name, cost);
+    showToast(`🎉「${name}」を交換しました！`);
+    await loadPrizes();
+  } catch(e) {
+    console.error(e);
+    showToast('交換に失敗しました');
+  }
+  hideLoading();
+}
+
+// ============================================
+// History
+// ============================================
+async function loadHistory() {
+  showLoading();
+  try {
+    const logs = await StudyLogsDB.getByStudent(currentStudent.id, 100);
+    const container = document.getElementById('historyList');
+
+    if (logs.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-icon">📊</div><div class="empty-text">学習履歴はまだありません</div></div>';
+    } else {
+      let lastDate = '';
+      let html = '';
+      for (const l of logs) {
+        const date = l.date || '';
+        if (date !== lastDate) {
+          html += `<div class="history-date-header">${date}</div>`;
+          lastDate = date;
+        }
+        html += `
+          <div class="history-item">
+            <div class="history-subject-icon">${SUBJECT_ICONS[l.subject] || '📝'}</div>
+            <div class="history-info">
+              <div class="history-subject">${l.subject}</div>
+              <div class="history-meta">${l.duration}分 / ${l.location || '塾'} / ${l.method === 'pomodoro' ? '🍅' + (l.pomodoroCount || 0) + '回' : '通常'}</div>
+            </div>
+            <div class="history-points">+${l.points}pt</div>
+          </div>
+        `;
+      }
+      container.innerHTML = html;
+    }
+  } catch(e) {
+    console.error(e);
+    showToast('履歴の読み込みに失敗しました');
+  }
+  hideLoading();
+}
+
+// ============================================
+// Badges
+// ============================================
+async function loadBadges() {
+  showLoading();
+  try {
+    const earned = await BadgesDB.getByStudent(currentStudent.id);
+    const earnedIds = new Set(earned.map(b => b.badgeId));
+    const count = earnedIds.size;
+
+    document.getElementById('badgeCount').textContent = `${count} / ${BADGE_DEFINITIONS.length} 獲得`;
+
+    const container = document.getElementById('badgeGrid');
+    container.innerHTML = BADGE_DEFINITIONS.map(b => {
+      const unlocked = earnedIds.has(b.id);
+      return `
+        <div class="badge-item ${unlocked ? '' : 'locked'}">
+          <div class="badge-icon">${b.icon}</div>
+          <div class="badge-name">${b.name}</div>
+          <div class="badge-desc">${b.desc}</div>
+        </div>
+      `;
+    }).join('');
+  } catch(e) {
+    console.error(e);
+    showToast('バッジの読み込みに失敗しました');
+  }
+  hideLoading();
+}
+
+// ============================================
+// Messages
+// ============================================
+async function loadMessages() {
+  showLoading();
+  try {
+    const messages = await MessagesDB.getByStudent(currentStudent.id);
+
+    // Also get student-sent messages (replies)
+    const allMsgs = await MessagesDB.getAll();
+    const myReplies = allMsgs.filter(m => m.fromType === 'student' && m.replyTo);
+
+    const container = document.getElementById('messagesList');
+    if (messages.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-icon">💬</div><div class="empty-text">メッセージはありません</div></div>';
+    } else {
+      container.innerHTML = messages.map(m => {
+        const time = m.createdAt ? formatDateTime(m.createdAt) : '';
+        return `
+          <div class="msg-item ${m.read ? '' : 'unread'}" onclick="markMsgRead('${m.id}',${m.read})">
+            <div class="msg-from">${m.fromType === 'teacher' ? '👨‍🏫 先生' : '📩 あなた'}</div>
+            <div class="msg-content">${m.content}</div>
+            <div class="msg-time">${time}</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    // Mark all as read
+    for (const m of messages) {
+      if (!m.read) {
+        try { await MessagesDB.markRead(m.id); } catch(e) {}
+      }
+    }
+  } catch(e) {
+    console.error(e);
+    showToast('メッセージの読み込みに失敗しました');
+  }
+  hideLoading();
+}
+
+async function markMsgRead(id, isRead) {
+  if (!isRead) {
+    try { await MessagesDB.markRead(id); } catch(e) {}
+  }
+}
+
+async function sendReply() {
+  const input = document.getElementById('replyInput');
+  const text = input.value.trim();
+  if (!text) return;
+
+  try {
+    await MessagesDB.send({
+      fromType: 'student',
+      toStudentId: currentStudent.id,
+      toStudentName: currentStudent.name,
+      content: text,
+      replyTo: currentStudent.id
+    });
+    input.value = '';
+    showToast('メッセージを送信しました');
+    await loadMessages();
+  } catch(e) {
+    console.error(e);
+    showToast('送信に失敗しました');
+  }
+}
+
+// ============================================
+// Guild
+// ============================================
+async function loadGuild() {
+  showLoading();
+  const container = document.getElementById('guildContent');
+  try {
+    if (!currentStudent.guildId) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-icon">⚔️</div><div class="empty-text">まだギルドに所属していません<br>先生に相談してみよう！</div></div>';
+      hideLoading();
+      return;
+    }
+
+    const guild = await GuildsDB.getById(currentStudent.guildId);
+    if (!guild) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-icon">⚔️</div><div class="empty-text">ギルド情報が見つかりません</div></div>';
+      hideLoading();
+      return;
+    }
+
+    // Get guild members
+    const allStudents = await StudentsDB.getAll();
+    const members = allStudents.filter(s => guild.members && guild.members.includes(s.id));
+    members.sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0));
+
+    // Get guild ranking
+    const allGuilds = await GuildsDB.getRanking();
+    const guildRank = allGuilds.findIndex(g => g.id === guild.id) + 1;
+
+    let html = `
+      <div class="card card-gradient guild-header-card" style="background:linear-gradient(135deg,${guild.color || '#667eea'},${guild.color || '#764ba2'}cc)">
+        <div class="guild-icon">${guild.icon || '⚔️'}</div>
+        <div class="guild-name">${guild.name}</div>
+        <div class="guild-points">${(guild.totalPoints || 0).toLocaleString()} pt / ギルドランク ${guildRank}位</div>
+      </div>
+      <div class="guild-members-title">メンバー (${members.length}人)</div>
+    `;
+
+    html += members.map(m => {
+      const isSelf = m.id === currentStudent.id;
+      return `
+        <div class="guild-member" style="${isSelf ? 'background:var(--gradient-light)' : ''}">
+          <div class="guild-member-avatar">${m.name ? m.name.charAt(0) : '?'}</div>
+          <div class="guild-member-name">${m.name}${isSelf ? ' (あなた)' : ''}</div>
+          <div class="guild-member-pts">${(m.totalPoints || 0).toLocaleString()} pt</div>
+        </div>
+      `;
+    }).join('');
+
+    // Guild ranking
+    if (allGuilds.length > 1) {
+      html += '<div class="home-section-title">ギルドランキング</div>';
+      html += allGuilds.map((g, i) => {
+        const isMy = g.id === guild.id;
+        return `
+          <div class="ranking-item ${isMy ? 'self' : ''}">
+            <div class="ranking-rank ${i < 3 ? 'rank-' + (i+1) : 'rank-other'}">${i < 3 ? ['🥇','🥈','🥉'][i] : i+1}</div>
+            <div class="ranking-name">${g.icon || ''} ${g.name}${isMy ? ' (所属)' : ''}</div>
+            <div class="ranking-pts">${(g.totalPoints || 0).toLocaleString()} pt</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    container.innerHTML = html;
+  } catch(e) {
+    console.error(e);
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">ギルド情報の読み込みに失敗しました</div></div>';
+  }
+  hideLoading();
+}
+
+// ============================================
+// Raid Boss
+// ============================================
+async function loadRaidBoss() {
+  showLoading();
+  const container = document.getElementById('raidBossContent');
+  try {
+    const bosses = await RaidBossDB.getAll();
+
+    if (bosses.length === 0) {
+      container.innerHTML = '<div class="empty-state"><div class="empty-icon">👹</div><div class="empty-text">現在アクティブなレイドボスはいません</div></div>';
+      hideLoading();
+      return;
+    }
+
+    let html = '';
+    for (const boss of bosses) {
+      const hpPercent = boss.maxHp > 0 ? Math.max(0, (boss.currentHp / boss.maxHp) * 100) : 0;
+      const defeated = boss.defeated;
+
+      html += `
+        <div class="raid-card">
+          <div class="raid-boss-icon">${boss.icon || '👹'}</div>
+          <div class="raid-boss-name">${boss.name}</div>
+          <div class="raid-hp-bar">
+            <div class="raid-hp-fill" style="width:${hpPercent}%;${defeated ? 'background:#48bb78' : ''}"></div>
+          </div>
+          <div class="raid-hp-text">${defeated ? '討伐完了！' : `HP: ${boss.currentHp.toLocaleString()} / ${boss.maxHp.toLocaleString()}`}</div>
+          <div class="raid-reward">${defeated ? '🎉 報酬 ' + boss.reward + 'pt 獲得済み' : '🏆 討伐報酬: ' + boss.reward + 'pt'}</div>
+          ${defeated ? '<div class="raid-defeated">DEFEATED</div>' : ''}
+        </div>
+      `;
+
+      // Damage log
+      try {
+        const damageLog = await RaidBossDB.getDamageLog(boss.id);
+        if (damageLog.length > 0) {
+          html += '<div class="raid-damage-log"><div class="home-section-title">ダメージログ</div>';
+          html += damageLog.slice(0, 10).map(d => `
+            <div class="raid-damage-item">
+              <span>⚔️</span>
+              <span style="flex:1;font-weight:600">${d.studentName || '???'}</span>
+              <span style="color:var(--danger);font-weight:700">-${d.amount} HP</span>
+            </div>
+          `).join('');
+          html += '</div>';
+        }
+      } catch(e) {}
+    }
+
+    container.innerHTML = html;
+  } catch(e) {
+    console.error(e);
+    container.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠️</div><div class="empty-text">レイドボス情報の読み込みに失敗しました</div></div>';
+  }
+  hideLoading();
+}
+
+// ============================================
+// UI Helpers
+// ============================================
+function showLoading() { document.getElementById('loadingOverlay').classList.add('show'); }
+function hideLoading() { document.getElementById('loadingOverlay').classList.remove('show'); }
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+function showModal(icon, title, text, btnsHtml, rawBtns) {
+  document.getElementById('modalIcon').textContent = icon;
+  document.getElementById('modalTitle').textContent = title;
+  if (rawBtns) {
+    document.getElementById('modalText').innerHTML = text;
+    document.getElementById('modalBtns').innerHTML = btnsHtml;
+  } else {
+    document.getElementById('modalText').textContent = text;
+    document.getElementById('modalBtns').innerHTML = btnsHtml;
+  }
+  document.getElementById('modalOverlay').classList.add('show');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('show');
+}
+
+function fireConfetti() {
+  const container = document.getElementById('confettiContainer');
+  container.innerHTML = '';
+  const colors = ['#667eea', '#764ba2', '#ffd700', '#fc8181', '#48bb78', '#63b3ed', '#f6ad55'];
+  for (let i = 0; i < 50; i++) {
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = Math.random() * 100 + '%';
+    c.style.background = colors[Math.floor(Math.random() * colors.length)];
+    c.style.animationDelay = Math.random() * 2 + 's';
+    c.style.animationDuration = (2 + Math.random() * 2) + 's';
+    c.style.width = (6 + Math.random() * 8) + 'px';
+    c.style.height = (6 + Math.random() * 8) + 'px';
+    c.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+    container.appendChild(c);
+  }
+  setTimeout(() => container.innerHTML = '', 4000);
+}
+
+// ============================================
+// PIN input auto-login
+// ============================================
+document.getElementById('loginPin').addEventListener('input', function() {
+  if (this.value.length === 4 && document.getElementById('loginNickname').value.trim()) {
+    handleLogin();
+  }
+});
+
+document.getElementById('loginNickname').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') document.getElementById('loginPin').focus();
+});
+
+document.getElementById('loginPin').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') handleLogin();
+});
+
+document.getElementById('replyInput').addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') sendReply();
+});
+
+// ============================================
+// PWA Service Worker
+// ============================================
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('sw.js').catch(e => console.log('SW registration failed:', e));
+}
+
+// ============================================
+// Init
+// ============================================
+window.addEventListener('DOMContentLoaded', () => {
+  tryAutoLogin();
+});
+</script>
+
+</body>
+</html>

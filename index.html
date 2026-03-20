@@ -1,0 +1,1901 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Hero's Academy Points - 管理ダッシュボード</title>
+  <link rel="manifest" href="manifest.json">
+  <link rel="icon" href="icons/icon-192.png">
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --primary: #667eea;
+      --primary-dark: #764ba2;
+      --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      --gradient-light: linear-gradient(135deg, #667eea22 0%, #764ba222 100%);
+      --bg: #f0f2f8;
+      --card: #ffffff;
+      --text: #2d3748;
+      --text-light: #718096;
+      --border: #e2e8f0;
+      --success: #48bb78;
+      --warning: #f6ad55;
+      --danger: #fc8181;
+      --danger-bg: #fff5f5;
+      --radius: 12px;
+      --shadow: 0 4px 15px rgba(102,126,234,0.15);
+      --shadow-hover: 0 8px 25px rgba(102,126,234,0.25);
+    }
+
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', Meiryo, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      line-height: 1.6;
+    }
+
+    /* Header */
+    .header {
+      background: var(--gradient);
+      color: white;
+      padding: 0 20px;
+      height: 60px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      position: sticky;
+      top: 0;
+      z-index: 1000;
+      box-shadow: 0 2px 15px rgba(102,126,234,0.3);
+    }
+    .header-left { display: flex; align-items: center; gap: 12px; }
+    .header h1 { font-size: 18px; font-weight: 700; letter-spacing: 0.5px; }
+    .header-right { display: flex; align-items: center; gap: 16px; }
+    .notification-bell {
+      position: relative; cursor: pointer; font-size: 22px;
+      background: none; border: none; color: white; padding: 4px;
+    }
+    .notification-bell:hover { transform: scale(1.1); }
+    .notification-badge {
+      position: absolute; top: -4px; right: -6px;
+      background: #fc8181; color: white; font-size: 11px; font-weight: 700;
+      min-width: 18px; height: 18px; border-radius: 9px;
+      display: flex; align-items: center; justify-content: center;
+      border: 2px solid var(--primary-dark);
+    }
+    .notification-badge.hidden { display: none; }
+
+    /* Risk Banner */
+    .risk-banner {
+      background: linear-gradient(90deg, #fc8181, #f56565);
+      color: white; padding: 10px 20px; display: none;
+      align-items: center; gap: 10px; font-size: 14px; font-weight: 600;
+      cursor: pointer;
+    }
+    .risk-banner.visible { display: flex; }
+    .risk-banner:hover { filter: brightness(1.05); }
+
+    /* Notification Drawer */
+    .notification-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.3); z-index: 2000; display: none;
+    }
+    .notification-overlay.open { display: block; }
+    .notification-drawer {
+      position: fixed; top: 0; right: -380px; width: 380px; max-width: 100vw;
+      height: 100vh; background: white; z-index: 2001;
+      box-shadow: -5px 0 20px rgba(0,0,0,0.15); transition: right 0.3s;
+      display: flex; flex-direction: column;
+    }
+    .notification-drawer.open { right: 0; }
+    .notification-drawer-header {
+      background: var(--gradient); color: white; padding: 16px 20px;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .notification-drawer-header h3 { font-size: 16px; }
+    .notification-drawer-body { flex: 1; overflow-y: auto; padding: 12px; }
+    .notif-item {
+      padding: 12px; border-radius: 8px; margin-bottom: 8px;
+      background: #f7fafc; border-left: 3px solid var(--primary);
+      cursor: pointer; transition: background 0.2s;
+    }
+    .notif-item.unread { background: #ebf4ff; border-left-color: #667eea; }
+    .notif-item:hover { background: #e2e8f0; }
+    .notif-item .notif-title { font-weight: 600; font-size: 13px; }
+    .notif-item .notif-msg { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+    .notif-item .notif-time { font-size: 11px; color: #a0aec0; margin-top: 4px; }
+    .btn-mark-all {
+      background: none; border: none; color: white; font-size: 13px;
+      cursor: pointer; text-decoration: underline;
+    }
+
+    /* Tab Navigation */
+    .tab-nav {
+      display: flex; overflow-x: auto; background: white;
+      border-bottom: 1px solid var(--border);
+      padding: 0 8px; gap: 2px;
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .tab-nav::-webkit-scrollbar { display: none; }
+    .tab-btn {
+      flex-shrink: 0; padding: 12px 14px; border: none; background: none;
+      font-size: 13px; font-weight: 500; color: var(--text-light);
+      cursor: pointer; white-space: nowrap;
+      border-bottom: 2px solid transparent; transition: all 0.2s;
+    }
+    .tab-btn:hover { color: var(--primary); }
+    .tab-btn.active {
+      color: var(--primary); border-bottom-color: var(--primary); font-weight: 700;
+    }
+
+    /* Main Content */
+    .main { padding: 16px; max-width: 1400px; margin: 0 auto; }
+    .tab-content { display: none; }
+    .tab-content.active { display: block; }
+
+    /* Cards */
+    .card {
+      background: var(--card); border-radius: var(--radius);
+      box-shadow: var(--shadow); padding: 20px; margin-bottom: 16px;
+    }
+    .card-title {
+      font-size: 16px; font-weight: 700; margin-bottom: 16px;
+      display: flex; align-items: center; gap: 8px;
+      padding-bottom: 10px; border-bottom: 2px solid var(--border);
+    }
+    .card-title .icon { font-size: 20px; }
+
+    /* Stats Grid */
+    .stats-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+      gap: 12px; margin-bottom: 16px;
+    }
+    .stat-card {
+      background: var(--gradient-light); border-radius: var(--radius);
+      padding: 16px; text-align: center;
+    }
+    .stat-card .stat-value {
+      font-size: 28px; font-weight: 800;
+      background: var(--gradient); -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .stat-card .stat-label { font-size: 12px; color: var(--text-light); margin-top: 4px; }
+
+    /* Tables */
+    .table-wrap { overflow-x: auto; }
+    table { width: 100%; border-collapse: collapse; font-size: 14px; }
+    th {
+      background: var(--gradient-light); padding: 10px 12px; text-align: left;
+      font-weight: 600; font-size: 13px; color: var(--primary-dark);
+      border-bottom: 2px solid var(--border); white-space: nowrap;
+    }
+    td {
+      padding: 10px 12px; border-bottom: 1px solid var(--border);
+      vertical-align: middle;
+    }
+    tr:hover td { background: #f7fafc; }
+    .rank-num { font-weight: 800; font-size: 16px; }
+    .rank-1 { color: #f6ad55; }
+    .rank-2 { color: #a0aec0; }
+    .rank-3 { color: #ed8936; }
+
+    /* Buttons */
+    .btn {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 8px 16px; border-radius: 8px; border: none;
+      font-size: 13px; font-weight: 600; cursor: pointer;
+      transition: all 0.2s; white-space: nowrap;
+    }
+    .btn-primary {
+      background: var(--gradient); color: white;
+      box-shadow: 0 2px 8px rgba(102,126,234,0.3);
+    }
+    .btn-primary:hover { box-shadow: var(--shadow-hover); transform: translateY(-1px); }
+    .btn-danger { background: #fc8181; color: white; }
+    .btn-danger:hover { background: #f56565; }
+    .btn-secondary { background: #e2e8f0; color: var(--text); }
+    .btn-secondary:hover { background: #cbd5e0; }
+    .btn-sm { padding: 5px 10px; font-size: 12px; }
+    .btn-group { display: flex; gap: 6px; flex-wrap: wrap; }
+
+    /* Forms */
+    .form-group { margin-bottom: 14px; }
+    .form-group label {
+      display: block; font-size: 13px; font-weight: 600;
+      margin-bottom: 4px; color: var(--text);
+    }
+    .form-control {
+      width: 100%; padding: 10px 12px; border: 1px solid var(--border);
+      border-radius: 8px; font-size: 14px; transition: border-color 0.2s;
+      font-family: inherit;
+    }
+    .form-control:focus {
+      outline: none; border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(102,126,234,0.15);
+    }
+    select.form-control { appearance: none; background: white url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23718096'%3E%3Cpath d='M7 10l5 5 5-5z'/%3E%3C/svg%3E") no-repeat right 8px center/20px; padding-right: 32px; }
+    .form-row { display: flex; gap: 12px; flex-wrap: wrap; }
+    .form-row .form-group { flex: 1; min-width: 140px; }
+
+    /* Modal */
+    .modal-overlay {
+      position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(0,0,0,0.4); z-index: 3000;
+      display: none; align-items: center; justify-content: center;
+      padding: 20px;
+    }
+    .modal-overlay.open { display: flex; }
+    .modal {
+      background: white; border-radius: var(--radius);
+      max-width: 560px; width: 100%; max-height: 85vh;
+      overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.2);
+    }
+    .modal-header {
+      background: var(--gradient); color: white; padding: 16px 20px;
+      border-radius: var(--radius) var(--radius) 0 0;
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .modal-header h3 { font-size: 16px; }
+    .modal-close {
+      background: none; border: none; color: white; font-size: 24px;
+      cursor: pointer; line-height: 1;
+    }
+    .modal-body { padding: 20px; }
+    .modal-footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; justify-content: flex-end; gap: 8px; }
+
+    /* Tags / Badges */
+    .tag {
+      display: inline-block; padding: 3px 10px; border-radius: 20px;
+      font-size: 11px; font-weight: 600;
+    }
+    .tag-high { background: #fed7d7; color: #c53030; }
+    .tag-medium { background: #fefcbf; color: #975a16; }
+    .tag-low { background: #c6f6d5; color: #276749; }
+    .tag-active { background: #c6f6d5; color: #276749; }
+    .tag-inactive { background: #e2e8f0; color: #718096; }
+
+    /* Guild Cards */
+    .guild-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+    .guild-card {
+      border-radius: var(--radius); padding: 20px;
+      color: white; position: relative; overflow: hidden;
+    }
+    .guild-card::before {
+      content: ''; position: absolute; top: -30px; right: -30px;
+      width: 100px; height: 100px; border-radius: 50%;
+      background: rgba(255,255,255,0.1);
+    }
+    .guild-card .guild-icon { font-size: 36px; }
+    .guild-card .guild-name { font-size: 18px; font-weight: 700; margin: 4px 0; }
+    .guild-card .guild-points { font-size: 14px; opacity: 0.9; }
+    .guild-card .guild-members { font-size: 12px; opacity: 0.8; margin-top: 6px; }
+
+    /* Raid Boss */
+    .boss-card {
+      background: linear-gradient(135deg, #1a1a2e, #16213e);
+      color: white; border-radius: var(--radius); padding: 24px;
+      margin-bottom: 16px; position: relative; overflow: hidden;
+    }
+    .boss-card::after {
+      content: ''; position: absolute; top: 0; right: 0; width: 150px; height: 150px;
+      background: radial-gradient(circle, rgba(252,129,129,0.15), transparent);
+    }
+    .boss-icon { font-size: 48px; }
+    .boss-name { font-size: 20px; font-weight: 700; margin: 4px 0; }
+    .hp-bar-wrap {
+      background: rgba(255,255,255,0.15); border-radius: 10px; height: 20px;
+      margin: 10px 0; overflow: hidden;
+    }
+    .hp-bar {
+      height: 100%; border-radius: 10px; transition: width 0.5s;
+      background: linear-gradient(90deg, #fc8181, #f56565);
+    }
+    .hp-text { font-size: 13px; opacity: 0.9; }
+
+    /* Coaching Radar */
+    .coaching-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 16px; }
+    .pillar-card { border-left: 4px solid var(--primary); }
+
+    /* Heatmap */
+    .heatmap { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 12px; }
+    .heatmap-cell {
+      width: 36px; height: 36px; border-radius: 4px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; color: white; font-weight: 600;
+    }
+    .heat-0 { background: #e2e8f0; color: #a0aec0; }
+    .heat-1 { background: #c3dafe; color: #4c51bf; }
+    .heat-2 { background: #a3bffa; color: white; }
+    .heat-3 { background: #7f9cf5; color: white; }
+    .heat-4 { background: #667eea; color: white; }
+    .heat-5 { background: #5a67d8; color: white; }
+
+    /* Exam */
+    .score-bar {
+      background: #e2e8f0; border-radius: 4px; height: 8px; overflow: hidden;
+    }
+    .score-bar-fill {
+      height: 100%; border-radius: 4px;
+      background: var(--gradient); transition: width 0.4s;
+    }
+
+    /* Loading */
+    .loading {
+      text-align: center; padding: 40px; color: var(--text-light); font-size: 14px;
+    }
+    .spinner {
+      width: 32px; height: 32px; border: 3px solid var(--border);
+      border-top-color: var(--primary); border-radius: 50%;
+      animation: spin 0.8s linear infinite; margin: 0 auto 12px;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    /* Toast */
+    .toast-container {
+      position: fixed; bottom: 20px; right: 20px; z-index: 5000;
+      display: flex; flex-direction: column; gap: 8px;
+    }
+    .toast {
+      background: #2d3748; color: white; padding: 12px 20px;
+      border-radius: 8px; font-size: 14px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+      animation: slideIn 0.3s ease;
+    }
+    .toast.success { border-left: 4px solid var(--success); }
+    .toast.error { border-left: 4px solid var(--danger); }
+    @keyframes slideIn { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .header h1 { font-size: 15px; }
+      .main { padding: 10px; }
+      .card { padding: 14px; }
+      .stats-grid { grid-template-columns: repeat(2, 1fr); }
+      .form-row { flex-direction: column; }
+      .form-row .form-group { min-width: 100%; }
+      .tab-btn { padding: 10px 10px; font-size: 12px; }
+      .guild-grid { grid-template-columns: 1fr; }
+      .coaching-grid { grid-template-columns: 1fr; }
+      .notification-drawer { width: 100vw; }
+      td, th { padding: 8px 6px; font-size: 12px; }
+    }
+  </style>
+</head>
+<body>
+
+<!-- Risk Banner -->
+<div class="risk-banner" id="riskBanner" onclick="switchTab('risk')">
+  <span>&#9888;&#65039;</span>
+  <span id="riskBannerText">離脱リスクのある生徒が検出されています</span>
+</div>
+
+<!-- Header -->
+<header class="header">
+  <div class="header-left">
+    <span style="font-size:24px">&#127775;</span>
+    <h1>Hero's Academy Points</h1>
+  </div>
+  <div class="header-right">
+    <button class="notification-bell" onclick="toggleNotifications()" title="通知">
+      &#128276;
+      <span class="notification-badge hidden" id="notifBadge">0</span>
+    </button>
+  </div>
+</header>
+
+<!-- Tab Navigation -->
+<nav class="tab-nav" id="tabNav">
+  <button class="tab-btn active" data-tab="ranking">&#127942; ランキング</button>
+  <button class="tab-btn" data-tab="monitor">&#128202; 学習モニター</button>
+  <button class="tab-btn" data-tab="tasks">&#128203; タスク管理</button>
+  <button class="tab-btn" data-tab="condition">&#128154; コンディション</button>
+  <button class="tab-btn" data-tab="history">&#128197; 履歴</button>
+  <button class="tab-btn" data-tab="prizes">&#127873; 景品交換</button>
+  <button class="tab-btn" data-tab="students">&#128100; 生徒管理</button>
+  <button class="tab-btn" data-tab="guilds">&#9876;&#65039; ギルド</button>
+  <button class="tab-btn" data-tab="raidboss">&#128121; レイドボス</button>
+  <button class="tab-btn" data-tab="coaching">&#127891; コーチング分析</button>
+  <button class="tab-btn" data-tab="risk">&#9888;&#65039; 離脱リスク</button>
+  <button class="tab-btn" data-tab="exams">&#128221; テスト結果</button>
+</nav>
+
+<!-- Main Content -->
+<main class="main">
+
+  <!-- ===== ランキング ===== -->
+  <div class="tab-content active" id="tab-ranking">
+    <div class="stats-grid" id="rankingStats"></div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#127942;</span> ポイントランキング</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>順位</th><th>生徒</th><th>レベル</th><th>累計pt</th><th>現在pt</th><th>連続日数</th></tr>
+          </thead>
+          <tbody id="rankingTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 学習モニター ===== -->
+  <div class="tab-content" id="tab-monitor">
+    <div class="stats-grid" id="monitorStats"></div>
+    <div class="form-row" style="margin-bottom:16px">
+      <div class="form-group">
+        <label>日付選択</label>
+        <input type="date" class="form-control" id="monitorDate" onchange="loadMonitor()">
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128202;</span> 学習ログ</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>生徒</th><th>科目</th><th>時間</th><th>場所</th><th>方法</th><th>ポイント</th></tr>
+          </thead>
+          <tbody id="monitorTable"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128200;</span> 科目別学習時間</div>
+      <div style="max-width:600px;margin:0 auto"><canvas id="monitorChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ===== タスク管理 ===== -->
+  <div class="tab-content" id="tab-tasks">
+    <div style="margin-bottom:16px">
+      <button class="btn btn-primary" onclick="openTaskModal()">&#10133; タスク追加</button>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128203;</span> タスク一覧</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>タスク名</th><th>カテゴリ</th><th>ポイント</th><th>状態</th><th>操作</th></tr>
+          </thead>
+          <tbody id="tasksTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== コンディション ===== -->
+  <div class="tab-content" id="tab-condition">
+    <div class="stats-grid" id="conditionStats"></div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128154;</span> 本日のコンディション</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>生徒</th><th>気分</th><th>エネルギー</th><th>やる気</th><th>メモ</th></tr>
+          </thead>
+          <tbody id="conditionTable"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128200;</span> コンディション推移</div>
+      <div style="max-width:700px;margin:0 auto"><canvas id="conditionChart"></canvas></div>
+    </div>
+  </div>
+
+  <!-- ===== 履歴 ===== -->
+  <div class="tab-content" id="tab-history">
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128197;</span> 学習履歴検索</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>開始日</label>
+          <input type="date" class="form-control" id="historyStart">
+        </div>
+        <div class="form-group">
+          <label>終了日</label>
+          <input type="date" class="form-control" id="historyEnd">
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end">
+          <button class="btn btn-primary" onclick="loadHistory()">検索</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>日付</th><th>生徒</th><th>科目</th><th>時間</th><th>場所</th><th>ポイント</th></tr>
+          </thead>
+          <tbody id="historyTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 景品交換 ===== -->
+  <div class="tab-content" id="tab-prizes">
+    <div style="margin-bottom:16px">
+      <button class="btn btn-primary" onclick="openPrizeModal()">&#10133; 景品追加</button>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#127873;</span> 景品一覧</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>アイコン</th><th>景品名</th><th>説明</th><th>必要pt</th><th>在庫</th><th>操作</th></tr>
+          </thead>
+          <tbody id="prizesTable"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128195;</span> 交換履歴</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>日時</th><th>生徒</th><th>景品</th><th>消費pt</th></tr>
+          </thead>
+          <tbody id="prizeHistoryTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 生徒管理 ===== -->
+  <div class="tab-content" id="tab-students">
+    <div style="margin-bottom:16px">
+      <button class="btn btn-primary" onclick="openStudentModal()">&#10133; 生徒追加</button>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128100;</span> 生徒一覧</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>名前</th><th>ニックネーム</th><th>学年</th><th>PIN</th><th>累計pt</th><th>レベル</th><th>操作</th></tr>
+          </thead>
+          <tbody id="studentsTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== ギルド ===== -->
+  <div class="tab-content" id="tab-guilds">
+    <div style="margin-bottom:16px">
+      <button class="btn btn-primary" onclick="openGuildModal()">&#10133; ギルド作成</button>
+    </div>
+    <div class="guild-grid" id="guildGrid"></div>
+    <div class="card" style="margin-top:16px">
+      <div class="card-title"><span class="icon">&#9876;&#65039;</span> ギルドランキング</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>順位</th><th>ギルド</th><th>メンバー数</th><th>合計pt</th></tr></thead>
+          <tbody id="guildRankingTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== レイドボス ===== -->
+  <div class="tab-content" id="tab-raidboss">
+    <div style="margin-bottom:16px">
+      <button class="btn btn-primary" onclick="openRaidBossModal()">&#10133; ボス作成</button>
+    </div>
+    <div id="activeBosses"></div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128195;</span> 討伐済みボス</div>
+      <div id="defeatedBosses"></div>
+    </div>
+  </div>
+
+  <!-- ===== コーチング分析 ===== -->
+  <div class="tab-content" id="tab-coaching">
+    <div class="form-row" style="margin-bottom:16px">
+      <div class="form-group">
+        <label>生徒選択</label>
+        <select class="form-control" id="coachingStudent" onchange="loadCoaching()">
+          <option value="">選択してください</option>
+        </select>
+      </div>
+    </div>
+    <div id="coachingResult" style="display:none">
+      <div class="coaching-grid" id="coachingPillars"></div>
+      <div class="card" style="margin-top:16px">
+        <div class="card-title"><span class="icon">&#128200;</span> レーダーチャート</div>
+        <div style="max-width:500px;margin:0 auto"><canvas id="coachingRadar"></canvas></div>
+      </div>
+      <div class="card">
+        <div class="card-title"><span class="icon">&#128293;</span> 14日間ヒートマップ</div>
+        <div class="heatmap" id="coachingHeatmap"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 離脱リスク ===== -->
+  <div class="tab-content" id="tab-risk">
+    <div class="card">
+      <div class="card-title"><span class="icon">&#9888;&#65039;</span> 離脱リスク検知</div>
+      <div id="riskLoading" class="loading">
+        <div class="spinner"></div>分析中...
+      </div>
+      <div id="riskResults"></div>
+    </div>
+  </div>
+
+  <!-- ===== テスト結果 ===== -->
+  <div class="tab-content" id="tab-exams">
+    <div style="margin-bottom:16px">
+      <button class="btn btn-primary" onclick="openExamModal()">&#10133; テスト結果入力</button>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128221;</span> テスト結果一覧</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>日付</th><th>テスト名</th><th>生徒</th><th>合計</th><th>科目内訳</th></tr>
+          </thead>
+          <tbody id="examsTable"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128200;</span> 成績推移</div>
+      <div class="form-group">
+        <label>生徒選択</label>
+        <select class="form-control" id="examTrendStudent" onchange="loadExamTrend()">
+          <option value="">選択してください</option>
+        </select>
+      </div>
+      <div style="max-width:700px;margin:16px auto 0"><canvas id="examTrendChart"></canvas></div>
+    </div>
+  </div>
+
+</main>
+
+<!-- Notification Drawer -->
+<div class="notification-overlay" id="notifOverlay" onclick="toggleNotifications()"></div>
+<div class="notification-drawer" id="notifDrawer">
+  <div class="notification-drawer-header">
+    <h3>&#128276; 通知</h3>
+    <button class="btn-mark-all" onclick="markAllNotifRead()">全て既読</button>
+  </div>
+  <div class="notification-drawer-body" id="notifList"></div>
+</div>
+
+<!-- Modal -->
+<div class="modal-overlay" id="modalOverlay">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">タイトル</h3>
+      <button class="modal-close" onclick="closeModal()">&times;</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+    <div class="modal-footer" id="modalFooter"></div>
+  </div>
+</div>
+
+<!-- Toast Container -->
+<div class="toast-container" id="toastContainer"></div>
+
+<!-- Firebase & DB -->
+<script src="firebase-config.js"></script>
+<script src="db.js"></script>
+
+<script>
+// ============================================
+// グローバル状態
+// ============================================
+let allStudents = [];
+let allGuilds = [];
+let chartInstances = {};
+
+// ============================================
+// ユーティリティ
+// ============================================
+function showToast(msg, type = 'success') {
+  const c = document.getElementById('toastContainer');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => { t.remove(); }, 3000);
+}
+
+function moodEmoji(v) {
+  const m = ['', '&#128542;', '&#128533;', '&#128528;', '&#128578;', '&#128513;'];
+  return m[v] || '&#128528;';
+}
+
+function levelIcon(lv) {
+  const icons = ['', '&#127793;', '&#127807;', '&#127811;', '&#127803;', '&#11088;', '&#128142;', '&#128081;', '&#127942;', '&#128293;', '&#127775;'];
+  return icons[lv] || '&#127793;';
+}
+
+function escapeHtml(str) {
+  if (!str) return '';
+  const d = document.createElement('div');
+  d.textContent = str;
+  return d.innerHTML;
+}
+
+// ============================================
+// タブ切り替え
+// ============================================
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
+});
+
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  const btn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
+  if (btn) btn.classList.add('active');
+  const content = document.getElementById(`tab-${tabId}`);
+  if (content) content.classList.add('active');
+
+  // タブ切替時にデータロード
+  const loaders = {
+    ranking: loadRanking,
+    monitor: loadMonitor,
+    tasks: loadTasks,
+    condition: loadCondition,
+    history: () => {},
+    prizes: loadPrizes,
+    students: loadStudents,
+    guilds: loadGuilds,
+    raidboss: loadRaidBoss,
+    coaching: loadCoachingStudentList,
+    risk: loadRisk,
+    exams: loadExams
+  };
+  if (loaders[tabId]) loaders[tabId]();
+}
+
+// ============================================
+// 通知
+// ============================================
+async function loadNotifications() {
+  try {
+    const unread = await NotificationsDB.getUnread();
+    const badge = document.getElementById('notifBadge');
+    if (unread.length > 0) {
+      badge.textContent = unread.length;
+      badge.classList.remove('hidden');
+    } else {
+      badge.classList.add('hidden');
+    }
+  } catch (e) { console.error('通知読み込みエラー:', e); }
+}
+
+function toggleNotifications() {
+  const overlay = document.getElementById('notifOverlay');
+  const drawer = document.getElementById('notifDrawer');
+  const isOpen = drawer.classList.contains('open');
+  if (isOpen) {
+    drawer.classList.remove('open');
+    overlay.classList.remove('open');
+  } else {
+    drawer.classList.add('open');
+    overlay.classList.add('open');
+    renderNotifications();
+  }
+}
+
+async function renderNotifications() {
+  const list = document.getElementById('notifList');
+  list.innerHTML = '<div class="loading"><div class="spinner"></div></div>';
+  try {
+    const notifs = await NotificationsDB.getRecent(50);
+    if (notifs.length === 0) {
+      list.innerHTML = '<p style="text-align:center;color:var(--text-light);padding:20px">通知はありません</p>';
+      return;
+    }
+    list.innerHTML = notifs.map(n => `
+      <div class="notif-item ${n.read ? '' : 'unread'}" onclick="markNotifRead('${n.id}', this)">
+        <div class="notif-title">${escapeHtml(n.title)}</div>
+        <div class="notif-msg">${escapeHtml(n.message)}</div>
+        <div class="notif-time">${n.createdAt ? formatDateTime(n.createdAt) : ''}</div>
+      </div>
+    `).join('');
+  } catch (e) {
+    list.innerHTML = '<p style="color:var(--danger);padding:20px">読み込みエラー</p>';
+  }
+}
+
+async function markNotifRead(id, el) {
+  try {
+    await NotificationsDB.markRead(id);
+    if (el) el.classList.remove('unread');
+    loadNotifications();
+  } catch (e) {}
+}
+
+async function markAllNotifRead() {
+  try {
+    await NotificationsDB.markAllRead();
+    renderNotifications();
+    loadNotifications();
+    showToast('全ての通知を既読にしました');
+  } catch (e) { showToast('エラーが発生しました', 'error'); }
+}
+
+// ============================================
+// モーダル
+// ============================================
+function openModal(title, bodyHtml, footerHtml) {
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = bodyHtml;
+  document.getElementById('modalFooter').innerHTML = footerHtml || '';
+  document.getElementById('modalOverlay').classList.add('open');
+}
+
+function closeModal() {
+  document.getElementById('modalOverlay').classList.remove('open');
+}
+
+// ============================================
+// 1. ランキング
+// ============================================
+async function loadRanking() {
+  try {
+    allStudents = await StudentsDB.getAll();
+    const sorted = [...allStudents].sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0));
+
+    const totalPts = sorted.reduce((s, st) => s + (st.totalPoints || 0), 0);
+    const avgPts = sorted.length > 0 ? Math.round(totalPts / sorted.length) : 0;
+    const maxStreak = sorted.reduce((m, st) => Math.max(m, st.streak || 0), 0);
+
+    document.getElementById('rankingStats').innerHTML = `
+      <div class="stat-card"><div class="stat-value">${sorted.length}</div><div class="stat-label">生徒数</div></div>
+      <div class="stat-card"><div class="stat-value">${totalPts.toLocaleString()}</div><div class="stat-label">合計ポイント</div></div>
+      <div class="stat-card"><div class="stat-value">${avgPts}</div><div class="stat-label">平均ポイント</div></div>
+      <div class="stat-card"><div class="stat-value">${maxStreak}</div><div class="stat-label">最大連続日数</div></div>
+    `;
+
+    document.getElementById('rankingTable').innerHTML = sorted.map((s, i) => {
+      const rankClass = i < 3 ? `rank-${i + 1}` : '';
+      const medal = i === 0 ? '&#129351;' : i === 1 ? '&#129352;' : i === 2 ? '&#129353;' : '';
+      return `<tr>
+        <td><span class="rank-num ${rankClass}">${medal} ${i + 1}</span></td>
+        <td><strong>${escapeHtml(s.name)}</strong></td>
+        <td>${levelIcon(s.level || calcLevel(s.totalPoints || 0))} Lv.${s.level || calcLevel(s.totalPoints || 0)}</td>
+        <td><strong>${(s.totalPoints || 0).toLocaleString()}</strong> pt</td>
+        <td>${(s.currentPoints || 0).toLocaleString()} pt</td>
+        <td>${s.streak || 0}日</td>
+      </tr>`;
+    }).join('');
+  } catch (e) {
+    console.error('ランキング読み込みエラー:', e);
+    document.getElementById('rankingTable').innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--danger)">読み込みエラー</td></tr>';
+  }
+}
+
+// ============================================
+// 2. 学習モニター
+// ============================================
+async function loadMonitor() {
+  const dateInput = document.getElementById('monitorDate');
+  if (!dateInput.value) dateInput.value = getToday();
+  const date = dateInput.value;
+
+  try {
+    const logs = await StudyLogsDB.getByDate(date);
+
+    const totalMin = logs.reduce((s, l) => s + (l.duration || 0), 0);
+    const totalPts = logs.reduce((s, l) => s + (l.points || 0), 0);
+    const uniqueStudents = new Set(logs.map(l => l.studentId)).size;
+
+    document.getElementById('monitorStats').innerHTML = `
+      <div class="stat-card"><div class="stat-value">${logs.length}</div><div class="stat-label">学習セッション</div></div>
+      <div class="stat-card"><div class="stat-value">${uniqueStudents}</div><div class="stat-label">学習者数</div></div>
+      <div class="stat-card"><div class="stat-value">${totalMin}</div><div class="stat-label">合計時間(分)</div></div>
+      <div class="stat-card"><div class="stat-value">${totalPts}</div><div class="stat-label">獲得ポイント</div></div>
+    `;
+
+    document.getElementById('monitorTable').innerHTML = logs.length === 0
+      ? '<tr><td colspan="6" style="text-align:center;color:var(--text-light)">この日の学習記録はありません</td></tr>'
+      : logs.map(l => `<tr>
+          <td>${escapeHtml(l.studentName)}</td>
+          <td>${escapeHtml(l.subject)}</td>
+          <td>${l.duration}分</td>
+          <td>${escapeHtml(l.location || '塾')}</td>
+          <td>${l.method === 'pomodoro' ? '&#127813; ポモドーロ' + (l.pomodoroCount ? `(${l.pomodoroCount}回)` : '') : '通常'}</td>
+          <td>${l.points || 0} pt</td>
+        </tr>`).join('');
+
+    // 科目別チャート
+    const subjectMap = {};
+    logs.forEach(l => {
+      subjectMap[l.subject] = (subjectMap[l.subject] || 0) + (l.duration || 0);
+    });
+    renderChart('monitorChart', 'doughnut', {
+      labels: Object.keys(subjectMap),
+      datasets: [{
+        data: Object.values(subjectMap),
+        backgroundColor: ['#667eea', '#764ba2', '#f093fb', '#4fd1c5', '#f6ad55', '#fc8181', '#68d391', '#a78bfa']
+      }]
+    }, { plugins: { legend: { position: 'bottom' } } });
+  } catch (e) {
+    console.error('モニター読み込みエラー:', e);
+  }
+}
+
+// ============================================
+// 3. タスク管理
+// ============================================
+async function loadTasks() {
+  try {
+    const tasks = await TasksDB.getAll();
+    document.getElementById('tasksTable').innerHTML = tasks.length === 0
+      ? '<tr><td colspan="5" style="text-align:center;color:var(--text-light)">タスクがありません</td></tr>'
+      : tasks.map(t => `<tr>
+          <td><strong>${escapeHtml(t.title)}</strong>${t.description ? '<br><small style="color:var(--text-light)">' + escapeHtml(t.description) + '</small>' : ''}</td>
+          <td>${escapeHtml(t.category || 'general')}</td>
+          <td><strong>${t.points || 0}</strong> pt</td>
+          <td><span class="tag ${t.active !== false ? 'tag-active' : 'tag-inactive'}">${t.active !== false ? '有効' : '無効'}</span></td>
+          <td>
+            <div class="btn-group">
+              <button class="btn btn-secondary btn-sm" onclick="editTask('${t.id}')">編集</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteTask('${t.id}')">削除</button>
+            </div>
+          </td>
+        </tr>`).join('');
+  } catch (e) {
+    console.error('タスク読み込みエラー:', e);
+  }
+}
+
+function openTaskModal(task) {
+  const isEdit = !!task;
+  openModal(isEdit ? 'タスク編集' : 'タスク追加', `
+    <div class="form-group">
+      <label>タスク名 *</label>
+      <input type="text" class="form-control" id="taskTitle" value="${isEdit ? escapeHtml(task.title) : ''}">
+    </div>
+    <div class="form-group">
+      <label>説明</label>
+      <textarea class="form-control" id="taskDesc" rows="2">${isEdit ? escapeHtml(task.description || '') : ''}</textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>ポイント *</label>
+        <input type="number" class="form-control" id="taskPoints" value="${isEdit ? task.points : 10}" min="1">
+      </div>
+      <div class="form-group">
+        <label>カテゴリ</label>
+        <select class="form-control" id="taskCategory">
+          <option value="general" ${isEdit && task.category === 'general' ? 'selected' : ''}>一般</option>
+          <option value="study" ${isEdit && task.category === 'study' ? 'selected' : ''}>学習</option>
+          <option value="homework" ${isEdit && task.category === 'homework' ? 'selected' : ''}>宿題</option>
+          <option value="bonus" ${isEdit && task.category === 'bonus' ? 'selected' : ''}>ボーナス</option>
+          <option value="behavior" ${isEdit && task.category === 'behavior' ? 'selected' : ''}>行動</option>
+        </select>
+      </div>
+    </div>
+    ${isEdit ? `
+    <div class="form-group">
+      <label>状態</label>
+      <select class="form-control" id="taskActive">
+        <option value="true" ${task.active !== false ? 'selected' : ''}>有効</option>
+        <option value="false" ${task.active === false ? 'selected' : ''}>無効</option>
+      </select>
+    </div>` : ''}
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" onclick="saveTask('${isEdit ? task.id : ''}')">${isEdit ? '更新' : '追加'}</button>
+  `);
+}
+
+async function saveTask(id) {
+  const title = document.getElementById('taskTitle').value.trim();
+  const points = parseInt(document.getElementById('taskPoints').value) || 10;
+  const description = document.getElementById('taskDesc').value.trim();
+  const category = document.getElementById('taskCategory').value;
+
+  if (!title) { showToast('タスク名を入力してください', 'error'); return; }
+
+  try {
+    if (id) {
+      const activeEl = document.getElementById('taskActive');
+      const data = { title, description, points, category };
+      if (activeEl) data.active = activeEl.value === 'true';
+      await TasksDB.update(id, data);
+      showToast('タスクを更新しました');
+    } else {
+      await TasksDB.add({ title, description, points, category });
+      showToast('タスクを追加しました');
+    }
+    closeModal();
+    loadTasks();
+  } catch (e) {
+    showToast('保存に失敗しました', 'error');
+  }
+}
+
+async function editTask(id) {
+  const tasks = await TasksDB.getAll();
+  const task = tasks.find(t => t.id === id);
+  if (task) openTaskModal(task);
+}
+
+async function deleteTask(id) {
+  if (!confirm('このタスクを削除しますか？')) return;
+  try {
+    await TasksDB.delete(id);
+    showToast('タスクを削除しました');
+    loadTasks();
+  } catch (e) { showToast('削除に失敗しました', 'error'); }
+}
+
+// ============================================
+// 4. コンディション
+// ============================================
+async function loadCondition() {
+  try {
+    const conditions = await ConditionsDB.getToday();
+
+    const avgMood = conditions.length > 0
+      ? (conditions.reduce((s, c) => s + (c.mood || 0), 0) / conditions.length).toFixed(1) : '-';
+    const avgEnergy = conditions.length > 0
+      ? (conditions.reduce((s, c) => s + (c.energy || 0), 0) / conditions.length).toFixed(1) : '-';
+    const avgMotivation = conditions.length > 0
+      ? (conditions.reduce((s, c) => s + (c.motivation || 0), 0) / conditions.length).toFixed(1) : '-';
+
+    document.getElementById('conditionStats').innerHTML = `
+      <div class="stat-card"><div class="stat-value">${conditions.length}</div><div class="stat-label">報告数</div></div>
+      <div class="stat-card"><div class="stat-value">${avgMood}</div><div class="stat-label">平均気分</div></div>
+      <div class="stat-card"><div class="stat-value">${avgEnergy}</div><div class="stat-label">平均エネルギー</div></div>
+      <div class="stat-card"><div class="stat-value">${avgMotivation}</div><div class="stat-label">平均やる気</div></div>
+    `;
+
+    document.getElementById('conditionTable').innerHTML = conditions.length === 0
+      ? '<tr><td colspan="5" style="text-align:center;color:var(--text-light)">本日のコンディション報告はありません</td></tr>'
+      : conditions.map(c => `<tr>
+          <td>${escapeHtml(c.studentName)}</td>
+          <td>${moodEmoji(c.mood)} ${c.mood}/5</td>
+          <td>${moodEmoji(c.energy)} ${c.energy}/5</td>
+          <td>${moodEmoji(c.motivation)} ${c.motivation}/5</td>
+          <td>${escapeHtml(c.note || '-')}</td>
+        </tr>`).join('');
+
+    // 過去7日間の推移チャート
+    const end = getToday();
+    const start = new Date();
+    start.setDate(start.getDate() - 7);
+    const startStr = start.toISOString().split('T')[0];
+    const rangeConditions = await ConditionsDB.getByDateRange(startStr, end);
+
+    const dateMap = {};
+    rangeConditions.forEach(c => {
+      if (!dateMap[c.date]) dateMap[c.date] = { mood: [], energy: [], motivation: [] };
+      dateMap[c.date].mood.push(c.mood || 3);
+      dateMap[c.date].energy.push(c.energy || 3);
+      dateMap[c.date].motivation.push(c.motivation || 3);
+    });
+
+    const dates = Object.keys(dateMap).sort();
+    const avg = arr => arr.length > 0 ? (arr.reduce((s, v) => s + v, 0) / arr.length).toFixed(1) : null;
+
+    renderChart('conditionChart', 'line', {
+      labels: dates.map(d => d.slice(5)),
+      datasets: [
+        { label: '気分', data: dates.map(d => avg(dateMap[d].mood)), borderColor: '#667eea', tension: 0.3, fill: false },
+        { label: 'エネルギー', data: dates.map(d => avg(dateMap[d].energy)), borderColor: '#48bb78', tension: 0.3, fill: false },
+        { label: 'やる気', data: dates.map(d => avg(dateMap[d].motivation)), borderColor: '#f6ad55', tension: 0.3, fill: false }
+      ]
+    }, { scales: { y: { min: 0, max: 5 } }, plugins: { legend: { position: 'bottom' } } });
+  } catch (e) {
+    console.error('コンディション読み込みエラー:', e);
+  }
+}
+
+// ============================================
+// 5. 履歴
+// ============================================
+async function loadHistory() {
+  const startDate = document.getElementById('historyStart').value;
+  const endDate = document.getElementById('historyEnd').value;
+
+  if (!startDate || !endDate) {
+    showToast('日付範囲を指定してください', 'error');
+    return;
+  }
+
+  try {
+    const logs = await StudyLogsDB.getByDateRange(startDate, endDate);
+    document.getElementById('historyTable').innerHTML = logs.length === 0
+      ? '<tr><td colspan="6" style="text-align:center;color:var(--text-light)">該当する履歴がありません</td></tr>'
+      : logs.map(l => `<tr>
+          <td>${l.date}</td>
+          <td>${escapeHtml(l.studentName)}</td>
+          <td>${escapeHtml(l.subject)}</td>
+          <td>${l.duration}分</td>
+          <td>${escapeHtml(l.location || '塾')}</td>
+          <td>${l.points || 0} pt</td>
+        </tr>`).join('');
+  } catch (e) {
+    console.error('履歴読み込みエラー:', e);
+    showToast('履歴の検索に失敗しました', 'error');
+  }
+}
+
+// ============================================
+// 6. 景品交換
+// ============================================
+async function loadPrizes() {
+  try {
+    const [prizes, history] = await Promise.all([PrizesDB.getAll(), PrizesDB.getAllHistory()]);
+
+    document.getElementById('prizesTable').innerHTML = prizes.length === 0
+      ? '<tr><td colspan="6" style="text-align:center;color:var(--text-light)">景品がありません</td></tr>'
+      : prizes.map(p => `<tr>
+          <td style="font-size:24px">${p.icon || '&#127873;'}</td>
+          <td><strong>${escapeHtml(p.name)}</strong></td>
+          <td>${escapeHtml(p.description || '-')}</td>
+          <td><strong>${p.cost}</strong> pt</td>
+          <td>${p.stock === -1 ? '無制限' : p.stock}</td>
+          <td>
+            <div class="btn-group">
+              <button class="btn btn-secondary btn-sm" onclick="editPrize('${p.id}')">編集</button>
+            </div>
+          </td>
+        </tr>`).join('');
+
+    const prizeMap = {};
+    prizes.forEach(p => { prizeMap[p.id] = p; });
+
+    document.getElementById('prizeHistoryTable').innerHTML = history.length === 0
+      ? '<tr><td colspan="4" style="text-align:center;color:var(--text-light)">交換履歴がありません</td></tr>'
+      : history.map(h => `<tr>
+          <td>${h.exchangedAt ? formatDateTime(h.exchangedAt) : '-'}</td>
+          <td>${escapeHtml(h.studentName)}</td>
+          <td>${prizeMap[h.prizeId] ? escapeHtml(prizeMap[h.prizeId].name) : h.prizeId}</td>
+          <td>${h.cost} pt</td>
+        </tr>`).join('');
+  } catch (e) {
+    console.error('景品読み込みエラー:', e);
+  }
+}
+
+function openPrizeModal(prize) {
+  const isEdit = !!prize;
+  openModal(isEdit ? '景品編集' : '景品追加', `
+    <div class="form-group">
+      <label>景品名 *</label>
+      <input type="text" class="form-control" id="prizeName" value="${isEdit ? escapeHtml(prize.name) : ''}">
+    </div>
+    <div class="form-group">
+      <label>説明</label>
+      <textarea class="form-control" id="prizeDesc" rows="2">${isEdit ? escapeHtml(prize.description || '') : ''}</textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>必要ポイント *</label>
+        <input type="number" class="form-control" id="prizeCost" value="${isEdit ? prize.cost : 50}" min="1">
+      </div>
+      <div class="form-group">
+        <label>在庫 (-1=無制限)</label>
+        <input type="number" class="form-control" id="prizeStock" value="${isEdit ? prize.stock : -1}" min="-1">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>アイコン</label>
+      <input type="text" class="form-control" id="prizeIcon" value="${isEdit ? (prize.icon || '&#127873;') : '&#127873;'}" placeholder="絵文字">
+    </div>
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" onclick="savePrize('${isEdit ? prize.id : ''}')">${isEdit ? '更新' : '追加'}</button>
+  `);
+}
+
+async function savePrize(id) {
+  const name = document.getElementById('prizeName').value.trim();
+  const cost = parseInt(document.getElementById('prizeCost').value) || 50;
+  const description = document.getElementById('prizeDesc').value.trim();
+  const stock = parseInt(document.getElementById('prizeStock').value);
+  const icon = document.getElementById('prizeIcon').value.trim() || '&#127873;';
+
+  if (!name) { showToast('景品名を入力してください', 'error'); return; }
+
+  try {
+    if (id) {
+      await PrizesDB.update(id, { name, description, cost, stock: isNaN(stock) ? -1 : stock, icon });
+      showToast('景品を更新しました');
+    } else {
+      await PrizesDB.add({ name, description, cost, stock: isNaN(stock) ? -1 : stock, icon });
+      showToast('景品を追加しました');
+    }
+    closeModal();
+    loadPrizes();
+  } catch (e) {
+    showToast('保存に失敗しました', 'error');
+  }
+}
+
+async function editPrize(id) {
+  const prizes = await PrizesDB.getAll();
+  const prize = prizes.find(p => p.id === id);
+  if (prize) openPrizeModal(prize);
+}
+
+// ============================================
+// 7. 生徒管理
+// ============================================
+async function loadStudents() {
+  try {
+    allStudents = await StudentsDB.getAll();
+    document.getElementById('studentsTable').innerHTML = allStudents.length === 0
+      ? '<tr><td colspan="7" style="text-align:center;color:var(--text-light)">生徒がいません</td></tr>'
+      : allStudents.map(s => `<tr>
+          <td><strong>${escapeHtml(s.name)}</strong></td>
+          <td>${escapeHtml(s.nickname || '-')}</td>
+          <td>${escapeHtml(s.grade || '-')}</td>
+          <td>${s.pin || '-'}</td>
+          <td>${(s.totalPoints || 0).toLocaleString()} pt</td>
+          <td>${levelIcon(s.level || calcLevel(s.totalPoints || 0))} Lv.${s.level || calcLevel(s.totalPoints || 0)}</td>
+          <td>
+            <div class="btn-group">
+              <button class="btn btn-secondary btn-sm" onclick="editStudent('${s.id}')">編集</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteStudent('${s.id}')">削除</button>
+            </div>
+          </td>
+        </tr>`).join('');
+  } catch (e) {
+    console.error('生徒読み込みエラー:', e);
+  }
+}
+
+function openStudentModal(student) {
+  const isEdit = !!student;
+  openModal(isEdit ? '生徒編集' : '生徒追加', `
+    <div class="form-group">
+      <label>名前 *</label>
+      <input type="text" class="form-control" id="studentName" value="${isEdit ? escapeHtml(student.name) : ''}">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>ニックネーム</label>
+        <input type="text" class="form-control" id="studentNickname" value="${isEdit ? escapeHtml(student.nickname || '') : ''}">
+      </div>
+      <div class="form-group">
+        <label>PIN (4桁)</label>
+        <input type="text" class="form-control" id="studentPin" value="${isEdit ? (student.pin || '') : ''}" maxlength="4" pattern="[0-9]{4}">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>学年</label>
+      <select class="form-control" id="studentGrade">
+        <option value="">選択</option>
+        <option value="小1" ${isEdit && student.grade === '小1' ? 'selected' : ''}>小1</option>
+        <option value="小2" ${isEdit && student.grade === '小2' ? 'selected' : ''}>小2</option>
+        <option value="小3" ${isEdit && student.grade === '小3' ? 'selected' : ''}>小3</option>
+        <option value="小4" ${isEdit && student.grade === '小4' ? 'selected' : ''}>小4</option>
+        <option value="小5" ${isEdit && student.grade === '小5' ? 'selected' : ''}>小5</option>
+        <option value="小6" ${isEdit && student.grade === '小6' ? 'selected' : ''}>小6</option>
+        <option value="中1" ${isEdit && student.grade === '中1' ? 'selected' : ''}>中1</option>
+        <option value="中2" ${isEdit && student.grade === '中2' ? 'selected' : ''}>中2</option>
+        <option value="中3" ${isEdit && student.grade === '中3' ? 'selected' : ''}>中3</option>
+        <option value="高1" ${isEdit && student.grade === '高1' ? 'selected' : ''}>高1</option>
+        <option value="高2" ${isEdit && student.grade === '高2' ? 'selected' : ''}>高2</option>
+        <option value="高3" ${isEdit && student.grade === '高3' ? 'selected' : ''}>高3</option>
+      </select>
+    </div>
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" onclick="saveStudent('${isEdit ? student.id : ''}')">${isEdit ? '更新' : '追加'}</button>
+  `);
+}
+
+async function saveStudent(id) {
+  const name = document.getElementById('studentName').value.trim();
+  const nickname = document.getElementById('studentNickname').value.trim();
+  const pin = document.getElementById('studentPin').value.trim();
+  const grade = document.getElementById('studentGrade').value;
+
+  if (!name) { showToast('名前を入力してください', 'error'); return; }
+
+  try {
+    if (id) {
+      await StudentsDB.update(id, { name, nickname, pin, grade });
+      showToast('生徒情報を更新しました');
+    } else {
+      await StudentsDB.add({ name, nickname, pin, grade });
+      showToast('生徒を追加しました');
+    }
+    closeModal();
+    loadStudents();
+  } catch (e) {
+    showToast('保存に失敗しました', 'error');
+  }
+}
+
+async function editStudent(id) {
+  const student = await StudentsDB.getById(id);
+  if (student) openStudentModal(student);
+}
+
+async function deleteStudent(id) {
+  if (!confirm('この生徒を削除しますか？全てのデータが失われます。')) return;
+  try {
+    await StudentsDB.delete(id);
+    showToast('生徒を削除しました');
+    loadStudents();
+  } catch (e) { showToast('削除に失敗しました', 'error'); }
+}
+
+// ============================================
+// 8. ギルド
+// ============================================
+async function loadGuilds() {
+  try {
+    allStudents = await StudentsDB.getAll();
+    allGuilds = await GuildsDB.getAll();
+    const ranking = await GuildsDB.getRanking();
+
+    const studentMap = {};
+    allStudents.forEach(s => { studentMap[s.id] = s; });
+
+    document.getElementById('guildGrid').innerHTML = allGuilds.length === 0
+      ? '<div class="card"><p style="text-align:center;color:var(--text-light)">ギルドがありません</p></div>'
+      : allGuilds.map(g => {
+          const members = (g.members || []).map(id => studentMap[id]).filter(Boolean);
+          return `<div class="guild-card" style="background:linear-gradient(135deg, ${g.color || '#667eea'}, ${g.color || '#667eea'}cc)">
+            <div class="guild-icon">${g.icon || '&#9876;&#65039;'}</div>
+            <div class="guild-name">${escapeHtml(g.name)}</div>
+            <div class="guild-points">${(g.totalPoints || 0).toLocaleString()} pt</div>
+            <div class="guild-members">メンバー: ${members.length > 0 ? members.map(m => escapeHtml(m.name)).join(', ') : 'なし'}</div>
+            <div style="margin-top:10px">
+              <button class="btn btn-sm" style="background:rgba(255,255,255,0.2);color:white" onclick="openGuildMemberModal('${g.id}')">メンバー管理</button>
+            </div>
+          </div>`;
+        }).join('');
+
+    document.getElementById('guildRankingTable').innerHTML = ranking.map((g, i) => `<tr>
+      <td><span class="rank-num ${i < 3 ? 'rank-' + (i + 1) : ''}">${i + 1}</span></td>
+      <td>${g.icon || ''} ${escapeHtml(g.name)}</td>
+      <td>${(g.members || []).length}人</td>
+      <td><strong>${(g.totalPoints || 0).toLocaleString()}</strong> pt</td>
+    </tr>`).join('');
+  } catch (e) {
+    console.error('ギルド読み込みエラー:', e);
+  }
+}
+
+function openGuildModal() {
+  const themeOptions = GUILD_THEMES.map(t =>
+    `<option value="${t.id}">${t.icon} ${t.name}</option>`
+  ).join('');
+
+  openModal('ギルド作成', `
+    <div class="form-group">
+      <label>テーマ</label>
+      <select class="form-control" id="guildTheme">${themeOptions}</select>
+    </div>
+    <div class="form-group">
+      <label>ギルド名 (空欄でテーマ名)</label>
+      <input type="text" class="form-control" id="guildName">
+    </div>
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" onclick="saveGuild()">作成</button>
+  `);
+}
+
+async function saveGuild() {
+  const themeId = document.getElementById('guildTheme').value;
+  const name = document.getElementById('guildName').value.trim();
+  try {
+    await GuildsDB.create({ themeId, name: name || undefined });
+    showToast('ギルドを作成しました');
+    closeModal();
+    loadGuilds();
+  } catch (e) { showToast('作成に失敗しました', 'error'); }
+}
+
+function openGuildMemberModal(guildId) {
+  const guild = allGuilds.find(g => g.id === guildId);
+  if (!guild) return;
+  const members = guild.members || [];
+  const nonMembers = allStudents.filter(s => !members.includes(s.id));
+
+  openModal(`${guild.icon} ${guild.name} - メンバー管理`, `
+    <h4 style="margin-bottom:8px">現在のメンバー</h4>
+    ${members.length === 0 ? '<p style="color:var(--text-light)">メンバーなし</p>' :
+      members.map(id => {
+        const s = allStudents.find(st => st.id === id);
+        return s ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
+          <span>${escapeHtml(s.name)}</span>
+          <button class="btn btn-danger btn-sm" onclick="removeGuildMember('${guildId}','${id}')">除外</button>
+        </div>` : '';
+      }).join('')}
+    <h4 style="margin:16px 0 8px">メンバー追加</h4>
+    ${nonMembers.length === 0 ? '<p style="color:var(--text-light)">追加可能な生徒がいません</p>' :
+      `<select class="form-control" id="guildAddStudent">
+        ${nonMembers.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('')}
+      </select>
+      <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="addGuildMember('${guildId}')">追加</button>`}
+  `, `<button class="btn btn-secondary" onclick="closeModal()">閉じる</button>`);
+}
+
+async function addGuildMember(guildId) {
+  const studentId = document.getElementById('guildAddStudent').value;
+  if (!studentId) return;
+  try {
+    await GuildsDB.addMember(guildId, studentId);
+    showToast('メンバーを追加しました');
+    closeModal();
+    loadGuilds();
+  } catch (e) { showToast('追加に失敗しました', 'error'); }
+}
+
+async function removeGuildMember(guildId, studentId) {
+  if (!confirm('このメンバーを除外しますか？')) return;
+  try {
+    await GuildsDB.removeMember(guildId, studentId);
+    showToast('メンバーを除外しました');
+    closeModal();
+    loadGuilds();
+  } catch (e) { showToast('除外に失敗しました', 'error'); }
+}
+
+// ============================================
+// 9. レイドボス
+// ============================================
+async function loadRaidBoss() {
+  try {
+    const bosses = await RaidBossDB.getAll();
+    const active = bosses.filter(b => !b.defeated);
+    const defeated = bosses.filter(b => b.defeated);
+
+    document.getElementById('activeBosses').innerHTML = active.length === 0
+      ? '<div class="card"><p style="text-align:center;color:var(--text-light)">現在アクティブなボスはいません</p></div>'
+      : (await Promise.all(active.map(async b => {
+          const hpPct = b.maxHp > 0 ? (b.currentHp / b.maxHp * 100) : 0;
+          const damageLog = await RaidBossDB.getDamageLog(b.id);
+          return `<div class="boss-card">
+            <div style="display:flex;align-items:center;gap:16px">
+              <div class="boss-icon">${b.icon || '&#128121;'}</div>
+              <div style="flex:1">
+                <div class="boss-name">${escapeHtml(b.name)}</div>
+                <div class="hp-bar-wrap"><div class="hp-bar" style="width:${hpPct}%"></div></div>
+                <div class="hp-text">HP: ${b.currentHp} / ${b.maxHp} (${hpPct.toFixed(1)}%) | 報酬: ${b.reward} pt</div>
+              </div>
+            </div>
+            ${damageLog.length > 0 ? `
+              <div style="margin-top:12px;font-size:13px;opacity:0.8">
+                <strong>最近のダメージ:</strong>
+                ${damageLog.slice(0, 5).map(d => `<div style="margin-top:2px">${escapeHtml(d.studentName)} - ${d.amount}ダメージ</div>`).join('')}
+              </div>` : ''}
+          </div>`;
+        }))).join('');
+
+    document.getElementById('defeatedBosses').innerHTML = defeated.length === 0
+      ? '<p style="text-align:center;color:var(--text-light);padding:12px">討伐済みのボスはいません</p>'
+      : defeated.map(b => `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <span style="font-size:24px;opacity:0.5">${b.icon || '&#128121;'}</span>
+          <div>
+            <strong>${escapeHtml(b.name)}</strong>
+            <div style="font-size:12px;color:var(--text-light)">HP: ${b.maxHp} | 報酬: ${b.reward} pt | 討伐: ${b.defeatedAt ? formatDate(b.defeatedAt) : '-'}</div>
+          </div>
+        </div>`).join('');
+  } catch (e) {
+    console.error('レイドボス読み込みエラー:', e);
+  }
+}
+
+function openRaidBossModal() {
+  openModal('レイドボス作成', `
+    <div class="form-group">
+      <label>ボス名 *</label>
+      <input type="text" class="form-control" id="bossName" placeholder="例: ドラゴン王">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>アイコン</label>
+        <input type="text" class="form-control" id="bossIcon" value="&#128121;">
+      </div>
+      <div class="form-group">
+        <label>HP *</label>
+        <input type="number" class="form-control" id="bossHp" value="1000" min="1">
+      </div>
+      <div class="form-group">
+        <label>報酬ポイント</label>
+        <input type="number" class="form-control" id="bossReward" value="50" min="0">
+      </div>
+    </div>
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" onclick="saveRaidBoss()">作成</button>
+  `);
+}
+
+async function saveRaidBoss() {
+  const name = document.getElementById('bossName').value.trim();
+  const icon = document.getElementById('bossIcon').value.trim() || '&#128121;';
+  const maxHp = parseInt(document.getElementById('bossHp').value) || 1000;
+  const reward = parseInt(document.getElementById('bossReward').value) || 50;
+
+  if (!name) { showToast('ボス名を入力してください', 'error'); return; }
+
+  try {
+    await RaidBossDB.create({ name, icon, maxHp, reward });
+    showToast('レイドボスを作成しました');
+    closeModal();
+    loadRaidBoss();
+  } catch (e) { showToast('作成に失敗しました', 'error'); }
+}
+
+// ============================================
+// 10. コーチング分析
+// ============================================
+async function loadCoachingStudentList() {
+  allStudents = await StudentsDB.getAll();
+  const sel = document.getElementById('coachingStudent');
+  const currentVal = sel.value;
+  sel.innerHTML = '<option value="">選択してください</option>' +
+    allStudents.map(s => `<option value="${s.id}" ${s.id === currentVal ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('');
+  if (currentVal) loadCoaching();
+}
+
+async function loadCoaching() {
+  const studentId = document.getElementById('coachingStudent').value;
+  const resultDiv = document.getElementById('coachingResult');
+  if (!studentId) { resultDiv.style.display = 'none'; return; }
+  resultDiv.style.display = 'block';
+
+  try {
+    const analysis = await CoachingDB.analyze(studentId);
+    if (!analysis) {
+      document.getElementById('coachingPillars').innerHTML = '<div class="card"><p>分析データがありません</p></div>';
+      return;
+    }
+
+    // 柱カード
+    document.getElementById('coachingPillars').innerHTML = analysis.pillarScores.map(p => `
+      <div class="card pillar-card" style="border-left-color:${p.id === 'self_acceptance' ? '#667eea' : p.id === 'trust_others' ? '#48bb78' : '#f6ad55'}">
+        <div class="card-title">${p.name} (平均: ${p.score})</div>
+        ${p.indicators.map(ind => `
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+            <span style="font-size:12px;width:120px;flex-shrink:0">${ind.name}</span>
+            <div style="flex:1;background:#e2e8f0;border-radius:4px;height:8px;overflow:hidden">
+              <div style="height:100%;width:${ind.score / 5 * 100}%;background:var(--gradient);border-radius:4px"></div>
+            </div>
+            <span style="font-size:12px;font-weight:700;width:30px;text-align:right">${ind.score}</span>
+          </div>
+        `).join('')}
+      </div>
+    `).join('');
+
+    // レーダーチャート
+    const allIndicators = CoachingDB.PILLARS.flatMap(p => p.indicators);
+    renderChart('coachingRadar', 'radar', {
+      labels: allIndicators.map(i => i.name),
+      datasets: [{
+        label: analysis.studentName,
+        data: allIndicators.map(i => analysis.scores[i.id] || 3),
+        backgroundColor: 'rgba(102,126,234,0.15)',
+        borderColor: '#667eea',
+        pointBackgroundColor: '#667eea',
+        pointRadius: 3
+      }]
+    }, {
+      scales: { r: { min: 0, max: 5, ticks: { stepSize: 1 } } },
+      plugins: { legend: { display: false } }
+    });
+
+    // ヒートマップ
+    const heatmap = await CoachingDB.getHeatmap(studentId);
+    const maxMin = Math.max(1, ...heatmap.map(h => h.minutes));
+    document.getElementById('coachingHeatmap').innerHTML = heatmap.map(h => {
+      const level = h.minutes === 0 ? 0 : Math.min(5, Math.ceil(h.minutes / maxMin * 5));
+      return `<div class="heatmap-cell heat-${level}" title="${h.date}: ${h.minutes}分">
+        ${h.date.slice(8)}
+      </div>`;
+    }).join('');
+
+  } catch (e) {
+    console.error('コーチング分析エラー:', e);
+    showToast('分析に失敗しました', 'error');
+  }
+}
+
+// ============================================
+// 11. 離脱リスク
+// ============================================
+async function loadRisk() {
+  const loading = document.getElementById('riskLoading');
+  const results = document.getElementById('riskResults');
+  loading.style.display = 'block';
+  results.innerHTML = '';
+
+  try {
+    const risks = await RiskDetector.checkAll();
+
+    loading.style.display = 'none';
+
+    // バナー更新
+    const banner = document.getElementById('riskBanner');
+    if (risks.length > 0) {
+      banner.classList.add('visible');
+      document.getElementById('riskBannerText').textContent =
+        `${risks.length}名の生徒に離脱リスクが検出されています`;
+    } else {
+      banner.classList.remove('visible');
+    }
+
+    if (risks.length === 0) {
+      results.innerHTML = '<p style="text-align:center;color:var(--success);padding:20px;font-size:16px">&#9989; 現在、離脱リスクのある生徒はいません</p>';
+      return;
+    }
+
+    results.innerHTML = risks.map(r => `
+      <div style="padding:16px;margin-bottom:12px;border-radius:8px;background:${r.riskLevel === 'high' ? 'var(--danger-bg)' : '#fffbeb'};border-left:4px solid ${r.riskLevel === 'high' ? '#fc8181' : '#f6ad55'}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+          <strong style="font-size:15px">${escapeHtml(r.studentName)}</strong>
+          <span class="tag ${r.riskLevel === 'high' ? 'tag-high' : 'tag-medium'}">${r.riskLevel === 'high' ? '高リスク' : '中リスク'}</span>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${r.factors.map(f => `<span class="tag ${f.severity === 'high' ? 'tag-high' : 'tag-medium'}">${f.label}</span>`).join('')}
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    loading.style.display = 'none';
+    results.innerHTML = '<p style="color:var(--danger);padding:20px">リスク分析に失敗しました</p>';
+    console.error('リスク分析エラー:', e);
+  }
+}
+
+// ============================================
+// 12. テスト結果
+// ============================================
+async function loadExams() {
+  try {
+    const [exams, students] = await Promise.all([ExamResultsDB.getAll(), StudentsDB.getAll()]);
+    allStudents = students;
+
+    // テスト結果一覧
+    document.getElementById('examsTable').innerHTML = exams.length === 0
+      ? '<tr><td colspan="5" style="text-align:center;color:var(--text-light)">テスト結果がありません</td></tr>'
+      : exams.map(e => `<tr>
+          <td>${e.date || '-'}</td>
+          <td>${escapeHtml(e.examName)}</td>
+          <td>${escapeHtml(e.studentName)}</td>
+          <td><strong>${e.totalScore}</strong> / ${e.maxTotalScore}
+            <div class="score-bar"><div class="score-bar-fill" style="width:${e.maxTotalScore > 0 ? (e.totalScore / e.maxTotalScore * 100) : 0}%"></div></div>
+          </td>
+          <td style="font-size:12px">${(e.subjects || []).map(s => `${s.name}: ${s.score}/${s.maxScore}`).join(', ')}</td>
+        </tr>`).join('');
+
+    // 成績推移用の生徒セレクト
+    const sel = document.getElementById('examTrendStudent');
+    const currentVal = sel.value;
+    sel.innerHTML = '<option value="">選択してください</option>' +
+      allStudents.map(s => `<option value="${s.id}" ${s.id === currentVal ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('');
+    if (currentVal) loadExamTrend();
+  } catch (e) {
+    console.error('テスト結果読み込みエラー:', e);
+  }
+}
+
+function openExamModal() {
+  const studentOptions = allStudents.map(s =>
+    `<option value="${s.id}">${escapeHtml(s.name)}</option>`
+  ).join('');
+
+  openModal('テスト結果入力', `
+    <div class="form-row">
+      <div class="form-group">
+        <label>生徒 *</label>
+        <select class="form-control" id="examStudent">${studentOptions}</select>
+      </div>
+      <div class="form-group">
+        <label>テスト名 *</label>
+        <input type="text" class="form-control" id="examName" placeholder="例: 中間テスト">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>日付 *</label>
+      <input type="date" class="form-control" id="examDate" value="${getToday()}">
+    </div>
+    <h4 style="margin:12px 0 8px">科目と得点</h4>
+    <div id="examSubjects">
+      <div class="form-row exam-subject-row">
+        <div class="form-group"><label>科目</label><input type="text" class="form-control exam-subj-name" value="国語"></div>
+        <div class="form-group"><label>得点</label><input type="number" class="form-control exam-subj-score" value="0" min="0"></div>
+        <div class="form-group"><label>満点</label><input type="number" class="form-control exam-subj-max" value="100" min="1"></div>
+      </div>
+      <div class="form-row exam-subject-row">
+        <div class="form-group"><label>科目</label><input type="text" class="form-control exam-subj-name" value="数学"></div>
+        <div class="form-group"><label>得点</label><input type="number" class="form-control exam-subj-score" value="0" min="0"></div>
+        <div class="form-group"><label>満点</label><input type="number" class="form-control exam-subj-max" value="100" min="1"></div>
+      </div>
+      <div class="form-row exam-subject-row">
+        <div class="form-group"><label>科目</label><input type="text" class="form-control exam-subj-name" value="英語"></div>
+        <div class="form-group"><label>得点</label><input type="number" class="form-control exam-subj-score" value="0" min="0"></div>
+        <div class="form-group"><label>満点</label><input type="number" class="form-control exam-subj-max" value="100" min="1"></div>
+      </div>
+      <div class="form-row exam-subject-row">
+        <div class="form-group"><label>科目</label><input type="text" class="form-control exam-subj-name" value="理科"></div>
+        <div class="form-group"><label>得点</label><input type="number" class="form-control exam-subj-score" value="0" min="0"></div>
+        <div class="form-group"><label>満点</label><input type="number" class="form-control exam-subj-max" value="100" min="1"></div>
+      </div>
+      <div class="form-row exam-subject-row">
+        <div class="form-group"><label>科目</label><input type="text" class="form-control exam-subj-name" value="社会"></div>
+        <div class="form-group"><label>得点</label><input type="number" class="form-control exam-subj-score" value="0" min="0"></div>
+        <div class="form-group"><label>満点</label><input type="number" class="form-control exam-subj-max" value="100" min="1"></div>
+      </div>
+    </div>
+    <button class="btn btn-secondary btn-sm" style="margin-top:8px" onclick="addExamSubjectRow()">+ 科目追加</button>
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" onclick="saveExam()">保存</button>
+  `);
+}
+
+function addExamSubjectRow() {
+  const container = document.getElementById('examSubjects');
+  const row = document.createElement('div');
+  row.className = 'form-row exam-subject-row';
+  row.innerHTML = `
+    <div class="form-group"><label>科目</label><input type="text" class="form-control exam-subj-name"></div>
+    <div class="form-group"><label>得点</label><input type="number" class="form-control exam-subj-score" value="0" min="0"></div>
+    <div class="form-group"><label>満点</label><input type="number" class="form-control exam-subj-max" value="100" min="1"></div>
+  `;
+  container.appendChild(row);
+}
+
+async function saveExam() {
+  const studentId = document.getElementById('examStudent').value;
+  const examName = document.getElementById('examName').value.trim();
+  const date = document.getElementById('examDate').value;
+  const student = allStudents.find(s => s.id === studentId);
+
+  if (!studentId || !examName || !date) {
+    showToast('必須項目を入力してください', 'error');
+    return;
+  }
+
+  const rows = document.querySelectorAll('.exam-subject-row');
+  const subjects = [];
+  rows.forEach(row => {
+    const name = row.querySelector('.exam-subj-name').value.trim();
+    const score = parseInt(row.querySelector('.exam-subj-score').value) || 0;
+    const maxScore = parseInt(row.querySelector('.exam-subj-max').value) || 100;
+    if (name) subjects.push({ name, score, maxScore });
+  });
+
+  if (subjects.length === 0) { showToast('少なくとも1科目入力してください', 'error'); return; }
+
+  const totalScore = subjects.reduce((s, sub) => s + sub.score, 0);
+  const maxTotalScore = subjects.reduce((s, sub) => s + sub.maxScore, 0);
+
+  try {
+    await ExamResultsDB.add({
+      studentId,
+      studentName: student ? student.name : '',
+      examName, date, subjects, totalScore, maxTotalScore
+    });
+    showToast('テスト結果を保存しました');
+    closeModal();
+    loadExams();
+  } catch (e) { showToast('保存に失敗しました', 'error'); }
+}
+
+async function loadExamTrend() {
+  const studentId = document.getElementById('examTrendStudent').value;
+  if (!studentId) return;
+
+  try {
+    const exams = await ExamResultsDB.getByStudent(studentId);
+    if (exams.length === 0) return;
+
+    const sorted = [...exams].sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+    // 各科目のデータセット
+    const subjectNames = new Set();
+    sorted.forEach(e => (e.subjects || []).forEach(s => subjectNames.add(s.name)));
+
+    const colors = ['#667eea', '#764ba2', '#48bb78', '#f6ad55', '#fc8181', '#4fd1c5', '#a78bfa', '#68d391'];
+    const datasets = [...subjectNames].map((name, i) => ({
+      label: name,
+      data: sorted.map(e => {
+        const subj = (e.subjects || []).find(s => s.name === name);
+        return subj ? subj.score : null;
+      }),
+      borderColor: colors[i % colors.length],
+      tension: 0.3,
+      fill: false,
+      spanGaps: true
+    }));
+
+    // 合計点も追加
+    datasets.push({
+      label: '合計',
+      data: sorted.map(e => e.totalScore),
+      borderColor: '#2d3748',
+      borderWidth: 2,
+      borderDash: [5, 5],
+      tension: 0.3,
+      fill: false
+    });
+
+    renderChart('examTrendChart', 'line', {
+      labels: sorted.map(e => e.examName + '\n' + (e.date || '').slice(5)),
+      datasets
+    }, {
+      plugins: { legend: { position: 'bottom' } },
+      scales: { y: { beginAtZero: true } }
+    });
+  } catch (e) {
+    console.error('成績推移読み込みエラー:', e);
+  }
+}
+
+// ============================================
+// Chart.js ヘルパー
+// ============================================
+function renderChart(canvasId, type, data, options = {}) {
+  if (chartInstances[canvasId]) {
+    chartInstances[canvasId].destroy();
+  }
+  const ctx = document.getElementById(canvasId);
+  if (!ctx) return;
+  chartInstances[canvasId] = new Chart(ctx, {
+    type,
+    data,
+    options: {
+      responsive: true,
+      maintainAspectRatio: true,
+      ...options
+    }
+  });
+}
+
+// ============================================
+// 初期化
+// ============================================
+async function init() {
+  try {
+    // 初期日付設定
+    document.getElementById('monitorDate').value = getToday();
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 7);
+    document.getElementById('historyEnd').value = end.toISOString().split('T')[0];
+    document.getElementById('historyStart').value = start.toISOString().split('T')[0];
+
+    // データロード
+    await loadRanking();
+    loadNotifications();
+
+    // リスク検知（バックグラウンド）
+    RiskDetector.checkAll().then(risks => {
+      const banner = document.getElementById('riskBanner');
+      if (risks.length > 0) {
+        banner.classList.add('visible');
+        document.getElementById('riskBannerText').textContent =
+          `${risks.length}名の生徒に離脱リスクが検出されています`;
+      }
+    }).catch(() => {});
+
+    // 定期更新（5分）
+    setInterval(() => {
+      loadNotifications();
+    }, 300000);
+
+  } catch (e) {
+    console.error('初期化エラー:', e);
+  }
+}
+
+// DOM Ready
+document.addEventListener('DOMContentLoaded', init);
+</script>
+</body>
+</html>

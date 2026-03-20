@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // 生徒データ
+    match /students/{studentId} {
+      allow read: true;
+      allow write: if true; // TODO: Firebase Auth導入後に制限
+    }
+
+    // 学習ログ
+    match /studyLogs/{logId} {
+      allow read: true;
+      allow write: if true;
+    }
+
+    // タスク
+    match /tasks/{taskId} {
+      allow read: true;
+      allow write: if true;
+    }
+
+    // 景品
+    match /prizes/{prizeId} {
+      allow read: true;
+      allow write: if true;
+    }
+
+    // 景品交換履歴
+    match /prizeHistory/{historyId} {
+      allow read: true;
+      allow write: if true;
+    }
+
+    // コンディション
+    match /conditions/{conditionId} {
+      allow read: true;
+      allow write: if true;
+    }
+
+    // バッジ
+    match /badges/{badgeId} {
+      allow read: true;
+      allow write: if true;
+    }
+
+    // メッセージ
+    match /messages/{messageId} {
+      allow read: true;
+      allow write: if true;
+    }
+
+    // ギルド
+    match /guilds/{guildId} {
+      allow read: true;
+      allow write: if true;
+    }
+
+    // レイドボス
+    match /raidBosses/{bossId} {
+      allow read: true;
+      allow write: if true;
+    }
+
+    // レイドダメージログ
+    match /raidDamage/{damageId} {
+      allow read: true;
+      allow write: if true;
+    }
+
+    // テスト結果
+    match /examResults/{resultId} {
+      allow read: true;
+      allow write: if true;
+    }
+
+    // 通知
+    match /notifications/{notifId} {
+      allow read: true;
+      allow write: if true;
+    }
+  }
+}
