@@ -8,6 +8,7 @@
   <link rel="icon" href="icons/icon-192.png">
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
   <style>
     :root {
@@ -368,6 +369,36 @@
 </head>
 <body>
 
+<!-- ===== 管理者ログイン画面 ===== -->
+<div id="adminLoginScreen" style="display:none; position:fixed; inset:0; background:linear-gradient(135deg,#667eea,#764ba2); z-index:99999; display:flex; align-items:center; justify-content:center;">
+  <div style="background:#fff; border-radius:20px; padding:40px 32px; width:90%; max-width:380px; box-shadow:0 20px 60px rgba(0,0,0,0.3); text-align:center;">
+    <div style="font-size:48px; margin-bottom:8px;">⭐</div>
+    <h2 style="font-size:22px; font-weight:800; color:#2d3748; margin-bottom:4px;">Hero's Academy Points</h2>
+    <p style="font-size:13px; color:#718096; margin-bottom:28px;">管理者ダッシュボード</p>
+
+    <div style="text-align:left; margin-bottom:16px;">
+      <label style="font-size:12px; font-weight:600; color:#4a5568;">メールアドレス</label>
+      <input type="email" id="adminEmail" placeholder="admin@example.com"
+        style="width:100%; padding:10px 14px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:14px; margin-top:4px; box-sizing:border-box; outline:none;"
+        onfocus="this.style.borderColor='#667eea'" onblur="this.style.borderColor='#e2e8f0'"
+        onkeydown="if(event.key==='Enter') document.getElementById('adminPassword').focus()">
+    </div>
+    <div style="text-align:left; margin-bottom:8px;">
+      <label style="font-size:12px; font-weight:600; color:#4a5568;">パスワード</label>
+      <input type="password" id="adminPassword" placeholder="••••••••"
+        style="width:100%; padding:10px 14px; border:1.5px solid #e2e8f0; border-radius:10px; font-size:14px; margin-top:4px; box-sizing:border-box; outline:none;"
+        onfocus="this.style.borderColor='#667eea'" onblur="this.style.borderColor='#e2e8f0'"
+        onkeydown="if(event.key==='Enter') adminLogin()">
+    </div>
+    <p id="adminLoginError" style="color:#e53e3e; font-size:12px; min-height:18px; margin-bottom:8px;"></p>
+    <button onclick="adminLogin()"
+      style="width:100%; padding:12px; background:linear-gradient(135deg,#667eea,#764ba2); color:#fff; border:none; border-radius:10px; font-size:15px; font-weight:700; cursor:pointer; margin-bottom:12px;">
+      ログイン
+    </button>
+    <p style="font-size:11px; color:#a0aec0;">初回ログイン: パスワードを忘れた場合は管理者に連絡</p>
+  </div>
+</div>
+
 <!-- Risk Banner -->
 <div class="risk-banner" id="riskBanner" onclick="switchTab('risk')">
   <span>&#9888;&#65039;</span>
@@ -380,10 +411,15 @@
     <span style="font-size:24px">&#127775;</span>
     <h1>Hero's Academy Points</h1>
   </div>
-  <div class="header-right">
+  <div class="header-right" style="display:flex;align-items:center;gap:8px;">
+    <span id="adminEmailLabel" style="font-size:11px;color:rgba(255,255,255,0.7);display:none;"></span>
     <button class="notification-bell" onclick="toggleNotifications()" title="通知">
       &#128276;
       <span class="notification-badge hidden" id="notifBadge">0</span>
+    </button>
+    <button id="adminLogoutBtn" onclick="adminLogout()" title="ログアウト"
+      style="display:none;background:rgba(255,255,255,0.15);border:none;color:#fff;padding:6px 12px;border-radius:8px;font-size:12px;cursor:pointer;">
+      ログアウト
     </button>
   </div>
 </header>
@@ -1910,7 +1946,38 @@ function renderChart(canvasId, type, data, options = {}) {
 // ============================================
 // 初期化
 // ============================================
-async function init() {
+// ============================================
+// Firebase Authentication
+// ============================================
+function adminLogin() {
+  const email = document.getElementById('adminEmail').value.trim();
+  const password = document.getElementById('adminPassword').value;
+  const errEl = document.getElementById('adminLoginError');
+  errEl.textContent = '';
+  if (!email || !password) { errEl.textContent = 'メールとパスワードを入力してください'; return; }
+
+  firebase.auth().signInWithEmailAndPassword(email, password)
+    .then(() => {}) // onAuthStateChanged が画面切替を処理
+    .catch(e => {
+      const msgs = {
+        'auth/user-not-found': 'メールアドレスが見つかりません',
+        'auth/wrong-password': 'パスワードが間違っています',
+        'auth/invalid-email': 'メールアドレスの形式が正しくありません',
+        'auth/too-many-requests': 'ログイン試行が多すぎます。しばらくお待ちください',
+        'auth/invalid-credential': 'メールアドレスまたはパスワードが間違っています',
+      };
+      errEl.textContent = msgs[e.code] || 'ログインに失敗しました: ' + e.message;
+    });
+}
+
+function adminLogout() {
+  if (confirm('ログアウトしますか？')) {
+    firebase.auth().signOut();
+  }
+}
+
+async function initApp() {
+  // ダッシュボードを初期化（認証後に呼ぶ）
   try {
     // 初期日付設定
     document.getElementById('monitorDate').value = getToday();
@@ -2047,7 +2114,46 @@ async function exportCSV(type) {
 }
 
 // DOM Ready
-document.addEventListener('DOMContentLoaded', init);
+// DOM Ready → Auth状態を監視してからアプリ起動
+document.addEventListener('DOMContentLoaded', () => {
+  // ページロード直後は全コンテンツを非表示
+  document.querySelector('.risk-banner') && (document.querySelector('.risk-banner').style.display = 'none');
+  document.querySelector('.header') && (document.querySelector('.header').style.display = 'none');
+  document.querySelector('.tab-nav') && (document.querySelector('.tab-nav').style.display = 'none');
+  document.querySelector('.main') && (document.querySelector('.main').style.display = 'none');
+
+  firebase.auth().onAuthStateChanged(user => {
+    const loginScreen = document.getElementById('adminLoginScreen');
+    const riskBanner = document.querySelector('.risk-banner');
+    const header = document.querySelector('.header');
+    const tabNav = document.querySelector('.tab-nav');
+    const main = document.querySelector('.main');
+
+    if (user) {
+      // ログイン済み → ダッシュボード表示
+      loginScreen.style.display = 'none';
+      if (riskBanner) riskBanner.style.display = '';
+      if (header) header.style.display = '';
+      if (tabNav) tabNav.style.display = '';
+      if (main) main.style.display = '';
+
+      // メールをヘッダーに表示
+      const emailLabel = document.getElementById('adminEmailLabel');
+      if (emailLabel) { emailLabel.textContent = user.email; emailLabel.style.display = 'inline'; }
+      const logoutBtn = document.getElementById('adminLogoutBtn');
+      if (logoutBtn) logoutBtn.style.display = 'inline-block';
+
+      initApp();
+    } else {
+      // 未ログイン → ログイン画面表示
+      loginScreen.style.display = 'flex';
+      if (riskBanner) riskBanner.style.display = 'none';
+      if (header) header.style.display = 'none';
+      if (tabNav) tabNav.style.display = 'none';
+      if (main) main.style.display = 'none';
+    }
+  });
+});
 </script>
 </body>
 </html>
