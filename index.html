@@ -10,6 +10,7 @@
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <style>
     :root {
       --primary: #667eea;
@@ -782,6 +783,71 @@
         <button class="btn btn-secondary" onclick="exportCSV('history')">📥 ポイント履歴 CSV</button>
         <button class="btn btn-secondary" onclick="exportCSV('sessions')">📥 学習記録 CSV</button>
         <button class="btn btn-secondary" onclick="exportCSV('exams')">📥 テスト結果 CSV</button>
+      </div>
+    </div>
+
+    <!-- 保護者レポート -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📧</span> 保護者への定期レポート</div>
+      <p style="font-size:13px;color:var(--text-light);margin-bottom:16px;">
+        各生徒の学習状況をまとめたレポートを保護者へメールで送信できます。<br>
+        ※ 送信にはEmailJSの設定が必要です（無料プランで月200通まで）
+      </p>
+
+      <!-- EmailJS設定 -->
+      <div style="background:#f0f9ff;border-radius:10px;padding:14px;margin-bottom:16px;border:1px solid #bae6fd;">
+        <p style="font-size:12px;font-weight:700;color:#0369a1;margin-bottom:10px;">⚙️ EmailJS設定</p>
+        <div class="form-row">
+          <div class="form-group">
+            <label style="font-size:11px;">Service ID</label>
+            <input type="text" class="form-control" id="emailjsServiceId" placeholder="service_xxxxxxx" style="font-size:12px;">
+          </div>
+          <div class="form-group">
+            <label style="font-size:11px;">Template ID</label>
+            <input type="text" class="form-control" id="emailjsTemplateId" placeholder="template_xxxxxxx" style="font-size:12px;">
+          </div>
+          <div class="form-group">
+            <label style="font-size:11px;">Public Key</label>
+            <input type="text" class="form-control" id="emailjsPublicKey" placeholder="xxxxxxxxxxxxxxxxxxxx" style="font-size:12px;">
+          </div>
+        </div>
+        <button class="btn btn-secondary btn-sm" onclick="saveEmailJSSettings()">💾 保存</button>
+        <a href="https://www.emailjs.com/" target="_blank" style="font-size:11px;color:#0369a1;margin-left:12px;">EmailJSの登録はこちら →</a>
+      </div>
+
+      <!-- レポート設定 -->
+      <div class="form-row">
+        <div class="form-group">
+          <label>送信対象</label>
+          <select class="form-control" id="reportTargetStudent">
+            <option value="all">👨‍👩‍👧 全生徒（一斉送信）</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>集計期間</label>
+          <select class="form-control" id="reportPeriod">
+            <option value="7">直近7日間</option>
+            <option value="14">直近14日間</option>
+            <option value="30" selected>直近30日間</option>
+          </select>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
+        <button class="btn btn-secondary" onclick="previewReport()">👁 レポートをプレビュー</button>
+        <button class="btn btn-primary" onclick="sendReports()">📧 メールで送信</button>
+      </div>
+      <div id="reportStatus" style="margin-top:10px;font-size:13px;"></div>
+    </div>
+
+    <!-- レポートプレビューモーダル -->
+    <div id="reportPreviewModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9998;overflow-y:auto;">
+      <div style="background:#fff;max-width:680px;margin:40px auto;border-radius:16px;padding:32px;position:relative;">
+        <button onclick="document.getElementById('reportPreviewModal').style.display='none'"
+          style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;color:#64748b;">✕</button>
+        <div id="reportPreviewContent"></div>
+        <div style="text-align:center;margin-top:20px;">
+          <button class="btn btn-secondary" onclick="printReport()">🖨️ 印刷/PDF保存</button>
+        </div>
       </div>
     </div>
   </div>
@@ -2070,6 +2136,7 @@ function loadSettings() {
   if (saved.zoomPass) document.getElementById('settingZoomPass').value = saved.zoomPass;
   if (saved.schoolName) document.getElementById('settingSchoolName').value = saved.schoolName;
   if (saved.notice) document.getElementById('settingNotice').value = saved.notice;
+  loadEmailJSSettings();
 }
 
 function saveSettings() {
@@ -2312,6 +2379,265 @@ async function sendFCMPush(studentIds, type, text) {
       console.log('FCM push failed for', sid, e.message);
     }
   }
+}
+
+// ============================================
+// 16. 保護者レポート自動送信
+// ============================================
+const EMAILJS_KEY = 'heros_emailjs';
+
+function saveEmailJSSettings() {
+  const s = {
+    serviceId: document.getElementById('emailjsServiceId').value.trim(),
+    templateId: document.getElementById('emailjsTemplateId').value.trim(),
+    publicKey: document.getElementById('emailjsPublicKey').value.trim(),
+  };
+  localStorage.setItem(EMAILJS_KEY, JSON.stringify(s));
+  if (s.publicKey) emailjs.init(s.publicKey);
+  showToast('EmailJS設定を保存しました');
+}
+
+function loadEmailJSSettings() {
+  const s = JSON.parse(localStorage.getItem(EMAILJS_KEY) || '{}');
+  if (s.serviceId) document.getElementById('emailjsServiceId').value = s.serviceId;
+  if (s.templateId) document.getElementById('emailjsTemplateId').value = s.templateId;
+  if (s.publicKey) {
+    document.getElementById('emailjsPublicKey').value = s.publicKey;
+    emailjs.init(s.publicKey);
+  }
+
+  // レポート送信先セレクト更新
+  const sel = document.getElementById('reportTargetStudent');
+  if (sel && sel.options.length <= 1) {
+    StudentsDB.getAll().then(studs => {
+      studs.sort((a,b) => (a.nickname||'').localeCompare(b.nickname||'','ja')).forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = s.nickname + (s.grade ? ` [${s.grade}]` : '');
+        sel.appendChild(opt);
+      });
+    });
+  }
+}
+
+async function generateReportData(studentId, days) {
+  const now = Date.now();
+  const fromMs = now - days * 24 * 60 * 60 * 1000;
+
+  const student = await StudentsDB.getById(studentId);
+  if (!student) return null;
+
+  const snap = await db.collection('studySessions')
+    .where('studentId', '==', studentId)
+    .where('status', '==', 'completed')
+    .orderBy('startedAt', 'desc').limit(100).get();
+  const sessions = snap.docs.map(d => d.data()).filter(s => {
+    const ms = s.startedAt?.toMillis ? s.startedAt.toMillis() : (s.startedAtMs || 0);
+    return ms >= fromMs;
+  });
+
+  const condSnap = await db.collection('conditions')
+    .where('studentId', '==', studentId)
+    .orderBy('timestamp', 'desc').limit(30).get();
+  const conditions = condSnap.docs.map(d => d.data()).filter(c => {
+    const ms = c.timestamp?.toMillis ? c.timestamp.toMillis() : 0;
+    return ms >= fromMs;
+  });
+
+  const histSnap = await db.collection('history')
+    .where('studentId', '==', studentId)
+    .orderBy('createdAt', 'desc').limit(100).get();
+  const history = histSnap.docs.map(d => d.data()).filter(h => {
+    const ms = h.createdAt?.toMillis ? h.createdAt.toMillis() : (h.createdAtMs || 0);
+    return ms >= fromMs;
+  });
+
+  const totalMinutes = sessions.reduce((s, se) => s + (se.duration || 0), 0);
+  const totalDays = new Set(sessions.map(se => {
+    const ms = se.startedAt?.toMillis ? se.startedAt.toMillis() : 0;
+    return new Date(ms).toISOString().slice(0, 10);
+  })).size;
+  const totalPts = history.reduce((s, h) => s + (h.amount || 0), 0);
+  const subjects = [...new Set(sessions.map(s => s.subject).filter(Boolean))];
+  const avgMotivation = conditions.length > 0
+    ? (conditions.reduce((s, c) => s + (c.motivationValue || 3), 0) / conditions.length).toFixed(1)
+    : '-';
+
+  const examSnap = await db.collection('examResults')
+    .where('studentId', '==', studentId)
+    .orderBy('date', 'desc').limit(3).get();
+  const exams = examSnap.docs.map(d => d.data());
+
+  return { student, totalMinutes, totalDays, totalPts, subjects, avgMotivation, sessions, conditions, exams, days };
+}
+
+function generateReportHTML(data, forEmail = false) {
+  if (!data) return '';
+  const { student, totalMinutes, totalDays, totalPts, subjects, avgMotivation, sessions, exams, days } = data;
+  const now = new Date().toLocaleDateString('ja-JP');
+  const hours = Math.floor(totalMinutes / 60);
+  const mins = totalMinutes % 60;
+
+  const motivBar = (val) => {
+    const pct = (parseFloat(val) / 5 * 100) || 0;
+    return `<div style="background:#e2e8f0;border-radius:4px;height:8px;width:120px;display:inline-block;vertical-align:middle;">
+      <div style="background:#667eea;width:${pct}%;height:100%;border-radius:4px;"></div></div>`;
+  };
+
+  const subjectList = subjects.length > 0 ? subjects.join('・') : '記録なし';
+
+  const examRows = exams.length > 0
+    ? exams.map(e => `<tr><td>${e.examName||''}</td><td>${e.date||''}</td><td style="font-weight:bold;">${e.totalScore||0}点 / ${e.maxTotalScore||0}点</td></tr>`).join('')
+    : '<tr><td colspan="3" style="color:#94a3b8;">テスト結果データなし</td></tr>';
+
+  return `
+    <div style="font-family:sans-serif;max-width:600px;margin:0 auto;color:#2d3748;">
+      <div style="background:linear-gradient(135deg,#667eea,#764ba2);padding:28px;border-radius:12px 12px 0 0;text-align:center;color:#fff;">
+        <div style="font-size:32px;margin-bottom:6px;">⭐</div>
+        <h1 style="font-size:20px;font-weight:800;margin:0 0 4px;">HERO'S Points 学習レポート</h1>
+        <p style="font-size:13px;opacity:0.85;margin:0;">集計期間: 直近${days}日間 ／ 作成日: ${now}</p>
+      </div>
+      <div style="background:#fff;padding:24px;border:1px solid #e2e8f0;border-top:none;">
+        <h2 style="font-size:16px;font-weight:700;border-bottom:2px solid #667eea;padding-bottom:8px;margin-bottom:16px;">
+          📋 ${student.nickname}さん（${student.grade||''}）の学習状況
+        </h2>
+
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:20px;">
+          <div style="background:#f0f4ff;border-radius:10px;padding:14px;text-align:center;">
+            <p style="font-size:11px;color:#667eea;font-weight:700;margin:0 0 4px;">📅 学習日数</p>
+            <p style="font-size:28px;font-weight:800;color:#4c51bf;margin:0;">${totalDays}<span style="font-size:14px;">日</span></p>
+          </div>
+          <div style="background:#f0f4ff;border-radius:10px;padding:14px;text-align:center;">
+            <p style="font-size:11px;color:#667eea;font-weight:700;margin:0 0 4px;">⏱️ 総学習時間</p>
+            <p style="font-size:28px;font-weight:800;color:#4c51bf;margin:0;">${hours}<span style="font-size:14px;">時間</span>${mins}<span style="font-size:14px;">分</span></p>
+          </div>
+          <div style="background:#f0fdf4;border-radius:10px;padding:14px;text-align:center;">
+            <p style="font-size:11px;color:#10b981;font-weight:700;margin:0 0 4px;">💎 獲得ポイント</p>
+            <p style="font-size:28px;font-weight:800;color:#065f46;margin:0;">${totalPts.toLocaleString()}<span style="font-size:14px;">pts</span></p>
+          </div>
+          <div style="background:#fffbeb;border-radius:10px;padding:14px;text-align:center;">
+            <p style="font-size:11px;color:#d97706;font-weight:700;margin:0 0 4px;">😊 モチベーション</p>
+            <p style="font-size:28px;font-weight:800;color:#92400e;margin:0;">${avgMotivation}<span style="font-size:14px;">/5</span></p>
+          </div>
+        </div>
+
+        <div style="margin-bottom:20px;">
+          <h3 style="font-size:13px;font-weight:700;color:#4a5568;margin-bottom:8px;">📚 取り組んだ科目</h3>
+          <p style="font-size:14px;color:#2d3748;background:#f8fafc;padding:10px;border-radius:8px;margin:0;">${subjectList}</p>
+        </div>
+
+        ${exams.length > 0 ? `
+        <div style="margin-bottom:20px;">
+          <h3 style="font-size:13px;font-weight:700;color:#4a5568;margin-bottom:8px;">📝 直近のテスト結果</h3>
+          <table style="width:100%;border-collapse:collapse;font-size:13px;">
+            <thead>
+              <tr style="background:#f0f4ff;color:#4c51bf;">
+                <th style="padding:8px;text-align:left;">テスト名</th>
+                <th style="padding:8px;text-align:left;">日付</th>
+                <th style="padding:8px;text-align:left;">得点</th>
+              </tr>
+            </thead>
+            <tbody>${examRows}</tbody>
+          </table>
+        </div>` : ''}
+
+        <div style="background:linear-gradient(135deg,#667eea22,#764ba222);border-radius:10px;padding:16px;margin-bottom:16px;">
+          <h3 style="font-size:13px;font-weight:700;color:#4c51bf;margin:0 0 8px;">💌 先生からのメッセージ</h3>
+          <p style="font-size:13px;color:#2d3748;margin:0;line-height:1.7;">
+            ${student.nickname}さんは今期間、${totalDays}日間塾に来て合計${hours}時間${mins}分学習しました。
+            ${totalDays >= 15 ? '素晴らしい継続力です！この調子で頑張りましょう！💪' :
+              totalDays >= 8 ? 'コツコツと積み重ねることができています。もう少し頑張れると更に伸びます！' :
+              'ぜひもっと塾を活用して、一緒に頑張っていきましょう！'}
+          </p>
+        </div>
+
+        <p style="font-size:11px;color:#94a3b8;text-align:center;margin:0;">
+          このレポートはHERO'S Points システムより自動生成されました
+        </p>
+      </div>
+    </div>`;
+}
+
+async function previewReport() {
+  const studentId = document.getElementById('reportTargetStudent').value;
+  const days = parseInt(document.getElementById('reportPeriod').value);
+
+  const modal = document.getElementById('reportPreviewModal');
+  const content = document.getElementById('reportPreviewContent');
+  content.innerHTML = '<p style="text-align:center;padding:20px;">⏳ 生成中...</p>';
+  modal.style.display = 'block';
+
+  if (studentId === 'all') {
+    const studs = await StudentsDB.getAll();
+    const first = studs[0];
+    if (!first) { content.innerHTML = '<p>生徒データがありません</p>'; return; }
+    const data = await generateReportData(first.id, days);
+    content.innerHTML = generateReportHTML(data) +
+      `<p style="text-align:center;font-size:12px;color:#94a3b8;margin-top:12px;">※ プレビューは最初の生徒（${first.nickname}）のサンプルです</p>`;
+  } else {
+    const data = await generateReportData(studentId, days);
+    content.innerHTML = generateReportHTML(data);
+  }
+}
+
+function printReport() {
+  const content = document.getElementById('reportPreviewContent').innerHTML;
+  const win = window.open('', '_blank');
+  win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>学習レポート</title></head><body>${content}</body></html>`);
+  win.document.close();
+  win.print();
+}
+
+async function sendReports() {
+  const ejsSettings = JSON.parse(localStorage.getItem(EMAILJS_KEY) || '{}');
+  if (!ejsSettings.serviceId || !ejsSettings.templateId || !ejsSettings.publicKey) {
+    showToast('EmailJSの設定を先に行ってください（塾設定タブ）');
+    document.getElementById('reportStatus').innerHTML = '⚠️ <a href="#" onclick="document.querySelector(\'[data-tab=settings]\').click()">EmailJS設定</a>を先に行ってください';
+    return;
+  }
+
+  const studentId = document.getElementById('reportTargetStudent').value;
+  const days = parseInt(document.getElementById('reportPeriod').value);
+  const statusEl = document.getElementById('reportStatus');
+  statusEl.innerHTML = '📤 送信中...';
+
+  const studs = studentId === 'all' ? await StudentsDB.getAll() : [await StudentsDB.getById(studentId)];
+  let sent = 0, failed = 0;
+
+  for (const student of studs.filter(Boolean)) {
+    if (!student.parentContact || !student.parentContact.includes('@')) continue;
+
+    try {
+      const data = await generateReportData(student.id, days);
+      const htmlBody = generateReportHTML(data, true);
+
+      await emailjs.send(ejsSettings.serviceId, ejsSettings.templateId, {
+        to_email: student.parentContact,
+        to_name: student.realName ? `${student.realName}の保護者` : `${student.nickname}の保護者`,
+        student_name: student.nickname,
+        period: `直近${days}日間`,
+        report_html: htmlBody,
+        from_name: 'HERO\'S Points 延岡校',
+      });
+      sent++;
+    } catch(e) {
+      console.error('Email send failed for', student.nickname, e);
+      failed++;
+    }
+  }
+
+  const msg = `✅ ${sent}件送信完了${failed > 0 ? ` / ⚠️ ${failed}件失敗` : ''}`;
+  statusEl.innerHTML = msg;
+  showToast(msg);
+
+  // 送信履歴をFirestoreに記録
+  await db.collection('reportLogs').add({
+    sentAt: firebase.firestore.FieldValue.serverTimestamp(),
+    targetCount: studs.length,
+    sentCount: sent,
+    failedCount: failed,
+    period: days
+  });
 }
 
 // ============================================
