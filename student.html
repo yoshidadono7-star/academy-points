@@ -747,7 +747,7 @@ body {
     <div class="mode-grid mode-grid-2" id="locationGrid" style="grid-template-columns:1fr 1fr 1fr;">
       <button class="mode-btn" onclick="selectMode('location','塾',this)"><div class="mode-btn-icon">🏫</div><div class="mode-btn-label">塾</div></button>
       <button class="mode-btn" onclick="selectMode('location','自宅',this)"><div class="mode-btn-icon">🏠</div><div class="mode-btn-label">自宅</div></button>
-      <button class="mode-btn" onclick="selectMode('location','Zoom',this)"><div class="mode-btn-icon">💻</div><div class="mode-btn-label">Zoom</div></button>
+      <button class="mode-btn" onclick="selectLocationZoom(this)"><div class="mode-btn-icon">💻</div><div class="mode-btn-label">Zoom</div></button>
     </div>
   </div>
 
@@ -1273,6 +1273,43 @@ function selectMode(type, value, btn) {
     !(studySession.subject && studySession.location && studySession.method);
 }
 
+// Zoom場所選択 → 設定されたURLがあれば自動起動
+async function selectLocationZoom(btn) {
+  selectMode('location', 'Zoom', btn);
+
+  try {
+    const snap = await db.collection('settings').doc('global').get();
+    const settings = snap.exists ? snap.data() : {};
+    const zoomUrl = settings.zoomUrl || '';
+
+    if (zoomUrl) {
+      // Zoom URLへ誘導するダイアログ
+      const info = document.createElement('div');
+      info.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#fff;border-radius:16px;padding:24px;box-shadow:0 8px 32px rgba(0,0,0,0.2);z-index:9999;max-width:320px;width:90%;text-align:center;';
+      info.innerHTML = `
+        <div style="font-size:2rem;margin-bottom:8px">💻</div>
+        <h3 style="font-size:16px;font-weight:bold;margin-bottom:8px">Zoom授業に参加する</h3>
+        ${settings.zoomId ? `<p style="font-size:12px;color:#64748b;margin:4px 0">ミーティングID: <strong>${settings.zoomId}</strong></p>` : ''}
+        ${settings.zoomPass ? `<p style="font-size:12px;color:#64748b;margin:4px 0">パスコード: <strong>${settings.zoomPass}</strong></p>` : ''}
+        <p style="font-size:12px;color:#94a3b8;margin:12px 0 16px">Zoomアプリが自動で起動します</p>
+        <div style="display:flex;gap:8px;justify-content:center;">
+          <button onclick="window.open('${zoomUrl}','_blank'); this.closest('div[style]').remove();"
+            style="background:#2D8CFF;color:#fff;border:none;border-radius:8px;padding:10px 20px;font-size:14px;font-weight:bold;cursor:pointer;">
+            🚀 Zoom起動
+          </button>
+          <button onclick="this.closest('div[style]').remove();"
+            style="background:#f1f5f9;color:#64748b;border:none;border-radius:8px;padding:10px 20px;font-size:14px;cursor:pointer;">
+            後で
+          </button>
+        </div>
+      `;
+      document.body.appendChild(info);
+    }
+  } catch(e) {
+    // 設定が取れなくても学習は続行
+  }
+}
+
 // ============================================
 // Timer
 // ============================================
@@ -1282,7 +1319,8 @@ function startStudy() {
   timerState = { running: false, elapsed: 0, interval: null, pomodoroCount: 0, pomodoroPhase: 'work', pomodoroTime: 25 * 60 };
 
   const badge = document.getElementById('timerSubjectBadge');
-  badge.innerHTML = `${SUBJECT_ICONS[studySession.subject] || '📝'} ${studySession.subject} / ${studySession.location}`;
+  const zoomTag = studySession.location === 'Zoom' ? ' <span style="background:#2D8CFF;color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:4px;">🎥 Zoom授業中</span>' : '';
+  badge.innerHTML = `${SUBJECT_ICONS[studySession.subject] || '📝'} ${studySession.subject} / ${studySession.location}${zoomTag}`;
 
   const pomoInfo = document.getElementById('timerPomodoroInfo');
   if (studySession.method === 'pomodoro') {

@@ -402,6 +402,7 @@
   <button class="tab-btn" data-tab="coaching">&#127891; コーチング分析</button>
   <button class="tab-btn" data-tab="risk">&#9888;&#65039; 離脱リスク</button>
   <button class="tab-btn" data-tab="exams">&#128221; テスト結果</button>
+  <button class="tab-btn" data-tab="settings">&#9881;&#65039; 塾設定</button>
 </nav>
 
 <!-- Main Content -->
@@ -655,6 +656,54 @@
     </div>
   </div>
 
+  <!-- ===== 塾設定 ===== -->
+  <div class="tab-content" id="tab-settings">
+    <div class="card">
+      <div class="card-title"><span class="icon">💻</span> Zoom設定</div>
+      <p style="font-size:13px;color:var(--text-light);margin-bottom:12px">
+        生徒がZoom学習を選択したとき自動的に起動するミーティングURLを設定します。
+      </p>
+      <div class="form-group">
+        <label>塾のZoomミーティングURL</label>
+        <input type="url" class="form-control" id="settingZoomUrl" placeholder="https://zoom.us/j/123456789?pwd=xxxxx" style="font-size:12px;">
+        <small style="color:var(--text-light)">Zoomアプリのリンクをコピーしてここにペーストしてください</small>
+      </div>
+      <div class="form-group">
+        <label>ミーティングID（表示用・任意）</label>
+        <input type="text" class="form-control" id="settingZoomId" placeholder="例: 123 456 7890">
+      </div>
+      <div class="form-group">
+        <label>パスコード（表示用・任意）</label>
+        <input type="text" class="form-control" id="settingZoomPass" placeholder="例: abc123">
+      </div>
+      <button class="btn btn-primary" onclick="saveSettings()">💾 設定を保存</button>
+      <div id="settingsSaved" style="display:none;color:var(--success);font-size:13px;margin-top:8px">✅ 保存しました！</div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">🏫</span> 塾情報</div>
+      <div class="form-group">
+        <label>塾名</label>
+        <input type="text" class="form-control" id="settingSchoolName" placeholder="例: HERO'S 延岡校">
+      </div>
+      <div class="form-group">
+        <label>お知らせ（生徒ホーム画面に表示）</label>
+        <textarea class="form-control" id="settingNotice" rows="3" placeholder="例: 来週月曜は祝日のためお休みです"></textarea>
+      </div>
+      <button class="btn btn-primary" onclick="saveSettings()">💾 設定を保存</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><span class="icon">📊</span> データ管理</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;">
+        <button class="btn btn-secondary" onclick="exportCSV('students')">📥 生徒一覧 CSV</button>
+        <button class="btn btn-secondary" onclick="exportCSV('history')">📥 ポイント履歴 CSV</button>
+        <button class="btn btn-secondary" onclick="exportCSV('sessions')">📥 学習記録 CSV</button>
+        <button class="btn btn-secondary" onclick="exportCSV('exams')">📥 テスト結果 CSV</button>
+      </div>
+    </div>
+  </div>
+
 </main>
 
 <!-- Notification Drawer -->
@@ -751,7 +800,8 @@ function switchTab(tabId) {
     raidboss: loadRaidBoss,
     coaching: loadCoachingStudentList,
     risk: loadRisk,
-    exams: loadExams
+    exams: loadExams,
+    settings: loadSettings
   };
   if (loaders[tabId]) loaders[tabId]();
 }
@@ -1892,6 +1942,108 @@ async function init() {
   } catch (e) {
     console.error('初期化エラー:', e);
   }
+}
+
+// ============================================
+// 13. 塾設定（Zoom URL・お知らせ等）
+// ============================================
+const SETTINGS_KEY = 'heros_settings';
+
+function loadSettings() {
+  const saved = JSON.parse(localStorage.getItem(SETTINGS_KEY) || '{}');
+  if (saved.zoomUrl) document.getElementById('settingZoomUrl').value = saved.zoomUrl;
+  if (saved.zoomId) document.getElementById('settingZoomId').value = saved.zoomId;
+  if (saved.zoomPass) document.getElementById('settingZoomPass').value = saved.zoomPass;
+  if (saved.schoolName) document.getElementById('settingSchoolName').value = saved.schoolName;
+  if (saved.notice) document.getElementById('settingNotice').value = saved.notice;
+}
+
+function saveSettings() {
+  const settings = {
+    zoomUrl: document.getElementById('settingZoomUrl').value.trim(),
+    zoomId: document.getElementById('settingZoomId').value.trim(),
+    zoomPass: document.getElementById('settingZoomPass').value.trim(),
+    schoolName: document.getElementById('settingSchoolName').value.trim(),
+    notice: document.getElementById('settingNotice').value.trim(),
+  };
+  localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  // Firestore にも保存（student.htmlから読めるよう）
+  db.collection('settings').doc('global').set(settings).catch(() => {});
+  const msg = document.getElementById('settingsSaved');
+  msg.style.display = 'block';
+  setTimeout(() => msg.style.display = 'none', 2500);
+}
+
+// ============================================
+// 14. CSVエクスポート
+// ============================================
+async function exportCSV(type) {
+  let rows = [], headers = [], filename = '';
+
+  if (type === 'students') {
+    const snap = await db.collection('students').orderBy('nickname').get();
+    headers = ['ニックネーム', '本名', '学年', '学校', 'ポイント', '保護者PIN'];
+    rows = snap.docs.map(d => {
+      const s = d.data();
+      return [s.nickname || '', s.realName || '', s.grade || '', s.school || '', s.points || 0, s.parentPin || ''];
+    });
+    filename = '生徒一覧.csv';
+
+  } else if (type === 'history') {
+    const snap = await db.collection('history').orderBy('createdAt', 'desc').limit(1000).get();
+    const studentsSnap = await db.collection('students').get();
+    const stuMap = {};
+    studentsSnap.forEach(d => stuMap[d.id] = d.data().nickname || '');
+    headers = ['日時', 'ニックネーム', 'ポイント', 'カテゴリ', '理由', '科目'];
+    rows = snap.docs.map(d => {
+      const h = d.data();
+      const dt = h.createdAt ? new Date(h.createdAt.toMillis()).toLocaleString('ja-JP') : '';
+      return [dt, stuMap[h.studentId] || '', h.amount || 0, h.category || '', h.reason || '', h.subject || ''];
+    });
+    filename = 'ポイント履歴.csv';
+
+  } else if (type === 'sessions') {
+    const snap = await db.collection('studySessions').orderBy('startedAt', 'desc').limit(1000).get();
+    const studentsSnap = await db.collection('students').get();
+    const stuMap = {};
+    studentsSnap.forEach(d => stuMap[d.id] = d.data().nickname || '');
+    headers = ['日時', 'ニックネーム', '科目', '学習時間(分)', '場所', 'モード', 'ポモドーロ回数'];
+    rows = snap.docs.map(d => {
+      const s = d.data();
+      const dt = s.startedAt ? new Date(s.startedAt.toMillis()).toLocaleString('ja-JP') : '';
+      return [dt, stuMap[s.studentId] || '', s.subject || '', s.duration || 0, s.location || '塾', s.mode || '通常', s.pomodoroCount || 0];
+    });
+    filename = '学習記録.csv';
+
+  } else if (type === 'exams') {
+    const snap = await db.collection('examResults').orderBy('date', 'desc').get();
+    const studentsSnap = await db.collection('students').get();
+    const stuMap = {};
+    studentsSnap.forEach(d => stuMap[d.id] = d.data().nickname || '');
+    // Collect all subject names
+    const allSubjects = new Set();
+    snap.docs.forEach(d => { const s = d.data(); (s.subjects || []).forEach(sub => allSubjects.add(sub.name)); });
+    const subjArr = [...allSubjects];
+    headers = ['日付', 'テスト名', 'ニックネーム', '合計点', '満点', ...subjArr];
+    rows = snap.docs.map(d => {
+      const e = d.data();
+      const subjScores = subjArr.map(subj => {
+        const found = (e.subjects || []).find(s => s.name === subj);
+        return found ? found.score + '/' + found.maxScore : '';
+      });
+      return [e.date || '', e.examName || '', stuMap[e.studentId] || '', e.totalScore || 0, e.maxTotalScore || 0, ...subjScores];
+    });
+    filename = 'テスト結果.csv';
+  }
+
+  // BOM付きUTF-8でダウンロード（Excelで文字化けしない）
+  const bom = '\uFEFF';
+  const csv = bom + [headers, ...rows].map(r => r.map(v => '"' + String(v).replace(/"/g, '""') + '"').join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url; a.download = filename; a.click();
+  URL.revokeObjectURL(url);
 }
 
 // DOM Ready
