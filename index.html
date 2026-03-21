@@ -432,6 +432,7 @@
   <button class="tab-btn" data-tab="condition">&#128154; コンディション</button>
   <button class="tab-btn" data-tab="history">&#128197; 履歴</button>
   <button class="tab-btn" data-tab="prizes">&#127873; 景品交換</button>
+  <button class="tab-btn" data-tab="messages" style="position:relative;">&#128140; メッセージ<span id="msgTabBadge" class="notification-badge hidden" style="position:absolute;top:4px;right:4px;font-size:9px;min-width:14px;height:14px;line-height:14px;">0</span></button>
   <button class="tab-btn" data-tab="students">&#128100; 生徒管理</button>
   <button class="tab-btn" data-tab="guilds">&#9876;&#65039; ギルド</button>
   <button class="tab-btn" data-tab="raidboss">&#128121; レイドボス</button>
@@ -580,6 +581,51 @@
           <tbody id="prizeHistoryTable"></tbody>
         </table>
       </div>
+    </div>
+  </div>
+
+  <!-- ===== メッセージ ===== -->
+  <div class="tab-content" id="tab-messages">
+    <!-- 送信フォーム -->
+    <div class="card" style="margin-bottom:16px;">
+      <div class="card-title"><span class="icon">📤</span> 生徒へメッセージを送る</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>送信先</label>
+          <select class="form-control" id="msgTargetSelect">
+            <option value="all">📢 全生徒に一斉送信</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>種類</label>
+          <select class="form-control" id="msgTypeSelect">
+            <option value="praise">🏆 褒める</option>
+            <option value="encourage">💪 励ます</option>
+            <option value="info">📢 お知らせ</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>メッセージ</label>
+        <textarea class="form-control" id="msgText" rows="3" placeholder="メッセージを入力してください..."></textarea>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:12px;">
+        <button class="btn btn-secondary btn-sm" onclick="setMsgTemplate('最近とても頑張っていますね！この調子で続けていきましょう💪')">テンプレ①</button>
+        <button class="btn btn-secondary btn-sm" onclick="setMsgTemplate('苦手な部分も少しずつ克服できています！自分を信じて✨')">テンプレ②</button>
+        <button class="btn btn-secondary btn-sm" onclick="setMsgTemplate('来週の定期テストに向けて一緒に頑張ろう！分からないことは何でも聞いてね📚')">テンプレ③</button>
+      </div>
+      <button class="btn btn-primary" onclick="sendAdminMessage()">📩 送信</button>
+    </div>
+
+    <!-- 送信済みメッセージ一覧 -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📬</span> 送信済みメッセージ <span id="msgUnreadCount" style="font-size:12px;color:var(--danger);font-weight:600;"></span></div>
+      <div class="form-group">
+        <select class="form-control" id="msgFilterStudent" onchange="loadMessages()" style="max-width:200px;">
+          <option value="">全生徒</option>
+        </select>
+      </div>
+      <div id="msgList" style="space-y:8px;"></div>
     </div>
   </div>
 
@@ -837,7 +883,8 @@ function switchTab(tabId) {
     coaching: loadCoachingStudentList,
     risk: loadRisk,
     exams: loadExams,
-    settings: loadSettings
+    settings: loadSettings,
+    messages: loadMessages
   };
   if (loaders[tabId]) loaders[tabId]();
 }
@@ -2114,6 +2161,160 @@ async function exportCSV(type) {
 }
 
 // DOM Ready
+// ============================================
+// 15. メッセージ機能 + FCMプッシュ通知
+// ============================================
+
+// FCM サーバーキー（Firebase Console > プロジェクト設定 > Cloud Messaging）
+// ⚠️ 本番環境ではCloud Functionsを使用してください
+const FCM_SERVER_KEY = 'YOUR_FCM_SERVER_KEY_HERE'; // ← 設定後に変更
+
+function setMsgTemplate(text) {
+  document.getElementById('msgText').value = text;
+}
+
+async function loadMessages() {
+  try {
+    // 生徒セレクトを更新
+    const targetSel = document.getElementById('msgTargetSelect');
+    const filterSel = document.getElementById('msgFilterStudent');
+    if (targetSel.options.length <= 1) {
+      const studs = await StudentsDB.getAll();
+      const sorted = studs.sort((a,b) => (a.nickname||'').localeCompare(b.nickname||'','ja'));
+      sorted.forEach(s => {
+        [targetSel, filterSel].forEach(sel => {
+          const opt = document.createElement('option');
+          opt.value = s.id;
+          opt.textContent = s.nickname + (s.grade ? ` [${s.grade}]` : '');
+          sel.appendChild(opt);
+        });
+      });
+    }
+
+    const filterId = document.getElementById('msgFilterStudent').value;
+    let msgs;
+    if (filterId) {
+      msgs = await MessagesDB.getByStudent(filterId);
+    } else {
+      const snap = await db.collection('messages').orderBy('sentAt', 'desc').limit(50).get();
+      msgs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    }
+
+    // 未返信の返信数をバッジに表示
+    const withReply = msgs.filter(m => m.reply && !m.replyRead).length;
+    const badge = document.getElementById('msgTabBadge');
+    const countEl = document.getElementById('msgUnreadCount');
+    if (withReply > 0) {
+      badge.textContent = withReply;
+      badge.classList.remove('hidden');
+      countEl.textContent = `↩ ${withReply}件の返信あり`;
+    } else {
+      badge.classList.add('hidden');
+      countEl.textContent = '';
+    }
+
+    // 生徒名マップ
+    const studs = await StudentsDB.getAll();
+    const stuMap = {};
+    studs.forEach(s => stuMap[s.id] = s.nickname || s.realName || '');
+
+    const container = document.getElementById('msgList');
+    if (msgs.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-light);text-align:center;padding:20px;">メッセージはありません</p>';
+      return;
+    }
+
+    const typeLabel = { praise: '🏆 褒める', encourage: '💪 励ます', info: '📢 お知らせ' };
+    const typeBg = { praise: '#fef3c7', encourage: '#dbeafe', info: '#f0fdf4' };
+
+    container.innerHTML = msgs.map(m => {
+      const stuName = m.studentId === 'all' ? '📢 全生徒' : stuMap[m.studentId] || '不明';
+      const sentDate = m.sentAt ? new Date(m.sentAt.toMillis ? m.sentAt.toMillis() : m.sentAt).toLocaleDateString('ja-JP') : '';
+      const readStatus = m.read ? '✓✓ 既読' : '未読';
+      const readColor = m.read ? '#10b981' : '#94a3b8';
+      return `
+        <div style="background:${typeBg[m.type]||'#f8fafc'};border-radius:12px;padding:14px;margin-bottom:8px;border-left:4px solid ${m.reply ? '#10b981' : '#e2e8f0'};">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <span style="font-size:12px;font-weight:700;color:#4a5568;">${stuName} &nbsp;|&nbsp; ${typeLabel[m.type]||''}</span>
+            <span style="font-size:11px;color:${readColor};">${readStatus} · ${sentDate}</span>
+          </div>
+          <p style="font-size:13px;color:#2d3748;margin:0 0 4px;">${escapeHtml(m.text||'')}</p>
+          ${m.reply ? `
+            <div style="background:#d1fae5;border-radius:8px;padding:8px 10px;margin-top:8px;">
+              <span style="font-size:11px;font-weight:700;color:#065f46;">↩ 生徒からの返信:</span>
+              <p style="font-size:12px;color:#064e3b;margin:2px 0 0;">${escapeHtml(m.reply)}</p>
+              ${!m.replyRead ? `<button onclick="markReplyRead('${m.id}')" style="font-size:10px;color:#059669;background:none;border:none;cursor:pointer;margin-top:2px;">✓ 確認済みにする</button>` : ''}
+            </div>` : ''}
+        </div>`;
+    }).join('');
+  } catch(e) {
+    console.error('loadMessages error:', e);
+  }
+}
+
+async function markReplyRead(msgId) {
+  await db.collection('messages').doc(msgId).update({ replyRead: true });
+  loadMessages();
+}
+
+async function sendAdminMessage() {
+  const studentId = document.getElementById('msgTargetSelect').value;
+  const type = document.getElementById('msgTypeSelect').value;
+  const text = document.getElementById('msgText').value.trim();
+  if (!text) { showToast('メッセージを入力してください'); return; }
+
+  try {
+    const targets = studentId === 'all'
+      ? (await StudentsDB.getAll()).map(s => s.id)
+      : [studentId];
+
+    for (const sid of targets) {
+      await MessagesDB.send({ studentId: sid, type, text });
+    }
+
+    // FCMプッシュ通知を送信
+    await sendFCMPush(targets, type, text);
+
+    showToast(targets.length > 1 ? `${targets.length}名に送信しました！` : 'メッセージを送信しました！');
+    document.getElementById('msgText').value = '';
+    loadMessages();
+  } catch(e) {
+    showToast('送信に失敗しました: ' + e.message);
+  }
+}
+
+async function sendFCMPush(studentIds, type, text) {
+  if (FCM_SERVER_KEY === 'YOUR_FCM_SERVER_KEY_HERE') return; // 未設定
+
+  const typeEmoji = { praise: '🏆', encourage: '💪', info: '📢' };
+  const title = `HERO'S Points ${typeEmoji[type]||'📩'} 先生からメッセージ`;
+  const body = text.length > 60 ? text.slice(0, 60) + '...' : text;
+
+  for (const sid of studentIds) {
+    try {
+      const tokenDoc = await db.collection('fcmTokens').doc(sid).get();
+      if (!tokenDoc.exists) continue;
+      const token = tokenDoc.data().token;
+
+      await fetch('https://fcm.googleapis.com/fcm/send', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'key=' + FCM_SERVER_KEY
+        },
+        body: JSON.stringify({
+          to: token,
+          notification: { title, body, icon: '/icons/icon-192.png' },
+          data: { url: '/student.html', type, studentId: sid }
+        })
+      });
+    } catch(e) {
+      console.log('FCM push failed for', sid, e.message);
+    }
+  }
+}
+
+// ============================================
 // DOM Ready → Auth状態を監視してからアプリ起動
 document.addEventListener('DOMContentLoaded', () => {
   // ページロード直後は全コンテンツを非表示
