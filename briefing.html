@@ -1,0 +1,579 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>HERO'S Points システムブリーフィング</title>
+  <link rel="icon" href="icons/icon-192.png">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', 'Hiragino Sans', sans-serif;
+      background: #f0f2f8;
+      color: #2d3748;
+      line-height: 1.8;
+    }
+
+    /* ===== HERO ===== */
+    .hero {
+      background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+      color: #fff;
+      text-align: center;
+      padding: 60px 20px 50px;
+    }
+    .hero-icon { font-size: 64px; margin-bottom: 12px; }
+    .hero h1 { font-size: 28px; font-weight: 900; margin-bottom: 8px; }
+    .hero p { font-size: 15px; opacity: 0.85; max-width: 500px; margin: 0 auto; }
+
+    /* ===== CONTAINER ===== */
+    .container { max-width: 900px; margin: 0 auto; padding: 30px 20px 60px; }
+
+    /* ===== OVERVIEW ===== */
+    .overview {
+      background: #fff;
+      border-radius: 16px;
+      padding: 28px 24px;
+      margin-bottom: 30px;
+      box-shadow: 0 4px 15px rgba(102,126,234,0.12);
+    }
+    .overview h2 { font-size: 18px; font-weight: 800; margin-bottom: 14px; display: flex; align-items: center; gap: 8px; }
+    .overview p { font-size: 14px; color: #4a5568; }
+    .system-flow {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      margin-top: 20px;
+      flex-wrap: wrap;
+    }
+    .flow-item {
+      background: linear-gradient(135deg, #667eea22, #764ba222);
+      border-radius: 12px;
+      padding: 14px 20px;
+      text-align: center;
+      font-weight: 700;
+      font-size: 13px;
+    }
+    .flow-item .flow-icon { font-size: 28px; display: block; margin-bottom: 4px; }
+    .flow-arrow { font-size: 24px; color: #667eea; font-weight: 900; }
+
+    /* ===== PORTAL CARD ===== */
+    .portal-card {
+      background: #fff;
+      border-radius: 16px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 15px rgba(102,126,234,0.12);
+      overflow: hidden;
+    }
+    .portal-header {
+      padding: 24px 24px 18px;
+      color: #fff;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .portal-header .portal-num {
+      width: 44px; height: 44px;
+      background: rgba(255,255,255,0.25);
+      border-radius: 12px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 20px; font-weight: 900;
+    }
+    .portal-header h2 { font-size: 20px; font-weight: 800; }
+    .portal-header .portal-sub { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+
+    .portal-admin .portal-header { background: linear-gradient(135deg, #667eea, #5a67d8); }
+    .portal-student .portal-header { background: linear-gradient(135deg, #48bb78, #38a169); }
+    .portal-parent .portal-header { background: linear-gradient(135deg, #ed8936, #dd6b20); }
+
+    .portal-body { padding: 24px; }
+    .portal-desc { font-size: 14px; color: #4a5568; margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid #e2e8f0; }
+
+    .portal-url {
+      display: inline-block;
+      background: #f0f4ff;
+      border: 1.5px solid #667eea44;
+      border-radius: 8px;
+      padding: 8px 14px;
+      font-size: 13px;
+      font-weight: 600;
+      color: #667eea;
+      margin-bottom: 18px;
+      word-break: break-all;
+    }
+
+    .feature-section { margin-bottom: 16px; }
+    .feature-section h3 {
+      font-size: 14px;
+      font-weight: 700;
+      color: #2d3748;
+      margin-bottom: 10px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .feature-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+      gap: 10px;
+    }
+    .feature-item {
+      background: #f7fafc;
+      border-radius: 10px;
+      padding: 12px 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .feature-item .fi-icon {
+      font-size: 22px;
+      flex-shrink: 0;
+      margin-top: 2px;
+    }
+    .feature-item .fi-name {
+      font-size: 13px;
+      font-weight: 700;
+      color: #2d3748;
+    }
+    .feature-item .fi-desc {
+      font-size: 11px;
+      color: #718096;
+      margin-top: 2px;
+    }
+
+    /* ===== LOGIN INFO ===== */
+    .login-info {
+      background: #fffbeb;
+      border: 1.5px solid #f6e05e;
+      border-radius: 10px;
+      padding: 14px 16px;
+      margin-top: 10px;
+    }
+    .login-info h4 { font-size: 13px; font-weight: 700; color: #975a16; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; }
+    .login-info p { font-size: 12px; color: #744210; }
+
+    /* ===== TIPS ===== */
+    .tips-card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 28px 24px;
+      box-shadow: 0 4px 15px rgba(102,126,234,0.12);
+      margin-bottom: 24px;
+    }
+    .tips-card h2 { font-size: 18px; font-weight: 800; margin-bottom: 16px; display: flex; align-items: center; gap: 8px; }
+    .tip-list { list-style: none; }
+    .tip-list li {
+      padding: 10px 0;
+      border-bottom: 1px solid #f0f0f0;
+      font-size: 14px;
+      display: flex;
+      align-items: flex-start;
+      gap: 10px;
+    }
+    .tip-list li:last-child { border-bottom: none; }
+    .tip-num {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: #fff;
+      width: 24px; height: 24px;
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 800;
+      flex-shrink: 0;
+      margin-top: 1px;
+    }
+
+    /* ===== FOOTER ===== */
+    .footer {
+      text-align: center;
+      padding: 30px 20px;
+      font-size: 12px;
+      color: #a0aec0;
+    }
+
+    @media (max-width: 600px) {
+      .hero h1 { font-size: 22px; }
+      .feature-grid { grid-template-columns: 1fr; }
+      .system-flow { flex-direction: column; }
+      .flow-arrow { transform: rotate(90deg); }
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ===== HERO ===== -->
+  <div class="hero">
+    <div class="hero-icon">🏫</div>
+    <h1>HERO'S Points システムブリーフィング</h1>
+    <p>塾内で使用する3つのポータル画面の概要と使い方をご説明します</p>
+  </div>
+
+  <div class="container">
+
+    <!-- ===== SYSTEM OVERVIEW ===== -->
+    <div class="overview">
+      <h2>🗺️ システム全体像</h2>
+      <p>HERO'S Pointsは、塾の学習管理とゲーミフィケーションを組み合わせたシステムです。<br>
+        3つのポータルがそれぞれ異なる役割を持ち、連携して動作します。</p>
+      <div class="system-flow">
+        <div class="flow-item">
+          <span class="flow-icon">🛡️</span>
+          管理ダッシュボード<br><small>（先生用）</small>
+        </div>
+        <span class="flow-arrow">⇄</span>
+        <div class="flow-item">
+          <span class="flow-icon">⚔️</span>
+          生徒ポータル<br><small>（生徒用）</small>
+        </div>
+        <span class="flow-arrow">⇄</span>
+        <div class="flow-item">
+          <span class="flow-icon">👨‍👩‍👧</span>
+          保護者ポータル<br><small>（保護者用）</small>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PORTAL 1: ADMIN ===== -->
+    <div class="portal-card portal-admin">
+      <div class="portal-header">
+        <div class="portal-num">1</div>
+        <div>
+          <h2>管理ダッシュボード</h2>
+          <div class="portal-sub">先生・管理者向け ─ index.html</div>
+        </div>
+      </div>
+      <div class="portal-body">
+        <p class="portal-desc">
+          塾全体の管理を行う中心的な画面です。生徒のポイント管理、タスク設定、メッセージ送信、コーチング分析など、すべての管理機能が集約されています。
+        </p>
+        <div class="portal-url">📎 https://hero-s-points.web.app/index.html</div>
+
+        <div class="feature-section">
+          <h3>📋 主な機能（13セクション）</h3>
+          <div class="feature-grid">
+            <div class="feature-item">
+              <span class="fi-icon">🏆</span>
+              <div>
+                <div class="fi-name">ランキング</div>
+                <div class="fi-desc">生徒のポイントランキング表示</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">📊</span>
+              <div>
+                <div class="fi-name">学習モニター</div>
+                <div class="fi-desc">学習ログ・教科別学習時間チャート</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">✅</span>
+              <div>
+                <div class="fi-name">タスク管理</div>
+                <div class="fi-desc">生徒へのタスク追加・編集・削除</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">😊</span>
+              <div>
+                <div class="fi-name">コンディション</div>
+                <div class="fi-desc">生徒の気分・体調トレンド確認</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">📜</span>
+              <div>
+                <div class="fi-name">履歴</div>
+                <div class="fi-desc">日付フィルター付き学習履歴検索</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">🎁</span>
+              <div>
+                <div class="fi-name">景品交換</div>
+                <div class="fi-desc">景品登録・交換履歴管理</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">💬</span>
+              <div>
+                <div class="fi-name">メッセージ</div>
+                <div class="fi-desc">生徒へのメッセージ送信・テンプレート</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">👤</span>
+              <div>
+                <div class="fi-name">生徒管理</div>
+                <div class="fi-desc">生徒の登録・編集・削除</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">⚔️</span>
+              <div>
+                <div class="fi-name">ギルド</div>
+                <div class="fi-desc">チーム作成・メンバー管理</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">🐉</span>
+              <div>
+                <div class="fi-name">レイドボス</div>
+                <div class="fi-desc">ボス作成・討伐状況トラッキング</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">📈</span>
+              <div>
+                <div class="fi-name">コーチング分析</div>
+                <div class="fi-desc">レーダーチャート・14日間ヒートマップ</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">⚠️</span>
+              <div>
+                <div class="fi-name">離脱リスク</div>
+                <div class="fi-desc">生徒の離脱リスク自動検知</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">📝</span>
+              <div>
+                <div class="fi-name">テスト結果</div>
+                <div class="fi-desc">テスト成績入力・推移グラフ</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="login-info">
+          <h4>🔑 ログイン方法</h4>
+          <p>管理者パスワードでログインします。パスワードは塾長から共有されます。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PORTAL 2: STUDENT ===== -->
+    <div class="portal-card portal-student">
+      <div class="portal-header">
+        <div class="portal-num">2</div>
+        <div>
+          <h2>生徒ポータル</h2>
+          <div class="portal-sub">生徒向け ─ student.html</div>
+        </div>
+      </div>
+      <div class="portal-body">
+        <p class="portal-desc">
+          生徒がスマホやタブレットで使う画面です。学習タイマー、ポイント確認、ランキング、ギルド、レイドボスなど、ゲーム感覚で楽しみながら学習を進められます。
+        </p>
+        <div class="portal-url">📎 https://hero-s-points.web.app/student.html</div>
+
+        <div class="feature-section">
+          <h3>🎮 主な機能</h3>
+          <div class="feature-grid">
+            <div class="feature-item">
+              <span class="fi-icon">🏠</span>
+              <div>
+                <div class="fi-name">ホーム画面</div>
+                <div class="fi-desc">ポイント残高・レベル・進捗バー・クイックアクション</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">⏱️</span>
+              <div>
+                <div class="fi-name">学習タイマー</div>
+                <div class="fi-desc">教科・場所・方式（通常/ポモドーロ）を選んで学習</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">😊</span>
+              <div>
+                <div class="fi-name">コンディション報告</div>
+                <div class="fi-desc">気分・体力・やる気を5段階の絵文字で記録</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">✅</span>
+              <div>
+                <div class="fi-name">タスク一覧</div>
+                <div class="fi-desc">先生から割り当てられたタスクの確認・完了</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">🏆</span>
+              <div>
+                <div class="fi-name">ランキング</div>
+                <div class="fi-desc">ポイント・連続日数・レベルの3種類</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">🎁</span>
+              <div>
+                <div class="fi-name">景品交換</div>
+                <div class="fi-desc">貯めたポイントで景品と交換</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">🏅</span>
+              <div>
+                <div class="fi-name">バッジコレクション</div>
+                <div class="fi-desc">達成した実績でバッジを獲得</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">⚔️</span>
+              <div>
+                <div class="fi-name">ギルド</div>
+                <div class="fi-desc">チームメンバーと協力してランキング上位へ</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">🐉</span>
+              <div>
+                <div class="fi-name">レイドボス</div>
+                <div class="fi-desc">学習するとボスにダメージ！みんなで討伐</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">💬</span>
+              <div>
+                <div class="fi-name">メッセージ</div>
+                <div class="fi-desc">先生からのメッセージ確認・返信</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="login-info">
+          <h4>🔑 ログイン方法</h4>
+          <p>ニックネームとPINコードでログインします。生徒の登録は管理ダッシュボードから行います。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== PORTAL 3: PARENT ===== -->
+    <div class="portal-card portal-parent">
+      <div class="portal-header">
+        <div class="portal-num">3</div>
+        <div>
+          <h2>保護者ポータル</h2>
+          <div class="portal-sub">保護者向け ─ parent.html</div>
+        </div>
+      </div>
+      <div class="portal-body">
+        <p class="portal-desc">
+          保護者がお子さまの学習状況を確認するための閲覧専用画面です。学習日数、勉強時間、テスト結果、先生からのメッセージなどをまとめて確認できます。
+        </p>
+        <div class="portal-url">📎 https://hero-s-points.web.app/parent.html</div>
+
+        <div class="feature-section">
+          <h3>👀 主な機能（4タブ）</h3>
+          <div class="feature-grid">
+            <div class="feature-item">
+              <span class="fi-icon">📊</span>
+              <div>
+                <div class="fi-name">サマリー</div>
+                <div class="fi-desc">30日間の学習日数・時間・ポイント・連続日数、ヒートマップ、教科別学習時間</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">📝</span>
+              <div>
+                <div class="fi-name">テスト結果</div>
+                <div class="fi-desc">テスト名・日付・合計点・各教科の得点表示</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">🏅</span>
+              <div>
+                <div class="fi-name">バッジ</div>
+                <div class="fi-desc">お子さまが獲得したバッジの一覧</div>
+              </div>
+            </div>
+            <div class="feature-item">
+              <span class="fi-icon">💬</span>
+              <div>
+                <div class="fi-name">メッセージ</div>
+                <div class="fi-desc">先生からの褒め・激励・お知らせの確認</div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div class="login-info">
+          <h4>🔑 ログイン方法</h4>
+          <p>お子さまのニックネームと保護者用PINコードでログインします。PINは管理ダッシュボードの生徒管理で設定します。</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== TIPS ===== -->
+    <div class="tips-card">
+      <h2>💡 運用のポイント</h2>
+      <ul class="tip-list">
+        <li>
+          <span class="tip-num">1</span>
+          <span>まず<strong>管理ダッシュボード</strong>で生徒を登録し、PINコードを設定しましょう</span>
+        </li>
+        <li>
+          <span class="tip-num">2</span>
+          <span>タスクと景品を設定すると、生徒のモチベーションが上がります</span>
+        </li>
+        <li>
+          <span class="tip-num">3</span>
+          <span>生徒には<strong>生徒ポータル</strong>のURLとPINを伝えてください</span>
+        </li>
+        <li>
+          <span class="tip-num">4</span>
+          <span>保護者には<strong>保護者ポータル</strong>のURLと保護者用PINを共有してください</span>
+        </li>
+        <li>
+          <span class="tip-num">5</span>
+          <span>定期的にメッセージを送ったり、コンディションを確認すると離脱防止に効果的です</span>
+        </li>
+        <li>
+          <span class="tip-num">6</span>
+          <span>ギルドやレイドボスを活用して、チームでの学習を促進しましょう</span>
+        </li>
+      </ul>
+    </div>
+
+    <!-- ===== URL SUMMARY ===== -->
+    <div class="overview">
+      <h2>🔗 URL一覧</h2>
+      <table style="width:100%; border-collapse:collapse; font-size:14px; margin-top:10px;">
+        <tr style="border-bottom:2px solid #e2e8f0;">
+          <th style="text-align:left; padding:10px 8px; color:#4a5568;">画面</th>
+          <th style="text-align:left; padding:10px 8px; color:#4a5568;">対象</th>
+          <th style="text-align:left; padding:10px 8px; color:#4a5568;">URL</th>
+        </tr>
+        <tr style="border-bottom:1px solid #f0f0f0;">
+          <td style="padding:10px 8px; font-weight:700;">🛡️ 管理ダッシュボード</td>
+          <td style="padding:10px 8px;">先生</td>
+          <td style="padding:10px 8px; color:#667eea; word-break:break-all;">/index.html</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f0f0f0;">
+          <td style="padding:10px 8px; font-weight:700;">⚔️ 生徒ポータル</td>
+          <td style="padding:10px 8px;">生徒</td>
+          <td style="padding:10px 8px; color:#48bb78; word-break:break-all;">/student.html</td>
+        </tr>
+        <tr style="border-bottom:1px solid #f0f0f0;">
+          <td style="padding:10px 8px; font-weight:700;">👨‍👩‍👧 保護者ポータル</td>
+          <td style="padding:10px 8px;">保護者</td>
+          <td style="padding:10px 8px; color:#ed8936; word-break:break-all;">/parent.html</td>
+        </tr>
+        <tr>
+          <td style="padding:10px 8px; font-weight:700;">🏫 ブリーフィング</td>
+          <td style="padding:10px 8px;">スタッフ</td>
+          <td style="padding:10px 8px; color:#764ba2; word-break:break-all;">/briefing.html</td>
+        </tr>
+      </table>
+    </div>
+
+  </div>
+
+  <div class="footer">
+    HERO'S Points System &copy; 2026 ─ 塾内限定資料
+  </div>
+
+</body>
+</html>
