@@ -79,5 +79,35 @@ service cloud.firestore {
       allow read: true;
       allow write: if true;
     }
+
+    // ミッション
+    match /missions/{missionId} {
+      allow read: true;
+      allow write: if true;
+    }
+
+    // コイン取引履歴
+    match /coins/{coinId} {
+      allow read: true;
+      allow write: if true;
+    }
+
+    // イベント
+    match /events/{eventId} {
+      allow read: true;
+      allow write: if true;
+    }
+
+    // 報酬カタログ
+    match /rewards/{rewardId} {
+      allow read: true;
+      allow write: if true;
+    }
+
+    // 報酬交換履歴
+    match /rewardHistory/{historyId} {
+      allow read: true;
+      allow write: if true;
+    }
   }
 }

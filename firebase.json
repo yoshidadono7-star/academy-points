@@ -4,9 +4,22 @@
     "ignore": [
       "firebase.json",
       "**/.*",
-      "**/node_modules/**"
+      "**/node_modules/**",
+      "README.md"
     ],
     "rewrites": [
+      {
+        "source": "/briefing",
+        "destination": "/briefing.html"
+      },
+      {
+        "source": "/student",
+        "destination": "/student.html"
+      },
+      {
+        "source": "/parent",
+        "destination": "/parent.html"
+      },
       {
         "source": "**",
         "destination": "/index.html"

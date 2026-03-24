@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>HERO'S Points - 保護者ポータル</title>
+  <title>HERO'S - 保護者ポータル</title>
   <link rel="icon" href="icons/icon-192.png">
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -149,7 +149,7 @@
   <div class="login-card">
     <div class="login-icon">👨‍👩‍👧</div>
     <div class="login-title">保護者ポータル</div>
-    <div class="login-sub">HERO'S Points</div>
+    <div class="login-sub">HERO'S 保護者ポータル</div>
 
     <label class="login-label">お子さんのニックネーム</label>
     <input type="text" id="loginNickname" class="login-input" placeholder="例: タロー"
@@ -194,8 +194,7 @@
           </div>
           <div style="text-align:right;">
             <div class="level-badge" id="portalLevel">Lv. -</div>
-            <p style="font-size:24px; font-weight:800; margin-top:8px;" id="portalPoints">- pts</p>
-            <p style="font-size:10px; opacity:0.75;">現在の保有ポイント</p>
+            <p style="font-size:12px; opacity:0.8; margin-top:8px;" id="portalStreak">連続通塾: -日</p>
           </div>
         </div>
       </div>
@@ -222,8 +221,8 @@
               <div class="stat-value" id="stat-hours">-<span class="stat-unit">h</span></div>
             </div>
             <div class="stat-box">
-              <div class="stat-label">獲得ポイント</div>
-              <div class="stat-value" id="stat-pts">-<span class="stat-unit">pts</span></div>
+              <div class="stat-label">ポモドーロ</div>
+              <div class="stat-value" id="stat-pomo">-<span class="stat-unit">回</span></div>
             </div>
             <div class="stat-box">
               <div class="stat-label">連続学習</div>
@@ -373,12 +372,10 @@ async function showPortal() {
   document.getElementById('portalSchool').textContent = s.school || '';
 
   // レベル計算
-  const pts = s.points || 0;
-  const level = Math.floor(pts / 500) + 1;
-  const nextPts = level * 500;
-  const pct = Math.min(100, Math.round((pts % 500) / 500 * 100));
-  document.getElementById('portalLevel').textContent = `⭐ Lv. ${level}`;
-  document.getElementById('portalPoints').textContent = pts.toLocaleString() + ' pts';
+  const pts = s.totalPoints || s.points || 0;
+  const level = calcLevel ? calcLevel(pts) : Math.floor(pts / 500) + 1;
+  document.getElementById('portalLevel').textContent = `Lv. ${level}`;
+  document.getElementById('portalStreak').textContent = `連続通塾: ${s.streak || 0}日`;
 
   await Promise.all([
     loadSummary(),
@@ -427,15 +424,9 @@ async function loadSummary() {
   document.getElementById('stat-days').innerHTML = `${days30}<span class="stat-unit">日</span>`;
   document.getElementById('stat-hours').innerHTML = `${(totalMins/60).toFixed(1)}<span class="stat-unit">h</span>`;
 
-  // 獲得ポイント
-  const histSnap = await db.collection('history')
-    .where('studentId', '==', sid)
-    .orderBy('createdAt', 'desc').limit(200).get();
-  const recentPts = histSnap.docs
-    .map(d => d.data())
-    .filter(h => (h.createdAt?.toMillis ? h.createdAt.toMillis() : (h.createdAtMs || 0)) >= day30)
-    .reduce((sum, h) => sum + (h.amount || 0), 0);
-  document.getElementById('stat-pts').innerHTML = `${recentPts.toLocaleString()}<span class="stat-unit">pts</span>`;
+  // ポモドーロ回数
+  const totalPomo = recent30.reduce((sum, s) => sum + (s.pomodoroCount || 0), 0);
+  document.getElementById('stat-pomo').innerHTML = `${totalPomo}<span class="stat-unit">回</span>`;
 
   // 連続日数
   const allDates = [...new Set(sessions.map(s => new Date(s.startMs).toISOString().slice(0,10)))].sort().reverse();

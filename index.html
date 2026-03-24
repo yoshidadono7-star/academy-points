@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Hero's Academy Points - 管理ダッシュボード</title>
+  <title>HERO'S MISSION CONTROL - 管理ダッシュボード</title>
   <link rel="manifest" href="manifest.json">
   <link rel="icon" href="icons/icon-192.png">
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -437,7 +437,11 @@
   <button class="tab-btn" data-tab="students">&#128100; 生徒管理</button>
   <button class="tab-btn" data-tab="guilds">&#9876;&#65039; ギルド</button>
   <button class="tab-btn" data-tab="raidboss">&#128121; レイドボス</button>
+  <button class="tab-btn" data-tab="missions">&#127919; ミッション</button>
+  <button class="tab-btn" data-tab="events">&#9889; イベント</button>
+  <button class="tab-btn" data-tab="economy">&#128176; コイン経済</button>
   <button class="tab-btn" data-tab="coaching">&#127891; コーチング分析</button>
+  <button class="tab-btn" data-tab="anomaly">&#128269; アノマリー</button>
   <button class="tab-btn" data-tab="risk">&#9888;&#65039; 離脱リスク</button>
   <button class="tab-btn" data-tab="exams">&#128221; テスト結果</button>
   <button class="tab-btn" data-tab="settings">&#9881;&#65039; 塾設定</button>
@@ -450,11 +454,11 @@
   <div class="tab-content active" id="tab-ranking">
     <div class="stats-grid" id="rankingStats"></div>
     <div class="card">
-      <div class="card-title"><span class="icon">&#127942;</span> ポイントランキング</div>
+      <div class="card-title"><span class="icon">&#127942;</span> コインランキング</div>
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>順位</th><th>生徒</th><th>レベル</th><th>累計pt</th><th>現在pt</th><th>連続日数</th></tr>
+            <tr><th>順位</th><th>生徒</th><th>ランク</th><th>レベル</th><th>累計</th><th>残高</th><th>連続</th></tr>
           </thead>
           <tbody id="rankingTable"></tbody>
         </table>
@@ -640,7 +644,7 @@
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>名前</th><th>ニックネーム</th><th>学年</th><th>PIN</th><th>累計pt</th><th>レベル</th><th>操作</th></tr>
+            <tr><th>名前</th><th>コールサイン</th><th>学年</th><th>ランク</th><th>残高</th><th>レベル</th><th>操作</th></tr>
           </thead>
           <tbody id="studentsTable"></tbody>
         </table>
@@ -674,6 +678,297 @@
     <div class="card">
       <div class="card-title"><span class="icon">&#128195;</span> 討伐済みボス</div>
       <div id="defeatedBosses"></div>
+    </div>
+  </div>
+
+  <!-- ===== ミッション管理 ===== -->
+  <div class="tab-content" id="tab-missions">
+    <div class="card">
+      <div class="card-title"><span class="icon">&#127919;</span> アクティブミッション</div>
+      <div id="activeMissionDisplay">
+        <p style="color:var(--text-light)">ミッションがありません。新規作成してください。</p>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#10133;</span> 新規ミッション作成</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>ミッション名</label>
+          <input type="text" class="form-control" id="missionTitle" placeholder="例: 月面到達ミッション">
+        </div>
+        <div class="form-group">
+          <label>計測指標</label>
+          <select class="form-control" id="missionMetric">
+            <option value="total_hours">合計学習時間</option>
+            <option value="total_pomodoros">合計ポモドーロ数</option>
+            <option value="teaching_count">教え合い回数</option>
+            <option value="ai_problems">AI教材問題数</option>
+            <option value="all_streak">全員ストリーク</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>目標値</label>
+          <input type="number" class="form-control" id="missionTarget" placeholder="例: 1000">
+        </div>
+        <div class="form-group">
+          <label>達成ボーナス（コイン）</label>
+          <input type="number" class="form-control" id="missionBonus" value="50">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>開始日</label>
+          <input type="date" class="form-control" id="missionStart">
+        </div>
+        <div class="form-group">
+          <label>終了日</label>
+          <input type="date" class="form-control" id="missionEnd">
+        </div>
+      </div>
+      <div class="card-title" style="margin-top:12px"><span class="icon">&#127937;</span> マイルストーン名</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>25%</label>
+          <input type="text" class="form-control" id="ms1" placeholder="大気圏突破" value="大気圏突破">
+        </div>
+        <div class="form-group">
+          <label>50%</label>
+          <input type="text" class="form-control" id="ms2" placeholder="宇宙空間到達" value="宇宙空間到達">
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>75%</label>
+          <input type="text" class="form-control" id="ms3" placeholder="月軌道到達" value="月軌道到達">
+        </div>
+        <div class="form-group">
+          <label>100%</label>
+          <input type="text" class="form-control" id="ms4" placeholder="月面着陸" value="月面着陸">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="createMission()">&#127919; ミッション作成</button>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128200;</span> 進捗を手動更新</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>追加する値</label>
+          <input type="number" class="form-control" id="missionAddValue" placeholder="例: 50">
+        </div>
+        <div class="form-group" style="display:flex;align-items:flex-end">
+          <button class="btn btn-primary" onclick="addMissionProgress()">&#128200; 進捗追加</button>
+        </div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128197;</span> ミッション履歴</div>
+      <div id="missionHistory"></div>
+    </div>
+  </div>
+
+  <!-- ===== イベント管理 ===== -->
+  <div class="tab-content" id="tab-events">
+    <div class="card">
+      <div class="card-title"><span class="icon">&#9889;</span> イベント発火</div>
+      <p style="font-size:13px;color:var(--text-light);margin-bottom:16px">
+        教室の雰囲気に応じてイベントを手動トリガーします。<br>
+        &#128161; 高集中時=ブースター / だれている時=チームチャレンジ / 1日1〜2回が目安
+      </p>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:10px;margin-bottom:16px" id="eventQuickButtons">
+        <button class="btn btn-primary" onclick="fireQuickEvent('multiplier', '&#128640; ブースター', 2.0, 30)" style="padding:16px;font-size:14px">
+          &#128640; ブースター<br><small>ポモドーロ ×2 / 30分</small>
+        </button>
+        <button class="btn btn-warning" onclick="fireQuickEvent('challenge', '&#9876;&#65039; チームチャレンジ', 1, 15)" style="padding:16px;font-size:14px;background:var(--warning)">
+          &#9876;&#65039; チャレンジ<br><small>15分以内に全員1問正答</small>
+        </button>
+        <button class="btn btn-success" onclick="fireQuickEvent('bonus', '&#127881; コンボチャンス', 1, 20)" style="padding:16px;font-size:14px;background:var(--success)">
+          &#127881; コンボチャンス<br><small>3人同時正答でボーナス</small>
+        </button>
+        <button class="btn" onclick="fireQuickEvent('surprise', '&#127873; サプライズ', 1, 0)" style="padding:16px;font-size:14px;background:var(--primary)">
+          &#127873; サプライズ<br><small>全員に即時5コイン</small>
+        </button>
+      </div>
+      <div id="activeEventStatus" style="display:none;padding:14px;background:#f0fff4;border:1px solid var(--success);border-radius:10px;margin-bottom:16px">
+        <strong>&#128994; イベント発動中：</strong><span id="activeEventName"></span>
+        <span id="activeEventTimer" style="margin-left:12px;font-weight:700"></span>
+        <button class="btn btn-sm" onclick="stopActiveEvent()" style="margin-left:12px;background:var(--danger);color:white">停止</button>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#10133;</span> カスタムイベント作成</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>イベント名</label>
+          <input type="text" class="form-control" id="eventName" placeholder="例: ゴールデンタイム">
+        </div>
+        <div class="form-group">
+          <label>種別</label>
+          <select class="form-control" id="eventType">
+            <option value="multiplier">ブースター（倍率変更）</option>
+            <option value="bonus">ボーナス（追加コイン）</option>
+            <option value="challenge">チャレンジ</option>
+            <option value="surprise">サプライズ</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>倍率 / ボーナスコイン</label>
+          <input type="number" class="form-control" id="eventMultiplier" value="2.0" step="0.5">
+        </div>
+        <div class="form-group">
+          <label>持続時間（分）</label>
+          <input type="number" class="form-control" id="eventDuration" value="30">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>説明</label>
+        <input type="text" class="form-control" id="eventDesc" placeholder="イベントの説明（モニター表示用）">
+      </div>
+      <button class="btn btn-primary" onclick="createEvent()">&#10133; イベント作成</button>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128197;</span> イベント履歴（過去30日）</div>
+      <div id="eventHistory"></div>
+    </div>
+  </div>
+
+  <!-- ===== コイン経済ダッシュボード ===== -->
+  <div class="tab-content" id="tab-economy">
+    <div class="stats-grid" id="economyStats"></div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128176;</span> 月間コイン経済サマリー</div>
+      <div class="form-row" style="margin-bottom:12px">
+        <div class="form-group">
+          <label>年月</label>
+          <input type="month" class="form-control" id="economyMonth" onchange="loadEconomy()">
+        </div>
+      </div>
+      <div id="economySummary"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128202;</span> コイン付与ルール一覧</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>行動</th><th>コイン</th><th>付与方式</th><th>条件</th></tr></thead>
+          <tbody>
+            <tr><td>通塾（入室＋目標設定）</td><td>10</td><td>自動＋手動</td><td>入室チェックイン＋目標記入</td></tr>
+            <tr><td>ポモドーロ1セット完了</td><td>5</td><td>半自動</td><td>コーチ巡回時に承認</td></tr>
+            <tr><td>ポモドーロ3連続達成</td><td>+10</td><td>半自動</td><td>3セット目の承認時</td></tr>
+            <tr><td>振り返りノート記入</td><td>5</td><td>手動</td><td>コーチがノート確認後</td></tr>
+            <tr><td>振り返り＋翌日計画</td><td>+3</td><td>手動</td><td>計画が具体的</td></tr>
+            <tr><td>AI教材10問取組</td><td>3</td><td>半自動</td><td>コーチ承認</td></tr>
+            <tr><td>教え合い（双方）</td><td>各10</td><td>手動</td><td>コーチ目撃 / 1日2回上限</td></tr>
+            <tr><td>新入生サポート</td><td>15</td><td>手動</td><td>コーチ確認</td></tr>
+            <tr><td>体験授業生サポート</td><td>20</td><td>手動</td><td>コーチ確認</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128293;</span> ストリークボーナス</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>連続日数</th><th>追加コイン</th></tr></thead>
+          <tbody>
+            <tr><td>3日連続</td><td>+5</td></tr>
+            <tr><td>5日連続</td><td>+15</td></tr>
+            <tr><td>10日連続</td><td>+30</td></tr>
+            <tr><td>20日連続</td><td>+50</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128272;</span> 経済制御パラメータ</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>パラメータ</th><th>値</th><th>備考</th></tr></thead>
+          <tbody>
+            <tr><td>コイン有効期限</td><td>6ヶ月</td><td>資金決済法の適用除外</td></tr>
+            <tr><td>残高上限</td><td>2,000コイン</td><td>超過分は教室プールへ</td></tr>
+            <tr><td>社会的ボーナス月間上限</td><td>200コイン/人</td><td>結託防止</td></tr>
+            <tr><td>ギフト1日上限</td><td>20コイン</td><td>強要防止</td></tr>
+            <tr><td>ギフト1回上限</td><td>10コイン</td><td>強要防止</td></tr>
+            <tr><td>高額報酬月間購入上限</td><td>月1回（300+）</td><td>独占防止</td></tr>
+            <tr><td>流出比率 健全閾値</td><td>70%以上</td><td>消費÷発行</td></tr>
+            <tr><td>流出比率 危険閾値</td><td>40%未満</td><td>即座に調整</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128179;</span> 手動コイン付与</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>生徒</label>
+          <select class="form-control" id="coinStudent">
+            <option value="">選択してください</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>カテゴリ</label>
+          <select class="form-control" id="coinCategory">
+            <option value="attendance">通塾（10コイン）</option>
+            <option value="pomodoro">ポモドーロ（5コイン）</option>
+            <option value="pomodoro_triple">ポモ3連続（+10コイン）</option>
+            <option value="review">振り返り（5コイン）</option>
+            <option value="review_plan">振り返り＋計画（+3コイン）</option>
+            <option value="ai_10">AI教材10問（3コイン）</option>
+            <option value="teaching">教え合い（10コイン）</option>
+            <option value="new_support">新入生サポート（15コイン）</option>
+            <option value="trial_support">体験授業生サポート（20コイン）</option>
+            <option value="manual">手動（金額指定）</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group" id="manualCoinAmountGroup" style="display:none">
+          <label>コイン数</label>
+          <input type="number" class="form-control" id="manualCoinAmount" placeholder="例: 10">
+        </div>
+        <div class="form-group">
+          <label>メモ（任意）</label>
+          <input type="text" class="form-control" id="coinNote" placeholder="付与理由">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="grantCoin()">&#128176; コイン付与</button>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128203;</span> 承認待ちキュー</div>
+      <div id="pendingApprovals">
+        <p style="color:var(--text-light)">承認待ちの取引はありません</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== アノマリー検知 ===== -->
+  <div class="tab-content" id="tab-anomaly">
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128269;</span> アノマリースキャン結果</div>
+      <p style="font-size:13px;color:var(--text-light);margin-bottom:16px">
+        &#128161; フラグの大半は誤検知（false positive）です。「ちょっと見ておこう」程度で確認してください。<br>
+        自動ペナルティは一切ありません。確認後、問題なければDismissしてください。
+      </p>
+      <button class="btn btn-primary" onclick="runAnomalyScan()" style="margin-bottom:16px">&#128269; スキャン実行</button>
+      <div id="anomalyResults"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128200;</span> エスカレーションフロー</div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>レベル</th><th>トリガー</th><th>アクション</th></tr></thead>
+          <tbody>
+            <tr><td>Lv1 観察</td><td>初回フラグ</td><td>翌日以降、意識的に観察</td></tr>
+            <tr><td>Lv2 確認対話</td><td>7日以内に同カテゴリ2回目</td><td>1対1で「最近どう？」</td></tr>
+            <tr><td>Lv3 全体再確認</td><td>対話後も継続</td><td>教室全体にルール再確認</td></tr>
+            <tr><td>Lv4 個別対応</td><td>Lv3後も継続</td><td>明確に問題を指摘</td></tr>
+            <tr><td>Lv5 保護者連携</td><td>Lv4で改善なし</td><td>保護者に状況報告</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -946,6 +1241,10 @@ function switchTab(tabId) {
     students: loadStudents,
     guilds: loadGuilds,
     raidboss: loadRaidBoss,
+    missions: loadMissions,
+    events: loadEvents,
+    economy: loadEconomy,
+    anomaly: () => {},
     coaching: loadCoachingStudentList,
     risk: loadRisk,
     exams: loadExams,
@@ -1050,27 +1349,29 @@ async function loadRanking() {
     const maxStreak = sorted.reduce((m, st) => Math.max(m, st.streak || 0), 0);
 
     document.getElementById('rankingStats').innerHTML = `
-      <div class="stat-card"><div class="stat-value">${sorted.length}</div><div class="stat-label">生徒数</div></div>
-      <div class="stat-card"><div class="stat-value">${totalPts.toLocaleString()}</div><div class="stat-label">合計ポイント</div></div>
-      <div class="stat-card"><div class="stat-value">${avgPts}</div><div class="stat-label">平均ポイント</div></div>
+      <div class="stat-card"><div class="stat-value">${sorted.length}</div><div class="stat-label">クルー数</div></div>
+      <div class="stat-card"><div class="stat-value">${totalPts.toLocaleString()}</div><div class="stat-label">合計コイン</div></div>
+      <div class="stat-card"><div class="stat-value">${avgPts}</div><div class="stat-label">平均コイン</div></div>
       <div class="stat-card"><div class="stat-value">${maxStreak}</div><div class="stat-label">最大連続日数</div></div>
     `;
 
     document.getElementById('rankingTable').innerHTML = sorted.map((s, i) => {
       const rankClass = i < 3 ? `rank-${i + 1}` : '';
       const medal = i === 0 ? '&#129351;' : i === 1 ? '&#129352;' : i === 2 ? '&#129353;' : '';
+      const rankInfo = getRankInfo(s.rank || 'rookie');
       return `<tr>
         <td><span class="rank-num ${rankClass}">${medal} ${i + 1}</span></td>
-        <td><strong>${escapeHtml(s.name)}</strong></td>
+        <td><strong>${escapeHtml(s.callsign || s.nickname || s.name)}</strong></td>
+        <td>${rankInfo.icon} ${rankInfo.name}</td>
         <td>${levelIcon(s.level || calcLevel(s.totalPoints || 0))} Lv.${s.level || calcLevel(s.totalPoints || 0)}</td>
-        <td><strong>${(s.totalPoints || 0).toLocaleString()}</strong> pt</td>
-        <td>${(s.currentPoints || 0).toLocaleString()} pt</td>
+        <td><strong>${(s.totalPoints || 0).toLocaleString()}</strong></td>
+        <td>${(s.currentPoints || 0).toLocaleString()}</td>
         <td>${s.streak || 0}日</td>
       </tr>`;
     }).join('');
   } catch (e) {
     console.error('ランキング読み込みエラー:', e);
-    document.getElementById('rankingTable').innerHTML = '<tr><td colspan="6" style="text-align:center;color:var(--danger)">読み込みエラー</td></tr>';
+    document.getElementById('rankingTable').innerHTML = '<tr><td colspan="7" style="text-align:center;color:var(--danger)">読み込みエラー</td></tr>';
   }
 }
 
@@ -1430,12 +1731,14 @@ async function loadStudents() {
     allStudents = await StudentsDB.getAll();
     document.getElementById('studentsTable').innerHTML = allStudents.length === 0
       ? '<tr><td colspan="7" style="text-align:center;color:var(--text-light)">生徒がいません</td></tr>'
-      : allStudents.map(s => `<tr>
+      : allStudents.map(s => {
+          const ri = getRankInfo(s.rank || 'rookie');
+          return `<tr>
           <td><strong>${escapeHtml(s.name)}</strong></td>
-          <td>${escapeHtml(s.nickname || '-')}</td>
+          <td>${escapeHtml(s.callsign || s.nickname || '-')}</td>
           <td>${escapeHtml(s.grade || '-')}</td>
-          <td>${s.pin || '-'}</td>
-          <td>${(s.totalPoints || 0).toLocaleString()} pt</td>
+          <td>${ri.icon} ${ri.name}</td>
+          <td>${(s.currentPoints || 0).toLocaleString()}</td>
           <td>${levelIcon(s.level || calcLevel(s.totalPoints || 0))} Lv.${s.level || calcLevel(s.totalPoints || 0)}</td>
           <td>
             <div class="btn-group">
@@ -1443,7 +1746,7 @@ async function loadStudents() {
               <button class="btn btn-danger btn-sm" onclick="deleteStudent('${s.id}')">削除</button>
             </div>
           </td>
-        </tr>`).join('');
+        </tr>`;}).join('');
   } catch (e) {
     console.error('生徒読み込みエラー:', e);
   }
@@ -1458,12 +1761,27 @@ function openStudentModal(student) {
     </div>
     <div class="form-row">
       <div class="form-group">
-        <label>ニックネーム</label>
-        <input type="text" class="form-control" id="studentNickname" value="${isEdit ? escapeHtml(student.nickname || '') : ''}">
+        <label>コールサイン（教室内表示名）</label>
+        <input type="text" class="form-control" id="studentCallsign" value="${isEdit ? escapeHtml(student.callsign || student.nickname || '') : ''}" placeholder="例: Star-7">
       </div>
       <div class="form-group">
         <label>PIN (4桁)</label>
         <input type="text" class="form-control" id="studentPin" value="${isEdit ? (student.pin || '') : ''}" maxlength="4" pattern="[0-9]{4}">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>ニックネーム</label>
+        <input type="text" class="form-control" id="studentNickname" value="${isEdit ? escapeHtml(student.nickname || '') : ''}">
+      </div>
+      <div class="form-group">
+        <label>ランク</label>
+        <select class="form-control" id="studentRank">
+          <option value="rookie" ${isEdit && student.rank === 'rookie' ? 'selected' : ''}>&#127793; ルーキー</option>
+          <option value="crew" ${isEdit && student.rank === 'crew' ? 'selected' : ''}>&#128640; クルー</option>
+          <option value="senior" ${isEdit && (student.rank === 'senior') ? 'selected' : ''}>&#11088; シニアクルー</option>
+          <option value="captain" ${isEdit && student.rank === 'captain' ? 'selected' : ''}>&#128081; キャプテン</option>
+        </select>
       </div>
     </div>
     <div class="form-group">
@@ -1493,17 +1811,19 @@ function openStudentModal(student) {
 async function saveStudent(id) {
   const name = document.getElementById('studentName').value.trim();
   const nickname = document.getElementById('studentNickname').value.trim();
+  const callsign = document.getElementById('studentCallsign').value.trim();
   const pin = document.getElementById('studentPin').value.trim();
   const grade = document.getElementById('studentGrade').value;
+  const rank = document.getElementById('studentRank').value;
 
   if (!name) { showToast('名前を入力してください', 'error'); return; }
 
   try {
     if (id) {
-      await StudentsDB.update(id, { name, nickname, pin, grade });
+      await StudentsDB.update(id, { name, nickname, callsign, pin, grade, rank });
       showToast('生徒情報を更新しました');
     } else {
-      await StudentsDB.add({ name, nickname, pin, grade });
+      await StudentsDB.add({ name, nickname, callsign, pin, grade, rank });
       showToast('生徒を追加しました');
     }
     closeModal();
@@ -2121,6 +2441,425 @@ async function initApp() {
 
   } catch (e) {
     console.error('初期化エラー:', e);
+  }
+}
+
+// ============================================
+// ============================================
+// ミッション管理
+// ============================================
+let activeMissionId = null;
+
+async function loadMissions() {
+  try {
+    const missions = await MissionsDB.getAll();
+    const active = missions.find(m => m.status === 'active');
+
+    if (active) {
+      activeMissionId = active.id;
+      const percent = Math.min(100, Math.round((active.currentValue / active.targetValue) * 100));
+      const end = new Date(active.endDate);
+      const days = Math.max(0, Math.ceil((end - new Date()) / 86400000));
+      const ms = (active.milestones || []).map(m =>
+        `<span style="display:inline-block;padding:4px 10px;border-radius:6px;font-size:12px;margin:2px;${m.reached ? 'background:#c6f6d5;color:#22543d' : 'background:#edf2f7;color:#718096'}">
+          ${m.reached ? '&#10004;' : ''} ${m.name} (${m.percent}%)
+        </span>`
+      ).join('');
+
+      document.getElementById('activeMissionDisplay').innerHTML = `
+        <div style="margin-bottom:12px">
+          <h3 style="font-size:18px">${escapeHtml(active.title)}</h3>
+          <p style="color:var(--text-light);font-size:13px">残り ${days} 日 / ${active.startDate} 〜 ${active.endDate}</p>
+        </div>
+        <div style="background:#edf2f7;border-radius:8px;height:24px;margin-bottom:8px;overflow:hidden">
+          <div style="height:100%;width:${percent}%;background:var(--gradient);border-radius:8px;transition:width 0.5s"></div>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+          <span style="font-weight:700">${active.currentValue.toLocaleString()} / ${active.targetValue.toLocaleString()}</span>
+          <span style="font-weight:700;color:var(--primary)">${percent}%</span>
+        </div>
+        <div style="margin-bottom:8px">${ms}</div>
+        <div style="display:flex;gap:8px;margin-top:12px">
+          <button class="btn btn-sm btn-secondary" onclick="completeMission('${active.id}')" ${active.status === 'completed' ? 'disabled' : ''}>&#10004; 達成</button>
+          <button class="btn btn-sm" onclick="failMission('${active.id}')" style="background:#edf2f7">&#10006; 未達成</button>
+        </div>
+      `;
+    } else {
+      activeMissionId = null;
+      document.getElementById('activeMissionDisplay').innerHTML =
+        '<p style="color:var(--text-light)">アクティブなミッションはありません。新規作成してください。</p>';
+    }
+
+    // 月初日をデフォルトに
+    if (!document.getElementById('missionStart').value) {
+      const now = new Date();
+      document.getElementById('missionStart').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2,'0')}-01`;
+      const lastDay = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate();
+      document.getElementById('missionEnd').value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2,'0')}-${lastDay}`;
+    }
+
+    // 履歴
+    const past = missions.filter(m => m.status !== 'active');
+    document.getElementById('missionHistory').innerHTML = past.length === 0
+      ? '<p style="color:var(--text-light)">履歴はありません</p>'
+      : past.map(m => {
+          const statusLabel = m.status === 'completed' ? '<span style="color:var(--success)">&#10004; 達成</span>' : '<span style="color:var(--text-light)">未達成</span>';
+          return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span>${escapeHtml(m.title)}</span>
+            <span>${statusLabel} (${m.currentValue}/${m.targetValue})</span>
+          </div>`;
+        }).join('');
+  } catch (e) {
+    console.error('ミッション読み込みエラー:', e);
+    showToast('ミッション読み込みに失敗しました', 'error');
+  }
+}
+
+async function createMission() {
+  const title = document.getElementById('missionTitle').value.trim();
+  const metric = document.getElementById('missionMetric').value;
+  const target = parseInt(document.getElementById('missionTarget').value);
+  const bonus = parseInt(document.getElementById('missionBonus').value) || 50;
+  const start = document.getElementById('missionStart').value;
+  const end = document.getElementById('missionEnd').value;
+
+  if (!title || !target || !start || !end) {
+    showToast('全ての必須項目を入力してください', 'error');
+    return;
+  }
+
+  try {
+    await MissionsDB.create({
+      title, metric, targetValue: target, bonusCoins: bonus,
+      startDate: start, endDate: end,
+      milestone1: document.getElementById('ms1').value || '大気圏突破',
+      milestone2: document.getElementById('ms2').value || '宇宙空間到達',
+      milestone3: document.getElementById('ms3').value || '月軌道到達',
+      milestone4: document.getElementById('ms4').value || '月面着陸'
+    });
+    showToast('ミッションを作成しました');
+    document.getElementById('missionTitle').value = '';
+    document.getElementById('missionTarget').value = '';
+    loadMissions();
+  } catch (e) {
+    console.error('ミッション作成エラー:', e);
+    showToast('作成に失敗しました', 'error');
+  }
+}
+
+async function addMissionProgress() {
+  if (!activeMissionId) {
+    showToast('アクティブなミッションがありません', 'error');
+    return;
+  }
+  const val = parseInt(document.getElementById('missionAddValue').value);
+  if (!val || val <= 0) {
+    showToast('正の値を入力してください', 'error');
+    return;
+  }
+  try {
+    const result = await MissionsDB.addProgress(activeMissionId, val);
+    if (result) {
+      showToast(`進捗を追加しました (${result.percent}%)`);
+      if (result.newlyReached.length > 0) {
+        result.newlyReached.forEach(m => {
+          showToast(`マイルストーン「${m.name}」到達！ 全クルーに+${m.coins}コイン`, 'success');
+        });
+      }
+      if (result.status === 'completed') {
+        showToast('MISSION COMPLETE! おめでとうございます！', 'success');
+      }
+    }
+    document.getElementById('missionAddValue').value = '';
+    loadMissions();
+  } catch (e) {
+    console.error('進捗追加エラー:', e);
+    showToast('進捗追加に失敗しました', 'error');
+  }
+}
+
+async function completeMission(id) {
+  if (!confirm('このミッションを達成に設定しますか？')) return;
+  await MissionsDB.complete(id);
+  showToast('ミッション達成！');
+  loadMissions();
+}
+
+async function failMission(id) {
+  if (!confirm('このミッションを未達成に設定しますか？')) return;
+  await MissionsDB.fail(id);
+  showToast('ミッションを未達成に設定しました');
+  loadMissions();
+}
+
+// ============================================
+// イベント管理
+// ============================================
+let activeEventId = null;
+let eventTimerInterval = null;
+
+async function loadEvents() {
+  try {
+    // アクティブイベントチェック
+    const active = await EventsDB.getActive();
+    if (active.length > 0) {
+      const ev = active[0];
+      activeEventId = ev.id;
+      document.getElementById('activeEventStatus').style.display = 'block';
+      document.getElementById('activeEventName').textContent = ev.name || ev.type;
+      startEventTimerDisplay(ev);
+    } else {
+      activeEventId = null;
+      document.getElementById('activeEventStatus').style.display = 'none';
+      if (eventTimerInterval) clearInterval(eventTimerInterval);
+    }
+
+    // 履歴
+    const history = await EventsDB.getHistory(30);
+    document.getElementById('eventHistory').innerHTML = history.length === 0
+      ? '<p style="color:var(--text-light)">過去30日間のイベントはありません</p>'
+      : history.map(e => {
+          const ts = e.activatedAt ? (e.activatedAt.toDate ? formatDateTime(e.activatedAt.toDate()) : formatDateTime(new Date(e.activatedAt))) : '未発火';
+          return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+            <span>${escapeHtml(e.name || e.type)}</span>
+            <span style="color:var(--text-light)">${ts} / ${e.durationMinutes || 30}分</span>
+          </div>`;
+        }).join('');
+  } catch (e) {
+    console.error('イベント読み込みエラー:', e);
+  }
+}
+
+async function fireQuickEvent(type, name, multiplier, duration) {
+  if (activeEventId) {
+    showToast('既にイベントが発動中です', 'error');
+    return;
+  }
+  try {
+    const id = await EventsDB.create({
+      name, type, multiplier, durationMinutes: duration || 30,
+      bonusCoins: type === 'surprise' ? 5 : 0,
+      description: name
+    });
+    await EventsDB.activate(id);
+    showToast(`イベント「${name}」を発動しました！`);
+    loadEvents();
+  } catch (e) {
+    console.error('イベント発火エラー:', e);
+    showToast('イベント発火に失敗しました', 'error');
+  }
+}
+
+async function createEvent() {
+  const name = document.getElementById('eventName').value.trim();
+  const type = document.getElementById('eventType').value;
+  const multiplier = parseFloat(document.getElementById('eventMultiplier').value) || 2.0;
+  const duration = parseInt(document.getElementById('eventDuration').value) || 30;
+  const desc = document.getElementById('eventDesc').value.trim();
+
+  if (!name) { showToast('イベント名を入力してください', 'error'); return; }
+
+  try {
+    await EventsDB.create({ name, type, multiplier, durationMinutes: duration, description: desc });
+    showToast('カスタムイベントを作成しました');
+    document.getElementById('eventName').value = '';
+    document.getElementById('eventDesc').value = '';
+    loadEvents();
+  } catch (e) {
+    console.error('イベント作成エラー:', e);
+    showToast('作成に失敗しました', 'error');
+  }
+}
+
+async function stopActiveEvent() {
+  if (!activeEventId) return;
+  try {
+    await EventsDB.deactivate(activeEventId);
+    showToast('イベントを停止しました');
+    activeEventId = null;
+    loadEvents();
+  } catch (e) {
+    console.error('イベント停止エラー:', e);
+  }
+}
+
+function startEventTimerDisplay(ev) {
+  if (eventTimerInterval) clearInterval(eventTimerInterval);
+  eventTimerInterval = setInterval(() => {
+    if (!ev.activatedAt) return;
+    const activated = ev.activatedAt.toDate ? ev.activatedAt.toDate() : new Date(ev.activatedAt);
+    const endTime = new Date(activated.getTime() + (ev.durationMinutes || 30) * 60000);
+    const remaining = Math.max(0, endTime - new Date());
+    if (remaining <= 0) {
+      clearInterval(eventTimerInterval);
+      loadEvents();
+      return;
+    }
+    const min = Math.floor(remaining / 60000);
+    const sec = Math.floor((remaining % 60000) / 1000);
+    document.getElementById('activeEventTimer').textContent =
+      `残り ${min}:${String(sec).padStart(2,'0')}`;
+  }, 1000);
+}
+
+// ============================================
+// コイン経済ダッシュボード
+// ============================================
+async function loadEconomy() {
+  try {
+    const monthInput = document.getElementById('economyMonth');
+    if (!monthInput.value) {
+      const now = new Date();
+      monthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2,'0')}`;
+    }
+    const [year, month] = monthInput.value.split('-').map(Number);
+
+    // 月間サマリー
+    const summary = await CoinsDB.getMonthlySummary(year, month);
+    const ratioColor = summary.outflowRatio >= 70 ? 'var(--success)' : summary.outflowRatio >= 40 ? 'var(--warning)' : 'var(--danger)';
+    const ratioLabel = summary.outflowRatio >= 70 ? '健全' : summary.outflowRatio >= 40 ? '注意' : '危険';
+
+    document.getElementById('economyStats').innerHTML = `
+      <div class="stat-card"><div class="stat-icon">&#128176;</div><div class="stat-value">${summary.totalIssued.toLocaleString()}</div><div class="stat-label">総発行コイン</div></div>
+      <div class="stat-card"><div class="stat-icon">&#128722;</div><div class="stat-value">${summary.totalSpent.toLocaleString()}</div><div class="stat-label">総消費コイン</div></div>
+      <div class="stat-card"><div class="stat-icon" style="color:${ratioColor}">&#128200;</div><div class="stat-value" style="color:${ratioColor}">${summary.outflowRatio}%</div><div class="stat-label">流出比率（${ratioLabel}）</div></div>
+      <div class="stat-card"><div class="stat-icon">&#128221;</div><div class="stat-value">${summary.transactionCount}</div><div class="stat-label">取引件数</div></div>
+    `;
+
+    document.getElementById('economySummary').innerHTML = `
+      <div style="padding:14px;border-radius:10px;background:${summary.outflowRatio >= 70 ? '#f0fff4' : summary.outflowRatio >= 40 ? '#fffbeb' : '#fff5f5'};border:1px solid ${ratioColor}">
+        <strong>判定: ${ratioLabel}</strong>
+        <p style="font-size:13px;color:var(--text-light);margin-top:4px">
+          ${summary.outflowRatio >= 70 ? '経済は健全です。現状維持でOK。' :
+            summary.outflowRatio >= 40 ? '報酬カタログの拡充または獲得レートの引き下げを検討してください。' :
+            '即座に調整が必要です。レート引き下げまたは大規模消費イベントの投入を推奨します。'}
+        </p>
+      </div>
+    `;
+
+    // 生徒セレクト更新
+    const students = await StudentsDB.getAll();
+    const sel = document.getElementById('coinStudent');
+    sel.innerHTML = '<option value="">選択してください</option>' +
+      students.map(s => `<option value="${s.id}">${escapeHtml(s.nickname || s.name)}</option>`).join('');
+
+    // カテゴリ変更で手動金額フィールド表示切替
+    document.getElementById('coinCategory').onchange = function() {
+      document.getElementById('manualCoinAmountGroup').style.display =
+        this.value === 'manual' ? '' : 'none';
+    };
+
+    // 承認待ちキュー
+    await loadPendingApprovals();
+
+  } catch (e) {
+    console.error('経済データ読み込みエラー:', e);
+  }
+}
+
+async function loadPendingApprovals() {
+  try {
+    const pending = await CoinsDB.getPending();
+    const el = document.getElementById('pendingApprovals');
+    if (pending.length === 0) {
+      el.innerHTML = '<p style="color:var(--text-light)">承認待ちの取引はありません</p>';
+      return;
+    }
+    el.innerHTML = pending.map(p => {
+      const ts = p.timestamp ? formatDateTime(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp)) : '';
+      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+        <div>
+          <strong>${escapeHtml(p.description || p.category)}</strong>
+          <span style="color:var(--text-light);font-size:12px;margin-left:8px">${ts}</span>
+          <span style="color:var(--primary);font-weight:700;margin-left:8px">+${p.amount}</span>
+        </div>
+        <div style="display:flex;gap:6px">
+          <button class="btn btn-sm btn-primary" onclick="approveCoin('${p.id}')">&#10004; 承認</button>
+          <button class="btn btn-sm" style="background:#edf2f7" onclick="rejectCoin('${p.id}')">&#10006;</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch (e) {
+    console.error('承認待ち読み込みエラー:', e);
+  }
+}
+
+async function grantCoin() {
+  const studentId = document.getElementById('coinStudent').value;
+  if (!studentId) { showToast('生徒を選択してください', 'error'); return; }
+
+  const category = document.getElementById('coinCategory').value;
+  const note = document.getElementById('coinNote').value.trim();
+
+  const amounts = {
+    attendance: 10, pomodoro: 5, pomodoro_triple: 10,
+    review: 5, review_plan: 3, ai_10: 3,
+    teaching: 10, new_support: 15, trial_support: 20
+  };
+
+  let amount = amounts[category];
+  if (category === 'manual') {
+    amount = parseInt(document.getElementById('manualCoinAmount').value);
+    if (!amount || amount <= 0) { showToast('コイン数を入力してください', 'error'); return; }
+  }
+
+  try {
+    await CoinsDB.addTransaction({
+      studentId, amount, type: 'earn',
+      category: category === 'manual' ? 'manual' : category,
+      description: note || category,
+      grantedBy: 'coach'
+    });
+    await StudentsDB.addPoints(studentId, amount);
+    showToast(`${amount}コインを付与しました`);
+    document.getElementById('coinNote').value = '';
+    if (category === 'manual') document.getElementById('manualCoinAmount').value = '';
+  } catch (e) {
+    console.error('コイン付与エラー:', e);
+    showToast('コイン付与に失敗しました', 'error');
+  }
+}
+
+async function approveCoin(id) {
+  try {
+    await CoinsDB.approve(id);
+    showToast('承認しました');
+    loadPendingApprovals();
+  } catch (e) { showToast('エラー', 'error'); }
+}
+
+async function rejectCoin(id) {
+  try {
+    await CoinsDB.reject(id);
+    showToast('却下しました');
+    loadPendingApprovals();
+  } catch (e) { showToast('エラー', 'error'); }
+}
+
+// ============================================
+// アノマリー検知
+// ============================================
+async function runAnomalyScan() {
+  const el = document.getElementById('anomalyResults');
+  el.innerHTML = '<p style="color:var(--text-light)">スキャン中...</p>';
+  try {
+    const alerts = await AnomalyDetector.scan();
+    if (alerts.length === 0) {
+      el.innerHTML = '<p style="color:var(--success)">&#10004; アノマリーは検出されませんでした</p>';
+      return;
+    }
+    el.innerHTML = alerts.map(a => `
+      <div style="display:flex;justify-content:space-between;align-items:center;padding:10px;margin-bottom:8px;background:#fffbeb;border:1px solid #fbd38d;border-radius:8px">
+        <div>
+          <strong>${escapeHtml(a.studentName || a.studentId)}</strong>
+          <span style="color:var(--text-light);font-size:13px;margin-left:8px">${escapeHtml(a.label)}</span>
+        </div>
+        <span style="padding:3px 8px;border-radius:4px;font-size:11px;background:#fef3c7;color:#92400e">${a.type}</span>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error('アノマリースキャンエラー:', e);
+    el.innerHTML = '<p style="color:var(--danger)">スキャンに失敗しました</p>';
   }
 }
 
