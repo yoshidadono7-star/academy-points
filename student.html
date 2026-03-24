@@ -6,7 +6,7 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#667eea">
-<title>Hero's Academy Points</title>
+<title>HERO'S MISSION CONTROL</title>
 <link rel="manifest" href="manifest.json">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -590,9 +590,9 @@ body {
 <!-- ========== 1. ログイン画面 ========== -->
 <div id="screenLogin" class="screen screen-login active">
   <div class="login-screen">
-    <div class="login-logo">🏫</div>
-    <div class="login-title">Hero's Academy</div>
-    <div class="login-subtitle">ポイントシステム</div>
+    <div class="login-logo">🚀</div>
+    <div class="login-title">HERO'S</div>
+    <div class="login-subtitle">MISSION CONTROL</div>
     <div class="login-card">
       <h2>ログイン</h2>
       <div class="form-group">
@@ -615,6 +615,7 @@ body {
     <div class="home-greeting" id="homeGreeting">こんにちは！</div>
     <div class="home-name" id="homeName">---</div>
     <div id="homeGuildBadge" class="home-guild-badge" style="display:none"></div>
+    <div id="homeRankBadge" style="margin-bottom:8px;font-size:14px;opacity:0.9"></div>
     <div class="home-stats">
       <div class="home-stat">
         <div class="home-stat-value" id="homePoints">0</div>
@@ -1091,11 +1092,22 @@ async function loadHome() {
   else if (hour >= 18) greeting = 'こんばんは！';
 
   document.getElementById('homeGreeting').textContent = greeting;
-  document.getElementById('homeName').textContent = s.name + ' さん';
+  document.getElementById('homeName').textContent = (s.callsign || s.nickname || s.name) + ' さん';
   document.getElementById('homePoints').textContent = (s.currentPoints || 0).toLocaleString();
   const level = calcLevel(s.totalPoints || 0);
   document.getElementById('homeLevel').textContent = level;
   document.getElementById('homeStreak').textContent = s.streak || 0;
+
+  // ランクバッジ
+  const rankInfo = getRankInfo(s.rank || 'rookie');
+  document.getElementById('homeRankBadge').innerHTML = `${rankInfo.icon} ${rankInfo.name}`;
+
+  // ストリーク表示（0日の時は「前回の記録」を表示）
+  if ((s.streak || 0) === 0 && (s.bestStreak || 0) > 0) {
+    document.getElementById('homeStreak').textContent = '1';
+    document.getElementById('homeStreak').insertAdjacentHTML('afterend',
+      `<div style="font-size:10px;color:rgba(255,255,255,0.7)">前回: ${s.bestStreak}日</div>`);
+  }
 
   // Guild badge
   const guildBadge = document.getElementById('homeGuildBadge');
@@ -1117,7 +1129,7 @@ async function loadHome() {
   const pts = s.totalPoints || 0;
   const progress = Math.min(100, ((pts - currentThreshold) / (nextThreshold - currentThreshold)) * 100);
   document.getElementById('homeLevelFill').style.width = progress + '%';
-  document.getElementById('homeLevelText').textContent = `Lv.${level} → Lv.${level + 1} まであと ${Math.max(0, nextThreshold - pts)} pt`;
+  document.getElementById('homeLevelText').textContent = `Lv.${level} → Lv.${level + 1} まであと ${Math.max(0, nextThreshold - pts)} ポイント`;
 
   // Recent logs
   try {
@@ -1230,7 +1242,7 @@ async function loadTasks() {
 }
 
 async function completeTask(taskId, title, points) {
-  showModal('✅', 'タスク完了', `「${title}」を完了して ${points}pt を獲得しますか？`, `
+  showModal('✅', 'タスク完了', `「${title}」を完了して ${points}ポイントを獲得しますか？`, `
     <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
     <button class="btn btn-primary" onclick="closeModal();doCompleteTask('${taskId}',${points})">完了！</button>
   `, true);
@@ -1247,7 +1259,7 @@ async function doCompleteTask(taskId, points) {
       await GuildsDB.addPoints(currentStudent.guildId, points);
     }
 
-    showToast(`+${points}pt 獲得！`);
+    showToast(`+${points}ポイント獲得！`);
     await loadTasks();
   } catch(e) {
     console.error(e);
@@ -1573,7 +1585,7 @@ function showCompleteScreen(duration, points, newBadges, raidResults) {
         <div style="font-size:13px;opacity:0.9">⚔️ レイドボスにダメージ！</div>
         <div style="font-size:24px;margin:6px 0">${r.bossIcon || '👹'} ${r.bossName || 'ボス'}</div>
         <div style="font-weight:700">${points}ダメージ</div>
-        ${r.defeated ? '<div style="color:#ffd700;font-weight:700;margin-top:4px">🎉 討伐成功！ +' + r.reward + 'pt ボーナス！</div>' : ''}
+        ${r.defeated ? '<div style="color:#ffd700;font-weight:700;margin-top:4px">🎉 討伐成功！ +' + r.reward + 'ポイント ボーナス！</div>' : ''}
       </div>
     `).join('');
   } else {
@@ -1676,7 +1688,7 @@ async function loadPrizes() {
 }
 
 function exchangePrize(prizeId, name, cost) {
-  showModal('🎁', '景品交換', `「${name}」を ${cost}pt で交換しますか？`, `
+  showModal('🎁', '報酬交換', `「${name}」を ${cost}ポイントで交換しますか？`, `
     <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
     <button class="btn btn-primary" onclick="closeModal();doExchange('${prizeId}','${name.replace(/'/g,"\\'")}',${cost})">交換する</button>
   `, true);
@@ -1867,7 +1879,7 @@ async function loadGuild() {
       <div class="card card-gradient guild-header-card" style="background:linear-gradient(135deg,${guild.color || '#667eea'},${guild.color || '#764ba2'}cc)">
         <div class="guild-icon">${guild.icon || '⚔️'}</div>
         <div class="guild-name">${guild.name}</div>
-        <div class="guild-points">${(guild.totalPoints || 0).toLocaleString()} pt / ギルドランク ${guildRank}位</div>
+        <div class="guild-points">${(guild.totalPoints || 0).toLocaleString()} / ギルドランク ${guildRank}位</div>
       </div>
       <div class="guild-members-title">メンバー (${members.length}人)</div>
     `;
@@ -1878,7 +1890,7 @@ async function loadGuild() {
         <div class="guild-member" style="${isSelf ? 'background:var(--gradient-light)' : ''}">
           <div class="guild-member-avatar">${m.name ? m.name.charAt(0) : '?'}</div>
           <div class="guild-member-name">${m.name}${isSelf ? ' (あなた)' : ''}</div>
-          <div class="guild-member-pts">${(m.totalPoints || 0).toLocaleString()} pt</div>
+          <div class="guild-member-pts">${(m.totalPoints || 0).toLocaleString()}</div>
         </div>
       `;
     }).join('');
@@ -1892,7 +1904,7 @@ async function loadGuild() {
           <div class="ranking-item ${isMy ? 'self' : ''}">
             <div class="ranking-rank ${i < 3 ? 'rank-' + (i+1) : 'rank-other'}">${i < 3 ? ['🥇','🥈','🥉'][i] : i+1}</div>
             <div class="ranking-name">${g.icon || ''} ${g.name}${isMy ? ' (所属)' : ''}</div>
-            <div class="ranking-pts">${(g.totalPoints || 0).toLocaleString()} pt</div>
+            <div class="ranking-pts">${(g.totalPoints || 0).toLocaleString()}</div>
           </div>
         `;
       }).join('');
@@ -1934,7 +1946,7 @@ async function loadRaidBoss() {
             <div class="raid-hp-fill" style="width:${hpPercent}%;${defeated ? 'background:#48bb78' : ''}"></div>
           </div>
           <div class="raid-hp-text">${defeated ? '討伐完了！' : `HP: ${boss.currentHp.toLocaleString()} / ${boss.maxHp.toLocaleString()}`}</div>
-          <div class="raid-reward">${defeated ? '🎉 報酬 ' + boss.reward + 'pt 獲得済み' : '🏆 討伐報酬: ' + boss.reward + 'pt'}</div>
+          <div class="raid-reward">${defeated ? '🎉 報酬 ' + boss.reward + 'ポイント獲得済み' : '🏆 討伐報酬: ' + boss.reward + 'ポイント'}</div>
           ${defeated ? '<div class="raid-defeated">DEFEATED</div>' : ''}
         </div>
       `;
