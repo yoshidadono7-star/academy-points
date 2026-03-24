@@ -439,7 +439,7 @@
   <button class="tab-btn" data-tab="raidboss">&#128121; レイドボス</button>
   <button class="tab-btn" data-tab="missions">&#127919; ミッション</button>
   <button class="tab-btn" data-tab="events">&#9889; イベント</button>
-  <button class="tab-btn" data-tab="economy">&#128176; コイン経済</button>
+  <button class="tab-btn" data-tab="economy">&#128176; ポイント経済</button>
   <button class="tab-btn" data-tab="coaching">&#127891; コーチング分析</button>
   <button class="tab-btn" data-tab="anomaly">&#128269; アノマリー</button>
   <button class="tab-btn" data-tab="risk">&#9888;&#65039; 離脱リスク</button>
@@ -454,7 +454,7 @@
   <div class="tab-content active" id="tab-ranking">
     <div class="stats-grid" id="rankingStats"></div>
     <div class="card">
-      <div class="card-title"><span class="icon">&#127942;</span> コインランキング</div>
+      <div class="card-title"><span class="icon">&#127942;</span> ポイントランキング</div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -713,7 +713,7 @@
           <input type="number" class="form-control" id="missionTarget" placeholder="例: 1000">
         </div>
         <div class="form-group">
-          <label>達成ボーナス（コイン）</label>
+          <label>達成ボーナス（ポイント）</label>
           <input type="number" class="form-control" id="missionBonus" value="50">
         </div>
       </div>
@@ -787,7 +787,7 @@
           &#127881; コンボチャンス<br><small>3人同時正答でボーナス</small>
         </button>
         <button class="btn" onclick="fireQuickEvent('surprise', '&#127873; サプライズ', 1, 0)" style="padding:16px;font-size:14px;background:var(--primary)">
-          &#127873; サプライズ<br><small>全員に即時5コイン</small>
+          &#127873; サプライズ<br><small>全員に即時5ポイント</small>
         </button>
       </div>
       <div id="activeEventStatus" style="display:none;padding:14px;background:#f0fff4;border:1px solid var(--success);border-radius:10px;margin-bottom:16px">
@@ -807,7 +807,7 @@
           <label>種別</label>
           <select class="form-control" id="eventType">
             <option value="multiplier">ブースター（倍率変更）</option>
-            <option value="bonus">ボーナス（追加コイン）</option>
+            <option value="bonus">ボーナス（追加ポイント）</option>
             <option value="challenge">チャレンジ</option>
             <option value="surprise">サプライズ</option>
           </select>
@@ -815,7 +815,7 @@
       </div>
       <div class="form-row">
         <div class="form-group">
-          <label>倍率 / ボーナスコイン</label>
+          <label>倍率 / ボーナスポイント</label>
           <input type="number" class="form-control" id="eventMultiplier" value="2.0" step="0.5">
         </div>
         <div class="form-group">
@@ -835,11 +835,11 @@
     </div>
   </div>
 
-  <!-- ===== コイン経済ダッシュボード ===== -->
+  <!-- ===== ポイント経済ダッシュボード ===== -->
   <div class="tab-content" id="tab-economy">
     <div class="stats-grid" id="economyStats"></div>
     <div class="card">
-      <div class="card-title"><span class="icon">&#128176;</span> 月間コイン経済サマリー</div>
+      <div class="card-title"><span class="icon">&#128176;</span> 月間ポイント経済サマリー</div>
       <div class="form-row" style="margin-bottom:12px">
         <div class="form-group">
           <label>年月</label>
@@ -849,10 +849,10 @@
       <div id="economySummary"></div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="icon">&#128202;</span> コイン付与ルール一覧</div>
+      <div class="card-title"><span class="icon">&#128202;</span> ポイント付与ルール一覧</div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>行動</th><th>コイン</th><th>付与方式</th><th>条件</th></tr></thead>
+          <thead><tr><th>行動</th><th>ポイント</th><th>付与方式</th><th>条件</th></tr></thead>
           <tbody>
             <tr><td>通塾（入室＋目標設定）</td><td>10</td><td>自動＋手動</td><td>入室チェックイン＋目標記入</td></tr>
             <tr><td>ポモドーロ1セット完了</td><td>5</td><td>半自動</td><td>コーチ巡回時に承認</td></tr>
@@ -871,7 +871,7 @@
       <div class="card-title"><span class="icon">&#128293;</span> ストリークボーナス</div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>連続日数</th><th>追加コイン</th></tr></thead>
+          <thead><tr><th>連続日数</th><th>追加ポイント</th></tr></thead>
           <tbody>
             <tr><td>3日連続</td><td>+5</td></tr>
             <tr><td>5日連続</td><td>+15</td></tr>
@@ -887,11 +887,11 @@
         <table>
           <thead><tr><th>パラメータ</th><th>値</th><th>備考</th></tr></thead>
           <tbody>
-            <tr><td>コイン有効期限</td><td>6ヶ月</td><td>資金決済法の適用除外</td></tr>
-            <tr><td>残高上限</td><td>2,000コイン</td><td>超過分は教室プールへ</td></tr>
-            <tr><td>社会的ボーナス月間上限</td><td>200コイン/人</td><td>結託防止</td></tr>
-            <tr><td>ギフト1日上限</td><td>20コイン</td><td>強要防止</td></tr>
-            <tr><td>ギフト1回上限</td><td>10コイン</td><td>強要防止</td></tr>
+            <tr><td>ポイント有効期限</td><td>6ヶ月</td><td>資金決済法の適用除外</td></tr>
+            <tr><td>残高上限</td><td>2,000ポイント</td><td>超過分は教室プールへ</td></tr>
+            <tr><td>社会的ボーナス月間上限</td><td>200ポイント/人</td><td>結託防止</td></tr>
+            <tr><td>ギフト1日上限</td><td>20ポイント</td><td>強要防止</td></tr>
+            <tr><td>ギフト1回上限</td><td>10ポイント</td><td>強要防止</td></tr>
             <tr><td>高額報酬月間購入上限</td><td>月1回（300+）</td><td>独占防止</td></tr>
             <tr><td>流出比率 健全閾値</td><td>70%以上</td><td>消費÷発行</td></tr>
             <tr><td>流出比率 危険閾値</td><td>40%未満</td><td>即座に調整</td></tr>
@@ -900,7 +900,7 @@
       </div>
     </div>
     <div class="card">
-      <div class="card-title"><span class="icon">&#128179;</span> 手動コイン付与</div>
+      <div class="card-title"><span class="icon">&#128179;</span> 手動ポイント付与</div>
       <div class="form-row">
         <div class="form-group">
           <label>生徒</label>
@@ -911,22 +911,22 @@
         <div class="form-group">
           <label>カテゴリ</label>
           <select class="form-control" id="coinCategory">
-            <option value="attendance">通塾（10コイン）</option>
-            <option value="pomodoro">ポモドーロ（5コイン）</option>
-            <option value="pomodoro_triple">ポモ3連続（+10コイン）</option>
-            <option value="review">振り返り（5コイン）</option>
-            <option value="review_plan">振り返り＋計画（+3コイン）</option>
-            <option value="ai_10">AI教材10問（3コイン）</option>
-            <option value="teaching">教え合い（10コイン）</option>
-            <option value="new_support">新入生サポート（15コイン）</option>
-            <option value="trial_support">体験授業生サポート（20コイン）</option>
+            <option value="attendance">通塾（10ポイント）</option>
+            <option value="pomodoro">ポモドーロ（5ポイント）</option>
+            <option value="pomodoro_triple">ポモ3連続（+10ポイント）</option>
+            <option value="review">振り返り（5ポイント）</option>
+            <option value="review_plan">振り返り＋計画（+3ポイント）</option>
+            <option value="ai_10">AI教材10問（3ポイント）</option>
+            <option value="teaching">教え合い（10ポイント）</option>
+            <option value="new_support">新入生サポート（15ポイント）</option>
+            <option value="trial_support">体験授業生サポート（20ポイント）</option>
             <option value="manual">手動（金額指定）</option>
           </select>
         </div>
       </div>
       <div class="form-row">
         <div class="form-group" id="manualCoinAmountGroup" style="display:none">
-          <label>コイン数</label>
+          <label>ポイント数</label>
           <input type="number" class="form-control" id="manualCoinAmount" placeholder="例: 10">
         </div>
         <div class="form-group">
@@ -934,7 +934,7 @@
           <input type="text" class="form-control" id="coinNote" placeholder="付与理由">
         </div>
       </div>
-      <button class="btn btn-primary" onclick="grantCoin()">&#128176; コイン付与</button>
+      <button class="btn btn-primary" onclick="grantCoin()">&#128176; ポイント付与</button>
     </div>
     <div class="card">
       <div class="card-title"><span class="icon">&#128203;</span> 承認待ちキュー</div>
@@ -1350,8 +1350,8 @@ async function loadRanking() {
 
     document.getElementById('rankingStats').innerHTML = `
       <div class="stat-card"><div class="stat-value">${sorted.length}</div><div class="stat-label">クルー数</div></div>
-      <div class="stat-card"><div class="stat-value">${totalPts.toLocaleString()}</div><div class="stat-label">合計コイン</div></div>
-      <div class="stat-card"><div class="stat-value">${avgPts}</div><div class="stat-label">平均コイン</div></div>
+      <div class="stat-card"><div class="stat-value">${totalPts.toLocaleString()}</div><div class="stat-label">合計ポイント</div></div>
+      <div class="stat-card"><div class="stat-value">${avgPts}</div><div class="stat-label">平均ポイント</div></div>
       <div class="stat-card"><div class="stat-value">${maxStreak}</div><div class="stat-label">最大連続日数</div></div>
     `;
 
@@ -2563,7 +2563,7 @@ async function addMissionProgress() {
       showToast(`進捗を追加しました (${result.percent}%)`);
       if (result.newlyReached.length > 0) {
         result.newlyReached.forEach(m => {
-          showToast(`マイルストーン「${m.name}」到達！ 全クルーに+${m.coins}コイン`, 'success');
+          showToast(`マイルストーン「${m.name}」到達！ 全クルーに+${m.coins}ポイント`, 'success');
         });
       }
       if (result.status === 'completed') {
@@ -2703,7 +2703,7 @@ function startEventTimerDisplay(ev) {
 }
 
 // ============================================
-// コイン経済ダッシュボード
+// ポイント経済ダッシュボード
 // ============================================
 async function loadEconomy() {
   try {
@@ -2720,8 +2720,8 @@ async function loadEconomy() {
     const ratioLabel = summary.outflowRatio >= 70 ? '健全' : summary.outflowRatio >= 40 ? '注意' : '危険';
 
     document.getElementById('economyStats').innerHTML = `
-      <div class="stat-card"><div class="stat-icon">&#128176;</div><div class="stat-value">${summary.totalIssued.toLocaleString()}</div><div class="stat-label">総発行コイン</div></div>
-      <div class="stat-card"><div class="stat-icon">&#128722;</div><div class="stat-value">${summary.totalSpent.toLocaleString()}</div><div class="stat-label">総消費コイン</div></div>
+      <div class="stat-card"><div class="stat-icon">&#128176;</div><div class="stat-value">${summary.totalIssued.toLocaleString()}</div><div class="stat-label">総発行ポイント</div></div>
+      <div class="stat-card"><div class="stat-icon">&#128722;</div><div class="stat-value">${summary.totalSpent.toLocaleString()}</div><div class="stat-label">総消費ポイント</div></div>
       <div class="stat-card"><div class="stat-icon" style="color:${ratioColor}">&#128200;</div><div class="stat-value" style="color:${ratioColor}">${summary.outflowRatio}%</div><div class="stat-label">流出比率（${ratioLabel}）</div></div>
       <div class="stat-card"><div class="stat-icon">&#128221;</div><div class="stat-value">${summary.transactionCount}</div><div class="stat-label">取引件数</div></div>
     `;
@@ -2800,7 +2800,7 @@ async function grantCoin() {
   let amount = amounts[category];
   if (category === 'manual') {
     amount = parseInt(document.getElementById('manualCoinAmount').value);
-    if (!amount || amount <= 0) { showToast('コイン数を入力してください', 'error'); return; }
+    if (!amount || amount <= 0) { showToast('ポイント数を入力してください', 'error'); return; }
   }
 
   try {
@@ -2811,12 +2811,12 @@ async function grantCoin() {
       grantedBy: 'coach'
     });
     await StudentsDB.addPoints(studentId, amount);
-    showToast(`${amount}コインを付与しました`);
+    showToast(`${amount}ポイントを付与しました`);
     document.getElementById('coinNote').value = '';
     if (category === 'manual') document.getElementById('manualCoinAmount').value = '';
   } catch (e) {
-    console.error('コイン付与エラー:', e);
-    showToast('コイン付与に失敗しました', 'error');
+    console.error('ポイント付与エラー:', e);
+    showToast('ポイント付与に失敗しました', 'error');
   }
 }
 

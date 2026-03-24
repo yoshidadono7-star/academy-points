@@ -234,9 +234,9 @@ const BADGE_DEFINITIONS = [
   { id: 'streak_7', name: '1週間マスター', icon: '⭐', desc: '7日連続で学習した' },
   { id: 'streak_14', name: '2週間チャンピオン', icon: '🏆', desc: '14日連続で学習した' },
   { id: 'streak_30', name: '月間レジェンド', icon: '👑', desc: '30日連続で学習した' },
-  { id: 'points_100', name: 'コインハンター', icon: '💰', desc: '累計100コイン獲得' },
-  { id: 'points_500', name: 'コインマスター', icon: '💎', desc: '累計500コイン獲得' },
-  { id: 'points_1000', name: 'コインキング', icon: '🏅', desc: '累計1000コイン獲得' },
+  { id: 'points_100', name: 'ポイントハンター', icon: '💰', desc: '累計100ポイント獲得' },
+  { id: 'points_500', name: 'ポイントマスター', icon: '💎', desc: '累計500ポイント獲得' },
+  { id: 'points_1000', name: 'ポイントキング', icon: '🏅', desc: '累計1000ポイント獲得' },
   { id: 'study_10h', name: '学習者', icon: '📖', desc: '累計10時間学習した' },
   { id: 'study_50h', name: '勉強家', icon: '📚', desc: '累計50時間学習した' },
   { id: 'study_100h', name: '学習マスター', icon: '🎓', desc: '累計100時間学習した' },
@@ -769,7 +769,7 @@ const MissionsDB = {
   }
 };
 
-// --- コイン取引履歴 ---
+// --- ポイント取引履歴 ---
 const CoinsDB = {
   async addTransaction(data) {
     const ref = await db.collection('coins').add({
@@ -921,7 +921,7 @@ const RewardsDB = {
       rewardId, studentId, studentName, cost,
       exchangedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    // コイン消費
+    // ポイント消費
     await StudentsDB.spendPoints(studentId, cost);
     // 取引履歴に記録
     await CoinsDB.addTransaction({
@@ -1113,7 +1113,7 @@ const AnomalyDetector = {
   }
 };
 
-// --- コイン経済パラメータ ---
+// --- ポイント経済パラメータ ---
 const COIN_PARAMS = {
   // 基本収入
   attendance: 10,         // 通塾（入室＋目標設定）
@@ -1185,7 +1185,7 @@ function getRankDisplay(rankId) {
   return `${r.icon} ${r.name}`;
 }
 
-// コイン残高上限チェック
+// ポイント残高上限チェック
 function checkBalanceCap(currentPoints) {
   if (currentPoints > COIN_PARAMS.balanceCap) {
     return { overflow: currentPoints - COIN_PARAMS.balanceCap, capped: COIN_PARAMS.balanceCap };

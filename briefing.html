@@ -579,7 +579,7 @@ body {
         </div>
         <div class="stat-card orange">
           <div class="stat-value" id="statCoinsIssued">0</div>
-          <div class="stat-label">発行コイン</div>
+          <div class="stat-label">発行ポイント</div>
         </div>
         <div class="stat-card purple">
           <div class="stat-value" id="statStreak">0</div>
@@ -692,7 +692,7 @@ function renderMission(mission) {
     `<div class="milestone ${m.reached ? 'reached' : ''}">
       <div class="stage">${m.percent}%</div>
       <div class="name">${m.reached ? '✅ ' : ''}${m.name}</div>
-      <div class="coins">+${m.coins} coin</div>
+      <div class="coins">+${m.coins} pt</div>
     </div>`
   ).join('');
 
@@ -700,7 +700,7 @@ function renderMission(mission) {
   ms.forEach(m => {
     const key = `${mission.id}_${m.stage}`;
     if (m.reached && !previousMilestoneState[key]) {
-      addFeed('🎉', `マイルストーン「${m.name}」到達！ 全クルーに+${m.coins}コイン`, 'milestone-feed');
+      addFeed('🎉', `マイルストーン「${m.name}」到達！ 全クルーに+${m.coins}ポイント`, 'milestone-feed');
     }
     previousMilestoneState[key] = m.reached;
   });
@@ -711,7 +711,7 @@ function renderMission(mission) {
   }
 }
 
-// ランキング表示（月間コイン獲得量・上位5名）
+// ランキング表示（月間ポイント獲得量・上位5名）
 async function renderRanking() {
   try {
     const students = await StudentsDB.getAll();
@@ -756,7 +756,7 @@ async function renderStats() {
     document.getElementById('statPomodoros').textContent = totalPomo;
     document.getElementById('statStreak').textContent = bestStreak;
 
-    // 発行コイン数
+    // 発行ポイント数
     try {
       const summary = await CoinsDB.getDailySummary(today);
       document.getElementById('statCoinsIssued').textContent = summary.totalIssued;
@@ -838,7 +838,7 @@ function showEventOverlay(name, icon, desc) {
 // ミッション達成オーバーレイ
 function showMissionComplete(mission) {
   document.getElementById('missionCompleteSub').textContent =
-    `「${mission.title}」達成！ 全クルーに+${mission.bonusCoins}コイン`;
+    `「${mission.title}」達成！ 全クルーに+${mission.bonusCoins}ポイント`;
   document.getElementById('missionCompleteOverlay').classList.add('show');
   setTimeout(() => {
     document.getElementById('missionCompleteOverlay').classList.remove('show');
@@ -902,7 +902,7 @@ function setupListeners() {
       renderStats();
     });
 
-  // コイン取引のリアルタイム監視
+  // ポイント取引のリアルタイム監視
   db.collection('coins').orderBy('timestamp', 'desc').limit(1)
     .onSnapshot(snap => {
       snap.docChanges().forEach(change => {
@@ -913,7 +913,7 @@ function setupListeners() {
               attendance: '🏫', pomodoro: '🍅', review: '📝', teaching: '🤝',
               streak: '🔥', mission: '🎯', event: '⚡', gift: '🎁'
             };
-            const icon = catIcons[txn.category] || '🪙';
+            const icon = catIcons[txn.category] || 'pt';
             // ライブフィードに表示（頻度調整のため一部のみ）
           }
         }

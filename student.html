@@ -619,7 +619,7 @@ body {
     <div class="home-stats">
       <div class="home-stat">
         <div class="home-stat-value" id="homePoints">0</div>
-        <div class="home-stat-label">🪙 コイン</div>
+        <div class="home-stat-label">ポイント</div>
       </div>
       <div class="home-stat">
         <div class="home-stat-value" id="homeLevel">1</div>
@@ -797,7 +797,7 @@ body {
   </div>
   <div class="complete-screen">
     <div class="celebration">🎉</div>
-    <div class="complete-label">獲得コイン</div>
+    <div class="complete-label">獲得ポイント</div>
     <div class="complete-points" id="completePoints">+0</div>
     <div class="complete-stats">
       <div class="complete-stat">
@@ -814,7 +814,7 @@ body {
       </div>
       <div class="complete-stat">
         <div class="complete-stat-val" id="completeTotalPts">0</div>
-        <div class="complete-stat-lbl">累計コイン</div>
+        <div class="complete-stat-lbl">累計ポイント</div>
       </div>
     </div>
     <div id="completeBadges"></div>
@@ -833,7 +833,7 @@ body {
     <div></div>
   </div>
   <div class="ranking-tabs">
-    <button class="ranking-tab active" onclick="switchRankingTab('points',this)">コイン</button>
+    <button class="ranking-tab active" onclick="switchRankingTab('points',this)">ポイント</button>
     <button class="ranking-tab" onclick="switchRankingTab('streak',this)">連続日数</button>
     <button class="ranking-tab" onclick="switchRankingTab('level',this)">レベル</button>
   </div>
@@ -847,7 +847,7 @@ body {
     <div class="header-title">景品交換</div>
     <div></div>
   </div>
-  <div class="current-points-banner" id="prizePointsBanner">所持コイン: 0 🪙</div>
+  <div class="current-points-banner" id="prizePointsBanner">所持ポイント: 0 pt</div>
   <div id="prizeGrid" class="prize-grid"></div>
 </div>
 
@@ -1129,7 +1129,7 @@ async function loadHome() {
   const pts = s.totalPoints || 0;
   const progress = Math.min(100, ((pts - currentThreshold) / (nextThreshold - currentThreshold)) * 100);
   document.getElementById('homeLevelFill').style.width = progress + '%';
-  document.getElementById('homeLevelText').textContent = `Lv.${level} → Lv.${level + 1} まであと ${Math.max(0, nextThreshold - pts)} コイン`;
+  document.getElementById('homeLevelText').textContent = `Lv.${level} → Lv.${level + 1} まであと ${Math.max(0, nextThreshold - pts)} ポイント`;
 
   // Recent logs
   try {
@@ -1145,7 +1145,7 @@ async function loadHome() {
             <div class="history-subject">${l.subject}</div>
             <div class="history-meta">${l.date} / ${l.duration}分 / ${l.location || '塾'}</div>
           </div>
-          <div class="history-points">+${l.points}🪙</div>
+          <div class="history-points">+${l.points}pt</div>
         </div>
       `).join('');
     }
@@ -1229,7 +1229,7 @@ async function loadTasks() {
               <div class="task-title">${t.title}</div>
               <div class="task-desc">${t.description || ''}</div>
             </div>
-            ${done ? '<span class="task-completed">完了</span>' : `<span class="task-points">+${t.points}🪙</span>`}
+            ${done ? '<span class="task-completed">完了</span>' : `<span class="task-points">+${t.points}pt</span>`}
           </div>
         `;
       }).join('');
@@ -1242,7 +1242,7 @@ async function loadTasks() {
 }
 
 async function completeTask(taskId, title, points) {
-  showModal('✅', 'タスク完了', `「${title}」を完了して ${points}コインを獲得しますか？`, `
+  showModal('✅', 'タスク完了', `「${title}」を完了して ${points}ポイントを獲得しますか？`, `
     <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
     <button class="btn btn-primary" onclick="closeModal();doCompleteTask('${taskId}',${points})">完了！</button>
   `, true);
@@ -1259,7 +1259,7 @@ async function doCompleteTask(taskId, points) {
       await GuildsDB.addPoints(currentStudent.guildId, points);
     }
 
-    showToast(`+${points}コイン獲得！`);
+    showToast(`+${points}ポイント獲得！`);
     await loadTasks();
   } catch(e) {
     console.error(e);
@@ -1585,7 +1585,7 @@ function showCompleteScreen(duration, points, newBadges, raidResults) {
         <div style="font-size:13px;opacity:0.9">⚔️ レイドボスにダメージ！</div>
         <div style="font-size:24px;margin:6px 0">${r.bossIcon || '👹'} ${r.bossName || 'ボス'}</div>
         <div style="font-weight:700">${points}ダメージ</div>
-        ${r.defeated ? '<div style="color:#ffd700;font-weight:700;margin-top:4px">🎉 討伐成功！ +' + r.reward + 'コイン ボーナス！</div>' : ''}
+        ${r.defeated ? '<div style="color:#ffd700;font-weight:700;margin-top:4px">🎉 討伐成功！ +' + r.reward + 'ポイント ボーナス！</div>' : ''}
       </div>
     `).join('');
   } else {
@@ -1635,7 +1635,7 @@ function renderRanking(sortBy) {
     switch(sortBy) {
       case 'streak': value = (s.streak || 0) + '日'; break;
       case 'level': value = 'Lv.' + calcLevel(s.totalPoints || 0); break;
-      default: value = (s.totalPoints || 0).toLocaleString() + '🪙'; break;
+      default: value = (s.totalPoints || 0).toLocaleString() + 'pt'; break;
     }
     return `
       <div class="ranking-item ${isSelf ? 'self' : ''}">
@@ -1656,7 +1656,7 @@ async function loadPrizes() {
     const fresh = await StudentsDB.getById(currentStudent.id);
     if (fresh) currentStudent = fresh;
     const pts = currentStudent.currentPoints || 0;
-    document.getElementById('prizePointsBanner').textContent = `所持コイン: ${pts.toLocaleString()} 🪙`;
+    document.getElementById('prizePointsBanner').textContent = `所持ポイント: ${pts.toLocaleString()} pt`;
 
     const prizes = await PrizesDB.getAll();
     const activePrizes = prizes.filter(p => p.active !== false);
@@ -1673,9 +1673,9 @@ async function loadPrizes() {
           <div class="prize-card ${available ? '' : 'prize-unavailable'}" onclick="${available ? `exchangePrize('${p.id}','${p.name.replace(/'/g,"\\'")}',${p.cost})` : ''}">
             <div class="prize-icon">${p.icon || '🎁'}</div>
             <div class="prize-name">${p.name}</div>
-            <div class="prize-cost">${p.cost.toLocaleString()} 🪙</div>
+            <div class="prize-cost">${p.cost.toLocaleString()} pt</div>
             ${p.stock >= 0 ? `<div class="prize-stock">残り${p.stock}個</div>` : ''}
-            ${!canAfford ? '<div class="prize-stock" style="color:var(--danger)">コイン不足</div>' : ''}
+            ${!canAfford ? '<div class="prize-stock" style="color:var(--danger)">ポイント不足</div>' : ''}
           </div>
         `;
       }).join('');
@@ -1688,7 +1688,7 @@ async function loadPrizes() {
 }
 
 function exchangePrize(prizeId, name, cost) {
-  showModal('🎁', '報酬交換', `「${name}」を ${cost}コインで交換しますか？`, `
+  showModal('🎁', '報酬交換', `「${name}」を ${cost}ポイントで交換しますか？`, `
     <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
     <button class="btn btn-primary" onclick="closeModal();doExchange('${prizeId}','${name.replace(/'/g,"\\'")}',${cost})">交換する</button>
   `, true);
@@ -1734,7 +1734,7 @@ async function loadHistory() {
               <div class="history-subject">${l.subject}</div>
               <div class="history-meta">${l.duration}分 / ${l.location || '塾'} / ${l.method === 'pomodoro' ? '🍅' + (l.pomodoroCount || 0) + '回' : '通常'}</div>
             </div>
-            <div class="history-points">+${l.points}🪙</div>
+            <div class="history-points">+${l.points}pt</div>
           </div>
         `;
       }
@@ -1946,7 +1946,7 @@ async function loadRaidBoss() {
             <div class="raid-hp-fill" style="width:${hpPercent}%;${defeated ? 'background:#48bb78' : ''}"></div>
           </div>
           <div class="raid-hp-text">${defeated ? '討伐完了！' : `HP: ${boss.currentHp.toLocaleString()} / ${boss.maxHp.toLocaleString()}`}</div>
-          <div class="raid-reward">${defeated ? '🎉 報酬 ' + boss.reward + 'コイン獲得済み' : '🏆 討伐報酬: ' + boss.reward + 'コイン'}</div>
+          <div class="raid-reward">${defeated ? '🎉 報酬 ' + boss.reward + 'ポイント獲得済み' : '🏆 討伐報酬: ' + boss.reward + 'ポイント'}</div>
           ${defeated ? '<div class="raid-defeated">DEFEATED</div>' : ''}
         </div>
       `;
