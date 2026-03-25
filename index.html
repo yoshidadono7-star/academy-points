@@ -440,6 +440,10 @@
   <button class="tab-btn" data-tab="coaching">&#127891; コーチング分析</button>
   <button class="tab-btn" data-tab="risk">&#9888;&#65039; 離脱リスク</button>
   <button class="tab-btn" data-tab="exams">&#128221; テスト結果</button>
+  <button class="tab-btn" data-tab="missions">&#128640; ミッション</button>
+  <button class="tab-btn" data-tab="events">&#9889; イベント</button>
+  <button class="tab-btn" data-tab="economy">&#128176; 経済監査</button>
+  <button class="tab-btn" data-tab="anomaly">&#128269; アノマリー</button>
   <button class="tab-btn" data-tab="settings">&#9881;&#65039; 塾設定</button>
 </nav>
 
@@ -852,6 +856,176 @@
     </div>
   </div>
 
+  <!-- ===== TAB: MISSIONS ===== -->
+  <div class="tab-content" id="tab-missions">
+    <div class="card">
+      <div class="card-title"><span class="icon">🚀</span> ミッション管理
+        <button class="btn btn-primary btn-sm" onclick="showMissionForm()" style="margin-left:auto;">+ 新規ミッション</button>
+      </div>
+
+      <!-- 新規作成フォーム -->
+      <div id="missionForm" style="display:none;background:#f7fafc;border-radius:10px;padding:16px;margin-bottom:16px;">
+        <div class="form-row">
+          <div class="form-group"><label>ミッション名</label>
+            <input type="text" class="form-control" id="missionTitle" placeholder="例: 月面到達ミッション">
+          </div>
+          <div class="form-group"><label>計測指標</label>
+            <select class="form-control" id="missionMetric">
+              <option value="total_hours">合計学習時間</option>
+              <option value="pomodoro_count">合計ポモドーロ数</option>
+              <option value="teach_count">教え合い回数</option>
+              <option value="ai_questions">AI教材問題数</option>
+            </select>
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>目標値</label>
+            <input type="number" class="form-control" id="missionTarget" placeholder="1000" min="1">
+          </div>
+          <div class="form-group"><label>達成ボーナス（pt）</label>
+            <input type="number" class="form-control" id="missionBonus" value="50" min="1">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>開始日</label>
+            <input type="date" class="form-control" id="missionStart">
+          </div>
+          <div class="form-group"><label>終了日</label>
+            <input type="date" class="form-control" id="missionEnd">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>マイルストーン①（25%）</label>
+            <input type="text" class="form-control" id="ms1" placeholder="大気圏突破">
+          </div>
+          <div class="form-group"><label>マイルストーン②（50%）</label>
+            <input type="text" class="form-control" id="ms2" placeholder="宇宙空間到達">
+          </div>
+          <div class="form-group"><label>マイルストーン③（75%）</label>
+            <input type="text" class="form-control" id="ms3" placeholder="月軌道到達">
+          </div>
+          <div class="form-group"><label>マイルストーン④（100%）</label>
+            <input type="text" class="form-control" id="ms4" placeholder="月面着陸">
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;">
+          <button class="btn btn-primary" onclick="createMission()">🚀 ミッション作成</button>
+          <button class="btn btn-secondary" onclick="document.getElementById('missionForm').style.display='none'">キャンセル</button>
+        </div>
+      </div>
+
+      <!-- ミッション一覧 -->
+      <div id="missionList"><p style="color:var(--text-light);font-size:13px;">読み込み中...</p></div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: EVENTS ===== -->
+  <div class="tab-content" id="tab-events">
+    <div class="card">
+      <div class="card-title"><span class="icon">⚡</span> イベント発火コンソール</div>
+      <p style="font-size:13px;color:var(--text-light);margin-bottom:16px;">
+        教室の雰囲気を見てイベントを手動発火します。1日最大2回、週3〜4日がベスト。
+      </p>
+      <div id="eventTodayCount" style="font-size:13px;margin-bottom:12px;"></div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:12px;margin-bottom:20px;">
+        <div class="stat-card" style="cursor:pointer;border:2px solid transparent;transition:all 0.2s;" onclick="fireEvent('booster')" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='transparent'">
+          <div style="font-size:36px;">🚀</div>
+          <div style="font-weight:700;margin:4px 0;">ブースター</div>
+          <div style="font-size:11px;color:var(--text-light);">ポモドーロ完了ポイント2倍（30分）</div>
+        </div>
+        <div class="stat-card" style="cursor:pointer;border:2px solid transparent;transition:all 0.2s;" onclick="fireEvent('team_challenge')" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='transparent'">
+          <div style="font-size:36px;">⚡</div>
+          <div style="font-weight:700;margin:4px 0;">チームチャレンジ</div>
+          <div style="font-size:11px;color:var(--text-light);">15分で全員1問正答→ボーナス</div>
+        </div>
+        <div class="stat-card" style="cursor:pointer;border:2px solid transparent;transition:all 0.2s;" onclick="fireEvent('combo_chance')" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='transparent'">
+          <div style="font-size:36px;">🔗</div>
+          <div style="font-weight:700;margin:4px 0;">コンボチャンス</div>
+          <div style="font-size:11px;color:var(--text-light);">3人同時正答でボーナス（20分）</div>
+        </div>
+        <div class="stat-card" style="cursor:pointer;border:2px solid transparent;transition:all 0.2s;" onclick="fireEvent('surprise_bonus')" onmouseover="this.style.borderColor='var(--primary)'" onmouseout="this.style.borderColor='transparent'">
+          <div style="font-size:36px;">🎉</div>
+          <div style="font-weight:700;margin:4px 0;">サプライズボーナス</div>
+          <div style="font-size:11px;color:var(--text-light);">全員に即時5ポイント付与</div>
+        </div>
+      </div>
+
+      <!-- アクティブイベント -->
+      <div class="card-title" style="margin-top:20px;"><span class="icon">📡</span> アクティブイベント</div>
+      <div id="activeEventList"><p style="color:var(--text-light);font-size:13px;">現在アクティブなイベントはありません</p></div>
+
+      <!-- イベント履歴 -->
+      <div class="card-title" style="margin-top:20px;"><span class="icon">📜</span> イベント履歴（直近20件）</div>
+      <div id="eventHistoryList"><p style="color:var(--text-light);font-size:13px;">読み込み中...</p></div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: ECONOMY ===== -->
+  <div class="tab-content" id="tab-economy">
+    <div class="card">
+      <div class="card-title"><span class="icon">💰</span> ポイント経済ダッシュボード</div>
+      <div class="form-row" style="margin-bottom:16px;">
+        <div class="form-group">
+          <label>集計月</label>
+          <input type="month" class="form-control" id="economyMonth" onchange="loadEconomy()">
+        </div>
+      </div>
+      <div id="economySummary">
+        <div class="stats-grid">
+          <div class="stat-card"><div class="stat-value" id="ecoIssued">-</div><div class="stat-label">月間発行量</div></div>
+          <div class="stat-card"><div class="stat-value" id="ecoSpent">-</div><div class="stat-label">月間消費量</div></div>
+          <div class="stat-card"><div class="stat-value" id="ecoRatio">-</div><div class="stat-label">流出比率</div></div>
+          <div class="stat-card"><div class="stat-value" id="ecoHealth">-</div><div class="stat-label">経済状態</div></div>
+        </div>
+      </div>
+      <div style="margin-top:16px;">
+        <div class="card-title"><span class="icon">📊</span> 残高分布</div>
+        <div id="balanceDistribution"><p style="color:var(--text-light);font-size:13px;">読み込み中...</p></div>
+      </div>
+    </div>
+
+    <!-- 経済ヘルスガイド -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📋</span> 経済ヘルス判定ガイド</div>
+      <div class="table-wrap">
+        <table>
+          <tr><th>流出比率</th><th>判定</th><th>対応</th></tr>
+          <tr><td><span style="color:var(--success);font-weight:700;">70%以上</span></td><td>✅ 健全</td><td>現状維持。消費が発行を十分に吸収</td></tr>
+          <tr><td><span style="color:var(--warning);font-weight:700;">40〜70%</span></td><td>⚠️ 注意</td><td>景品カタログの拡充 or 獲得レート引き下げ検討</td></tr>
+          <tr><td><span style="color:var(--danger);font-weight:700;">40%未満</span></td><td>🚨 危険</td><td>即座に調整。レート引き下げ or 大規模消費イベント</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== TAB: ANOMALY ===== -->
+  <div class="tab-content" id="tab-anomaly">
+    <div class="card">
+      <div class="card-title"><span class="icon">🔍</span> アノマリー検知
+        <button class="btn btn-secondary btn-sm" onclick="runAnomalyCheck()" style="margin-left:auto;">🔄 スキャン実行</button>
+      </div>
+      <p style="font-size:12px;color:var(--text-light);margin-bottom:16px;">
+        ⚠️ 全アラートは情報提供のみ。自動ペナルティは一切適用しません。フラグの大半は誤検知です。
+      </p>
+      <div id="anomalyResults"><p style="color:var(--text-light);font-size:13px;">「スキャン実行」を押して検知を開始してください</p></div>
+    </div>
+
+    <!-- エスカレーションガイド -->
+    <div class="card">
+      <div class="card-title"><span class="icon">📋</span> エスカレーションフロー</div>
+      <div class="table-wrap">
+        <table>
+          <tr><th>レベル</th><th>トリガー</th><th>アクション</th></tr>
+          <tr><td><strong>Lv1 観察</strong></td><td>初回フラグ</td><td>翌日以降、該当生徒を意識的に観察</td></tr>
+          <tr><td><strong>Lv2 確認対話</strong></td><td>7日以内に同カテゴリ2回目</td><td>1対1で開かれた質問から対話</td></tr>
+          <tr><td><strong>Lv3 全体再確認</strong></td><td>対話後も継続</td><td>教室全体にルール再確認</td></tr>
+          <tr><td><strong>Lv4 個別対応</strong></td><td>Lv3後も継続</td><td>1対1で明確に問題を指摘</td></tr>
+          <tr><td><strong>Lv5 保護者連携</strong></td><td>Lv4で改善なし</td><td>保護者に状況報告</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+
 </main>
 
 <!-- Notification Drawer -->
@@ -880,7 +1054,7 @@
 <div class="toast-container" id="toastContainer"></div>
 
 <!-- Firebase & DB -->
-<script src="firebase-config.js"></script>
+<script src="firebase-config.js?v=2"></script>
 <script src="db.js"></script>
 
 <script>
@@ -950,7 +1124,11 @@ function switchTab(tabId) {
     risk: loadRisk,
     exams: loadExams,
     settings: loadSettings,
-    messages: loadMessages
+    messages: loadMessages,
+    missions: loadMissions,
+    events: loadEvents,
+    economy: loadEconomy,
+    anomaly: () => {}
   };
   if (loaders[tabId]) loaders[tabId]();
 }
@@ -2681,6 +2859,247 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 });
+
+// ============================================
+// ミッション管理
+// ============================================
+function showMissionForm() {
+  const f = document.getElementById('missionForm');
+  f.style.display = f.style.display === 'none' ? 'block' : 'none';
+  // デフォルト日付：今月1日〜末日
+  const now = new Date();
+  const y = now.getFullYear(), m = String(now.getMonth() + 1).padStart(2, '0');
+  document.getElementById('missionStart').value = `${y}-${m}-01`;
+  const last = new Date(y, now.getMonth() + 1, 0);
+  document.getElementById('missionEnd').value = last.toISOString().split('T')[0];
+}
+
+async function createMission() {
+  const title = document.getElementById('missionTitle').value.trim();
+  if (!title) { alert('ミッション名を入力してください'); return; }
+  try {
+    await MissionsDB.create({
+      title,
+      metric: document.getElementById('missionMetric').value,
+      targetValue: parseInt(document.getElementById('missionTarget').value) || 1000,
+      bonusPoints: parseInt(document.getElementById('missionBonus').value) || 50,
+      startDate: document.getElementById('missionStart').value,
+      endDate: document.getElementById('missionEnd').value,
+      milestone1: document.getElementById('ms1').value || undefined,
+      milestone2: document.getElementById('ms2').value || undefined,
+      milestone3: document.getElementById('ms3').value || undefined,
+      milestone4: document.getElementById('ms4').value || undefined,
+    });
+    document.getElementById('missionForm').style.display = 'none';
+    loadMissions();
+  } catch(e) { alert('エラー: ' + e.message); }
+}
+
+async function loadMissions() {
+  try {
+    const missions = await MissionsDB.getAll();
+    const el = document.getElementById('missionList');
+    if (missions.length === 0) {
+      el.innerHTML = '<p style="color:var(--text-light);font-size:13px;">ミッションがまだありません。「+ 新規ミッション」で作成してください。</p>';
+      return;
+    }
+    const metricLabels = { total_hours: '合計学習時間', pomodoro_count: 'ポモドーロ数', teach_count: '教え合い回数', ai_questions: 'AI教材問題数' };
+    const statusLabels = { active: '🟢 進行中', completed: '🏆 達成！', failed: '⏹ 終了' };
+    el.innerHTML = missions.map(m => {
+      const pct = m.targetValue > 0 ? Math.min(100, Math.round(m.currentValue / m.targetValue * 100)) : 0;
+      const milestoneHTML = (m.milestones || []).map(ms => {
+        const icon = ms.reached ? '✅' : '⬜';
+        return `<span style="font-size:12px;margin-right:8px;">${icon} ${ms.name}（${ms.percent}%）</span>`;
+      }).join('');
+      return `
+        <div style="background:#f7fafc;border-radius:10px;padding:16px;margin-bottom:12px;border-left:4px solid ${m.status === 'completed' ? 'var(--success)' : m.status === 'active' ? 'var(--primary)' : 'var(--text-light)'}">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+            <strong style="font-size:15px;">${m.title || '無題'}</strong>
+            <span style="font-size:12px;">${statusLabels[m.status] || m.status}</span>
+          </div>
+          <div style="font-size:12px;color:var(--text-light);margin-bottom:8px;">
+            ${metricLabels[m.metric] || m.metric} ｜ ${m.startDate || '?'} 〜 ${m.endDate || '?'} ｜ 達成ボーナス ${m.bonusPoints || 50}pt
+          </div>
+          <div style="background:#e2e8f0;border-radius:6px;height:20px;position:relative;overflow:hidden;margin-bottom:8px;">
+            <div style="background:var(--gradient);height:100%;width:${pct}%;border-radius:6px;transition:width 0.5s;"></div>
+            <span style="position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);font-size:11px;font-weight:700;">${m.currentValue || 0} / ${m.targetValue || 0}（${pct}%）</span>
+          </div>
+          <div style="margin-bottom:8px;">${milestoneHTML}</div>
+          ${m.status === 'active' ? `
+            <div style="display:flex;gap:6px;flex-wrap:wrap;">
+              <button class="btn btn-secondary btn-sm" onclick="updateMissionProgress('${m.id}')">📊 進捗更新</button>
+              <button class="btn btn-secondary btn-sm" onclick="checkMissionMilestones('${m.id}')">🎯 マイルストーンチェック</button>
+            </div>` : ''}
+        </div>`;
+    }).join('');
+  } catch(e) { console.error('Mission load error:', e); }
+}
+
+async function updateMissionProgress(missionId) {
+  const val = prompt('現在の進捗値を入力してください:');
+  if (val === null) return;
+  await MissionsDB.updateProgress(missionId, parseInt(val) || 0);
+  loadMissions();
+}
+
+async function checkMissionMilestones(missionId) {
+  const reached = await MissionsDB.checkMilestones(missionId);
+  if (reached.length > 0) {
+    alert('🎯 マイルストーン到達！\n' + reached.map(ms => `${ms.name}（+${ms.bonus}pt）`).join('\n'));
+  } else {
+    alert('まだ新しいマイルストーンには到達していません。');
+  }
+  loadMissions();
+}
+
+// ============================================
+// イベント発火
+// ============================================
+async function fireEvent(typeId) {
+  const todayCount = await EventsDB.getTodayCount();
+  if (todayCount >= 2) {
+    if (!confirm(`今日はすでに${todayCount}回イベントを発火しています（推奨上限2回）。それでも発火しますか？`)) return;
+  }
+  const eventType = EVENT_TYPES.find(t => t.id === typeId);
+  if (!confirm(`「${eventType.name}」を発火しますか？`)) return;
+  try {
+    await EventsDB.fire(typeId);
+
+    // サプライズボーナスの場合、全員に5pt付与
+    if (typeId === 'surprise_bonus') {
+      const students = await StudentsDB.getAll();
+      for (const s of students) {
+        await StudentsDB.addPoints(s.id, 5);
+      }
+    }
+
+    loadEvents();
+    alert(`${eventType.icon} ${eventType.name}を発火しました！`);
+  } catch(e) { alert('エラー: ' + e.message); }
+}
+
+async function loadEvents() {
+  try {
+    const todayCount = await EventsDB.getTodayCount();
+    document.getElementById('eventTodayCount').innerHTML =
+      `📡 今日のイベント発火回数: <strong>${todayCount}/2</strong>（推奨上限）`;
+
+    // アクティブイベント
+    const active = await EventsDB.getActive();
+    const activeEl = document.getElementById('activeEventList');
+    if (active.length === 0) {
+      activeEl.innerHTML = '<p style="color:var(--text-light);font-size:13px;">現在アクティブなイベントはありません</p>';
+    } else {
+      activeEl.innerHTML = active.map(e => {
+        const expires = e.expiresAt ? (e.expiresAt.toDate ? e.expiresAt.toDate() : new Date(e.expiresAt)) : null;
+        const remaining = expires ? Math.max(0, Math.round((expires - new Date()) / 60000)) : 0;
+        return `<div style="background:#fffbeb;border:1px solid #f6e05e;border-radius:8px;padding:12px;margin-bottom:8px;display:flex;align-items:center;gap:10px;">
+          <span style="font-size:28px;">${e.icon || '⚡'}</span>
+          <div>
+            <strong>${e.name}</strong>
+            ${e.multiplier > 1 ? `<span style="color:#ed8936;font-weight:700;margin-left:8px;">×${e.multiplier}</span>` : ''}
+            <div style="font-size:11px;color:#975a16;">残り${remaining}分</div>
+          </div>
+          <button class="btn btn-secondary btn-sm" style="margin-left:auto;" onclick="deactivateEvent('${e.id}')">停止</button>
+        </div>`;
+      }).join('');
+    }
+
+    // イベント履歴
+    const all = await EventsDB.getAll();
+    const histEl = document.getElementById('eventHistoryList');
+    const recent = all.slice(0, 20);
+    if (recent.length === 0) {
+      histEl.innerHTML = '<p style="color:var(--text-light);font-size:13px;">まだイベント履歴がありません</p>';
+    } else {
+      histEl.innerHTML = '<div class="table-wrap"><table><tr><th>日時</th><th>イベント</th><th>倍率</th><th>時間</th></tr>' +
+        recent.map(e => `<tr>
+          <td style="font-size:12px;">${e.firedAt ? formatDateTime(e.firedAt) : e.date || '-'}</td>
+          <td>${e.icon || ''} ${e.name || ''}</td>
+          <td>${e.multiplier > 1 ? `×${e.multiplier}` : '-'}</td>
+          <td>${e.durationMinutes || 0}分</td>
+        </tr>`).join('') + '</table></div>';
+    }
+  } catch(e) { console.error('Events load error:', e); }
+}
+
+async function deactivateEvent(id) {
+  await EventsDB.deactivate(id);
+  loadEvents();
+}
+
+// ============================================
+// 経済ダッシュボード
+// ============================================
+async function loadEconomy() {
+  try {
+    const monthInput = document.getElementById('economyMonth');
+    if (!monthInput.value) {
+      const now = new Date();
+      monthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+    }
+    const summary = await EconomyDB.getMonthlySummary(monthInput.value);
+
+    document.getElementById('ecoIssued').textContent = summary.totalIssued.toLocaleString() + 'pt';
+    document.getElementById('ecoSpent').textContent = summary.totalSpent.toLocaleString() + 'pt';
+    document.getElementById('ecoRatio').textContent = summary.outflowRatio + '%';
+    const healthMap = { healthy: '✅ 健全', warning: '⚠️ 注意', danger: '🚨 危険' };
+    const healthEl = document.getElementById('ecoHealth');
+    healthEl.textContent = healthMap[summary.healthStatus] || '-';
+    healthEl.style.color = summary.healthStatus === 'danger' ? 'var(--danger)' : summary.healthStatus === 'warning' ? 'var(--warning)' : 'var(--success)';
+
+    // 残高分布
+    const dist = await EconomyDB.getBalanceDistribution();
+    const distEl = document.getElementById('balanceDistribution');
+    const maxCount = Math.max(...dist.map(d => d.count), 1);
+    distEl.innerHTML = dist.map(d => `
+      <div style="display:flex;align-items:center;gap:10px;margin-bottom:6px;">
+        <span style="width:80px;font-size:12px;text-align:right;font-weight:600;">${d.label}pt</span>
+        <div style="flex:1;background:#e2e8f0;border-radius:4px;height:22px;position:relative;">
+          <div style="background:var(--gradient);height:100%;width:${(d.count/maxCount*100)}%;border-radius:4px;"></div>
+          <span style="position:absolute;left:8px;top:50%;transform:translateY(-50%);font-size:11px;font-weight:600;">${d.count}人</span>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) { console.error('Economy load error:', e); }
+}
+
+// ============================================
+// アノマリー検知
+// ============================================
+async function runAnomalyCheck() {
+  const el = document.getElementById('anomalyResults');
+  el.innerHTML = '<p style="color:var(--text-light);font-size:13px;">🔄 スキャン中...</p>';
+  try {
+    const anomalies = await AnomalyDetector.checkAll();
+    if (anomalies.length === 0) {
+      el.innerHTML = '<div style="text-align:center;padding:20px;"><div style="font-size:48px;">✅</div><p style="font-size:14px;font-weight:600;margin-top:8px;">アノマリーは検出されませんでした</p></div>';
+      return;
+    }
+    el.innerHTML = anomalies.map(a => `
+      <div style="background:#fffbeb;border:1px solid #f6e05e;border-radius:10px;padding:14px;margin-bottom:10px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <strong>${a.studentName || '不明'}</strong>
+          <span style="font-size:11px;color:#975a16;">${a.checkedAt ? new Date(a.checkedAt).toLocaleDateString('ja-JP') : ''}</span>
+        </div>
+        ${a.flags.map(f => `
+          <div style="font-size:12px;padding:4px 8px;margin:4px 0;background:#fef3c7;border-radius:4px;">
+            <strong>${f.label}</strong>: ${f.detail || ''}
+            <span style="font-size:10px;color:#92400e;margin-left:6px;">[${f.severity}]</span>
+          </div>
+        `).join('')}
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <button class="btn btn-secondary btn-sm" onclick="alert('Dismiss: 問題なしとして記録しました')">✓ Dismiss</button>
+          <button class="btn btn-secondary btn-sm" onclick="alert('エスカレーションガイドを確認してください')">📋 エスカレーション</button>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) {
+    el.innerHTML = '<p style="color:var(--danger);font-size:13px;">エラーが発生しました: ' + e.message + '</p>';
+  }
+}
+
+
 </script>
 </body>
 </html>

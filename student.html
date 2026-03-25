@@ -502,6 +502,7 @@ body {
   animation: spin 0.8s linear infinite;
 }
 @keyframes spin { to { transform: rotate(360deg); } }
+@keyframes pulse { 0%,100% { opacity:1; } 50% { opacity:0.85; } }
 
 .toast {
   position: fixed; bottom: calc(var(--bottom-nav-h) + 20px);
@@ -612,7 +613,10 @@ body {
 <!-- ========== 2. ホーム画面 ========== -->
 <div id="screenHome" class="screen">
   <div class="home-hero">
-    <div class="home-greeting" id="homeGreeting">こんにちは！</div>
+    <div style="display:flex;align-items:center;gap:8px;justify-content:center;margin-bottom:4px;">
+      <div class="home-greeting" id="homeGreeting">こんにちは！</div>
+      <span id="homeRankBadge" style="display:none;font-size:11px;padding:2px 8px;border-radius:20px;font-weight:700;color:#fff;"></span>
+    </div>
     <div class="home-name" id="homeName">---</div>
     <div id="homeGuildBadge" class="home-guild-badge" style="display:none"></div>
     <div class="home-stats">
@@ -633,6 +637,26 @@ body {
       <div class="home-level-fill" id="homeLevelFill" style="width:0%"></div>
     </div>
     <div class="home-level-text" id="homeLevelText"></div>
+  </div>
+
+  <!-- イベントバナー（アクティブ時のみ表示） -->
+  <div id="homeEventBanner" style="display:none;margin:0 16px 12px;padding:12px 16px;border-radius:12px;background:linear-gradient(135deg,#fbbf24,#f59e0b);color:#78350f;font-weight:700;font-size:13px;text-align:center;box-shadow:0 2px 8px rgba(245,158,11,0.3);animation:pulse 2s infinite;">
+    <span id="homeEventIcon" style="font-size:20px;"></span>
+    <span id="homeEventText"></span>
+    <span id="homeEventTimer" style="font-size:11px;display:block;margin-top:2px;font-weight:500;"></span>
+  </div>
+
+  <!-- ミッション進捗カード（アクティブ時のみ表示） -->
+  <div id="homeMissionCard" style="display:none;margin:0 16px 12px;padding:14px 16px;border-radius:14px;background:linear-gradient(135deg,#1e1b4b,#312e81);color:#fff;box-shadow:0 4px 15px rgba(49,46,129,0.3);">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+      <div style="font-size:12px;font-weight:600;opacity:0.8;">🚀 ミッション進行中</div>
+      <span id="homeMissionPct" style="font-size:12px;font-weight:700;color:#a78bfa;"></span>
+    </div>
+    <div id="homeMissionTitle" style="font-size:15px;font-weight:700;margin-bottom:8px;"></div>
+    <div style="background:rgba(255,255,255,0.15);border-radius:6px;height:10px;overflow:hidden;">
+      <div id="homeMissionBar" style="background:linear-gradient(90deg,#a78bfa,#c084fc);height:100%;border-radius:6px;transition:width 0.5s;width:0%;"></div>
+    </div>
+    <div id="homeMissionMilestones" style="display:flex;justify-content:space-between;margin-top:6px;font-size:10px;opacity:0.7;"></div>
   </div>
 
   <div class="quick-actions">
@@ -656,10 +680,27 @@ body {
       <div class="quick-action-icon">👹</div>
       <div class="quick-action-label">レイドボス</div>
     </button>
-    <button class="quick-action" onclick="navigate('messages')">
-      <div class="quick-action-icon">💬</div>
-      <div class="quick-action-label">メッセージ</div>
+    <button class="quick-action" onclick="navigate('mission')">
+      <div class="quick-action-icon">🚀</div>
+      <div class="quick-action-label">ミッション</div>
     </button>
+  </div>
+
+  <!-- ストリーク詳細（フリーパス表示） -->
+  <div id="homeStreakDetail" style="margin:0 16px 12px;padding:12px 16px;border-radius:12px;background:#fff;box-shadow:0 2px 8px rgba(0,0,0,0.06);font-size:12px;">
+    <div style="display:flex;justify-content:space-between;align-items:center;">
+      <div>
+        <span style="font-size:16px;">🔥</span>
+        <strong id="homeStreakDays">0</strong>日連続
+        <span style="color:var(--text-light);margin-left:4px;">（最長: <span id="homeBestStreak">0</span>日）</span>
+      </div>
+      <div id="homeFreePass" style="display:none;">
+        <span style="background:#e0f2fe;color:#0369a1;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">🛡️ フリーパス残</span>
+      </div>
+      <div id="homeFreePassUsed" style="display:none;">
+        <span style="background:#fee2e2;color:#991b1b;padding:2px 8px;border-radius:20px;font-size:11px;font-weight:600;">🛡️ 使用済み</span>
+      </div>
+    </div>
   </div>
 
   <div class="home-section-title">最近の学習</div>
@@ -905,6 +946,21 @@ body {
   <div id="raidBossContent"></div>
 </div>
 
+<!-- ========== ミッション詳細画面 ========== -->
+<div id="screenMission" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="navigate('home')">←</button>
+    <div class="header-title">🚀 ミッション</div>
+    <div></div>
+  </div>
+  <div id="missionDetailContent">
+    <div style="text-align:center;padding:40px 16px;color:var(--text-light);">
+      <div style="font-size:48px;margin-bottom:8px;">🚀</div>
+      <div>現在進行中のミッションはありません</div>
+    </div>
+  </div>
+</div>
+
 <!-- ========== Bottom Navigation ========== -->
 <nav id="bottomNav" class="bottom-nav" style="display:none;">
   <button class="nav-item active" onclick="navTo('home')">
@@ -930,7 +986,7 @@ body {
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
-<script src="firebase-config.js"></script>
+<script src="firebase-config.js?v=2"></script>
 <script src="db.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
 
@@ -983,6 +1039,7 @@ function navigate(screen) {
     case 'messages': loadMessages(); break;
     case 'guild': loadGuild(); break;
     case 'raidBoss': loadRaidBoss(); break;
+    case 'mission': loadMissionDetail(); break;
   }
 }
 
@@ -1007,6 +1064,7 @@ function showProfileMenu() {
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('history')" style="margin-bottom:8px">📊 学習履歴</button>
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('badges')" style="margin-bottom:8px">🏅 バッジ</button>
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('guild')" style="margin-bottom:8px">⚔️ ギルド</button>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('mission')" style="margin-bottom:8px">🚀 ミッション</button>
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('condition')" style="margin-bottom:8px">😊 コンディション</button>
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('messages')" style="margin-bottom:8px">💬 メッセージ</button>
     <button class="btn btn-block btn-danger" onclick="closeModal();logout()">ログアウト</button>
@@ -1150,6 +1208,18 @@ async function loadHome() {
       badge.style.display = 'none';
     }
   } catch(e) {}
+
+  // Rank badge
+  updateHomeRank(s);
+
+  // Streak detail (free pass)
+  updateHomeStreak(s);
+
+  // Mission progress card
+  loadHomeMission();
+
+  // Event banner
+  loadHomeEvent();
 }
 
 // ============================================
@@ -2084,6 +2154,125 @@ async function setupPushNotifications(studentId) {
 
   } catch (e) {
     console.log('Push notification setup failed:', e.message);
+  }
+}
+
+// ============================================
+// ミッション表示（ホーム + 詳細画面）
+// ============================================
+async function loadHomeMission() {
+  try {
+    const missions = await MissionsDB.getActive();
+    const card = document.getElementById('homeMissionCard');
+    if (missions.length === 0) { card.style.display = 'none'; return; }
+    const m = missions[0]; // 最新のアクティブミッション
+    card.style.display = 'block';
+    const pct = m.targetValue > 0 ? Math.min(100, Math.round(m.currentValue / m.targetValue * 100)) : 0;
+    document.getElementById('homeMissionTitle').textContent = m.title || '無題のミッション';
+    document.getElementById('homeMissionPct').textContent = pct + '%';
+    document.getElementById('homeMissionBar').style.width = pct + '%';
+    const msEl = document.getElementById('homeMissionMilestones');
+    msEl.innerHTML = (m.milestones || []).map(ms => {
+      const icon = ms.reached ? '✅' : '⬜';
+      return `<span>${icon} ${ms.name}</span>`;
+    }).join('');
+  } catch(e) { console.error('Mission load error:', e); }
+}
+
+async function loadMissionDetail() {
+  const el = document.getElementById('missionDetailContent');
+  try {
+    const missions = await MissionsDB.getAll();
+    if (missions.length === 0) {
+      el.innerHTML = '<div style="text-align:center;padding:40px 16px;color:var(--text-light);"><div style="font-size:48px;margin-bottom:8px;">🚀</div><div>現在ミッションはありません</div></div>';
+      return;
+    }
+    const metricLabels = { total_hours: '合計学習時間', pomodoro_count: 'ポモドーロ数', teach_count: '教え合い回数', ai_questions: 'AI教材問題数' };
+    el.innerHTML = missions.map(m => {
+      const pct = m.targetValue > 0 ? Math.min(100, Math.round(m.currentValue / m.targetValue * 100)) : 0;
+      const statusIcon = m.status === 'completed' ? '🏆' : m.status === 'active' ? '🚀' : '⏹';
+      const bgColor = m.status === 'completed' ? '#f0fdf4' : m.status === 'active' ? '#eef2ff' : '#f8fafc';
+      const borderColor = m.status === 'completed' ? '#86efac' : m.status === 'active' ? '#a5b4fc' : '#e2e8f0';
+      return `
+        <div class="card" style="background:${bgColor};border:1px solid ${borderColor};margin:12px 16px;">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;">
+            <div style="font-size:16px;font-weight:700;">${statusIcon} ${m.title || '無題'}</div>
+            <span style="font-size:12px;font-weight:600;color:var(--primary);">${pct}%</span>
+          </div>
+          <div style="font-size:11px;color:var(--text-light);margin-bottom:10px;">
+            ${metricLabels[m.metric] || m.metric} ｜ ${m.startDate || '?'} 〜 ${m.endDate || '?'} ｜ 達成ボーナス +${m.bonusPoints || 50}pt
+          </div>
+          <div style="background:#e2e8f0;border-radius:8px;height:14px;overflow:hidden;margin-bottom:10px;">
+            <div style="background:var(--gradient);height:100%;width:${pct}%;border-radius:8px;transition:width 0.5s;"></div>
+          </div>
+          <div style="font-size:12px;text-align:center;margin-bottom:8px;font-weight:600;">${m.currentValue || 0} / ${m.targetValue || 0}</div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;">
+            ${(m.milestones || []).map(ms => `
+              <div style="flex:1;min-width:80px;text-align:center;padding:6px;border-radius:8px;background:${ms.reached ? '#dcfce7' : '#f1f5f9'};font-size:11px;">
+                <div style="font-size:16px;">${ms.reached ? '✅' : '⬜'}</div>
+                <div style="font-weight:600;margin-top:2px;">${ms.name}</div>
+                <div style="color:var(--text-light);">${ms.percent}%・+${ms.bonus}pt</div>
+              </div>
+            `).join('')}
+          </div>
+        </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<div style="text-align:center;padding:20px;color:var(--danger);">読み込みエラー</div>';
+  }
+}
+
+// ============================================
+// イベントバナー表示（ホーム画面）
+// ============================================
+async function loadHomeEvent() {
+  try {
+    const active = await EventsDB.getActive();
+    const banner = document.getElementById('homeEventBanner');
+    if (active.length === 0) { banner.style.display = 'none'; return; }
+    const e = active[0];
+    banner.style.display = 'block';
+    document.getElementById('homeEventIcon').textContent = e.icon || '⚡';
+    document.getElementById('homeEventText').textContent = ` ${e.name}発動中！`;
+    if (e.multiplier > 1) {
+      document.getElementById('homeEventText').textContent += ` ポイント×${e.multiplier}`;
+    }
+    const expires = e.expiresAt ? (e.expiresAt.toDate ? e.expiresAt.toDate() : new Date(e.expiresAt)) : null;
+    if (expires) {
+      const remaining = Math.max(0, Math.round((expires - new Date()) / 60000));
+      document.getElementById('homeEventTimer').textContent = `残り ${remaining}分`;
+    }
+  } catch(e) { console.error('Event load error:', e); }
+}
+
+// ============================================
+// ランク＆ストリーク表示（ホーム画面）
+// ============================================
+function updateHomeRank(student) {
+  const badge = document.getElementById('homeRankBadge');
+  if (!student || !student.rank) { badge.style.display = 'none'; return; }
+  try {
+    const rankInfo = RankDB.getRankInfo(student.rank);
+    badge.textContent = `${rankInfo.icon} ${rankInfo.name}`;
+    badge.style.background = rankInfo.color;
+    badge.style.display = 'inline-block';
+  } catch(e) { badge.style.display = 'none'; }
+}
+
+function updateHomeStreak(student) {
+  if (!student) return;
+  const days = document.getElementById('homeStreakDays');
+  const best = document.getElementById('homeBestStreak');
+  const freePass = document.getElementById('homeFreePass');
+  const freePassUsed = document.getElementById('homeFreePassUsed');
+  if (days) days.textContent = student.streak || 0;
+  if (best) best.textContent = student.bestStreak || student.streak || 0;
+  if (student.freePassUsed) {
+    if (freePass) freePass.style.display = 'none';
+    if (freePassUsed) freePassUsed.style.display = 'inline';
+  } else {
+    if (freePass) freePass.style.display = 'inline';
+    if (freePassUsed) freePassUsed.style.display = 'none';
   }
 }
 

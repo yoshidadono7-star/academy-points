@@ -725,3 +725,430 @@ function calcLevel(totalPoints) {
   if (totalPoints >= 50) return 2;
   return 1;
 }
+
+// ============================================
+// ミッションシステム（月次目標）
+// ============================================
+const MissionsDB = {
+  async getAll() {
+    const snap = await db.collection('missions').orderBy('startDate', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getActive() {
+    const snap = await db.collection('missions')
+      .where('status', '==', 'active')
+      .orderBy('startDate', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getById(id) {
+    const doc = await db.collection('missions').doc(id).get();
+    return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  },
+  async create(data) {
+    const target = data.targetValue || 1000;
+    const ref = await db.collection('missions').add({
+      title: data.title,
+      metric: data.metric || 'total_hours',  // total_hours / pomodoro_count / teach_count / ai_questions / all_streak
+      targetValue: target,
+      currentValue: 0,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      status: 'active',
+      bonusPoints: data.bonusPoints || 50,
+      milestones: [
+        { percent: 25, name: data.milestone1 || '大気圏突破', reached: false, bonus: 10 },
+        { percent: 50, name: data.milestone2 || '宇宙空間到達', reached: false, bonus: 10 },
+        { percent: 75, name: data.milestone3 || '月軌道到達', reached: false, bonus: 10 },
+        { percent: 100, name: data.milestone4 || '月面着陸', reached: false, bonus: data.bonusPoints || 50 }
+      ],
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return ref.id;
+  },
+  async updateProgress(id, value) {
+    await db.collection('missions').doc(id).update({
+      currentValue: value
+    });
+  },
+  async incrementProgress(id, amount) {
+    await db.collection('missions').doc(id).update({
+      currentValue: firebase.firestore.FieldValue.increment(amount)
+    });
+  },
+  // マイルストーン到達チェック → 到達した新マイルストーンを返す
+  async checkMilestones(id) {
+    const mission = await this.getById(id);
+    if (!mission || mission.status !== 'active') return [];
+    const reached = [];
+    const updatedMilestones = mission.milestones.map(ms => {
+      const threshold = mission.targetValue * (ms.percent / 100);
+      if (!ms.reached && mission.currentValue >= threshold) {
+        reached.push(ms);
+        return { ...ms, reached: true };
+      }
+      return ms;
+    });
+    if (reached.length > 0) {
+      const updates = { milestones: updatedMilestones };
+      // 100%到達 → ミッション達成
+      if (updatedMilestones.find(ms => ms.percent === 100 && ms.reached)) {
+        updates.status = 'completed';
+      }
+      await db.collection('missions').doc(id).update(updates);
+    }
+    return reached;
+  },
+  async complete(id) {
+    await db.collection('missions').doc(id).update({
+      status: 'completed'
+    });
+  },
+  async fail(id) {
+    await db.collection('missions').doc(id).update({
+      status: 'failed'
+    });
+  }
+};
+
+// ============================================
+// イベントエンジン（ブースト・チャレンジ）
+// ============================================
+const EVENT_TYPES = [
+  { id: 'booster', name: 'ブースター', icon: '🚀', desc: 'ポモドーロ完了ポイントが2倍', defaultMultiplier: 2.0, defaultDuration: 30 },
+  { id: 'team_challenge', name: 'チームチャレンジ', icon: '⚡', desc: '15分以内に全員1問正答でボーナス', defaultMultiplier: 1.0, defaultDuration: 15 },
+  { id: 'combo_chance', name: 'コンボチャンス', icon: '🔗', desc: '3人同時正答でボーナス', defaultMultiplier: 1.0, defaultDuration: 20 },
+  { id: 'surprise_bonus', name: 'サプライズボーナス', icon: '🎉', desc: '全員に即時5ポイント付与', defaultMultiplier: 1.0, defaultDuration: 0 }
+];
+
+const EventsDB = {
+  async getAll() {
+    const snap = await db.collection('events').orderBy('firedAt', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getActive() {
+    const now = new Date();
+    const snap = await db.collection('events')
+      .where('active', '==', true)
+      .orderBy('firedAt', 'desc').get();
+    // クライアント側で有効期限チェック
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(e => {
+        if (!e.expiresAt) return false;
+        const expires = e.expiresAt.toDate ? e.expiresAt.toDate() : new Date(e.expiresAt);
+        return expires > now;
+      });
+  },
+  async fire(typeId, options = {}) {
+    const eventType = EVENT_TYPES.find(t => t.id === typeId);
+    if (!eventType) return null;
+    const duration = options.duration || eventType.defaultDuration;
+    const now = new Date();
+    const expiresAt = duration > 0 ? new Date(now.getTime() + duration * 60000) : now;
+    const ref = await db.collection('events').add({
+      typeId: eventType.id,
+      name: eventType.name,
+      icon: eventType.icon,
+      multiplier: options.multiplier || eventType.defaultMultiplier,
+      durationMinutes: duration,
+      active: duration > 0,
+      firedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      expiresAt: firebase.firestore.Timestamp.fromDate(expiresAt),
+      firedBy: options.firedBy || 'coach',
+      date: getToday()
+    });
+    return ref.id;
+  },
+  async deactivate(id) {
+    await db.collection('events').doc(id).update({ active: false });
+  },
+  async getTodayCount() {
+    const today = getToday();
+    const snap = await db.collection('events')
+      .where('date', '==', today).get();
+    return snap.size;
+  },
+  // 現在アクティブなブースト倍率を返す（デフォルト1.0）
+  async getCurrentMultiplier() {
+    const active = await this.getActive();
+    if (active.length === 0) return 1.0;
+    return Math.max(...active.map(e => e.multiplier || 1.0));
+  }
+};
+
+// ============================================
+// クルーランク制度
+// ============================================
+const RANK_DEFINITIONS = [
+  {
+    id: 'rookie', name: 'ルーキー', icon: '🌱', color: '#a0aec0',
+    conditions: '入塾時に自動付与',
+    perks: '1.5倍ブースト（7日間）、バディ割当、Lv1景品のみ'
+  },
+  {
+    id: 'crew', name: 'クルー', icon: '🚀', color: '#48bb78',
+    conditions: '30日経過＋累計150ポイント',
+    perks: 'ランキング参加、Lv1〜2景品、ギフト機能、貯蓄機能'
+  },
+  {
+    id: 'senior', name: 'シニアクルー', icon: '⭐', color: '#ed8936',
+    conditions: '累計1000pt＋在籍3ヶ月＋ストリーク10日歴＋コーチ推薦',
+    perks: 'バディ資格、Lv3景品、教え合い+15、イベント提案権'
+  },
+  {
+    id: 'captain', name: 'キャプテン', icon: '👑', color: '#f6ad55',
+    conditions: '累計3000pt＋在籍6ヶ月＋バディ完了1回＋コーチ推薦',
+    perks: 'ミッション設計参加、教室ルール提案権、月末MC'
+  }
+];
+
+const RankDB = {
+  DEFINITIONS: RANK_DEFINITIONS,
+
+  // 自動昇格チェック（ルーキー→クルーのみ自動。それ以上はコーチ推薦必須）
+  async checkAutoPromotion(studentId) {
+    const student = await StudentsDB.getById(studentId);
+    if (!student) return null;
+    const currentRank = student.rank || 'rookie';
+
+    if (currentRank === 'rookie') {
+      const enrollDate = student.enrollDate || student.createdAt;
+      let daysSinceEnroll = 0;
+      if (enrollDate) {
+        const enroll = enrollDate.toDate ? enrollDate.toDate() : new Date(enrollDate);
+        daysSinceEnroll = Math.floor((new Date() - enroll) / 86400000);
+      }
+      if (daysSinceEnroll >= 30 && (student.totalPoints || 0) >= 150) {
+        await StudentsDB.update(studentId, { rank: 'crew' });
+        return 'crew';
+      }
+    }
+    return null;
+  },
+
+  // コーチによる手動昇格
+  async promote(studentId, newRank) {
+    const validRanks = RANK_DEFINITIONS.map(r => r.id);
+    if (!validRanks.includes(newRank)) return false;
+    await StudentsDB.update(studentId, { rank: newRank });
+    await NotificationsDB.add({
+      type: 'rank',
+      title: 'ランク昇格！',
+      message: `${RANK_DEFINITIONS.find(r => r.id === newRank).icon} ${RANK_DEFINITIONS.find(r => r.id === newRank).name}に昇格しました！`,
+      studentId
+    });
+    return true;
+  },
+
+  getRankInfo(rankId) {
+    return RANK_DEFINITIONS.find(r => r.id === rankId) || RANK_DEFINITIONS[0];
+  }
+};
+
+// ============================================
+// ストリーク管理（フリーパス対応）
+// ============================================
+const StreakDB = {
+  // 通塾記録を追加し、ストリークを更新
+  async recordAttendance(studentId) {
+    const student = await StudentsDB.getById(studentId);
+    if (!student) return null;
+
+    const today = getToday();
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    const yesterdayStr = yesterday.toISOString().split('T')[0];
+
+    // 今日すでにチェックイン済みかチェック
+    const todayLogs = await StudyLogsDB.getByDate(today);
+    const alreadyCheckedIn = todayLogs.some(l => l.studentId === studentId);
+    if (alreadyCheckedIn) return { streak: student.streak, bonus: 0 };
+
+    // 昨日の記録を確認
+    const yesterdayLogs = await StudyLogsDB.getByDate(yesterdayStr);
+    const studiedYesterday = yesterdayLogs.some(l => l.studentId === studentId);
+
+    let newStreak = student.streak || 0;
+    if (studiedYesterday) {
+      newStreak += 1;
+    } else {
+      // フリーパスチェック（月1回の欠席保護）
+      if (!student.freePassUsed) {
+        // 一昨日の記録をチェック
+        const dayBefore = new Date();
+        dayBefore.setDate(dayBefore.getDate() - 2);
+        const dayBeforeStr = dayBefore.toISOString().split('T')[0];
+        const dayBeforeLogs = await StudyLogsDB.getByDate(dayBeforeStr);
+        const studiedDayBefore = dayBeforeLogs.some(l => l.studentId === studentId);
+        if (studiedDayBefore) {
+          // フリーパス適用：ストリーク継続
+          newStreak += 1;
+          await StudentsDB.update(studentId, { freePassUsed: true });
+        } else {
+          newStreak = 1; // リセット
+        }
+      } else {
+        newStreak = 1; // リセット
+      }
+    }
+
+    // ストリークボーナス計算
+    let bonus = 0;
+    const STREAK_BONUSES = { 3: 5, 5: 15, 10: 30, 20: 50 };
+    if (STREAK_BONUSES[newStreak]) {
+      bonus = STREAK_BONUSES[newStreak];
+    }
+
+    // bestStreak更新
+    const bestStreak = Math.max(student.bestStreak || 0, newStreak);
+
+    await StudentsDB.update(studentId, {
+      streak: newStreak,
+      bestStreak
+    });
+
+    // ボーナスポイント付与
+    if (bonus > 0) {
+      await StudentsDB.addPoints(studentId, bonus);
+    }
+
+    return { streak: newStreak, bestStreak, bonus };
+  },
+
+  // 月初にフリーパスをリセット
+  async resetFreePass() {
+    const students = await StudentsDB.getAll();
+    const batch = db.batch();
+    students.forEach(s => {
+      batch.update(db.collection('students').doc(s.id), { freePassUsed: false });
+    });
+    await batch.commit();
+  }
+};
+
+// ============================================
+// ポイント経済モニター
+// ============================================
+const EconomyDB = {
+  // 月間発行・消費の集計
+  async getMonthlySummary(yearMonth) {
+    // yearMonth: '2026-03'
+    const startDate = yearMonth + '-01';
+    const endParts = yearMonth.split('-');
+    const endDate = new Date(parseInt(endParts[0]), parseInt(endParts[1]), 0);
+    const endDateStr = endDate.toISOString().split('T')[0];
+
+    const [logs, exchanges] = await Promise.all([
+      StudyLogsDB.getByDateRange(startDate, endDateStr),
+      PrizesDB.getAllHistory()
+    ]);
+
+    const totalIssued = logs.reduce((sum, l) => sum + (l.points || 0), 0);
+    const monthExchanges = exchanges.filter(e => {
+      const d = e.exchangedAt ? (e.exchangedAt.toDate ? e.exchangedAt.toDate() : new Date(e.exchangedAt)) : null;
+      if (!d) return false;
+      const ds = d.toISOString().split('T')[0];
+      return ds >= startDate && ds <= endDateStr;
+    });
+    const totalSpent = monthExchanges.reduce((sum, e) => sum + (e.cost || 0), 0);
+
+    const outflowRatio = totalIssued > 0 ? Math.round(totalSpent / totalIssued * 100) : 0;
+    let healthStatus = 'healthy';
+    if (outflowRatio < 40) healthStatus = 'danger';
+    else if (outflowRatio < 70) healthStatus = 'warning';
+
+    return {
+      yearMonth,
+      totalIssued,
+      totalSpent,
+      netBalance: totalIssued - totalSpent,
+      outflowRatio,
+      healthStatus,
+      studentCount: new Set(logs.map(l => l.studentId)).size,
+      exchangeCount: monthExchanges.length
+    };
+  },
+
+  // 全生徒の残高分布を取得
+  async getBalanceDistribution() {
+    const students = await StudentsDB.getAll();
+    const ranges = [
+      { label: '0-99', min: 0, max: 99, count: 0 },
+      { label: '100-299', min: 100, max: 299, count: 0 },
+      { label: '300-499', min: 300, max: 499, count: 0 },
+      { label: '500-999', min: 500, max: 999, count: 0 },
+      { label: '1000-1499', min: 1000, max: 1499, count: 0 },
+      { label: '1500-2000', min: 1500, max: 2000, count: 0 }
+    ];
+    students.forEach(s => {
+      const pts = s.currentPoints || 0;
+      const range = ranges.find(r => pts >= r.min && pts <= r.max);
+      if (range) range.count++;
+    });
+    return ranges;
+  }
+};
+
+// ============================================
+// アノマリー検知（設計書9.3準拠）
+// ============================================
+const AnomalyDetector = {
+  RULES: [
+    { id: 'point_spike', name: '獲得量の急増', threshold: 2.0, period: 7 },
+    { id: 'ai_speed', name: 'AI回答速度異常', threshold: 5, period: 1 },
+    { id: 'gift_asymmetry', name: 'ギフト非対称性', threshold: 3, period: 30 },
+    { id: 'teach_repeat', name: '教え合い反復', threshold: 3, period: 7 },
+    { id: 'hoarding', name: '貯め込み', threshold: 1500, period: 30 }
+  ],
+
+  async checkAll() {
+    const students = await StudentsDB.getAll();
+    const anomalies = [];
+
+    for (const s of students) {
+      const flags = [];
+
+      // 獲得量急増チェック
+      const logs7 = await StudyLogsDB.getByStudent(s.id, 30);
+      if (logs7.length >= 7) {
+        const recent7 = logs7.slice(0, 7);
+        const older7 = logs7.slice(7, 14);
+        if (older7.length > 0) {
+          const recentAvg = recent7.reduce((sum, l) => sum + (l.points || 0), 0) / recent7.length;
+          const olderAvg = older7.reduce((sum, l) => sum + (l.points || 0), 0) / older7.length;
+          if (olderAvg > 0 && recentAvg > olderAvg * 2.0) {
+            // ルーキーウィーク除外
+            if (s.rank !== 'rookie') {
+              flags.push({ rule: 'point_spike', label: '獲得量の急増', severity: 'medium',
+                detail: `7日平均 ${Math.round(recentAvg)}pt（前週 ${Math.round(olderAvg)}pt の${(recentAvg/olderAvg).toFixed(1)}倍）` });
+            }
+          }
+        }
+      }
+
+      // 貯め込みチェック
+      if ((s.currentPoints || 0) >= 1500) {
+        const history = await PrizesDB.getHistory(s.id);
+        const recent = history.filter(h => {
+          const d = h.exchangedAt ? (h.exchangedAt.toDate ? h.exchangedAt.toDate() : new Date(h.exchangedAt)) : null;
+          if (!d) return false;
+          return (new Date() - d) / 86400000 <= 30;
+        });
+        if (recent.length === 0) {
+          flags.push({ rule: 'hoarding', label: '貯め込み', severity: 'low',
+            detail: `残高 ${s.currentPoints}pt、30日間消費なし` });
+        }
+      }
+
+      if (flags.length > 0) {
+        anomalies.push({
+          studentId: s.id,
+          studentName: s.name || s.nickname,
+          flags,
+          checkedAt: new Date().toISOString()
+        });
+      }
+    }
+    return anomalies;
+  }
+};

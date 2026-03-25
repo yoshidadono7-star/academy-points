@@ -1,0 +1,1312 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HERO'S Mission Control - 教室モニター</title>
+<link rel="icon" href="icons/icon-192.png">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js?v=2"></script>
+<style>
+/* ============================================
+   HERO'S Mission Control - 教室モニター
+   NASA Mission Control テーマ
+   対象: 42-55インチ大型ディスプレイ
+   ============================================ */
+
+@import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;600;700;900&family=Noto+Sans+JP:wght@400;500;600;700;900&display=swap');
+
+:root {
+  --bg-deep: #0a0e27;
+  --bg-panel: #111736;
+  --bg-card: #1a2147;
+  --border-glow: #667eea;
+  --primary: #667eea;
+  --primary-bright: #7c94ff;
+  --accent-cyan: #00d4ff;
+  --accent-green: #00ff88;
+  --accent-orange: #ff9500;
+  --accent-red: #ff4757;
+  --accent-pink: #ff6b9d;
+  --accent-gold: #ffd700;
+  --text: #e2e8f0;
+  --text-dim: #718096;
+  --text-bright: #ffffff;
+  --shadow-glow: 0 0 20px rgba(102, 126, 234, 0.3);
+  --shadow-glow-strong: 0 0 40px rgba(102, 126, 234, 0.5);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Noto Sans JP', -apple-system, sans-serif;
+  background: var(--bg-deep);
+  color: var(--text);
+  min-height: 100vh;
+  overflow: hidden;
+  cursor: none;
+}
+
+/* ── ヘッダー ── */
+.monitor-header {
+  background: linear-gradient(180deg, rgba(102, 126, 234, 0.15) 0%, transparent 100%);
+  border-bottom: 1px solid rgba(102, 126, 234, 0.3);
+  padding: 12px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 64px;
+}
+.header-left {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.header-logo {
+  font-family: 'Orbitron', monospace;
+  font-size: 22px;
+  font-weight: 900;
+  background: linear-gradient(135deg, var(--primary-bright), var(--accent-cyan));
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  letter-spacing: 2px;
+}
+.header-subtitle {
+  font-size: 13px;
+  color: var(--text-dim);
+  letter-spacing: 1px;
+}
+.status-indicator {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-family: 'Orbitron', monospace;
+  font-size: 12px;
+  color: var(--accent-green);
+}
+.status-dot {
+  width: 8px; height: 8px;
+  background: var(--accent-green);
+  border-radius: 50%;
+  animation: pulse-dot 2s infinite;
+}
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 24px;
+}
+.header-clock {
+  font-family: 'Orbitron', monospace;
+  font-size: 28px;
+  font-weight: 700;
+  color: var(--text-bright);
+  letter-spacing: 3px;
+}
+.header-date {
+  font-size: 12px;
+  color: var(--text-dim);
+  text-align: right;
+}
+
+/* ── メインレイアウト ── */
+.monitor-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  grid-template-rows: 1fr 1fr;
+  gap: 16px;
+  padding: 16px 24px;
+  height: calc(100vh - 64px - 52px);
+}
+
+/* ── パネル共通 ── */
+.panel {
+  background: var(--bg-panel);
+  border: 1px solid rgba(102, 126, 234, 0.2);
+  border-radius: 12px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+.panel::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  background: linear-gradient(90deg, transparent, var(--border-glow), transparent);
+  opacity: 0.6;
+}
+.panel-header {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(102, 126, 234, 0.1);
+  flex-shrink: 0;
+}
+.panel-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 12px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  color: var(--accent-cyan);
+}
+.panel-badge {
+  font-size: 11px;
+  padding: 2px 10px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+.panel-body {
+  padding: 16px;
+  flex: 1;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ── ミッション進捗パネル (左上) ── */
+.mission-panel { grid-column: 1; grid-row: 1; }
+.mission-name {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 4px;
+}
+.mission-metric {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin-bottom: 16px;
+}
+.mission-progress-wrap {
+  position: relative;
+  margin-bottom: 16px;
+}
+.mission-progress-bar {
+  width: 100%;
+  height: 32px;
+  background: rgba(0, 0, 0, 0.4);
+  border-radius: 16px;
+  overflow: hidden;
+  position: relative;
+  border: 1px solid rgba(102, 126, 234, 0.2);
+}
+.mission-progress-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--primary), var(--accent-cyan));
+  border-radius: 16px;
+  transition: width 1s ease;
+  position: relative;
+  min-width: 0%;
+}
+.mission-progress-fill::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+  animation: shimmer 2s infinite;
+}
+.mission-progress-text {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-family: 'Orbitron', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: white;
+  text-shadow: 0 0 10px rgba(0,0,0,0.5);
+}
+.milestones-row {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.milestone {
+  flex: 1;
+  min-width: 80px;
+  background: var(--bg-card);
+  border-radius: 8px;
+  padding: 8px 10px;
+  text-align: center;
+  border: 1px solid rgba(102, 126, 234, 0.15);
+  transition: all 0.5s;
+}
+.milestone.reached {
+  border-color: var(--accent-green);
+  background: rgba(0, 255, 136, 0.1);
+}
+.milestone-icon { font-size: 18px; }
+.milestone-name { font-size: 10px; color: var(--text-dim); margin-top: 2px; }
+.milestone-pct {
+  font-family: 'Orbitron', monospace;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
+.milestone.reached .milestone-name,
+.milestone.reached .milestone-pct { color: var(--accent-green); }
+.no-mission-msg {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  font-size: 16px;
+  color: var(--text-dim);
+  text-align: center;
+}
+
+/* ── イベント＆ブーストパネル (中央上) ── */
+.event-panel { grid-column: 2; grid-row: 1; }
+.event-active-card {
+  background: var(--bg-card);
+  border-radius: 10px;
+  padding: 16px;
+  margin-bottom: 10px;
+  border: 1px solid;
+  animation: event-glow 2s ease-in-out infinite alternate;
+  position: relative;
+  overflow: hidden;
+}
+.event-active-card::before {
+  content: '';
+  position: absolute;
+  top: -50%; left: -50%;
+  width: 200%; height: 200%;
+  background: radial-gradient(circle, rgba(255,255,255,0.03) 0%, transparent 60%);
+  animation: rotate-slow 10s linear infinite;
+}
+.event-icon { font-size: 36px; margin-bottom: 6px; }
+.event-name {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+.event-desc {
+  font-size: 12px;
+  color: var(--text-dim);
+  margin: 4px 0;
+}
+.event-timer {
+  font-family: 'Orbitron', monospace;
+  font-size: 24px;
+  font-weight: 700;
+  color: var(--accent-orange);
+  margin-top: 8px;
+}
+.event-multiplier {
+  display: inline-block;
+  font-family: 'Orbitron', monospace;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--accent-gold);
+  background: rgba(255, 215, 0, 0.1);
+  padding: 4px 12px;
+  border-radius: 20px;
+  border: 1px solid rgba(255, 215, 0, 0.3);
+  margin-top: 6px;
+}
+.no-event {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+.no-event .standby-icon {
+  font-size: 40px;
+  margin-bottom: 8px;
+  opacity: 0.5;
+}
+
+/* ── レイドボスパネル (右上) ── */
+.boss-panel { grid-column: 3; grid-row: 1; }
+.boss-display {
+  text-align: center;
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.boss-icon {
+  font-size: 64px;
+  animation: boss-float 3s ease-in-out infinite;
+  filter: drop-shadow(0 0 20px rgba(255, 71, 87, 0.5));
+}
+.boss-icon.defeated {
+  animation: none;
+  opacity: 0.3;
+  filter: grayscale(1);
+}
+.boss-name {
+  font-size: 22px;
+  font-weight: 900;
+  color: var(--text-bright);
+  margin: 8px 0 4px;
+}
+.boss-hp-wrap {
+  width: 100%;
+  max-width: 280px;
+  margin: 12px auto 0;
+}
+.boss-hp-bar {
+  width: 100%;
+  height: 24px;
+  background: rgba(0, 0, 0, 0.5);
+  border-radius: 12px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 71, 87, 0.3);
+}
+.boss-hp-fill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--accent-red), #ff6b9d);
+  border-radius: 12px;
+  transition: width 1s ease;
+}
+.boss-hp-fill.low { background: linear-gradient(90deg, #ff4757, #ff6348); animation: hp-flash 1s infinite; }
+.boss-hp-text {
+  font-family: 'Orbitron', monospace;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 6px;
+}
+.boss-reward {
+  font-size: 12px;
+  color: var(--accent-gold);
+  margin-top: 4px;
+}
+.no-boss {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  flex: 1;
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+/* ── ギルドランキングパネル (左下) ── */
+.guild-panel { grid-column: 1; grid-row: 2; }
+.guild-list {
+  flex: 1;
+  overflow: hidden;
+}
+.guild-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  margin-bottom: 6px;
+  transition: all 0.5s;
+  position: relative;
+}
+.guild-item:nth-child(1) {
+  background: linear-gradient(90deg, rgba(255, 215, 0, 0.12), transparent);
+  border: 1px solid rgba(255, 215, 0, 0.2);
+}
+.guild-item:nth-child(2) {
+  background: linear-gradient(90deg, rgba(192, 192, 192, 0.08), transparent);
+  border: 1px solid rgba(192, 192, 192, 0.15);
+}
+.guild-item:nth-child(3) {
+  background: linear-gradient(90deg, rgba(205, 127, 50, 0.08), transparent);
+  border: 1px solid rgba(205, 127, 50, 0.15);
+}
+.guild-rank-num {
+  font-family: 'Orbitron', monospace;
+  font-size: 20px;
+  font-weight: 900;
+  width: 36px;
+  text-align: center;
+}
+.guild-item:nth-child(1) .guild-rank-num { color: var(--accent-gold); }
+.guild-item:nth-child(2) .guild-rank-num { color: #c0c0c0; }
+.guild-item:nth-child(3) .guild-rank-num { color: #cd7f32; }
+.guild-info { flex: 1; }
+.guild-name-text {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+.guild-members-text {
+  font-size: 11px;
+  color: var(--text-dim);
+}
+.guild-points-text {
+  font-family: 'Orbitron', monospace;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--accent-cyan);
+}
+.guild-icon-big { font-size: 28px; }
+
+/* ── ライブフィードパネル (中央下) ── */
+.feed-panel { grid-column: 2; grid-row: 2; }
+.feed-list {
+  flex: 1;
+  overflow: hidden;
+}
+.feed-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  margin-bottom: 4px;
+  animation: feed-slide-in 0.5s ease;
+  background: rgba(0, 0, 0, 0.2);
+}
+.feed-item.new { background: rgba(102, 126, 234, 0.15); border: 1px solid rgba(102, 126, 234, 0.2); }
+.feed-icon { font-size: 20px; flex-shrink: 0; }
+.feed-text {
+  font-size: 13px;
+  color: var(--text);
+  flex: 1;
+}
+.feed-text strong { color: var(--text-bright); }
+.feed-time {
+  font-family: 'Orbitron', monospace;
+  font-size: 10px;
+  color: var(--text-dim);
+  flex-shrink: 0;
+}
+
+/* ── 今日のスタッツパネル (右下) ── */
+.stats-panel { grid-column: 3; grid-row: 2; }
+.stats-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  flex: 1;
+}
+.stat-card {
+  background: var(--bg-card);
+  border-radius: 10px;
+  padding: 14px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(102, 126, 234, 0.1);
+}
+.stat-icon { font-size: 24px; margin-bottom: 6px; }
+.stat-value {
+  font-family: 'Orbitron', monospace;
+  font-size: 28px;
+  font-weight: 900;
+  color: var(--text-bright);
+  line-height: 1;
+}
+.stat-label {
+  font-size: 11px;
+  color: var(--text-dim);
+  margin-top: 4px;
+  text-align: center;
+}
+.stat-card.highlight {
+  border-color: var(--accent-cyan);
+  background: linear-gradient(135deg, rgba(0, 212, 255, 0.08), rgba(102, 126, 234, 0.08));
+}
+
+/* ── フッターティッカー ── */
+.ticker-bar {
+  height: 52px;
+  background: linear-gradient(180deg, transparent, rgba(102, 126, 234, 0.1));
+  border-top: 1px solid rgba(102, 126, 234, 0.2);
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  padding: 0 24px;
+}
+.ticker-content {
+  display: flex;
+  animation: ticker-scroll 30s linear infinite;
+  white-space: nowrap;
+}
+.ticker-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-right: 60px;
+  font-size: 14px;
+  color: var(--text);
+}
+.ticker-item .ticker-icon { font-size: 18px; }
+.ticker-item .ticker-highlight {
+  color: var(--accent-cyan);
+  font-weight: 700;
+}
+
+/* ── フルスクリーンイベントオーバーレイ ── */
+.event-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0, 0, 0, 0.85);
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  flex-direction: column;
+}
+.event-overlay.show { display: flex; animation: overlay-in 0.5s ease; }
+.event-overlay-icon { font-size: 100px; animation: bounce-in 0.6s ease; }
+.event-overlay-title {
+  font-family: 'Orbitron', monospace;
+  font-size: 48px;
+  font-weight: 900;
+  color: var(--text-bright);
+  margin-top: 16px;
+  text-align: center;
+  text-shadow: 0 0 40px rgba(102, 126, 234, 0.8);
+}
+.event-overlay-desc {
+  font-size: 20px;
+  color: var(--text-dim);
+  margin-top: 12px;
+  text-align: center;
+}
+
+/* ── ボス撃破オーバーレイ ── */
+.boss-defeat-overlay {
+  position: fixed;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(circle, rgba(255, 215, 0, 0.3), rgba(0,0,0,0.9));
+  display: none;
+  align-items: center;
+  justify-content: center;
+  z-index: 9998;
+  flex-direction: column;
+}
+.boss-defeat-overlay.show { display: flex; animation: overlay-in 0.5s ease; }
+
+/* ── パーティクル ── */
+.particles {
+  position: fixed;
+  top: 0; left: 0;
+  width: 100%; height: 100%;
+  pointer-events: none;
+  z-index: 0;
+  overflow: hidden;
+}
+.particle {
+  position: absolute;
+  width: 2px; height: 2px;
+  background: var(--primary);
+  border-radius: 50%;
+  opacity: 0.3;
+  animation: particle-float 15s linear infinite;
+}
+
+/* ── アニメーション ── */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+@keyframes shimmer {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(100%); }
+}
+@keyframes event-glow {
+  0% { box-shadow: 0 0 10px rgba(102, 126, 234, 0.2); }
+  100% { box-shadow: 0 0 30px rgba(102, 126, 234, 0.5); }
+}
+@keyframes rotate-slow {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+@keyframes boss-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-10px); }
+}
+@keyframes hp-flash {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.6; }
+}
+@keyframes feed-slide-in {
+  from { transform: translateX(-20px); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes ticker-scroll {
+  0% { transform: translateX(0); }
+  100% { transform: translateX(-50%); }
+}
+@keyframes overlay-in {
+  from { opacity: 0; transform: scale(1.1); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes bounce-in {
+  0% { transform: scale(0); }
+  60% { transform: scale(1.2); }
+  100% { transform: scale(1); }
+}
+@keyframes particle-float {
+  0% { transform: translateY(100vh) translateX(0); opacity: 0; }
+  10% { opacity: 0.3; }
+  90% { opacity: 0.3; }
+  100% { transform: translateY(-10vh) translateX(100px); opacity: 0; }
+}
+@keyframes milestone-celebrate {
+  0% { transform: scale(1); }
+  50% { transform: scale(1.15); }
+  100% { transform: scale(1); }
+}
+
+/* ── レスポンシブ: 小画面フォールバック ── */
+@media (max-width: 1200px) {
+  .monitor-grid {
+    grid-template-columns: 1fr 1fr;
+    grid-template-rows: auto;
+  }
+  .mission-panel { grid-column: 1 / 3; }
+  .header-clock { font-size: 22px; }
+}
+</style>
+</head>
+<body>
+
+<!-- パーティクル背景 -->
+<div class="particles" id="particles"></div>
+
+<!-- ヘッダー -->
+<header class="monitor-header">
+  <div class="header-left">
+    <div>
+      <div class="header-logo">HERO'S MISSION CONTROL</div>
+      <div class="header-subtitle">延岡校 ── CLASSROOM MONITOR</div>
+    </div>
+    <div class="status-indicator">
+      <span class="status-dot"></span>
+      <span>LIVE</span>
+    </div>
+  </div>
+  <div class="header-right">
+    <div>
+      <div class="header-date" id="headerDate"></div>
+      <div class="header-clock" id="headerClock"></div>
+    </div>
+  </div>
+</header>
+
+<!-- メイングリッド -->
+<div class="monitor-grid">
+
+  <!-- ① ミッション進捗 -->
+  <div class="panel mission-panel">
+    <div class="panel-header">
+      <span class="panel-title">🚀 Mission Progress</span>
+      <span class="panel-badge" id="missionStatus" style="background:rgba(0,255,136,0.15);color:var(--accent-green);">ACTIVE</span>
+    </div>
+    <div class="panel-body" id="missionBody">
+      <div class="no-mission-msg">ミッションデータを読み込み中...</div>
+    </div>
+  </div>
+
+  <!-- ② アクティブイベント -->
+  <div class="panel event-panel">
+    <div class="panel-header">
+      <span class="panel-title">⚡ Active Events</span>
+      <span class="panel-badge" id="eventCount" style="background:rgba(255,149,0,0.15);color:var(--accent-orange);">0</span>
+    </div>
+    <div class="panel-body" id="eventBody">
+      <div class="no-event">
+        <div style="text-align:center">
+          <div class="standby-icon">📡</div>
+          <div>スタンバイ中...</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ③ レイドボス -->
+  <div class="panel boss-panel">
+    <div class="panel-header">
+      <span class="panel-title">👹 Raid Boss</span>
+      <span class="panel-badge" id="bossStatus" style="background:rgba(255,71,87,0.15);color:var(--accent-red);">---</span>
+    </div>
+    <div class="panel-body" id="bossBody">
+      <div class="no-boss">
+        <span style="font-size:40px;opacity:0.3">🛡️</span>
+        <span style="margin-top:8px">ボス未出現</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ④ ギルドランキング -->
+  <div class="panel guild-panel">
+    <div class="panel-header">
+      <span class="panel-title">⚔️ Guild Ranking</span>
+      <span class="panel-badge" id="guildCount" style="background:rgba(102,126,234,0.15);color:var(--primary-bright);">0</span>
+    </div>
+    <div class="panel-body">
+      <div class="guild-list" id="guildList">
+        <div class="no-boss">ギルドデータを読み込み中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑤ ライブフィード -->
+  <div class="panel feed-panel">
+    <div class="panel-header">
+      <span class="panel-title">📡 Live Feed</span>
+      <span class="panel-badge" id="feedCount" style="background:rgba(0,212,255,0.15);color:var(--accent-cyan);">0</span>
+    </div>
+    <div class="panel-body">
+      <div class="feed-list" id="feedList">
+        <div class="no-event" style="font-size:13px">
+          <div style="text-align:center">
+            <div class="standby-icon" style="font-size:30px">📡</div>
+            <div>フィード待機中...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ⑥ 今日のスタッツ -->
+  <div class="panel stats-panel">
+    <div class="panel-header">
+      <span class="panel-title">📊 Today's Stats</span>
+    </div>
+    <div class="panel-body">
+      <div class="stats-grid">
+        <div class="stat-card highlight">
+          <div class="stat-icon">🎓</div>
+          <div class="stat-value" id="statStudents">-</div>
+          <div class="stat-label">出席者数</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">💰</div>
+          <div class="stat-value" id="statPoints">-</div>
+          <div class="stat-label">総獲得PT</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🍅</div>
+          <div class="stat-value" id="statPomodoro">-</div>
+          <div class="stat-label">ポモドーロ</div>
+        </div>
+        <div class="stat-card">
+          <div class="stat-icon">🔥</div>
+          <div class="stat-value" id="statStreak">-</div>
+          <div class="stat-label">最高ストリーク</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<!-- フッターティッカー -->
+<div class="ticker-bar">
+  <div class="ticker-content" id="tickerContent">
+    <div class="ticker-item">
+      <span class="ticker-icon">🚀</span>
+      <span>HERO'S MISSION CONTROL v2.0</span>
+    </div>
+    <div class="ticker-item">
+      <span class="ticker-icon">💡</span>
+      <span>迷ったらポイント付与！</span>
+    </div>
+  </div>
+</div>
+
+<!-- イベント発動オーバーレイ -->
+<div class="event-overlay" id="eventOverlay">
+  <div class="event-overlay-icon" id="overlayIcon"></div>
+  <div class="event-overlay-title" id="overlayTitle"></div>
+  <div class="event-overlay-desc" id="overlayDesc"></div>
+</div>
+
+<!-- ボス撃破オーバーレイ -->
+<div class="boss-defeat-overlay" id="bossDefeatOverlay">
+  <div style="font-size:80px">🎉</div>
+  <div class="event-overlay-title" style="color:var(--accent-gold)">BOSS DEFEATED!</div>
+  <div class="event-overlay-desc" id="defeatBossName"></div>
+</div>
+
+<script>
+// ============================================
+// HERO'S Mission Control - 教室モニター
+// Firestore リアルタイム監視 + 自動更新
+// ============================================
+
+// --- 状態管理 ---
+let currentMission = null;
+let currentBoss = null;
+let previousBossHp = null;
+let activeEvents = [];
+let feedItems = [];
+const MAX_FEED = 15;
+let knownEventIds = new Set();
+let knownBossDefeated = new Set();
+
+// --- 時計更新 ---
+function updateClock() {
+  const now = new Date();
+  const h = String(now.getHours()).padStart(2, '0');
+  const m = String(now.getMinutes()).padStart(2, '0');
+  const s = String(now.getSeconds()).padStart(2, '0');
+  document.getElementById('headerClock').textContent = `${h}:${m}:${s}`;
+
+  const days = ['日', '月', '火', '水', '木', '金', '土'];
+  const dateStr = `${now.getFullYear()}年${now.getMonth() + 1}月${now.getDate()}日（${days[now.getDay()]}）`;
+  document.getElementById('headerDate').textContent = dateStr;
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// --- パーティクル背景 ---
+function initParticles() {
+  const container = document.getElementById('particles');
+  for (let i = 0; i < 30; i++) {
+    const p = document.createElement('div');
+    p.className = 'particle';
+    p.style.left = Math.random() * 100 + '%';
+    p.style.animationDelay = Math.random() * 15 + 's';
+    p.style.animationDuration = (10 + Math.random() * 10) + 's';
+    container.appendChild(p);
+  }
+}
+initParticles();
+
+// --- ユーティリティ ---
+function escapeHtml(str) {
+  if (!str) return '';
+  return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+}
+
+function formatTimeAgo(date) {
+  if (!date) return '';
+  if (date.toDate) date = date.toDate();
+  const diff = Math.floor((new Date() - date) / 1000);
+  if (diff < 60) return `${diff}秒前`;
+  if (diff < 3600) return `${Math.floor(diff / 60)}分前`;
+  if (diff < 86400) return `${Math.floor(diff / 3600)}時間前`;
+  return `${Math.floor(diff / 86400)}日前`;
+}
+
+function getToday() {
+  return new Date().toISOString().split('T')[0];
+}
+
+// --- ライブフィードに追加 ---
+function addFeedItem(icon, html) {
+  feedItems.unshift({ icon, html, time: new Date() });
+  if (feedItems.length > MAX_FEED) feedItems.pop();
+  renderFeed();
+}
+
+function renderFeed() {
+  const el = document.getElementById('feedList');
+  if (feedItems.length === 0) {
+    el.innerHTML = '<div class="no-event" style="font-size:13px"><div style="text-align:center"><div class="standby-icon" style="font-size:30px">📡</div><div>フィード待機中...</div></div></div>';
+    return;
+  }
+  el.innerHTML = feedItems.map((f, i) => `
+    <div class="feed-item ${i === 0 ? 'new' : ''}">
+      <span class="feed-icon">${f.icon}</span>
+      <span class="feed-text">${f.html}</span>
+      <span class="feed-time">${formatTimeAgo(f.time)}</span>
+    </div>
+  `).join('');
+  document.getElementById('feedCount').textContent = feedItems.length;
+}
+
+// --- イベントオーバーレイ演出 ---
+function showEventOverlay(icon, title, desc) {
+  const overlay = document.getElementById('eventOverlay');
+  document.getElementById('overlayIcon').textContent = icon;
+  document.getElementById('overlayTitle').textContent = title;
+  document.getElementById('overlayDesc').textContent = desc;
+  overlay.classList.add('show');
+  setTimeout(() => overlay.classList.remove('show'), 4000);
+}
+
+function showBossDefeatOverlay(bossName) {
+  const overlay = document.getElementById('bossDefeatOverlay');
+  document.getElementById('defeatBossName').textContent = `${bossName} を撃破！全員にボーナスポイント！`;
+  overlay.classList.add('show');
+  setTimeout(() => overlay.classList.remove('show'), 5000);
+}
+
+// ============================================
+// Firestore リアルタイムリスナー
+// ============================================
+
+// --- ① ミッション進捗 ---
+db.collection('missions')
+  .where('status', '==', 'active')
+  .orderBy('startDate', 'desc')
+  .limit(1)
+  .onSnapshot(snap => {
+    const body = document.getElementById('missionBody');
+    const badge = document.getElementById('missionStatus');
+
+    if (snap.empty) {
+      body.innerHTML = '<div class="no-mission-msg">🛰️<br>現在アクティブなミッションはありません</div>';
+      badge.textContent = 'STANDBY';
+      badge.style.background = 'rgba(113,128,150,0.15)';
+      badge.style.color = 'var(--text-dim)';
+      currentMission = null;
+      return;
+    }
+
+    const doc = snap.docs[0];
+    const m = { id: doc.id, ...doc.data() };
+    currentMission = m;
+    const pct = m.targetValue > 0 ? Math.min(100, Math.round(m.currentValue / m.targetValue * 100)) : 0;
+
+    badge.textContent = 'ACTIVE';
+    badge.style.background = 'rgba(0,255,136,0.15)';
+    badge.style.color = 'var(--accent-green)';
+
+    const metricLabels = {
+      total_hours: '総学習時間',
+      pomodoro_count: 'ポモドーロ回数',
+      teach_count: '教え合い回数',
+      ai_questions: 'AI質問数',
+      all_streak: '全員ストリーク'
+    };
+
+    const milestones = (m.milestones || []).map(ms => {
+      const reached = ms.reached;
+      return `<div class="milestone ${reached ? 'reached' : ''}">
+        <div class="milestone-icon">${reached ? '✅' : '🔲'}</div>
+        <div class="milestone-name">${escapeHtml(ms.name)}</div>
+        <div class="milestone-pct">${ms.percent}%</div>
+      </div>`;
+    }).join('');
+
+    body.innerHTML = `
+      <div class="mission-name">${escapeHtml(m.title)}</div>
+      <div class="mission-metric">目標: ${metricLabels[m.metric] || m.metric} ── ${m.currentValue || 0} / ${m.targetValue}</div>
+      <div class="mission-progress-wrap">
+        <div class="mission-progress-bar">
+          <div class="mission-progress-fill" style="width:${pct}%"></div>
+        </div>
+        <div class="mission-progress-text">${pct}%</div>
+      </div>
+      <div class="milestones-row">${milestones}</div>
+    `;
+  });
+
+// --- ② イベント ---
+db.collection('events')
+  .where('active', '==', true)
+  .orderBy('firedAt', 'desc')
+  .onSnapshot(snap => {
+    const body = document.getElementById('eventBody');
+    const badge = document.getElementById('eventCount');
+    const now = new Date();
+
+    activeEvents = snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(e => {
+        if (!e.expiresAt) return false;
+        const exp = e.expiresAt.toDate ? e.expiresAt.toDate() : new Date(e.expiresAt);
+        return exp > now;
+      });
+
+    badge.textContent = activeEvents.length;
+
+    if (activeEvents.length === 0) {
+      body.innerHTML = '<div class="no-event"><div style="text-align:center"><div class="standby-icon">📡</div><div>イベントスタンバイ中...</div></div></div>';
+      return;
+    }
+
+    body.innerHTML = activeEvents.map(e => {
+      const exp = e.expiresAt.toDate ? e.expiresAt.toDate() : new Date(e.expiresAt);
+      const remaining = Math.max(0, Math.floor((exp - now) / 1000));
+      const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
+      const ss = String(remaining % 60).padStart(2, '0');
+
+      // 新規イベント検知 → オーバーレイ演出
+      if (!knownEventIds.has(e.id)) {
+        knownEventIds.add(e.id);
+        showEventOverlay(e.icon || '⚡', e.name, e.desc || '');
+        addFeedItem(e.icon || '⚡', `<strong>${escapeHtml(e.name)}</strong> 発動！`);
+      }
+
+      let borderColor = 'var(--primary)';
+      if (e.typeId === 'booster') borderColor = 'var(--accent-orange)';
+      if (e.typeId === 'team_challenge') borderColor = 'var(--accent-cyan)';
+      if (e.typeId === 'surprise_bonus') borderColor = 'var(--accent-green)';
+
+      return `<div class="event-active-card" style="border-color:${borderColor}">
+        <div class="event-icon">${e.icon || '⚡'}</div>
+        <div class="event-name">${escapeHtml(e.name)}</div>
+        <div class="event-desc">${escapeHtml(e.desc || '')}</div>
+        <div class="event-timer" data-expires="${exp.toISOString()}">${mm}:${ss}</div>
+        ${e.multiplier > 1 ? `<div class="event-multiplier">×${e.multiplier} BOOST</div>` : ''}
+      </div>`;
+    }).join('');
+  });
+
+// イベントタイマー更新
+setInterval(() => {
+  document.querySelectorAll('.event-timer[data-expires]').forEach(el => {
+    const exp = new Date(el.dataset.expires);
+    const remaining = Math.max(0, Math.floor((exp - new Date()) / 1000));
+    const mm = String(Math.floor(remaining / 60)).padStart(2, '0');
+    const ss = String(remaining % 60).padStart(2, '0');
+    el.textContent = `${mm}:${ss}`;
+    if (remaining <= 0) el.textContent = 'ENDED';
+    if (remaining <= 30) el.style.color = 'var(--accent-red)';
+  });
+}, 1000);
+
+// --- ③ レイドボス ---
+db.collection('raidBosses')
+  .where('defeated', '==', false)
+  .orderBy('createdAt', 'desc')
+  .limit(1)
+  .onSnapshot(snap => {
+    const body = document.getElementById('bossBody');
+    const badge = document.getElementById('bossStatus');
+
+    if (snap.empty) {
+      body.innerHTML = '<div class="no-boss"><span style="font-size:40px;opacity:0.3">🛡️</span><span style="margin-top:8px">ボス未出現</span></div>';
+      badge.textContent = 'NONE';
+      badge.style.color = 'var(--text-dim)';
+      currentBoss = null;
+      return;
+    }
+
+    const doc = snap.docs[0];
+    const b = { id: doc.id, ...doc.data() };
+    const hpPct = b.maxHp > 0 ? Math.round(b.currentHp / b.maxHp * 100) : 0;
+    const isLow = hpPct <= 20;
+
+    badge.textContent = `HP ${hpPct}%`;
+    badge.style.color = isLow ? 'var(--accent-red)' : 'var(--accent-orange)';
+
+    // ダメージ検知 → フィード
+    if (currentBoss && currentBoss.id === b.id && b.currentHp < currentBoss.currentHp) {
+      const dmg = currentBoss.currentHp - b.currentHp;
+      addFeedItem('⚔️', `<strong>${escapeHtml(b.name)}</strong> に ${dmg} ダメージ！ (残HP: ${b.currentHp})`);
+    }
+    currentBoss = b;
+
+    body.innerHTML = `
+      <div class="boss-display">
+        <div class="boss-icon">${b.icon || '👹'}</div>
+        <div class="boss-name">${escapeHtml(b.name)}</div>
+        <div class="boss-hp-wrap">
+          <div class="boss-hp-bar">
+            <div class="boss-hp-fill ${isLow ? 'low' : ''}" style="width:${hpPct}%"></div>
+          </div>
+          <div class="boss-hp-text">HP ${b.currentHp} / ${b.maxHp}</div>
+        </div>
+        <div class="boss-reward">🏆 撃破報酬: ${b.reward || 50} pt</div>
+      </div>
+    `;
+  });
+
+// ボス撃破監視
+db.collection('raidBosses')
+  .where('defeated', '==', true)
+  .orderBy('defeatedAt', 'desc')
+  .limit(3)
+  .onSnapshot(snap => {
+    snap.docs.forEach(doc => {
+      const b = doc.data();
+      if (!knownBossDefeated.has(doc.id) && b.defeatedAt) {
+        const defeatedTime = b.defeatedAt.toDate ? b.defeatedAt.toDate() : new Date(b.defeatedAt);
+        // 直近5分以内の撃破のみ演出
+        if ((new Date() - defeatedTime) < 300000) {
+          knownBossDefeated.add(doc.id);
+          showBossDefeatOverlay(b.name);
+          addFeedItem('🎉', `<strong>${escapeHtml(b.name)}</strong> 撃破！全員に ${b.reward || 50}pt ボーナス！`);
+        } else {
+          knownBossDefeated.add(doc.id);
+        }
+      }
+    });
+  });
+
+// --- ④ ギルドランキング ---
+db.collection('guilds')
+  .orderBy('totalPoints', 'desc')
+  .onSnapshot(async snap => {
+    const guilds = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const el = document.getElementById('guildList');
+    document.getElementById('guildCount').textContent = guilds.length;
+
+    if (guilds.length === 0) {
+      el.innerHTML = '<div class="no-boss"><span style="font-size:30px;opacity:0.3">⚔️</span><span style="margin-top:8px">ギルド未作成</span></div>';
+      return;
+    }
+
+    // メンバー名を解決
+    const studentSnap = await db.collection('students').get();
+    const studentMap = {};
+    studentSnap.docs.forEach(d => { studentMap[d.id] = d.data().name || d.data().nickname || '?'; });
+
+    el.innerHTML = guilds.map((g, i) => {
+      const members = (g.members || []).map(id => studentMap[id] || '?').join(', ');
+      return `<div class="guild-item">
+        <div class="guild-rank-num">${i + 1}</div>
+        <div class="guild-icon-big">${g.icon || '⚔️'}</div>
+        <div class="guild-info">
+          <div class="guild-name-text">${escapeHtml(g.name)}</div>
+          <div class="guild-members-text">${members || 'メンバーなし'}</div>
+        </div>
+        <div class="guild-points-text">${(g.totalPoints || 0).toLocaleString()} pt</div>
+      </div>`;
+    }).join('');
+  });
+
+// --- ⑤ ライブフィード (学習ログ監視) ---
+const today = getToday();
+db.collection('studyLogs')
+  .where('date', '==', today)
+  .orderBy('createdAt', 'desc')
+  .limit(20)
+  .onSnapshot(snap => {
+    // 差分検知
+    snap.docChanges().forEach(change => {
+      if (change.type === 'added') {
+        const d = change.doc.data();
+        const name = d.studentName || '生徒';
+        if (d.method === 'pomodoro') {
+          addFeedItem('🍅', `<strong>${escapeHtml(name)}</strong> ポモドーロ完了 +${d.points || 0}pt`);
+        } else {
+          addFeedItem('📚', `<strong>${escapeHtml(name)}</strong> ${escapeHtml(d.subject || '')} ${d.duration || 0}分 +${d.points || 0}pt`);
+        }
+      }
+    });
+  });
+
+// ポイント交換の監視
+db.collection('prizeHistory')
+  .orderBy('exchangedAt', 'desc')
+  .limit(5)
+  .onSnapshot(snap => {
+    snap.docChanges().forEach(change => {
+      if (change.type === 'added') {
+        const d = change.doc.data();
+        if (d.exchangedAt) {
+          const t = d.exchangedAt.toDate ? d.exchangedAt.toDate() : new Date(d.exchangedAt);
+          if ((new Date() - t) < 300000) {
+            addFeedItem('🎁', `<strong>${escapeHtml(d.studentName || '生徒')}</strong> が ${escapeHtml(d.prizeName || '景品')} と交換！`);
+          }
+        }
+      }
+    });
+  });
+
+// バッジ獲得の監視
+db.collection('badges')
+  .orderBy('awardedAt', 'desc')
+  .limit(5)
+  .onSnapshot(snap => {
+    snap.docChanges().forEach(change => {
+      if (change.type === 'added') {
+        const d = change.doc.data();
+        if (d.awardedAt) {
+          const t = d.awardedAt.toDate ? d.awardedAt.toDate() : new Date(d.awardedAt);
+          if ((new Date() - t) < 300000) {
+            addFeedItem('🏅', `<strong>${escapeHtml(d.studentName || '生徒')}</strong> がバッジ「${escapeHtml(d.title || '')}」を獲得！`);
+          }
+        }
+      }
+    });
+  });
+
+// --- ⑥ 今日のスタッツ ---
+function updateTodayStats() {
+  const today = getToday();
+  db.collection('studyLogs')
+    .where('date', '==', today)
+    .get()
+    .then(snap => {
+      const logs = snap.docs.map(d => d.data());
+      const studentIds = new Set(logs.map(l => l.studentId));
+      const totalPts = logs.reduce((s, l) => s + (l.points || 0), 0);
+      const pomodoros = logs.filter(l => l.method === 'pomodoro').reduce((s, l) => s + (l.pomodoroCount || 1), 0);
+
+      document.getElementById('statStudents').textContent = studentIds.size;
+      document.getElementById('statPoints').textContent = totalPts.toLocaleString();
+      document.getElementById('statPomodoro').textContent = pomodoros;
+    });
+
+  db.collection('students')
+    .orderBy('streak', 'desc')
+    .limit(1)
+    .get()
+    .then(snap => {
+      if (!snap.empty) {
+        const top = snap.docs[0].data();
+        document.getElementById('statStreak').textContent = top.streak || 0;
+      }
+    });
+}
+updateTodayStats();
+setInterval(updateTodayStats, 60000); // 1分ごとに更新
+
+// --- ティッカー更新 ---
+function updateTicker() {
+  const items = [
+    { icon: '🚀', text: 'HERO\'S MISSION CONTROL v2.0' },
+    { icon: '💡', text: '迷ったらポイント付与！' },
+    { icon: '🔥', text: `本日の出席: ${document.getElementById('statStudents').textContent || 0}名` },
+    { icon: '💰', text: `本日の総獲得PT: ${document.getElementById('statPoints').textContent || 0}` }
+  ];
+
+  if (currentMission) {
+    const pct = currentMission.targetValue > 0 ? Math.round(currentMission.currentValue / currentMission.targetValue * 100) : 0;
+    items.push({ icon: '🎯', text: `ミッション「${currentMission.title}」進捗 ${pct}%` });
+  }
+  if (currentBoss) {
+    const hpPct = currentBoss.maxHp > 0 ? Math.round(currentBoss.currentHp / currentBoss.maxHp * 100) : 0;
+    items.push({ icon: '👹', text: `レイドボス「${currentBoss.name}」残HP ${hpPct}%` });
+  }
+  if (activeEvents.length > 0) {
+    items.push({ icon: '⚡', text: `イベント発動中: ${activeEvents.map(e => e.name).join(', ')}` });
+  }
+
+  // 2回繰り返してシームレスなスクロール
+  const doubled = [...items, ...items];
+  document.getElementById('tickerContent').innerHTML = doubled.map(i =>
+    `<div class="ticker-item"><span class="ticker-icon">${i.icon}</span><span>${escapeHtml(i.text)}</span></div>`
+  ).join('');
+}
+setInterval(updateTicker, 15000);
+setTimeout(updateTicker, 3000);
+
+// --- フィード時間更新 ---
+setInterval(() => {
+  document.querySelectorAll('.feed-time').forEach((el, i) => {
+    if (feedItems[i]) el.textContent = formatTimeAgo(feedItems[i].time);
+  });
+}, 10000);
+
+// --- フルスクリーン切替（ダブルクリック） ---
+document.addEventListener('dblclick', () => {
+  if (!document.fullscreenElement) {
+    document.documentElement.requestFullscreen().catch(() => {});
+  } else {
+    document.exitFullscreen().catch(() => {});
+  }
+});
+
+// カーソル非表示（アイドル時）
+let cursorTimeout;
+document.addEventListener('mousemove', () => {
+  document.body.style.cursor = 'default';
+  clearTimeout(cursorTimeout);
+  cursorTimeout = setTimeout(() => {
+    document.body.style.cursor = 'none';
+  }, 3000);
+});
+
+console.log('🚀 HERO\'S Mission Control - 教室モニター起動');
+</script>
+</body>
+</html>

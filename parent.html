@@ -190,12 +190,16 @@
           <div>
             <p style="font-size:11px; opacity:0.8; margin-bottom:2px;" id="portalGrade">-</p>
             <p style="font-size:22px; font-weight:800;" id="portalNickname">-</p>
-            <p style="font-size:12px; opacity:0.8;" id="portalSchool">-</p>
+            <div style="display:flex;gap:6px;margin-top:4px;flex-wrap:wrap;">
+              <span style="font-size:12px; opacity:0.8;" id="portalSchool">-</span>
+              <span id="portalRank" style="display:none;font-size:10px;padding:1px 8px;border-radius:12px;background:rgba(255,255,255,0.25);font-weight:600;"></span>
+            </div>
           </div>
           <div style="text-align:right;">
             <div class="level-badge" id="portalLevel">Lv. -</div>
             <p style="font-size:24px; font-weight:800; margin-top:8px;" id="portalPoints">- pts</p>
             <p style="font-size:10px; opacity:0.75;">現在の保有ポイント</p>
+            <p style="font-size:11px; opacity:0.9; margin-top:4px;">🔥 <span id="portalStreak">0</span>日連続（最長 <span id="portalBestStreak">0</span>日）</p>
           </div>
         </div>
       </div>
@@ -203,6 +207,7 @@
       <!-- タブ切替 -->
       <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('summary')">📊 サマリー</button>
+        <button class="tab-btn" onclick="switchTab('mission')">🚀 ミッション</button>
         <button class="tab-btn" onclick="switchTab('exams')">📝 テスト</button>
         <button class="tab-btn" onclick="switchTab('badges')">🏅 バッジ</button>
         <button class="tab-btn" onclick="switchTab('messages')">💬 メッセージ</button>
@@ -258,6 +263,15 @@
         </div>
       </div>
 
+      <!-- ミッションタブ -->
+      <div class="tab-panel" id="panel-mission">
+        <div class="card">
+          <div class="card-title">🚀 教室ミッション進捗</div>
+          <p style="font-size:11px;color:#94a3b8;margin-bottom:12px;">教室全体で取り組んでいるミッションの進捗です</p>
+          <div id="parentMissionList"></div>
+        </div>
+      </div>
+
       <!-- テスト結果タブ -->
       <div class="tab-panel" id="panel-exams">
         <div class="card">
@@ -289,9 +303,9 @@
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="firebase-config.js"></script>
+<script src="firebase-config.js?v=2"></script>
 <script>
-const db = firebase.firestore();
+// db は firebase-config.js で定義済み
 
 let currentStudent = null;
 
@@ -372,19 +386,35 @@ async function showPortal() {
   document.getElementById('portalGrade').textContent = s.grade || '';
   document.getElementById('portalSchool').textContent = s.school || '';
 
-  // レベル計算
-  const pts = s.points || 0;
-  const level = Math.floor(pts / 500) + 1;
-  const nextPts = level * 500;
-  const pct = Math.min(100, Math.round((pts % 500) / 500 * 100));
+  // レベル計算（db.jsのcalcLevel互換）
+  const totalPts = s.totalPoints || s.points || 0;
+  const currentPts = s.currentPoints || totalPts;
+  const thresholds = [0, 50, 200, 400, 700, 1000, 1500, 2000, 3000, 5000];
+  let level = 1;
+  for (let i = thresholds.length - 1; i >= 0; i--) {
+    if (totalPts >= thresholds[i]) { level = i + 1; break; }
+  }
   document.getElementById('portalLevel').textContent = `⭐ Lv. ${level}`;
-  document.getElementById('portalPoints').textContent = pts.toLocaleString() + ' pts';
+  document.getElementById('portalPoints').textContent = currentPts.toLocaleString() + ' pts';
+
+  // ランク表示
+  const rankEl = document.getElementById('portalRank');
+  if (s.rank) {
+    const RANKS = { rookie: '🌱 ルーキー', crew: '🚀 クルー', senior: '⭐ シニアクルー', captain: '👑 キャプテン' };
+    rankEl.textContent = RANKS[s.rank] || s.rank;
+    rankEl.style.display = 'inline-block';
+  }
+
+  // ストリーク表示
+  document.getElementById('portalStreak').textContent = s.streak || 0;
+  document.getElementById('portalBestStreak').textContent = s.bestStreak || s.streak || 0;
 
   await Promise.all([
     loadSummary(),
     loadExams(),
     loadBadges(),
     loadMessages(),
+    loadParentMission(),
   ]);
 
   document.getElementById('loadingMsg').style.display = 'none';
@@ -394,11 +424,12 @@ async function showPortal() {
 // ===== タブ切替 =====
 function switchTab(tabId) {
   document.querySelectorAll('.tab-btn').forEach((b, i) => {
-    const tabs = ['summary', 'exams', 'badges', 'messages'];
+    const tabs = ['summary', 'mission', 'exams', 'badges', 'messages'];
     b.classList.toggle('active', tabs[i] === tabId);
   });
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + tabId).classList.add('active');
+  if (tabId === 'mission') loadParentMission();
 }
 
 // ===== サマリー =====
@@ -612,6 +643,47 @@ async function loadMessages() {
       <div class="msg-date">${date}</div>
     </div>`;
   }).join('');
+}
+
+// ===== ミッション表示 =====
+async function loadParentMission() {
+  const el = document.getElementById('parentMissionList');
+  if (!el) return;
+  try {
+    const snap = await db.collection('missions').orderBy('startDate', 'desc').get();
+    const missions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (missions.length === 0) {
+      el.innerHTML = '<p style="color:#94a3b8;font-size:13px;text-align:center;padding:20px;">現在ミッションはありません</p>';
+      return;
+    }
+    el.innerHTML = missions.map(m => {
+      const pct = m.targetValue > 0 ? Math.min(100, Math.round(m.currentValue / m.targetValue * 100)) : 0;
+      const statusIcon = m.status === 'completed' ? '🏆' : m.status === 'active' ? '🚀' : '⏹';
+      const metricLabels = { total_hours: '合計学習時間', pomodoro_count: 'ポモドーロ数', teach_count: '教え合い回数', ai_questions: 'AI教材問題数' };
+      return `
+        <div style="background:#f8fafc;border-radius:12px;padding:14px;margin-bottom:12px;border-left:4px solid ${m.status === 'completed' ? '#48bb78' : m.status === 'active' ? '#667eea' : '#cbd5e0'};">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+            <strong style="font-size:14px;">${statusIcon} ${m.title || '無題'}</strong>
+            <span style="font-size:12px;font-weight:700;color:#667eea;">${pct}%</span>
+          </div>
+          <div style="font-size:11px;color:#94a3b8;margin-bottom:8px;">
+            ${metricLabels[m.metric] || m.metric} ｜ ${m.startDate || '?'} 〜 ${m.endDate || '?'}
+          </div>
+          <div style="background:#e2e8f0;border-radius:6px;height:12px;overflow:hidden;margin-bottom:8px;">
+            <div style="background:linear-gradient(135deg,#667eea,#764ba2);height:100%;width:${pct}%;border-radius:6px;"></div>
+          </div>
+          <div style="display:flex;gap:4px;flex-wrap:wrap;">
+            ${(m.milestones || []).map(ms => `
+              <span style="font-size:10px;padding:2px 6px;border-radius:8px;background:${ms.reached ? '#dcfce7' : '#f1f5f9'};">
+                ${ms.reached ? '✅' : '⬜'} ${ms.name}
+              </span>
+            `).join('')}
+          </div>
+        </div>`;
+    }).join('');
+  } catch(e) {
+    el.innerHTML = '<p style="color:#fc8181;font-size:13px;">読み込みエラー</p>';
+  }
 }
 
 // ===== 起動 =====
