@@ -4,10 +4,13 @@
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js');
 
-const CACHE_NAME = 'academy-points-v2';
+const CACHE_NAME = 'academy-points-v3';
 const urlsToCache = [
   '/index.html',
   '/student.html',
+  '/parent.html',
+  '/monitor.html',
+  '/briefing.html',
   '/db.js',
   '/firebase-config.js',
   '/manifest.json'
@@ -38,16 +41,15 @@ self.addEventListener('fetch', event => {
       event.request.url.includes('jsdelivr.net')) {
     return;
   }
+  // ネットワークファースト: 常に最新を取得し、オフライン時のみキャッシュを返す
   event.respondWith(
-    caches.match(event.request).then(response => {
-      if (response) return response;
-      return fetch(event.request).then(res => {
-        if (!res || res.status !== 200 || res.type !== 'basic') return res;
+    fetch(event.request).then(res => {
+      if (res && res.status === 200 && res.type === 'basic') {
         const responseToCache = res.clone();
         caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseToCache));
-        return res;
-      }).catch(() => caches.match('/student.html'));
-    })
+      }
+      return res;
+    }).catch(() => caches.match(event.request).then(r => r || caches.match('/student.html')))
   );
 });
 
