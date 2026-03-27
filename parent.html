@@ -409,13 +409,17 @@ async function showPortal() {
   document.getElementById('portalStreak').textContent = s.streak || 0;
   document.getElementById('portalBestStreak').textContent = s.bestStreak || s.streak || 0;
 
-  await Promise.all([
+  await Promise.allSettled([
     loadSummary(),
     loadExams(),
     loadBadges(),
     loadMessages(),
     loadParentMission(),
-  ]);
+  ]).then(results => {
+    results.forEach((r, i) => {
+      if (r.status === 'rejected') console.warn('loadError', ['Summary','Exams','Badges','Messages','Mission'][i], r.reason);
+    });
+  });
 
   document.getElementById('loadingMsg').style.display = 'none';
   document.getElementById('portalContent').style.display = 'block';
