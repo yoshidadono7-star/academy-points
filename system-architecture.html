@@ -1,0 +1,672 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HERO'S ACADEMY POINTS - システム全体模式図</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Segoe UI', 'Hiragino Sans', 'Meiryo', sans-serif;
+    background: #0a0e27;
+    color: #e0e0e0;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ===== HEADER ===== */
+  .header {
+    text-align: center;
+    padding: 30px 20px 20px;
+    background: linear-gradient(135deg, #1a1a3e 0%, #2d1b69 50%, #1a1a3e 100%);
+    border-bottom: 2px solid #00d4ff33;
+  }
+  .header h1 {
+    font-size: 28px;
+    background: linear-gradient(90deg, #00d4ff, #a855f7, #00ff88);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    letter-spacing: 2px;
+  }
+  .header p {
+    color: #8888aa;
+    margin-top: 8px;
+    font-size: 14px;
+  }
+
+  /* ===== DIAGRAM CONTAINER ===== */
+  .diagram {
+    max-width: 1400px;
+    margin: 30px auto;
+    padding: 0 20px;
+    position: relative;
+  }
+
+  /* ===== LAYER LABELS ===== */
+  .layer-label {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 3px;
+    color: #666;
+    margin-bottom: 10px;
+    padding-left: 4px;
+  }
+
+  /* ===== PORTAL LAYER ===== */
+  .portals {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .portal-card {
+    border-radius: 12px;
+    padding: 18px;
+    text-align: center;
+    border: 1px solid;
+    position: relative;
+    transition: transform 0.2s, box-shadow 0.2s;
+  }
+  .portal-card:hover {
+    transform: translateY(-3px);
+    box-shadow: 0 8px 25px rgba(0,0,0,0.4);
+  }
+  .portal-card .icon { font-size: 28px; margin-bottom: 6px; }
+  .portal-card .name { font-size: 14px; font-weight: 700; }
+  .portal-card .desc { font-size: 11px; opacity: 0.7; margin-top: 4px; }
+  .portal-card .file { font-size: 10px; opacity: 0.4; margin-top: 6px; font-family: monospace; }
+
+  .portal-admin { background: #1e1145; border-color: #a855f755; }
+  .portal-student { background: #0d2e1e; border-color: #00ff8855; }
+  .portal-parent { background: #1e2d45; border-color: #00d4ff55; }
+  .portal-briefing { background: #2d1e0d; border-color: #ff880055; }
+
+  /* ===== CONNECTOR ARROWS ===== */
+  .connector-row {
+    display: flex;
+    justify-content: center;
+    margin: 8px 0 16px;
+    gap: 60px;
+  }
+  .connector-arrow {
+    width: 2px;
+    height: 28px;
+    background: linear-gradient(to bottom, #00d4ff44, #a855f744);
+    position: relative;
+  }
+  .connector-arrow::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: -4px;
+    width: 0;
+    height: 0;
+    border-left: 5px solid transparent;
+    border-right: 5px solid transparent;
+    border-top: 6px solid #a855f777;
+  }
+
+  /* ===== SYSTEM LAYER ===== */
+  .systems-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .system-box {
+    border-radius: 14px;
+    padding: 20px 16px;
+    border: 2px solid;
+    position: relative;
+    overflow: hidden;
+  }
+  .system-box::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    height: 3px;
+  }
+  .system-box .sys-icon { font-size: 24px; }
+  .system-box .sys-title {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 8px 0 4px;
+  }
+  .system-box .sys-subtitle {
+    font-size: 11px;
+    opacity: 0.6;
+    margin-bottom: 12px;
+  }
+  .system-box ul {
+    list-style: none;
+    padding: 0;
+  }
+  .system-box ul li {
+    font-size: 12px;
+    padding: 4px 0;
+    border-bottom: 1px solid rgba(255,255,255,0.05);
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .system-box ul li .dot {
+    width: 5px;
+    height: 5px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* System 1: Business Management */
+  .sys-business {
+    background: linear-gradient(180deg, #1a1045 0%, #12102a 100%);
+    border-color: #a855f744;
+  }
+  .sys-business::before { background: linear-gradient(90deg, #a855f7, #7c3aed); }
+  .sys-business .dot { background: #a855f7; }
+
+  /* System 2: Student Management */
+  .sys-student {
+    background: linear-gradient(180deg, #0d2a1a 0%, #0a1a12 100%);
+    border-color: #00ff8844;
+  }
+  .sys-student::before { background: linear-gradient(90deg, #00ff88, #10b981); }
+  .sys-student .dot { background: #00ff88; }
+
+  /* System 3: Points */
+  .sys-points {
+    background: linear-gradient(180deg, #2a2a0d 0%, #1a1a0a 100%);
+    border-color: #ffd70044;
+  }
+  .sys-points::before { background: linear-gradient(90deg, #ffd700, #f59e0b); }
+  .sys-points .dot { background: #ffd700; }
+
+  /* System 4: Gamification */
+  .sys-gamification {
+    background: linear-gradient(180deg, #2a0d1a 0%, #1a0a12 100%);
+    border-color: #ff445544;
+  }
+  .sys-gamification::before { background: linear-gradient(90deg, #ff4455, #ef4444); }
+  .sys-gamification .dot { background: #ff4455; }
+
+  /* System 5: Coaching */
+  .sys-coaching {
+    background: linear-gradient(180deg, #0d1a2a 0%, #0a121a 100%);
+    border-color: #00d4ff44;
+  }
+  .sys-coaching::before { background: linear-gradient(90deg, #00d4ff, #0ea5e9); }
+  .sys-coaching .dot { background: #00d4ff; }
+
+  /* ===== DATA FLOW ARROWS (between systems) ===== */
+  .flow-row {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 12px 0;
+    gap: 8px;
+    flex-wrap: wrap;
+  }
+  .flow-tag {
+    font-size: 10px;
+    padding: 4px 12px;
+    border-radius: 20px;
+    background: #ffffff08;
+    border: 1px solid #ffffff15;
+    color: #aaa;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+  .flow-tag .arrow { color: #00d4ff88; }
+
+  /* ===== DATA LAYER ===== */
+  .data-layer {
+    background: linear-gradient(135deg, #111133 0%, #0a0e27 100%);
+    border: 2px solid #333366;
+    border-radius: 16px;
+    padding: 24px;
+    margin-bottom: 24px;
+  }
+  .data-layer .dl-title {
+    font-size: 14px;
+    font-weight: 700;
+    color: #8888cc;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .collections-grid {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 8px;
+  }
+  .collection-chip {
+    font-size: 11px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: #1a1a44;
+    border: 1px solid #333366;
+    text-align: center;
+    font-family: monospace;
+    transition: background 0.2s;
+  }
+  .collection-chip:hover {
+    background: #2a2a55;
+  }
+  .collection-chip .cc-icon { margin-right: 4px; }
+
+  /* ===== INFRASTRUCTURE ===== */
+  .infra-layer {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px;
+    margin-bottom: 24px;
+  }
+  .infra-box {
+    background: #0e0e20;
+    border: 1px solid #222244;
+    border-radius: 12px;
+    padding: 16px;
+    text-align: center;
+  }
+  .infra-box .infra-icon { font-size: 22px; margin-bottom: 6px; }
+  .infra-box .infra-name { font-size: 13px; font-weight: 600; color: #ff8800; }
+  .infra-box .infra-desc { font-size: 11px; color: #666; margin-top: 4px; }
+
+  /* ===== INTERACTION MAP ===== */
+  .interaction-section {
+    margin-bottom: 30px;
+  }
+  .interaction-section h3 {
+    font-size: 16px;
+    color: #a855f7;
+    margin-bottom: 16px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .interaction-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 12px;
+  }
+  .interaction-card {
+    background: #111133;
+    border: 1px solid #222255;
+    border-radius: 12px;
+    padding: 16px;
+  }
+  .interaction-card .ic-header {
+    font-size: 13px;
+    font-weight: 700;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  .interaction-card .ic-flow {
+    font-size: 11px;
+    color: #888;
+    line-height: 1.8;
+  }
+  .interaction-card .ic-flow .step {
+    display: flex;
+    align-items: flex-start;
+    gap: 6px;
+  }
+  .interaction-card .ic-flow .step-num {
+    background: #a855f733;
+    color: #a855f7;
+    border-radius: 50%;
+    width: 18px;
+    height: 18px;
+    font-size: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+    margin-top: 2px;
+  }
+
+  /* ===== LEGEND ===== */
+  .legend {
+    display: flex;
+    justify-content: center;
+    gap: 24px;
+    flex-wrap: wrap;
+    padding: 20px;
+    margin-top: 10px;
+    border-top: 1px solid #222244;
+  }
+  .legend-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: #888;
+  }
+  .legend-swatch {
+    width: 12px;
+    height: 12px;
+    border-radius: 3px;
+  }
+
+  /* ===== RESPONSIVE ===== */
+  @media (max-width: 1100px) {
+    .systems-grid { grid-template-columns: repeat(3, 1fr); }
+    .collections-grid { grid-template-columns: repeat(4, 1fr); }
+  }
+  @media (max-width: 768px) {
+    .portals { grid-template-columns: repeat(2, 1fr); }
+    .systems-grid { grid-template-columns: 1fr 1fr; }
+    .collections-grid { grid-template-columns: repeat(3, 1fr); }
+    .interaction-grid { grid-template-columns: 1fr; }
+    .infra-layer { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ===== HEADER ===== -->
+<div class="header">
+  <h1>HERO'S ACADEMY POINTS - System Architecture</h1>
+  <p>業務管理 / 生徒管理 / ポイント / ゲーミフィケーション / コーチング 統合模式図</p>
+</div>
+
+<div class="diagram">
+
+  <!-- ===== LAYER 1: USER PORTALS ===== -->
+  <div class="layer-label">LAYER 1 &mdash; USER INTERFACE / PORTALS</div>
+  <div class="portals">
+    <div class="portal-card portal-admin">
+      <div class="icon">🎛️</div>
+      <div class="name">管理者ダッシュボード</div>
+      <div class="desc">講師・管理者向け<br>全機能統合コントロール</div>
+      <div class="file">index.html</div>
+    </div>
+    <div class="portal-card portal-student">
+      <div class="icon">🦸</div>
+      <div class="name">生徒ポータル</div>
+      <div class="desc">ゲーミフィケーション体験<br>ランキング・バッジ・ギルド</div>
+      <div class="file">student.html</div>
+    </div>
+    <div class="portal-card portal-parent">
+      <div class="icon">👨‍👩‍👧</div>
+      <div class="name">保護者ポータル</div>
+      <div class="desc">学習レポート・成績確認<br>メッセージ受信</div>
+      <div class="file">parent.html</div>
+    </div>
+    <div class="portal-card portal-briefing">
+      <div class="icon">📡</div>
+      <div class="name">ブリーフィングモニター</div>
+      <div class="desc">教室掲示用リアルタイム<br>ステータス表示</div>
+      <div class="file">briefing.html</div>
+    </div>
+  </div>
+
+  <!-- ===== CONNECTORS ===== -->
+  <div class="connector-row">
+    <div class="connector-arrow"></div>
+    <div class="connector-arrow"></div>
+    <div class="connector-arrow"></div>
+    <div class="connector-arrow"></div>
+  </div>
+
+  <!-- ===== LAYER 2: CORE SYSTEMS ===== -->
+  <div class="layer-label">LAYER 2 &mdash; CORE SYSTEMS（5つの中核システム）</div>
+  <div class="systems-grid">
+
+    <!-- System 1: Business Management -->
+    <div class="system-box sys-business">
+      <div class="sys-icon">🏢</div>
+      <div class="sys-title">業務管理システム</div>
+      <div class="sys-subtitle">Business Management</div>
+      <ul>
+        <li><span class="dot"></span>タスク管理（CRUD）</li>
+        <li><span class="dot"></span>景品カタログ管理</li>
+        <li><span class="dot"></span>在庫管理（stock）</li>
+        <li><span class="dot"></span>コイン経済管理</li>
+        <li><span class="dot"></span>承認ワークフロー</li>
+        <li><span class="dot"></span>日次/月次サマリー</li>
+        <li><span class="dot"></span>イベント企画・発動</li>
+        <li><span class="dot"></span>CSV エクスポート</li>
+        <li><span class="dot"></span>メッセージ配信</li>
+        <li><span class="dot"></span>通知管理</li>
+      </ul>
+    </div>
+
+    <!-- System 2: Student Management -->
+    <div class="system-box sys-student">
+      <div class="sys-icon">🎓</div>
+      <div class="sys-title">生徒管理システム</div>
+      <div class="sys-subtitle">Student & Goal Management</div>
+      <ul>
+        <li><span class="dot"></span>生徒登録・プロフィール</li>
+        <li><span class="dot"></span>ニックネーム/PIN認証</li>
+        <li><span class="dot"></span>学習ログ記録</li>
+        <li><span class="dot"></span>科目・場所・手法管理</li>
+        <li><span class="dot"></span>ポモドーロ管理</li>
+        <li><span class="dot"></span>試験結果追跡</li>
+        <li><span class="dot"></span>日次コンディション記録</li>
+        <li><span class="dot"></span>バディ制度</li>
+        <li><span class="dot"></span>ストリーク追跡</li>
+        <li><span class="dot"></span>月次ミッション進捗</li>
+      </ul>
+    </div>
+
+    <!-- System 3: Points System -->
+    <div class="system-box sys-points">
+      <div class="sys-icon">💰</div>
+      <div class="sys-title">ポイントシステム</div>
+      <div class="sys-subtitle">Points & Economy</div>
+      <ul>
+        <li><span class="dot"></span>デュアル通貨</li>
+        <li><span class="dot"></span>&nbsp;&nbsp;Points（学習報酬）</li>
+        <li><span class="dot"></span>&nbsp;&nbsp;Coins（プレミアム）</li>
+        <li><span class="dot"></span>累計/現在/獲得/消費追跡</li>
+        <li><span class="dot"></span>景品交換メカニクス</li>
+        <li><span class="dot"></span>カテゴリ別取引管理</li>
+        <li><span class="dot"></span>イベント倍率適用</li>
+        <li><span class="dot"></span>ギルドポイント集計</li>
+        <li><span class="dot"></span>流出率分析</li>
+        <li><span class="dot"></span>レベル・ランク算出</li>
+      </ul>
+    </div>
+
+    <!-- System 4: Gamification -->
+    <div class="system-box sys-gamification">
+      <div class="sys-icon">🎮</div>
+      <div class="sys-title">ゲーミフィケーション</div>
+      <div class="sys-subtitle">Gamification Engine</div>
+      <ul>
+        <li><span class="dot"></span>19種バッジ自動付与</li>
+        <li><span class="dot"></span>ランク昇格システム</li>
+        <li><span class="dot"></span>&nbsp;&nbsp;Rookie→Crew→Senior→Captain</li>
+        <li><span class="dot"></span>ギルド（6テーマ）</li>
+        <li><span class="dot"></span>一蓮托生ボーナス</li>
+        <li><span class="dot"></span>レイドボス共闘戦</li>
+        <li><span class="dot"></span>月次ミッション</li>
+        <li><span class="dot"></span>&nbsp;&nbsp;4段階マイルストーン</li>
+        <li><span class="dot"></span>期間限定イベント</li>
+        <li><span class="dot"></span>ランキングシステム</li>
+      </ul>
+    </div>
+
+    <!-- System 5: Coaching -->
+    <div class="system-box sys-coaching">
+      <div class="sys-icon">🧠</div>
+      <div class="sys-title">コーチングシステム</div>
+      <div class="sys-subtitle">Adlerian Psychology Based</div>
+      <ul>
+        <li><span class="dot"></span>アドラー心理学3柱モデル</li>
+        <li><span class="dot"></span>&nbsp;&nbsp;自己受容（6指標）</li>
+        <li><span class="dot"></span>&nbsp;&nbsp;他者信頼（6指標）</li>
+        <li><span class="dot"></span>&nbsp;&nbsp;他者貢献（6指標）</li>
+        <li><span class="dot"></span>18指標スコアリング</li>
+        <li><span class="dot"></span>レーダーチャート可視化</li>
+        <li><span class="dot"></span>14日ヒートマップ</li>
+        <li><span class="dot"></span>離脱リスク検知</li>
+        <li><span class="dot"></span>&nbsp;&nbsp;7日無学習/ストリーク断絶</li>
+        <li><span class="dot"></span>介入アクション管理</li>
+      </ul>
+    </div>
+  </div>
+
+  <!-- ===== DATA FLOW BETWEEN SYSTEMS ===== -->
+  <div class="flow-row">
+    <div class="flow-tag"><span style="color:#a855f7">業務管理</span> <span class="arrow">&#8644;</span> <span style="color:#00ff88">生徒管理</span></div>
+    <div class="flow-tag"><span style="color:#00ff88">学習ログ</span> <span class="arrow">&rarr;</span> <span style="color:#ffd700">ポイント付与</span></div>
+    <div class="flow-tag"><span style="color:#ffd700">ポイント</span> <span class="arrow">&rarr;</span> <span style="color:#ff4455">バッジ・ランク</span></div>
+    <div class="flow-tag"><span style="color:#ff4455">活動データ</span> <span class="arrow">&rarr;</span> <span style="color:#00d4ff">コーチング分析</span></div>
+    <div class="flow-tag"><span style="color:#00d4ff">リスク検知</span> <span class="arrow">&rarr;</span> <span style="color:#a855f7">介入タスク</span></div>
+  </div>
+
+  <!-- ===== CONNECTORS ===== -->
+  <div class="connector-row">
+    <div class="connector-arrow"></div>
+    <div class="connector-arrow"></div>
+    <div class="connector-arrow"></div>
+  </div>
+
+  <!-- ===== LAYER 3: DATA LAYER ===== -->
+  <div class="layer-label">LAYER 3 &mdash; DATA ACCESS LAYER（db.js: 16 DB ハンドラ）</div>
+  <div class="data-layer">
+    <div class="dl-title">📦 Firestore Collections（17コレクション）</div>
+    <div class="collections-grid">
+      <div class="collection-chip"><span class="cc-icon">👤</span> students</div>
+      <div class="collection-chip"><span class="cc-icon">📝</span> studyLogs</div>
+      <div class="collection-chip"><span class="cc-icon">✅</span> tasks</div>
+      <div class="collection-chip"><span class="cc-icon">🏆</span> taskCompletions</div>
+      <div class="collection-chip"><span class="cc-icon">🎁</span> prizes</div>
+      <div class="collection-chip"><span class="cc-icon">📋</span> prizeHistory</div>
+      <div class="collection-chip"><span class="cc-icon">💚</span> conditions</div>
+      <div class="collection-chip"><span class="cc-icon">🏅</span> badges</div>
+      <div class="collection-chip"><span class="cc-icon">💬</span> messages</div>
+      <div class="collection-chip"><span class="cc-icon">⚔️</span> guilds</div>
+      <div class="collection-chip"><span class="cc-icon">🐉</span> raidBosses</div>
+      <div class="collection-chip"><span class="cc-icon">💥</span> raidDamage</div>
+      <div class="collection-chip"><span class="cc-icon">📊</span> examResults</div>
+      <div class="collection-chip"><span class="cc-icon">🔔</span> notifications</div>
+      <div class="collection-chip"><span class="cc-icon">🚀</span> missions</div>
+      <div class="collection-chip"><span class="cc-icon">🪙</span> coins</div>
+      <div class="collection-chip"><span class="cc-icon">🎪</span> events</div>
+      <div class="collection-chip"><span class="cc-icon">🎖️</span> rewards</div>
+    </div>
+  </div>
+
+  <!-- ===== LAYER 4: INFRASTRUCTURE ===== -->
+  <div class="layer-label">LAYER 4 &mdash; INFRASTRUCTURE</div>
+  <div class="infra-layer">
+    <div class="infra-box">
+      <div class="infra-icon">🔥</div>
+      <div class="infra-name">Firebase Firestore</div>
+      <div class="infra-desc">NoSQL リアルタイムDB<br>17コレクション / セキュリティルール</div>
+    </div>
+    <div class="infra-box">
+      <div class="infra-icon">🔐</div>
+      <div class="infra-name">Firebase Auth</div>
+      <div class="infra-desc">ニックネーム/PIN 認証<br>ロールベースアクセス制御（予定）</div>
+    </div>
+    <div class="infra-box">
+      <div class="infra-icon">📲</div>
+      <div class="infra-name">FCM + PWA</div>
+      <div class="infra-desc">プッシュ通知 / Service Worker<br>オフライン対応 / インストール可能</div>
+    </div>
+  </div>
+
+  <!-- ===== INTERACTION MAP ===== -->
+  <div class="interaction-section">
+    <h3>🔄 システム間連携フロー</h3>
+    <div class="interaction-grid">
+
+      <div class="interaction-card">
+        <div class="ic-header">📖 学習 → 報酬ループ</div>
+        <div class="ic-flow">
+          <div class="step"><span class="step-num">1</span>生徒が学習ログを登録</div>
+          <div class="step"><span class="step-num">2</span>ポイント自動計算・付与</div>
+          <div class="step"><span class="step-num">3</span>ストリーク更新</div>
+          <div class="step"><span class="step-num">4</span>バッジ条件判定・自動授与</div>
+          <div class="step"><span class="step-num">5</span>ランク・レベル再計算</div>
+          <div class="step"><span class="step-num">6</span>ギルドポイント加算</div>
+        </div>
+      </div>
+
+      <div class="interaction-card">
+        <div class="ic-header">⚔️ レイドボス共闘</div>
+        <div class="ic-flow">
+          <div class="step"><span class="step-num">1</span>管理者がボスを作成</div>
+          <div class="step"><span class="step-num">2</span>生徒がポイントでダメージ</div>
+          <div class="step"><span class="step-num">3</span>HP減少 → 撃破判定</div>
+          <div class="step"><span class="step-num">4</span>報酬ポイント分配</div>
+          <div class="step"><span class="step-num">5</span>レイドキラーバッジ授与</div>
+          <div class="step"><span class="step-num">6</span>ブリーフィングに反映</div>
+        </div>
+      </div>
+
+      <div class="interaction-card">
+        <div class="ic-header">🧠 コーチング分析</div>
+        <div class="ic-flow">
+          <div class="step"><span class="step-num">1</span>学習ログ・コンディション収集</div>
+          <div class="step"><span class="step-num">2</span>アドラー3柱×6指標算出</div>
+          <div class="step"><span class="step-num">3</span>レーダーチャート生成</div>
+          <div class="step"><span class="step-num">4</span>離脱リスクスキャン</div>
+          <div class="step"><span class="step-num">5</span>リスク重大度判定</div>
+          <div class="step"><span class="step-num">6</span>介入アクション提案</div>
+        </div>
+      </div>
+
+      <div class="interaction-card">
+        <div class="ic-header">🪙 経済サイクル</div>
+        <div class="ic-flow">
+          <div class="step"><span class="step-num">1</span>学習・タスクでコイン獲得</div>
+          <div class="step"><span class="step-num">2</span>承認ワークフロー処理</div>
+          <div class="step"><span class="step-num">3</span>景品交換でコイン消費</div>
+          <div class="step"><span class="step-num">4</span>在庫自動減算</div>
+          <div class="step"><span class="step-num">5</span>流出率（支出/発行）分析</div>
+          <div class="step"><span class="step-num">6</span>日次/月次レポート生成</div>
+        </div>
+      </div>
+
+      <div class="interaction-card">
+        <div class="ic-header">🚀 月次ミッション</div>
+        <div class="ic-flow">
+          <div class="step"><span class="step-num">1</span>管理者がミッション設定</div>
+          <div class="step"><span class="step-num">2</span>目標メトリクス指定</div>
+          <div class="step"><span class="step-num">3</span>4段階マイルストーン進捗</div>
+          <div class="step"><span class="step-num">4</span>達成でボーナスコイン付与</div>
+          <div class="step"><span class="step-num">5</span>チームモード競争</div>
+          <div class="step"><span class="step-num">6</span>完了/失敗ステータス更新</div>
+        </div>
+      </div>
+
+      <div class="interaction-card">
+        <div class="ic-header">👨‍👩‍👧 保護者レポート</div>
+        <div class="ic-flow">
+          <div class="step"><span class="step-num">1</span>学習データ集計</div>
+          <div class="step"><span class="step-num">2</span>科目別進捗バー生成</div>
+          <div class="step"><span class="step-num">3</span>14日ヒートマップ表示</div>
+          <div class="step"><span class="step-num">4</span>試験結果トレンド表示</div>
+          <div class="step"><span class="step-num">5</span>獲得バッジ一覧</div>
+          <div class="step"><span class="step-num">6</span>講師メッセージ配信</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ===== LEGEND ===== -->
+  <div class="legend">
+    <div class="legend-item"><div class="legend-swatch" style="background:#a855f7"></div>業務管理</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#00ff88"></div>生徒管理</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#ffd700"></div>ポイント</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#ff4455"></div>ゲーミフィケーション</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#00d4ff"></div>コーチング</div>
+    <div class="legend-item"><div class="legend-swatch" style="background:#ff8800"></div>インフラ</div>
+  </div>
+
+</div>
+
+</body>
+</html>
