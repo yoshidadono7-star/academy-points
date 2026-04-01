@@ -1,0 +1,502 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HERO'S Points - システム全体像 整理</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Hiragino Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+    background: #0f172a; color: #e2e8f0; line-height: 1.7;
+  }
+  .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+
+  h1 {
+    text-align: center; font-size: 28px; margin: 30px 0 10px;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+  .subtitle { text-align: center; color: #94a3b8; font-size: 14px; margin-bottom: 40px; }
+
+  /* ===== タブ ===== */
+  .tabs { display: flex; gap: 4px; margin-bottom: 0; background: #1e293b; border-radius: 12px 12px 0 0; padding: 8px 8px 0; }
+  .tab {
+    flex: 1; padding: 14px 8px; border: none; border-radius: 10px 10px 0 0;
+    background: transparent; color: #94a3b8; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: all 0.2s; font-family: inherit;
+  }
+  .tab:hover { color: #e2e8f0; }
+  .tab.active { background: #1e293b; color: #667eea; border-bottom: 3px solid #667eea; }
+  .tab .tab-num {
+    display: inline-block; background: #334155; color: #94a3b8; width: 22px; height: 22px;
+    border-radius: 50%; font-size: 11px; line-height: 22px; text-align: center; margin-right: 4px;
+  }
+  .tab.active .tab-num { background: #667eea; color: #fff; }
+
+  /* ===== パネル ===== */
+  .panel { display: none; background: #1e293b; border-radius: 0 0 12px 12px; padding: 30px; min-height: 600px; }
+  .panel.active { display: block; }
+
+  /* ===== カード ===== */
+  .screen-title {
+    font-size: 22px; font-weight: 800; margin-bottom: 6px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .screen-file { color: #667eea; font-size: 12px; font-family: monospace; margin-bottom: 20px; }
+  .screen-desc { color: #94a3b8; font-size: 14px; margin-bottom: 24px; line-height: 1.8; }
+
+  .section { margin-bottom: 28px; }
+  .section-title {
+    font-size: 15px; font-weight: 700; color: #e2e8f0;
+    margin-bottom: 12px; padding-bottom: 8px; border-bottom: 1px solid #334155;
+    display: flex; align-items: center; gap: 8px;
+  }
+
+  .feature-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+  .feature-card {
+    background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 16px;
+    transition: border-color 0.2s;
+  }
+  .feature-card:hover { border-color: #667eea; }
+  .feature-name { font-size: 14px; font-weight: 700; color: #e2e8f0; margin-bottom: 4px; }
+  .feature-detail { font-size: 12px; color: #94a3b8; line-height: 1.6; }
+  .feature-status {
+    display: inline-block; font-size: 10px; font-weight: 700; padding: 2px 8px;
+    border-radius: 10px; margin-top: 8px;
+  }
+  .status-done { background: #065f46; color: #34d399; }
+  .status-partial { background: #78350f; color: #fbbf24; }
+  .status-todo { background: #7f1d1d; color: #fca5a5; }
+
+  /* ===== データフロー ===== */
+  .flow-box {
+    background: #0f172a; border: 1px solid #334155; border-radius: 10px; padding: 20px;
+    font-size: 13px; overflow-x: auto;
+  }
+  .flow-row { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+  .flow-node {
+    background: #1e293b; border: 1px solid #475569; border-radius: 8px;
+    padding: 6px 14px; font-size: 12px; font-weight: 600; white-space: nowrap;
+  }
+  .flow-node.db { border-color: #667eea; color: #667eea; }
+  .flow-node.screen { border-color: #34d399; color: #34d399; }
+  .flow-node.action { border-color: #fbbf24; color: #fbbf24; }
+  .flow-arrow { color: #475569; font-size: 16px; }
+
+  /* ===== コレクション一覧 ===== */
+  .collection-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 8px; }
+  .collection-tag {
+    background: #0f172a; border: 1px solid #334155; border-radius: 8px;
+    padding: 10px 14px; font-size: 12px;
+  }
+  .collection-tag .name { font-weight: 700; color: #667eea; }
+  .collection-tag .desc { color: #94a3b8; margin-top: 2px; }
+
+  /* ===== タスクリスト ===== */
+  .task-group { margin-bottom: 24px; }
+  .task-group-title {
+    font-size: 16px; font-weight: 800; margin-bottom: 12px;
+    padding: 8px 14px; border-radius: 8px;
+    background: linear-gradient(135deg, #667eea22, #764ba222);
+    border-left: 4px solid #667eea;
+  }
+  .task-list { list-style: none; }
+  .task-list li {
+    padding: 10px 14px; border-bottom: 1px solid #1e293b;
+    display: flex; align-items: flex-start; gap: 10px; font-size: 13px;
+  }
+  .task-list li:last-child { border-bottom: none; }
+  .task-num {
+    background: #334155; color: #94a3b8; min-width: 24px; height: 24px;
+    border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    font-size: 11px; font-weight: 700; flex-shrink: 0;
+  }
+  .task-content { flex: 1; }
+  .task-title-text { font-weight: 600; color: #e2e8f0; }
+  .task-desc { color: #94a3b8; font-size: 12px; margin-top: 2px; }
+  .task-deps { color: #667eea; font-size: 11px; margin-top: 4px; }
+
+  /* ===== アーキテクチャ図 ===== */
+  .arch-diagram {
+    display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 20px; margin: 20px 0;
+  }
+  .arch-layer {
+    border: 1px solid #334155; border-radius: 12px; padding: 16px; text-align: center;
+  }
+  .arch-layer-title {
+    font-size: 12px; font-weight: 700; letter-spacing: 2px; margin-bottom: 12px;
+    padding-bottom: 8px; border-bottom: 1px solid #334155;
+  }
+  .arch-item {
+    background: #0f172a; border-radius: 6px; padding: 8px; margin: 6px 0;
+    font-size: 12px; font-weight: 600;
+  }
+  .layer-view .arch-layer-title { color: #34d399; border-color: #065f46; }
+  .layer-logic .arch-layer-title { color: #fbbf24; border-color: #78350f; }
+  .layer-data .arch-layer-title { color: #667eea; border-color: #1e3a8a; }
+
+  @media (max-width: 768px) {
+    .tabs { flex-wrap: wrap; }
+    .tab { font-size: 11px; padding: 10px 6px; }
+    .feature-grid { grid-template-columns: 1fr; }
+    .arch-diagram { grid-template-columns: 1fr; }
+    .collection-list { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>HERO'S Points - システム全体像</h1>
+  <p class="subtitle">4つの画面構成と機能一覧 / ゲーミフィケーション設計の整理</p>
+
+  <!-- ===== タブ ===== -->
+  <div class="tabs">
+    <button class="tab active" onclick="showPanel(0)"><span class="tab-num">1</span>管理画面</button>
+    <button class="tab" onclick="showPanel(1)"><span class="tab-num">2</span>生徒画面</button>
+    <button class="tab" onclick="showPanel(2)"><span class="tab-num">3</span>ブリーフィング</button>
+    <button class="tab" onclick="showPanel(3)"><span class="tab-num">4</span>保護者ポータル</button>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- パネル1: 管理画面 (index.html)              -->
+  <!-- ========================================== -->
+  <div class="panel active" id="panel0">
+    <div class="screen-title">🛰️ MISSION CONTROL - 管理ダッシュボード</div>
+    <div class="screen-file">index.html (~1,800行 / 管理者専用)</div>
+    <div class="screen-desc">
+      塾の先生が使う管理画面。Firebase Authによるログイン認証あり。<br>
+      生徒データの管理、ポイント付与、学習モニタリング、メッセージ送信、ゲーミフィケーション要素の管理を一括で行う。
+    </div>
+
+    <div class="section">
+      <div class="section-title">📋 タブ構成 (17タブ)</div>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-name">🏆 ランキング</div>
+          <div class="feature-detail">月間/週間ポイントランキング表示。リアルタイムで生徒の順位を確認。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">📊 学習モニター</div>
+          <div class="feature-detail">各生徒のリアルタイム学習状況。現在学習中の生徒、科目、経過時間を表示。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">📋 タスク管理</div>
+          <div class="feature-detail">生徒ごとのタスク作成・管理。完了でポイント付与。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">💚 コンディション</div>
+          <div class="feature-detail">生徒のやる気・体調チェック結果の閲覧。絵文字ベースのムードトラッカー。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">📅 履歴</div>
+          <div class="feature-detail">学習セッション履歴。日付・科目・時間の詳細ログ。CSVエクスポート対応。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">🎁 景品交換</div>
+          <div class="feature-detail">景品の登録・管理。生徒がポイントで交換申請 → 先生が承認するフロー。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">💌 メッセージ</div>
+          <div class="feature-detail">生徒への個別メッセージ送信。褒める/励ますタイプ分け。FCMプッシュ通知対応。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">👤 生徒管理</div>
+          <div class="feature-detail">生徒の追加・編集・削除。ニックネーム、PIN、学年、学校などのプロフィール管理。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">⚔️ ギルド</div>
+          <div class="feature-detail">チーム制。ギルド作成、メンバー管理、ギルド対抗ポイント集計。</div>
+          <span class="feature-status status-partial">UI枠のみ</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">👹 レイドボス</div>
+          <div class="feature-detail">全員で協力してボスを倒す共同イベント。学習量がダメージに変換。</div>
+          <span class="feature-status status-partial">UI枠のみ</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">🎯 ミッション</div>
+          <div class="feature-detail">デイリー/ウィークリー/スペシャルミッション。クリアでボーナスポイント。</div>
+          <span class="feature-status status-partial">UI枠のみ</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">⚡ イベント</div>
+          <div class="feature-detail">期間限定イベント（ポイント2倍、特別ミッションなど）の管理。</div>
+          <span class="feature-status status-partial">UI枠のみ</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">💰 ポイント経済</div>
+          <div class="feature-detail">ポイントの流通量分析。インフレ/デフレ指標、バランス調整ダッシュボード。</div>
+          <span class="feature-status status-partial">UI枠のみ</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">🎓 コーチング分析</div>
+          <div class="feature-detail">生徒ごとの学習傾向分析。最適な指導タイミング・方法の提案。</div>
+          <span class="feature-status status-partial">UI枠のみ</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">🔍 アノマリー検知</div>
+          <div class="feature-detail">異常パターン検出。急激なポイント変動や不正利用の検知。</div>
+          <span class="feature-status status-partial">UI枠のみ</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">⚠️ 離脱リスク</div>
+          <div class="feature-detail">通塾頻度低下や学習時間減少から離脱リスクを予測。早期対応アラート。</div>
+          <span class="feature-status status-partial">UI枠のみ</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">📝 テスト結果</div>
+          <div class="feature-detail">テスト結果の入力・管理。科目別スコア、推移グラフ。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">⚙️ 塾設定</div>
+          <div class="feature-detail">塾名、科目リスト、ポイント倍率、Zoom連携などの全体設定。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- パネル2: 生徒画面 (student.html)            -->
+  <!-- ========================================== -->
+  <div class="panel" id="panel1">
+    <div class="screen-title">🚀 HERO'S MISSION CONTROL - 生徒用アプリ</div>
+    <div class="screen-file">student.html (~1,600行 / 生徒がスマホで使用)</div>
+    <div class="screen-desc">
+      生徒が塾や自宅で使うPWA対応のモバイルアプリ。<br>
+      ニックネーム+PINでログインし、学習タイマーの開始、ポイント確認、バッジ獲得、ランキング閲覧などを行う。
+    </div>
+
+    <div class="section">
+      <div class="section-title">📱 画面構成 (14画面)</div>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-name">🔐 ログイン画面</div>
+          <div class="feature-detail">ニックネーム + 4桁PINで認証。localStorage で自動ログイン対応。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">🏠 ホーム画面</div>
+          <div class="feature-detail">プロフィールカード（レベル、ポイント、連続日数）、コンディション記録ボタン、今日のタスク一覧。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">😊 コンディション記録</div>
+          <div class="feature-detail">5段階の絵文字ムードと、やる気レベルを記録。毎日のメンタルチェック。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">✅ タスク一覧</div>
+          <div class="feature-detail">先生が設定したタスクの確認と完了報告。完了でポイント獲得。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">📚 学習モード選択</div>
+          <div class="feature-detail">科目選択 → 通常/ポモドーロ/自宅学習モード。場所（塾内/自宅/Zoom）の選択。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">⏱️ タイマー画面</div>
+          <div class="feature-detail">学習タイマー（カウントアップ/ポモドーロ）。学習中のリアルタイム表示。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">🎉 学習完了画面</div>
+          <div class="feature-detail">獲得ポイント表示、バッジ獲得通知、連続日数アップ演出。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">🏆 ランキング画面</div>
+          <div class="feature-detail">全体ランキングとギルドランキング。自分の順位ハイライト。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">🎁 景品画面</div>
+          <div class="feature-detail">交換可能な景品一覧。ポイントを使って景品申請。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">📅 履歴画面</div>
+          <div class="feature-detail">自分の学習セッション履歴。日付・科目・時間・獲得ポイント。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">🏅 バッジ画面</div>
+          <div class="feature-detail">獲得済み/未獲得バッジ一覧。19種類のバッジ定義。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">💬 メッセージ画面</div>
+          <div class="feature-detail">先生からのメッセージ閲覧。FCMプッシュ通知受信。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">⚔️ ギルド画面</div>
+          <div class="feature-detail">所属ギルドの情報、メンバーリスト、ギルドミッション。</div>
+          <span class="feature-status status-partial">UI枠のみ</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">👹 レイドボス画面</div>
+          <div class="feature-detail">レイドボスの現在HP、参加者の貢献度、攻撃アニメーション。</div>
+          <span class="feature-status status-partial">UI枠のみ</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🔽 ボトムナビゲーション (4つ)</div>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-name">🏠 ホーム</div>
+          <div class="feature-detail">ホーム画面へ遷移</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">📖 学習開始</div>
+          <div class="feature-detail">学習モード選択画面へ</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">🏆 ランキング</div>
+          <div class="feature-detail">ランキング画面へ</div>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">👤 プロフィール</div>
+          <div class="feature-detail">バッジ/履歴/景品/メッセージへのハブ</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- パネル3: ブリーフィング (briefing.html)      -->
+  <!-- ========================================== -->
+  <div class="panel" id="panel2">
+    <div class="screen-title">🖥️ MISSION CONTROL - ブリーフィング画面</div>
+    <div class="screen-file">briefing.html (~600行 / 塾内大型モニター用)</div>
+    <div class="screen-desc">
+      塾のモニターに常時表示するダッシュボード。宇宙船のコントロールルーム風のUI。<br>
+      リアルタイムで全生徒の状況を表示し、モチベーションを刺激する。
+    </div>
+
+    <div class="section">
+      <div class="section-title">📺 6パネル構成</div>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-name">🎯 CURRENT MISSION</div>
+          <div class="feature-detail">現在アクティブなミッション、デイリー/ウィークリーの進捗状況を全員分表示。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">🏆 MONTHLY RANKING</div>
+          <div class="feature-detail">月間ポイントランキング。トップ生徒をリアルタイム表示。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">📡 LIVE FEED</div>
+          <div class="feature-detail">学習開始/終了、バッジ獲得、ポイント獲得などのリアルタイムフィード。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">⚡ EVENT STATUS</div>
+          <div class="feature-detail">レイドボスのHP、現在のイベント状況をリアルタイム表示。</div>
+          <span class="feature-status status-partial">UI枠のみ</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">📊 TODAY'S STATS</div>
+          <div class="feature-detail">本日の総学習時間、出席人数、獲得ポイント合計などの統計。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">🕐 ヘッダー情報</div>
+          <div class="feature-detail">リアルタイム時計、接続中の生徒数（CREW COUNT）、ONLINEステータス表示。</div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="section-title">🎨 デザインコンセプト</div>
+      <div class="feature-card" style="border-color: #667eea;">
+        <div class="feature-detail" style="color: #e2e8f0;">
+          <strong>テーマ:</strong> 宇宙船コントロールルーム<br>
+          <strong>配色:</strong> ダークネイビー背景 (#0a0e27) + ネオンブルー/グリーン<br>
+          <strong>フォント:</strong> Orbitron (SF風) + Noto Sans JP<br>
+          <strong>レイアウト:</strong> 3x2グリッド (フルスクリーン、スクロールなし)<br>
+          <strong>アニメーション:</strong> ステータスバッジのpulse点滅、ネオンglow効果
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ========================================== -->
+  <!-- パネル4: 保護者ポータル (parent.html)        -->
+  <!-- ========================================== -->
+  <div class="panel" id="panel3">
+    <div class="screen-title">👨‍👩‍👧 保護者ポータル</div>
+    <div class="screen-file">parent.html (~610行 / 保護者がスマホで使用)</div>
+    <div class="screen-desc">
+      保護者がお子さんの学習状況を確認するためのポータル。<br>
+      ニックネーム + 保護者PIN (parentPin) でログインし、閲覧専用で利用。
+    </div>
+
+    <div class="section">
+      <div class="section-title">📱 4タブ構成</div>
+      <div class="feature-grid">
+        <div class="feature-card">
+          <div class="feature-name">📊 サマリー</div>
+          <div class="feature-detail">
+            ・直近30日の学習日数/総学習時間/ポモドーロ回数/連続日数<br>
+            ・14日間のヒートマップ（GitHub風の学習活動可視化）<br>
+            ・科目別学習時間のバー表示<br>
+            ・コンディション履歴（ムード・やる気の推移）
+          </div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">📝 テスト結果</div>
+          <div class="feature-detail">
+            テスト結果履歴。総合スコア、科目別スコアのタグ表示。<br>
+            スコアに応じた色分け（80%↑緑/60%↑黄/赤）。
+          </div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">🏅 バッジ</div>
+          <div class="feature-detail">
+            獲得済みバッジ一覧。19種類のバッジ定義。<br>
+            獲得日表示、未獲得はロック表示。
+          </div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+        <div class="feature-card">
+          <div class="feature-name">💬 メッセージ</div>
+          <div class="feature-detail">
+            先生からのメッセージ閲覧（閲覧専用）。<br>
+            タイプ別表示（褒める🏆/励ます💪/お知らせ📢）。
+          </div>
+          <span class="feature-status status-done">実装済み</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /container -->
+
+<script>
+function showPanel(idx) {
+  document.querySelectorAll('.panel').forEach((p, i) => p.classList.toggle('active', i === idx));
+  document.querySelectorAll('.tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+}
+</script>
+</body>
+</html>
