@@ -1,0 +1,517 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HERO'S ストーリーテリング Phase 1 — ソロの旅</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Hiragino Sans',-apple-system,BlinkMacSystemFont,sans-serif;background:#0f172a;color:#e2e8f0;line-height:1.8}
+.container{max-width:1100px;margin:0 auto;padding:20px}
+h1{text-align:center;font-size:24px;margin:20px 0 4px;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.subtitle{text-align:center;color:#94a3b8;font-size:12px;margin-bottom:24px}
+.tabs{display:flex;gap:2px;background:#1e293b;border-radius:12px 12px 0 0;padding:4px 4px 0;flex-wrap:wrap}
+.tab{flex:1;min-width:100px;padding:10px 4px;border:none;border-radius:8px 8px 0 0;background:transparent;color:#94a3b8;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit}
+.tab:hover{color:#e2e8f0}
+.tab.active{background:#1e293b;color:#667eea;border-bottom:3px solid #667eea}
+.panel{display:none;background:#1e293b;border-radius:0 0 12px 12px;padding:24px;min-height:400px}
+.panel.active{display:block}
+.st{font-size:15px;font-weight:700;margin:18px 0 10px;padding-bottom:6px;border-bottom:1px solid #334155}
+.card{background:#0f172a;border:1px solid #334155;border-radius:10px;padding:14px;margin-bottom:10px}
+.card:hover{border-color:#667eea}
+.card-title{font-size:13px;font-weight:700;margin-bottom:4px}
+.card-text{font-size:12px;color:#94a3b8;line-height:1.8}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:768px){.grid2{grid-template-columns:1fr}}
+.quote{background:#020617;border-left:4px solid #667eea;padding:16px 20px;margin:12px 0;font-size:13px;font-style:italic;color:#cbd5e1;line-height:2}
+.quote .attr{font-style:normal;font-size:11px;color:#64748b;margin-top:6px}
+.stage{background:#0f172a;border:1px solid #334155;border-radius:12px;padding:18px;margin-bottom:12px}
+.stage-num{display:inline-block;background:#667eea;color:#fff;width:28px;height:28px;border-radius:50%;text-align:center;line-height:28px;font-size:12px;font-weight:800;margin-right:8px}
+.stage-title{font-size:14px;font-weight:700;display:inline}
+.stage-body{margin-top:8px;font-size:12px;color:#94a3b8;line-height:1.9}
+.channel{background:#0f172a;border:1px solid #334155;border-radius:10px;padding:14px;margin-bottom:8px}
+.channel-name{font-size:12px;font-weight:700;color:#667eea;margin-bottom:4px}
+.channel-text{font-size:11px;color:#94a3b8;line-height:1.8}
+.principle{background:linear-gradient(135deg,#667eea11,#764ba211);border:1px solid #667eea;border-radius:10px;padding:14px;margin:12px 0;text-align:center}
+.principle .big{font-size:16px;font-weight:800;color:#667eea}
+.principle .sub{font-size:11px;color:#94a3b8;margin-top:4px}
+.parent-card{background:#0f172a;border-radius:12px;overflow:hidden;margin-bottom:12px}
+.parent-header{background:linear-gradient(135deg,#667eea,#764ba2);padding:14px 18px;color:#fff;font-weight:700;font-size:14px}
+.parent-body{padding:16px 18px;font-size:12px;color:#94a3b8;line-height:2}
+.footer-bar{text-align:center;padding:14px;margin-top:20px;border-top:1px solid #334155;font-size:10px;color:#64748b}
+table.data{width:100%;border-collapse:collapse;font-size:11px;margin:10px 0}
+table.data th,table.data td{padding:6px 8px;border:1px solid #334155;text-align:left}
+table.data th{background:#334155;color:#e2e8f0;font-weight:700}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>ストーリーテリング Phase 1 — ソロの旅</h1>
+<p class="subtitle">ギルドなし・ソロ文化確立期のナラティブ設計 + 保護者説明資料</p>
+
+<div class="tabs">
+<button class="tab active" onclick="showP(0)">📖 Phase 1の物語</button>
+<button class="tab" onclick="showP(1)">🎯 7ステージ(ソロ版)</button>
+<button class="tab" onclick="showP(2)">📣 チャネル別テンプレ</button>
+<button class="tab" onclick="showP(3)">👨‍👩‍👧 保護者説明資料</button>
+<button class="tab" onclick="showP(4)">🗓️ 導入シナリオ</button>
+</div>
+
+<!-- ===== Tab 1: Phase 1の物語 ===== -->
+<div class="panel active" id="p0">
+<div class="st">📖 Phase 1 のナラティブ — 「ひとりの宇宙飛行士」</div>
+
+<div class="principle">
+<div class="big">Phase 1の核心メッセージ</div>
+<div class="sub">「ひとりでも冒険はできる。でも、宇宙には仲間がいる。」</div>
+</div>
+
+<div class="card">
+<div class="card-title">v4との違い — 三重螺旋から二重螺旋へ</div>
+<div class="card-text">
+フレームワークv4は<strong>生徒×保護者×ギルド</strong>の三重螺旋だった。<br>
+Phase 1ではギルドが存在しないので<strong>生徒×保護者</strong>の二重螺旋で運用する。<br><br>
+ただし「ギルドの気配」は最初から漂わせる。<br>
+モニターにギルドランキング枠が空白で表示される。<br>
+ストーリーの中で「仲間がいれば…」というフレーズが登場する。<br>
+<strong>ソロの完結感 + ギルドへの予感</strong> — これがPhase 1の物語のバランス。
+</div>
+</div>
+
+<div class="st">物語の世界観（Phase 1用に調整）</div>
+
+<div class="quote">
+「宇宙船ヒーローズ号は、乗組員を募集している。<br>
+まずは適性テスト——ひとりで宇宙を歩けるか。<br>
+ポモドーロ酸素ボンベを背負い、コンボ推進装置を発見し、<br>
+未知のステーションへたどり着け。<br>
+宇宙は暗くて静かだ。でも、耳を澄ませば——<br>
+同じ星を目指す足音が聞こえるはずだ。」
+<div class="attr">— HERO'S延岡校 ミッションコントロール</div>
+</div>
+
+<div class="grid2">
+<div class="card">
+<div class="card-title">🧑‍🚀 生徒は「新人宇宙飛行士」</div>
+<div class="card-text">
+まだクルーには配属されていない。<br>
+ひとりで宇宙空間を歩く訓練期間。<br>
+ポモドーロ = 酸素ボンベ（25分の命綱）<br>
+コンディション記録 = 船外活動前のヘルスチェック<br>
+ランダムミッション = 宇宙管制からの指令<br>
+コンボ = 推進装置の隠し機能を発見<br>
+マップ = 宇宙空間の航海図を埋める旅<br>
+レイドボス = 行く手を阻む宇宙怪獣（全員の力で倒す）
+</div>
+</div>
+<div class="card">
+<div class="card-title">👨‍👩‍👧 保護者は「地上管制」</div>
+<div class="card-text">
+parent.htmlは「地上管制室」。<br>
+宇宙飛行士（子供）の生命維持データを見守る。<br>
+学習時間 = 船外活動時間<br>
+コンディション = バイタルサイン<br>
+ストリーク = ミッション日数<br>
+テスト結果 = 訓練評価<br><br>
+保護者は口出しせず「見守る」。<br>
+飛行士が自分で判断し、自分で歩くことが訓練の目的。
+</div>
+</div>
+</div>
+
+<div class="st">Phase 1 → Phase 2 への物語の橋渡し</div>
+
+<div class="card">
+<div class="card-text">
+Phase 1の8週間の中で、ストーリーに以下の「伏線」を仕込む:<br><br>
+<strong>Week 2:</strong> モニターに「CREW ASSIGNMENT: PENDING（クルー配属: 保留中）」と表示<br>
+<strong>Week 4:</strong> ストーリーテキストに「管制室から通信。同じ宙域に他の飛行士の信号を検知」<br>
+<strong>Week 6:</strong> レイドボスを全員で倒した時「見えない仲間と力を合わせた」というテキスト<br>
+<strong>Week 8:</strong> 「クルー編成プログラム起動——あなたのチームが決まります」<br><br>
+こうすることで、Phase 2のギルド導入が<strong>物語の自然な展開</strong>になる。<br>
+「突然チームに入れられた」ではなく「ずっと予感していたことが現実になった」。
+</div>
+</div>
+</div>
+
+<!-- ===== Tab 2: 7ステージ(ソロ版) ===== -->
+<div class="panel" id="p1">
+<div class="st">🎯 英雄の旅 7ステージ — Phase 1 ソロ版</div>
+
+<div class="principle">
+<div class="big">キャンベルの英雄の旅 × StoryBrand SB7 × ソロ文化</div>
+<div class="sub">v4の7ステージをPhase 1の8週間に対応づける</div>
+</div>
+
+<div class="stage">
+<span class="stage-num">1</span><div class="stage-title">日常世界 — 「勉強がつまらない毎日」</div>
+<div class="stage-body">
+<strong>タイミング:</strong> 入塾前 / 体験前<br>
+<strong>感情:</strong> 退屈、不安、「どうせ自分は」<br>
+<strong>キーメッセージ:</strong> 「勉強が嫌いなのは、冒険が見つかっていないだけだ」<br>
+<strong>Phase 1での表現:</strong> 体験入塾のチラシ、HP、SNS広告<br>
+<strong>保護者の旅:</strong> 「うちの子、勉強しない…」という不安
+</div>
+</div>
+
+<div class="stage">
+<span class="stage-num">2</span><div class="stage-title">冒険への呼びかけ — 「ミッションコントロールからの通信」</div>
+<div class="stage-body">
+<strong>タイミング:</strong> 体験入塾の申し込み〜来塾<br>
+<strong>感情:</strong> 好奇心と警戒心の混合<br>
+<strong>キーメッセージ:</strong> 「ミッションコントロールが、キミを見つけた」<br>
+<strong>Phase 1での表現:</strong> 2F 2号室（コーチングルーム）での体験。吉田さんが「ガイド」として登場。<br>
+<strong>保護者の旅:</strong> 「ここは普通の塾と何か違う」という直感
+</div>
+</div>
+
+<div class="stage">
+<span class="stage-num">3</span><div class="stage-title">ガイドとの出会い — 「装備を手に入れる」</div>
+<div class="stage-body">
+<strong>タイミング:</strong> 入塾初日〜Week 1<br>
+<strong>感情:</strong> ワクワク + ちょっとした緊張<br>
+<strong>キーメッセージ:</strong> 「これがキミのポータルだ。ポモドーロ酸素ボンベをセットしろ」<br>
+<strong>Phase 1での表現:</strong> student.htmlへの初ログイン。ニックネーム設定。初回ポモドーロ体験。<br>
+ルーキーブースト（×1.5）が起動。「新人飛行士の特別配給」として説明。<br>
+<strong>空間:</strong> 2F 1号室（ソロミッションルーム）が「個人訓練室」<br>
+<strong>保護者の旅:</strong> parent.htmlにログイン。「お子さんの地上管制室です」<br>
+<strong>ファミリー・パクト:</strong> 2F 2号室で署名。「冒険の出発宣言」
+</div>
+</div>
+
+<div class="stage">
+<span class="stage-num">4</span><div class="stage-title">試練の道 — 「宇宙空間を歩く」</div>
+<div class="stage-body">
+<strong>タイミング:</strong> Week 2〜Week 5<br>
+<strong>感情:</strong> 小さな成功体験の積み重ね → 時々の挫折<br>
+<strong>キーメッセージ:</strong> 「暗い宇宙でも、ポモドーロの光は消えない」<br>
+<strong>Phase 1での体験:</strong><br>
+・ランダムミッションで毎日違う課題に挑む<br>
+・コンボを発見して「こんな機能があったのか！」と驚く<br>
+・宇宙マップで次のステーションを目指す<br>
+・レイドボスの弱点を見て科目を選ぶ戦略を学ぶ<br>
+・ストリークが途切れる挫折 → フリーパスで救われる<br>
+<strong>空間:</strong> 3Fのモニターでリアルタイム進捗。2F 1号室で静かにソロ学習。<br>
+<strong>保護者の旅:</strong> parent.htmlでヒートマップが緑に染まるのを見て安心する
+</div>
+</div>
+
+<div class="stage">
+<span class="stage-num">5</span><div class="stage-title">変容 — 「自分で選ぶようになる」</div>
+<div class="stage-body">
+<strong>タイミング:</strong> Week 5〜Week 7<br>
+<strong>感情:</strong> 自信。「自分はできる」の実感。<br>
+<strong>キーメッセージ:</strong> 「キミはもう、指示を待つ新人じゃない」<br>
+<strong>Phase 1での体験:</strong><br>
+・ランダムミッションで高難度を自ら選ぶようになる<br>
+・コンボ図鑑を意識的に埋めようとする<br>
+・ボスの弱点を見て「今日は数学やる」と自分で決める<br>
+・「ポイントのため」ではなく「面白いから」やっている<br>
+<strong>SDTとの対応:</strong> 自律性（Autonomy）の芽生え。外発→内発への移行が始まる。<br>
+<strong>保護者の旅:</strong> 「あの子が自分から勉強の話をするようになった」
+</div>
+</div>
+
+<div class="stage">
+<span class="stage-num">6</span><div class="stage-title">帰還 — 「最初のチャプターを終える」</div>
+<div class="stage-body">
+<strong>タイミング:</strong> Week 7〜Week 8<br>
+<strong>感情:</strong> 達成感。仲間への気づき。<br>
+<strong>キーメッセージ:</strong> 「ひとりで宇宙を歩いた。でも、振り返れば——同じ星を目指していた仲間がいた」<br>
+<strong>Phase 1での体験:</strong><br>
+・Chapter 1のストーリーが結末を迎える（全員の力で）<br>
+・レイドボスを撃破（クラス全体のダメージ合計）<br>
+・モニターに結末テキストが表示される<br>
+・「ひとりでやったつもりだったけど、みんなの力だった」と気づく<br>
+<strong>保護者の旅:</strong> 月間レポートで8週間の成長を見る
+</div>
+</div>
+
+<div class="stage">
+<span class="stage-num">7</span><div class="stage-title">新たな冒険 — 「クルー編成の通知」</div>
+<div class="stage-body">
+<strong>タイミング:</strong> Week 8 → Phase 2への移行<br>
+<strong>感情:</strong> 期待と少しの不安。新しい挑戦への興奮。<br>
+<strong>キーメッセージ:</strong> 「適性テスト完了。クルー編成プログラムを起動する——仲間とともに、次の宇宙へ」<br>
+<strong>Phase 1 → Phase 2:</strong><br>
+・student.htmlに「ギルドに参加する / ソロを継続する」の選択画面<br>
+・モニターに「CREW ASSIGNMENT: ACTIVE」が点灯<br>
+・ステージ7は終わりではなく「次の旅の始まり」<br>
+<strong>保護者の旅:</strong> 「チーム活動が始まります」の案内。土曜ギルドデーの説明。
+</div>
+</div>
+</div>
+
+<!-- ===== Tab 3: チャネル別テンプレート ===== -->
+<div class="panel" id="p2">
+<div class="st">📣 チャネル別テンプレート — Phase 1で使う言葉</div>
+
+<div class="principle">
+<div class="big">核心メッセージ（全チャネル共通）</div>
+<div class="sub">「お子さんが自分から行きたいと言う塾」</div>
+</div>
+
+<div class="channel">
+<div class="channel-name">🌐 HP（hero-s延岡校 Webサイト）</div>
+<div class="channel-text">
+<strong>ファーストビュー:</strong><br>
+「勉強が嫌いなのは、冒険が見つかっていないだけだ。」<br><br>
+<strong>ミッションコントロール紹介セクション:</strong><br>
+「HERO'Sには「ミッションコントロール」があります。毎日変わるミッション、コンボの発見、宇宙マップの探索——勉強がゲームのように面白くなる仕組み。でもこれはただのゲームじゃない。科学的学習法（ポモドーロ・テクニック、メタ認知、自己説明法）をベースにした、本物の学習システムです。」<br><br>
+<strong>保護者向けセクション:</strong><br>
+「お子さんの学習量・習慣・コンディションが、スマホからリアルタイムで確認できます。ポイントやゲームの話は子どもと先生の間の話。保護者の皆さんに見えるのは、お子さんの成長の記録だけです。」
+</div>
+</div>
+
+<div class="channel">
+<div class="channel-name">📱 体験入塾（2F 2号室コーチングルーム）</div>
+<div class="channel-text">
+<strong>生徒への説明（5分）:</strong><br>
+「ここはHERO'Sのミッションコントロール。宇宙船の管制室みたいなもの。キミが宇宙飛行士で、これから宇宙を旅する。でも最初はひとり。ひとりで宇宙を歩ける力をつけてから、クルーに配属される。まずは体験してみよう——これがキミのポータルだ。」<br>
+→ student.htmlにログイン → 初回ポモドーロ体験<br><br>
+<strong>保護者への説明（10分）:</strong><br>
+「お子さんの学習習慣を『見える化』します。毎日の学習時間、科目バランス、コンディションがスマホで確認できます。ゲームの要素は子どもたちのモチベーション維持のためですが、裏側は認知科学に基づいた学習メソッドです。」<br>
+→ parent.htmlのデモ<br><br>
+<strong>NG例（言ってはいけないこと）:</strong><br>
+× 「ポイントが貯まると景品がもらえます」（外発的動機の強調）<br>
+× 「ランキングで1位を目指せます」（比較と競争の強調）<br>
+× 「ゲームで遊びながら」（軽く聞こえる）
+</div>
+</div>
+
+<div class="channel">
+<div class="channel-name">📄 チラシ・SNS（集客用）</div>
+<div class="channel-text">
+<strong>キャッチコピー案（Phase 1用）:</strong><br><br>
+A案:「勉強が嫌い？ それ、冒険が見つかってないだけ。」<br>
+B案:「お子さんが『今日も塾に行きたい』と言い出したら——」<br>
+C案:「23点だった子が、自分から机に向かうようになった理由。」<br>
+D案:「宇宙飛行士、募集中。——延岡から宇宙へ。」<br><br>
+<strong>本文テンプレ:</strong><br>
+「HERO'S延岡校は、科学的学習法とゲーミフィケーションを融合した新しいスタイルの学習塾です。毎日変わるミッション、発見するコンボ、宇宙マップの探索——お子さんが『やらされる勉強』から『自分で選ぶ冒険』に変わります。」<br><br>
+<strong>SNS用短文:</strong><br>
+「今日のミッション: ポモドーロ3回完走🍅 → コンボ発見！🃏 → ボスに120ダメージ⚔️ → 火星到着🔴 こんな塾、見たことある？ #HEROS延岡 #ゲーミフィケーション教育」
+</div>
+</div>
+
+<div class="channel">
+<div class="channel-name">🎮 アプリ内テキスト（student.html）</div>
+<div class="channel-text">
+<strong>ログイン画面:</strong> 「おかえり、宇宙飛行士。今日のミッションが届いているぞ。」<br>
+<strong>ポモドーロ開始:</strong> 「酸素ボンベ装着完了。25分間の船外活動を開始する。」<br>
+<strong>ポモドーロ完了:</strong> 「船外活動完了。無事帰還。データを管制室に送信中...」<br>
+<strong>コンボ初発見:</strong> 「 推進装置に隠し機能を発見！ コンボ図鑑に登録しました。」<br>
+<strong>新ステーション到着:</strong> 「🔴 火星コロニーに到着！ ようこそ、赤い星の開拓者。」<br>
+<strong>ボスダメージ:</strong> 「⚔️ 計算キング・ドラゴンに 72ダメージ！ 弱点ヒット！」<br>
+<strong>ストリーク途切れ:</strong> 「通信途絶を検知。でも大丈夫、フリーパスが使えるぞ。」
+</div>
+</div>
+
+<div class="channel">
+<div class="channel-name">🖥️ 教室モニター（monitor.html）</div>
+<div class="channel-text">
+<strong>ヘッダー:</strong> 「HERO'S MISSION CONTROL — ONLINE」(既存のまま)<br>
+<strong>ストーリーパネル:</strong> 週次テキストを表示（前タブの7ステージに連動）<br>
+<strong>ボスパネル:</strong> 「⚔️ TARGET: 計算キング・ドラゴン — 弱点: 📐数学 — HP: 72%」<br>
+<strong>新ステーション到達時:</strong> 「🚀 タロー が 🔴火星コロニー に到着！」(LIVE FEED)<br>
+<strong>コンボ発見時:</strong> 「🃏 ハナ が新コンボ「マルチタレント」を発見！」(LIVE FEED)
+</div>
+</div>
+</div>
+
+<!-- ===== Tab 4: 保護者説明資料 ===== -->
+<div class="panel" id="p3">
+<div class="st">👨‍👩‍👧 保護者向け説明資料</div>
+
+<div class="principle">
+<div class="big">保護者に伝えるのは「ゲーム」ではなく「学習の見える化」</div>
+<div class="sub">ポイント・コンボ・レイドボスの話は不要。「お子さんの成長が見えます」で十分。</div>
+</div>
+
+<div class="parent-card">
+<div class="parent-header">📊 HERO'Sの学習管理システムについて</div>
+<div class="parent-body">
+HERO'S延岡校では、お子さんの学習状況をリアルタイムで「見える化」する独自のシステムを導入しています。<br><br>
+
+<strong>■ 保護者ポータルで確認できること</strong><br>
+・過去30日間の学習日数と総学習時間<br>
+・科目ごとの学習時間バランス<br>
+・お子さんのコンディション（気分・やる気）の推移<br>
+・テスト結果の履歴と科目別スコア<br>
+・先生からのメッセージ<br><br>
+
+<strong>■ 科学的根拠に基づいた学習法</strong><br>
+・<strong>ポモドーロ・テクニック:</strong> 25分集中→5分休憩のサイクルで、集中力を最大化します（イタリアの研究者フランチェスコ・シリロ考案）<br>
+・<strong>メタ認知学習:</strong> お子さんが自分の学習状態を振り返る「コンディション記録」を毎回行います<br>
+・<strong>自己決定理論(SDT):</strong> 「やらされる勉強」ではなく「自分で選ぶ学習」を重視します<br><br>
+
+<strong>■ ポイントシステムについて</strong><br>
+お子さんが学習するとポイントが貯まり、教室内の小さなご褒美と交換できます。これは学習習慣の形成を助けるための仕組みで、ご家庭での出費は一切ありません。<br><br>
+
+<strong>■ アクセス方法</strong><br>
+スマートフォンのブラウザで以下のURLにアクセスしてください。<br>
+<strong>URL:</strong> hero-s-points.web.app/parent.html<br>
+<strong>ニックネーム:</strong> お子さんのニックネーム（入塾時にお伝えします）<br>
+<strong>PIN:</strong> 保護者専用PINコード（4桁）<br><br>
+
+ご不明な点があれば、お気軽にお問い合わせください。
+</div>
+</div>
+
+<div class="st">📋 保護者向けQ&A</div>
+
+<div class="card">
+<div class="card-title">Q. ゲームばかりして勉強にならないのでは？</div>
+<div class="card-text">
+A. ゲーム要素は「学習のモチベーション維持」のための仕組みです。ポイントが貯まるのは実際に勉強した時だけ。ゲームをしているのではなく、勉強の記録をゲーム風に表示しているだけです。中身は科学的学習法（ポモドーロ・テクニック、メタ認知）そのものです。
+</div>
+</div>
+
+<div class="card">
+<div class="card-title">Q. ポイントで何が買えますか？お金がかかりますか？</div>
+<div class="card-text">
+A. 教室内で文房具やドリンクなどの小さなご褒美と交換できます。ご家庭への費用負担は一切ありません。ポイントは教室の中だけで使えるものです。
+</div>
+</div>
+
+<div class="card">
+<div class="card-title">Q. 他の子と比較されて傷つかないですか？</div>
+<div class="card-text">
+A. 個人のテスト点数や能力値は一切公開されません。見えるのは「学習した時間」や「連続出席日数」などの行動量だけです。「頭がいい/悪い」の比較ではなく、「今日がんばったかどうか」だけが評価される設計です。
+</div>
+</div>
+
+<div class="card">
+<div class="card-title">Q. 保護者ポータルで何を見ればいいですか？</div>
+<div class="card-text">
+A. 「サマリー」タブだけ見ていただければ十分です。学習日数、学習時間、科目バランスが一目でわかります。週に1回チェックするだけでも、お子さんの学習習慣の変化がわかります。
+</div>
+</div>
+
+<div class="card">
+<div class="card-title">Q. チーム活動はいつから始まりますか？</div>
+<div class="card-text">
+A. まずは個人で学習システムに慣れていただく期間を設けています。お子さんが十分に慣れた段階で、チーム活動のご案内をします。チームへの参加は強制ではなく、お子さんご本人の意思で選べます。
+</div>
+</div>
+</div>
+
+<!-- ===== Tab 5: 導入シナリオ ===== -->
+<div class="panel" id="p4">
+<div class="st">🗓️ Phase 1 導入シナリオ — 最初の1週間の台本</div>
+
+<div class="principle">
+<div class="big">「初日の30分」が全てを決める</div>
+<div class="sub">生徒が「面白い」と思うか「めんどくさい」と思うかは、最初の体験で決まる</div>
+</div>
+
+<div class="st">Day 1 — 既存生徒への導入（授業中に15分）</div>
+
+<div class="card">
+<div class="card-title">ステップ1: 予告（3分）</div>
+<div class="card-text">
+吉田さん:「今日からHERO'Sに新しいシステムが入る。宇宙飛行士になれるやつだ。」<br>
+（モニターに monitor.html を映す）<br>
+「これがミッションコントロール。今日からここがキミたちの管制室だ。」<br>
+「まず、自分のポータルを開いてみて。」
+</div>
+</div>
+
+<div class="card">
+<div class="card-title">ステップ2: ログイン（5分）</div>
+<div class="card-text">
+吉田さん:「スマホでこのURLを開いて。（URLをホワイトボードに書く or QRコード）」<br>
+「ニックネームは○○、PINは4桁の番号。今から個別に教える。」<br>
+（巡回して全員ログインを確認。困っている子を優先サポート）<br>
+「ログインできた人は、画面を見てみて。これがキミのステータスだ。」
+</div>
+</div>
+
+<div class="card">
+<div class="card-title">ステップ3: 初回ポモドーロ体験（7分）</div>
+<div class="card-text">
+吉田さん:「じゃあ今から全員で1回だけ試してみよう。『学習』ボタンを押して、好きな科目を選んで。」<br>
+「ポモドーロっていうのは、25分間だけ集中する方法。宇宙飛行士の酸素ボンベみたいなもの。25分経ったら休憩。」<br>
+「今日は7分だけやってみよう。（通常タイマーで7分）」<br>
+（7分後にタイマーを止めさせる）<br>
+「はい、終了。完了画面を見て。ポイントが入ったでしょ？ これがキミの最初の報酬だ。」<br>
+「明日から本格的にスタートする。ログインしたらミッションが届くぞ。」
+</div>
+</div>
+
+<div class="st">Day 2 以降 — 日常ルーティンの確立</div>
+
+<div class="card">
+<div class="card-title">生徒が来塾した時のフロー</div>
+<div class="card-text">
+①「おかえり。ポータル開いた？」（声掛け）<br>
+② 生徒が student.html にログイン<br>
+③「今日のコンディション、記録してね」（最初の2週間は毎回声掛け）<br>
+④ 生徒が学習開始（ポモドーロ or 通常タイマー）<br>
+⑤ 学習完了 → 完了画面でポイント確認<br>
+⑥ モニターのLIVE FEEDに「タローが学習完了！」と流れる<br><br>
+<strong>声掛けの原則:</strong><br>
+○「今日のミッション何だった？」（ゲームの話題で入る）<br>
+○「おっ、コンボ見つけたの？どのコンボ？」（発見を一緒に喜ぶ）<br>
+○「ボスにダメージ入った？何ダメージ？」（戦略の話をする）<br>
+×「ちゃんとポモドーロやった？」（監視っぽい）<br>
+×「ポイント貯めなきゃ」（外発的動機の強化）
+</div>
+</div>
+
+<div class="st">新規入塾者への導入（Phase 1 途中参加）</div>
+
+<div class="card">
+<div class="card-text">
+Phase 1の途中で新しく入る生徒にも同じ体験を提供する。<br><br>
+<strong>場所:</strong> 2F 2号室（コーチングルーム）<br>
+<strong>手順:</strong><br>
+① 体験入塾で来塾（保護者同伴）<br>
+② 吉田さんが1on1で説明（上記Day 1のステップ1-3を個別に実施）<br>
+③ 保護者にparent.htmlのデモ + 保護者説明資料を渡す<br>
+④ ファミリー・パクト署名<br>
+⑤ 入塾決定後、PIN設定 → student.htmlにログイン<br>
+⑥ ルーキーブースト(×1.5)が7日間自動発動<br><br>
+<strong>既存生徒との合流:</strong><br>
+途中参加でも不利にならない設計。<br>
+・宇宙マップは自分のペースで進む（他の子との差は「距離」であって「勝敗」ではない）<br>
+・ランダムミッションは個人別なので同じスタートライン<br>
+・コンボは自分の図鑑なので0から発見を楽しめる<br>
+・レイドボスは全員で倒すので、1人増えるとクラス全体が嬉しい
+</div>
+</div>
+
+<div class="st">Week 1 のチェックリスト</div>
+
+<div class="card">
+<div class="card-text">
+☐ モニターPCに monitor.html を常時表示<br>
+☐ 全生徒のPINをindex.htmlで設定済み<br>
+☐ 全生徒が student.html にログイン成功<br>
+☐ 全生徒がポモドーロ or タイマーを1回以上体験<br>
+☐ コンディション記録の声掛けを全員に実施<br>
+☐ 最初の月次ミッションを設定<br>
+☐ 最初のレイドボスを作成（弱点/耐性を設定）<br>
+☐ 景品を3〜5個登録<br>
+☐ 保護者PINの配布準備（LINE or プリント）<br>
+☐ 2F 1号室にソロミッションルームの掲示
+</div>
+</div>
+</div>
+
+</div><!-- /container -->
+
+<div class="footer-bar">
+HERO'S延岡校 ストーリーテリング Phase 1<br>
+Based on: Framework v4 × Game Design v2.0 × 統合設計書<br>
+ソロ文化確立期のナラティブ + 保護者コミュニケーション設計
+</div>
+
+<script>
+function showP(i){
+document.querySelectorAll('.panel').forEach((p,j)=>p.classList.toggle('active',j===i));
+document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+}
+</script>
+</body>
+</html>
