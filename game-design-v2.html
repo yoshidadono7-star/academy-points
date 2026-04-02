@@ -1,0 +1,654 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HERO'S Points - Game Design v2.0</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Hiragino Sans',-apple-system,BlinkMacSystemFont,sans-serif;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.container{max-width:1200px;margin:0 auto;padding:20px}
+h1{text-align:center;font-size:26px;margin:30px 0 6px;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.subtitle{text-align:center;color:#94a3b8;font-size:13px;margin-bottom:30px}
+.tabs{display:flex;gap:3px;background:#1e293b;border-radius:12px 12px 0 0;padding:6px 6px 0;flex-wrap:wrap}
+.tab{flex:1;min-width:120px;padding:12px 6px;border:none;border-radius:10px 10px 0 0;background:transparent;color:#94a3b8;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s}
+.tab:hover{color:#e2e8f0}
+.tab.active{background:#1e293b;color:#667eea;border-bottom:3px solid #667eea}
+.panel{display:none;background:#1e293b;border-radius:0 0 12px 12px;padding:28px;min-height:500px}
+.panel.active{display:block}
+.section{margin-bottom:28px}
+.section-title{font-size:16px;font-weight:700;margin-bottom:12px;padding-bottom:8px;border-bottom:1px solid #334155;display:flex;align-items:center;gap:8px}
+.card{background:#0f172a;border:1px solid #334155;border-radius:10px;padding:16px;margin-bottom:12px;transition:border-color .2s}
+.card:hover{border-color:#667eea}
+.card-title{font-size:14px;font-weight:700;margin-bottom:6px}
+.card-text{font-size:12px;color:#94a3b8;line-height:1.7}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+@media(max-width:768px){.grid2,.grid3,.grid4{grid-template-columns:1fr}}
+.badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-top:6px}
+.b-common{background:#334155;color:#94a3b8}
+.b-uncommon{background:#064e3b;color:#34d399}
+.b-rare{background:#1e3a5f;color:#60a5fa}
+.b-epic{background:#3b0764;color:#c084fc}
+.b-legendary{background:#78350f;color:#fbbf24}
+.loop-diagram{position:relative;display:flex;flex-direction:column;gap:0;align-items:center;margin:20px 0}
+.loop-ring{border:2px solid;border-radius:16px;padding:20px;width:100%;text-align:center;position:relative}
+.loop-ring .ring-label{font-size:11px;font-weight:700;letter-spacing:2px;margin-bottom:6px}
+.loop-ring .ring-desc{font-size:13px;color:#e2e8f0}
+.ring-monthly{border-color:#fbbf24;background:rgba(251,191,36,.05)}
+.ring-weekly{border-color:#f472b6;background:rgba(244,114,182,.05);margin:12px 24px}
+.ring-daily{border-color:#60a5fa;background:rgba(96,165,250,.05);margin:12px 24px}
+.ring-session{border-color:#34d399;background:rgba(52,211,153,.05);margin:12px 24px}
+.ring-monthly .ring-label{color:#fbbf24}
+.ring-weekly .ring-label{color:#f472b6}
+.ring-daily .ring-label{color:#60a5fa}
+.ring-session .ring-label{color:#34d399}
+.arrow-down{text-align:center;font-size:20px;color:#475569;margin:4px 0}
+.map-path{display:flex;flex-wrap:wrap;gap:8px;justify-content:center;margin:16px 0}
+.map-node{width:100px;text-align:center;padding:10px 6px;border-radius:10px;border:2px solid #334155;background:#0f172a;font-size:11px;transition:all .2s}
+.map-node:hover{border-color:#667eea;transform:scale(1.05)}
+.map-node .node-emoji{font-size:24px;display:block;margin-bottom:4px}
+.map-node .node-name{font-weight:700;font-size:11px}
+.map-node .node-pts{font-size:10px;color:#667eea}
+.map-node.current{border-color:#34d399;box-shadow:0 0 15px rgba(52,211,153,.3)}
+.map-node.locked{opacity:.4;border-style:dashed}
+.map-node.hidden{border-color:#fbbf24;border-style:dotted;background:#1a1500}
+.boss-card{background:linear-gradient(135deg,#1a0a2e,#0f172a);border:2px solid #8b5cf6;border-radius:14px;padding:20px;max-width:500px;margin:0 auto}
+.boss-hp-bar{background:#1e293b;border-radius:6px;height:16px;margin:10px 0;overflow:hidden}
+.boss-hp-fill{height:100%;background:linear-gradient(90deg,#ef4444,#f59e0b);border-radius:6px;transition:width .5s}
+.combo-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:10px}
+.combo-card{background:#0f172a;border:1px solid #334155;border-radius:10px;padding:14px;text-align:center}
+.combo-card.hidden-combo{background:repeating-linear-gradient(45deg,#0f172a,#0f172a 10px,#131b2e 10px,#131b2e 20px);border-style:dashed}
+.combo-card .combo-icon{font-size:28px;margin-bottom:6px}
+.combo-card .combo-name{font-size:13px;font-weight:700}
+.combo-card .combo-cond{font-size:11px;color:#94a3b8;margin:4px 0}
+.combo-card .combo-reward{font-size:12px;color:#34d399;font-weight:700}
+.story-timeline{position:relative;padding-left:30px;margin:20px 0}
+.story-timeline::before{content:'';position:absolute;left:12px;top:0;bottom:0;width:2px;background:#334155}
+.story-node{position:relative;margin-bottom:20px;padding-left:20px}
+.story-node::before{content:'';position:absolute;left:-22px;top:6px;width:12px;height:12px;border-radius:50%;background:#667eea;border:2px solid #1e293b}
+.story-node.route-a::before{background:#34d399}
+.story-node.route-b::before{background:#fbbf24}
+.story-node.route-c::before{background:#94a3b8}
+.story-branch{display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin:16px 0}
+.branch-card{border-radius:10px;padding:14px;text-align:center;font-size:12px}
+.branch-a{background:rgba(52,211,153,.1);border:1px solid #34d399}
+.branch-b{background:rgba(251,191,36,.1);border:1px solid #fbbf24}
+.branch-c{background:rgba(148,163,184,.1);border:1px solid #94a3b8}
+.footer-bar{text-align:center;padding:20px;margin-top:30px;border-top:1px solid #334155;font-size:11px;color:#64748b}
+.highlight{color:#667eea;font-weight:700}
+.vs-table{width:100%;border-collapse:collapse;font-size:13px;margin:12px 0}
+.vs-table th,.vs-table td{padding:10px 14px;border:1px solid #334155;text-align:left}
+.vs-table th{background:#334155;color:#e2e8f0;font-weight:700}
+.vs-table .old{color:#f87171}
+.vs-table .new{color:#34d399}
+.principle-box{background:linear-gradient(135deg,#667eea11,#764ba211);border:1px solid #667eea;border-radius:10px;padding:16px;margin:16px 0;text-align:center}
+.principle-box .big{font-size:18px;font-weight:800;color:#667eea}
+.principle-box .sub{font-size:12px;color:#94a3b8;margin-top:4px}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>HERO'S Points — Game Design v2.0</h1>
+<p class="subtitle">5要素統合ゲームデザイン ／ ポイントカードからゲームへ</p>
+
+<div class="tabs">
+<button class="tab active" onclick="showP(0)">🎮 ゲームループ</button>
+<button class="tab" onclick="showP(1)">🎲 ランダムミッション</button>
+<button class="tab" onclick="showP(2)">🗺️ 宇宙マップ</button>
+<button class="tab" onclick="showP(3)">⚔️ 戦略レイドボス</button>
+<button class="tab" onclick="showP(4)">🃏 コンボシステム</button>
+<button class="tab" onclick="showP(5)">📖 分岐ストーリー</button>
+</div>
+
+<!-- ===== Tab 1: ゲームループ全体像 ===== -->
+<div class="panel active" id="p0">
+<div class="section-title">🎮 ゲームループ全体像 — 5要素の統合</div>
+
+<div class="principle-box">
+<div class="big">「プレイヤーに選ばせろ」</div>
+<div class="sub">Game Design Golden Rule: Every loop must contain a meaningful CHOICE</div>
+</div>
+
+<div class="section">
+<div class="section-title">v1 vs v2 — 何が変わるか</div>
+<table class="vs-table">
+<tr><th>項目</th><th class="old">v1（現状）</th><th class="new">v2（新設計）</th></tr>
+<tr><td>ポイント獲得</td><td class="old">勉強→自動で1pt/分</td><td class="new">コンボ発見で倍率変動。選択で報酬が変わる</td></tr>
+<tr><td>日々の体験</td><td class="old">毎日同じ。予測可能</td><td class="new">ランダムミッション3択。毎日違う</td></tr>
+<tr><td>レベル表示</td><td class="old">Lv.1〜10の数字</td><td class="new">宇宙マップの旅。隠しエリア発見</td></tr>
+<tr><td>レイドボス</td><td class="old">学習量が自動でダメージ</td><td class="new">弱点属性あり。科目選択が戦略に</td></tr>
+<tr><td>長期目標</td><td class="old">ポイントを貯めて景品交換</td><td class="new">月ごとのストーリーが分岐。全員で物語を動かす</td></tr>
+<tr><td>プレイヤーの選択</td><td class="old">なし（受動的）</td><td class="new">毎セッション複数の判断ポイント</td></tr>
+</table>
+</div>
+
+<div class="section">
+<div class="section-title">🔄 4層ゲームループ構造</div>
+<div class="loop-diagram">
+
+<div class="loop-ring ring-monthly">
+<div class="ring-label">📖 MONTHLY LOOP（月次）</div>
+<div class="ring-desc">ストーリーの章が進行 → 全員の行動で結末が分岐<br>マップの新ステーションが解放される</div>
+
+<div class="arrow-down">▼</div>
+
+<div class="loop-ring ring-weekly">
+<div class="ring-label">⚔️ WEEKLY LOOP（週次）</div>
+<div class="ring-desc">レイドボスの弱点属性を見て「今週は何を重点的にやるか」を考える<br>ボスの特殊能力に対応した戦略を立てる</div>
+
+<div class="arrow-down">▼</div>
+
+<div class="loop-ring ring-daily">
+<div class="ring-label">🎲 DAILY LOOP（日次）</div>
+<div class="ring-desc">ログイン → ランダムミッション3択から1つ選ぶ → コンディション記録<br>「今日は何をやるか」を自分で決める</div>
+
+<div class="arrow-down">▼</div>
+
+<div class="loop-ring ring-session">
+<div class="ring-label">🃏 SESSION LOOP（セッション）</div>
+<div class="ring-desc">学習開始 → コンボ条件を意識して行動 → 隠しコンボ発見！<br>ポモドーロ完走 → ボスにダメージ → ミッション進捗更新</div>
+</div>
+
+</div></div></div>
+</div>
+</div>
+
+<div class="section">
+<div class="section-title">🎯 各ループの「選択ポイント」</div>
+<div class="grid2">
+<div class="card">
+<div class="card-title">🃏 セッション内の選択</div>
+<div class="card-text">
+・どの科目を勉強するか（ボスの弱点を狙う？苦手を克服？）<br>
+・ポモドーロで行くか通常タイマーか<br>
+・コンボ条件を意識した科目の組み合わせ
+</div>
+</div>
+<div class="card">
+<div class="card-title">🎲 日次の選択</div>
+<div class="card-text">
+・3つのランダムミッションからどれを受けるか<br>
+・レアミッション（高難易度・高報酬）に挑戦するか安全策か<br>
+・今日のコンディションに合わせた学習量の調整
+</div>
+</div>
+<div class="card">
+<div class="card-title">⚔️ 週次の選択</div>
+<div class="card-text">
+・ボスの弱点科目に集中するか、バランスよくやるか<br>
+・Phase 2以降：チーム内で役割分担（アタッカー/サポーター）<br>
+・ストリーク維持のペース配分
+</div>
+</div>
+<div class="card">
+<div class="card-title">📖 月次の選択</div>
+<div class="card-text">
+・ストーリーのどのルートを目指すか（クラス全体の方向性）<br>
+・マップの隠しエリアを探索するか、メインルートを進むか<br>
+・バッジコレクションの優先順位
+</div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<div class="section-title">🏗️ Phase 1（ソロ文化）での実装範囲</div>
+<div class="card" style="border-color:#34d399;">
+<div class="card-title" style="color:#34d399;">Phase 1で導入するもの</div>
+<div class="card-text">
+✅ ランダムミッション（ソロ用ミッションプールから3択）<br>
+✅ 宇宙マップ（レベルの可視化。隠しエリアの発見）<br>
+✅ 戦略レイドボス（ソロでも弱点を狙える。役割分担はPhase 2）<br>
+✅ コンボシステム（発見型。ソロで全コンボ達成可能）<br>
+✅ 分岐ストーリー（個人の貢献がクラス全体の進行に加算される）
+</div>
+</div>
+<div class="card" style="border-color:#fbbf24;">
+<div class="card-title" style="color:#fbbf24;">Phase 2で追加するもの</div>
+<div class="card-text">
+⏳ ギルドミッション（チーム専用ランダムミッション）<br>
+⏳ レイドボスの役割分担（アタッカー/ヒーラー/サポーター）<br>
+⏳ ギルド対抗ストーリールート投票<br>
+⏳ チームコンボ（2人以上の連携で発動するコンボ）
+</div>
+</div>
+</div>
+</div>
+
+<!-- ===== Tab 2: ランダムミッション ===== -->
+<div class="panel" id="p1">
+<div class="section-title">🎲 ランダムミッション — 毎日が違う冒険</div>
+
+<div class="principle-box">
+<div class="big">「今日は何が来るかな？」</div>
+<div class="sub">ログインするたびにランダムで3つ提示。1つ選んで挑戦。毎日が新鮮。</div>
+</div>
+
+<div class="section">
+<div class="section-title">📐 仕組み</div>
+<div class="grid2">
+<div class="card">
+<div class="card-title">🎰 抽選ルール</div>
+<div class="card-text">
+・ミッションプール（約30種）からランダムに3つ抽選<br>
+・レアリティ出現率：Common 50% / Uncommon 30% / Rare 15% / Epic 4% / Legendary 1%<br>
+・1日1回（初回ログイン時に確定）<br>
+・3つの中から<strong>1つだけ</strong>選んで挑戦<br>
+・達成すればボーナスポイント。未達成でもペナルティなし
+</div>
+</div>
+<div class="card">
+<div class="card-title">🔮 隠しミッション</div>
+<div class="card-text">
+・一部のミッションは条件が「???」と表示<br>
+・達成条件は隠されているが、達成すると正体が判明<br>
+・「偶然やったら達成できた！」という発見の喜び<br>
+・隠しミッションの発見率はコンボ図鑑に記録される
+</div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<div class="section-title">🃏 ミッションカード一覧</div>
+
+<p style="font-size:13px;color:#94a3b8;margin-bottom:12px;">レアリティが高いほど難しいが報酬も大きい。Legendaryは月に1〜2回しか出現しない。</p>
+
+<div style="margin-bottom:8px;font-size:14px;font-weight:700;">⬜ Common（白）— 基本ミッション</div>
+<div class="grid3">
+<div class="card"><div class="card-title">🍅 ポモドーロ2回</div><div class="card-text">ポモドーロを2回完走する</div><span class="badge b-common">+15pt</span></div>
+<div class="card"><div class="card-title">⏱️ 30分学習</div><div class="card-text">合計30分以上学習する</div><span class="badge b-common">+10pt</span></div>
+<div class="card"><div class="card-title">😊 コンディション記録</div><div class="card-text">今日のコンディションを記録する</div><span class="badge b-common">+5pt</span></div>
+<div class="card"><div class="card-title">✅ タスク1つ完了</div><div class="card-text">先生が設定したタスクを1つ完了</div><span class="badge b-common">+10pt</span></div>
+<div class="card"><div class="card-title">📖 予習チャレンジ</div><div class="card-text">翌日の授業科目を予習する</div><span class="badge b-common">+10pt</span></div>
+<div class="card"><div class="card-title">📝 振り返りノート</div><div class="card-text">今日の学習を振り返って記録</div><span class="badge b-common">+10pt</span></div>
+</div>
+
+<div style="margin:16px 0 8px;font-size:14px;font-weight:700;">🟢 Uncommon（緑）— チャレンジ</div>
+<div class="grid3">
+<div class="card"><div class="card-title">💪 苦手科目20分</div><div class="card-text">苦手科目を20分以上学習</div><span class="badge b-uncommon">+25pt</span></div>
+<div class="card"><div class="card-title">🍅 ポモドーロ3連続</div><div class="card-text">ポモドーロを3回連続で完走</div><span class="badge b-uncommon">+30pt</span></div>
+<div class="card"><div class="card-title">📚 2教科学習</div><div class="card-text">2つ以上の教科を学習する</div><span class="badge b-uncommon">+20pt</span></div>
+<div class="card"><div class="card-title">⏱️ 60分マラソン</div><div class="card-text">60分以上連続で学習する</div><span class="badge b-uncommon">+30pt</span></div>
+<div class="card"><div class="card-title">🏠 自宅学習</div><div class="card-text">自宅から学習セッションを完了</div><span class="badge b-uncommon">+20pt</span></div>
+</div>
+
+<div style="margin:16px 0 8px;font-size:14px;font-weight:700;">🔵 Rare（青）— 高難度</div>
+<div class="grid3">
+<div class="card"><div class="card-title">🌟 3教科チャレンジ</div><div class="card-text">1日に3つ以上の教科を学習</div><span class="badge b-rare">+50pt</span></div>
+<div class="card"><div class="card-title">🌅 早朝ミッション</div><div class="card-text">午前中（12時前）に学習開始</div><span class="badge b-rare">+40pt</span></div>
+<div class="card"><div class="card-title">🍅 ポモドーロ5回</div><div class="card-text">1日にポモドーロを5回完走</div><span class="badge b-rare">+60pt</span></div>
+<div class="card"><div class="card-title">🎯 ボス弱点攻撃</div><div class="card-text">レイドボスの弱点科目を45分以上</div><span class="badge b-rare">+55pt</span></div>
+</div>
+
+<div style="margin:16px 0 8px;font-size:14px;font-weight:700;">🟣 Epic（紫）— 超高難度</div>
+<div class="grid3">
+<div class="card"><div class="card-title">🔥 5日連続クリア</div><div class="card-text">ミッションを5日連続で達成</div><span class="badge b-epic">+100pt</span></div>
+<div class="card"><div class="card-title">💎 パーフェクトデイ</div><div class="card-text">コンディション+学習+タスク全完了</div><span class="badge b-epic">+80pt</span></div>
+<div class="card"><div class="card-title">🍅 ポモドーロ王</div><div class="card-text">1日にポモドーロを7回以上完走</div><span class="badge b-epic">+120pt</span></div>
+</div>
+
+<div style="margin:16px 0 8px;font-size:14px;font-weight:700;">🟡 Legendary（金）— 伝説級（月1〜2回出現）</div>
+<div class="grid3">
+<div class="card" style="border-color:#fbbf24;"><div class="card-title" style="color:#fbbf24;">👑 ウィークリーキング</div><div class="card-text">7日中6日以上出席して学習</div><span class="badge b-legendary">+200pt + 専用バッジ</span></div>
+<div class="card" style="border-color:#fbbf24;"><div class="card-title" style="color:#fbbf24;">🌌 ???</div><div class="card-text">条件: ???（隠しミッション）</div><span class="badge b-legendary">+150pt + ???</span></div>
+<div class="card" style="border-color:#fbbf24;"><div class="card-title" style="color:#fbbf24;">⭐ ???</div><div class="card-text">条件: ???（隠しミッション）</div><span class="badge b-legendary">+200pt + 隠しエリア解放</span></div>
+</div>
+</div>
+</div>
+
+<!-- ===== Tab 3: 宇宙マップ ===== -->
+<div class="panel" id="p2">
+<div class="section-title">🗺️ 宇宙マップ — レベルが「旅」になる</div>
+
+<div class="principle-box">
+<div class="big">数字が増えるだけ → 世界が広がる</div>
+<div class="sub">Lv.1-10の無機質な数値を、発見と探索の旅に変える</div>
+</div>
+
+<div class="section">
+<div class="section-title">🚀 メインルート — 10のステーション</div>
+<div class="map-path">
+<div class="map-node current"><span class="node-emoji">🌍</span><span class="node-name">地球</span><span class="node-pts">0pt</span></div>
+<div class="map-node"><span class="node-emoji">🌙</span><span class="node-name">月面基地</span><span class="node-pts">50pt</span></div>
+<div class="map-node"><span class="node-emoji">🔴</span><span class="node-name">火星コロニー</span><span class="node-pts">200pt</span></div>
+<div class="map-node"><span class="node-emoji">☄️</span><span class="node-name">小惑星帯</span><span class="node-pts">400pt</span></div>
+<div class="map-node"><span class="node-emoji">🟤</span><span class="node-name">木星ステーション</span><span class="node-pts">700pt</span></div>
+<div class="map-node"><span class="node-emoji">💫</span><span class="node-name">土星の輪</span><span class="node-pts">1,000pt</span></div>
+<div class="map-node locked"><span class="node-emoji">🧊</span><span class="node-name">天王星基地</span><span class="node-pts">1,500pt</span></div>
+<div class="map-node locked"><span class="node-emoji">🔵</span><span class="node-name">海王星深部</span><span class="node-pts">2,000pt</span></div>
+<div class="map-node locked"><span class="node-emoji">⚫</span><span class="node-name">冥王星前線</span><span class="node-pts">3,000pt</span></div>
+<div class="map-node locked"><span class="node-emoji">🌌</span><span class="node-name">銀河の果て</span><span class="node-pts">5,000pt</span></div>
+</div>
+</div>
+
+<div class="section">
+<div class="section-title">🔮 隠しエリア — 特定条件で出現</div>
+<p style="font-size:12px;color:#94a3b8;margin-bottom:12px;">メインルートの途中に分岐する隠しエリア。条件を達成すると「???」が解除されて探索可能に。特別な称号やプロフィール装飾が手に入る。</p>
+<div class="grid3">
+<div class="map-node hidden" style="width:auto;padding:14px;"><span class="node-emoji">☄️</span><span class="node-name">彗星の洞窟</span><div class="card-text" style="margin-top:4px;">解放条件: コンボを5種類発見<br>報酬: 称号「コンボハンター」</div></div>
+<div class="map-node hidden" style="width:auto;padding:14px;"><span class="node-emoji">🕳️</span><span class="node-name">ワームホール</span><div class="card-text" style="margin-top:4px;">解放条件: 14日連続ストリーク<br>報酬: 称号「時空の旅人」</div></div>
+<div class="map-node hidden" style="width:auto;padding:14px;"><span class="node-emoji">👽</span><span class="node-name">異星人の遺跡</span><div class="card-text" style="margin-top:4px;">解放条件: 5教科全て学習<br>報酬: 称号「マルチスペシャリスト」</div></div>
+<div class="map-node hidden" style="width:auto;padding:14px;"><span class="node-emoji">🌠</span><span class="node-name">流星群エリア</span><div class="card-text" style="margin-top:4px;">解放条件: ポモドーロ累計50回<br>報酬: プロフィール枠「流星」</div></div>
+<div class="map-node hidden" style="width:auto;padding:14px;"><span class="node-emoji">🏴‍☠️</span><span class="node-name">宇宙海賊基地</span><div class="card-text" style="margin-top:4px;">解放条件: Legendaryミッション達成<br>報酬: 称号「伝説の冒険者」</div></div>
+<div class="map-node hidden" style="width:auto;padding:14px;"><span class="node-emoji">🔭</span><span class="node-name">観測所オメガ</span><div class="card-text" style="margin-top:4px;">解放条件: ???（完全隠し）<br>報酬: ???</div></div>
+</div>
+</div>
+
+<div class="section">
+<div class="section-title">🖥️ 表示イメージ</div>
+<div class="card">
+<div class="card-text">
+<strong>student.html ホーム画面での表示:</strong><br>
+・現在のレベル数字（Lv.4）の代わりに「🔴 火星コロニー → ☄️ 小惑星帯」と表示<br>
+・進捗バーは「小惑星帯まであと 120pt」<br>
+・隠しエリア発見時にポップアップ演出 + コンフェッティ<br><br>
+<strong>monitor.html 教室モニターでの表示:</strong><br>
+・全生徒の現在位置をマップ上にアイコンで表示<br>
+・誰かが新しいステーションに到達したらLIVE FEEDに通知<br>
+・隠しエリア発見者は特別なアナウンス演出
+</div>
+</div>
+</div>
+</div>
+
+<!-- ===== Tab 4: 戦略レイドボス ===== -->
+<div class="panel" id="p3">
+<div class="section-title">⚔️ 戦略レイドボス — 科目選択が戦略になる</div>
+
+<div class="principle-box">
+<div class="big">「自動でダメージ」→「弱点を狙って攻撃」</div>
+<div class="sub">ボスに弱点と耐性を設定。何を勉強するかの判断に意味が生まれる</div>
+</div>
+
+<div class="section">
+<div class="section-title">👹 ボスカード例</div>
+<div class="boss-card">
+<div style="text-align:center;margin-bottom:12px;">
+<span style="font-size:48px;">🐉</span>
+<div style="font-size:20px;font-weight:800;color:#c084fc;margin-top:4px;">計算キング・ドラゴン</div>
+<div style="font-size:12px;color:#94a3b8;">4月のレイドボス</div>
+</div>
+<div class="boss-hp-bar"><div class="boss-hp-fill" style="width:72%;"></div></div>
+<div style="text-align:center;font-size:13px;color:#94a3b8;">HP: 7,200 / 10,000 (72%)</div>
+<div style="display:flex;justify-content:center;gap:16px;margin:16px 0;font-size:13px;">
+<div style="text-align:center;"><div style="font-size:10px;color:#34d399;font-weight:700;">弱点</div><div>📐 数学<br><span style="color:#34d399;">×2.0</span></div></div>
+<div style="text-align:center;"><div style="font-size:10px;color:#f87171;font-weight:700;">耐性</div><div>🔤 英語<br><span style="color:#f87171;">×0.5</span></div></div>
+<div style="text-align:center;"><div style="font-size:10px;color:#fbbf24;font-weight:700;">特殊能力</div><div>🛡️ 金曜HP回復<br><span style="color:#fbbf24;">+500HP</span></div></div>
+</div>
+<div style="background:#1e293b;border-radius:8px;padding:12px;margin-top:12px;">
+<div style="font-size:11px;font-weight:700;color:#94a3b8;margin-bottom:6px;">撃破報酬</div>
+<div style="font-size:13px;">🏆 全員に+100pt / 🏅 バッジ「ドラゴンスレイヤー」/ 📖 ストーリー分岐に影響</div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<div class="section-title">⚡ ダメージ計算式</div>
+<div class="card">
+<div class="card-text" style="font-family:monospace;font-size:13px;line-height:2;">
+<strong>ダメージ = 学習分数 × 属性倍率 × コンボ倍率 + ポモドーロボーナス</strong><br><br>
+例1: 数学を30分（弱点） + ポモドーロ1回<br>
+→ 30 × 2.0 × 1.0 + 10 = <span style="color:#34d399;font-weight:700;">70ダメージ</span><br><br>
+例2: 英語を30分（耐性） + ポモドーロ1回<br>
+→ 30 × 0.5 × 1.0 + 10 = <span style="color:#f87171;font-weight:700;">25ダメージ</span><br><br>
+例3: 理科を30分（通常） + マルチタレントコンボ発動中(×1.5)<br>
+→ 30 × 1.0 × 1.5 + 10 = <span style="color:#60a5fa;font-weight:700;">55ダメージ</span><br><br>
+<span style="color:#fbbf24;">※ 弱点を狙うだけで同じ学習時間でもダメージが2.8倍違う</span>
+</div>
+</div>
+</div>
+
+<div class="section">
+<div class="section-title">🎭 プレイヤーロール（Phase 2で導入）</div>
+<div class="grid3">
+<div class="card" style="border-color:#ef4444;">
+<div class="card-title" style="color:#ef4444;">⚔️ アタッカー</div>
+<div class="card-text">ボスの弱点科目を勉強するとダメージ×1.5。自分の苦手に挑む勇気が力になる。</div>
+</div>
+<div class="card" style="border-color:#34d399;">
+<div class="card-title" style="color:#34d399;">💚 ヒーラー</div>
+<div class="card-text">他の人に教えるとチームに「シールド」を張れる。ボスの反撃ダメージを防ぐ。</div>
+</div>
+<div class="card" style="border-color:#60a5fa;">
+<div class="card-title" style="color:#60a5fa;">🛡️ サポーター</div>
+<div class="card-text">ポモドーロ完走でチーム全員にバフ（次の1時間ダメージ×1.2）。黙々と回す人が最強。</div>
+</div>
+</div>
+<div class="card" style="border-color:#fbbf24;margin-top:8px;">
+<div class="card-title" style="color:#fbbf24;">Phase 1での運用</div>
+<div class="card-text">Phase 1ではロール分担なし。全員が自由に弱点を狙える。ソロでもボスの弱点/耐性は表示されるので「今日は数学をやった方がボスに効く」という戦略的判断は可能。クラス全体のダメージ合計でボスを倒す。</div>
+</div>
+</div>
+
+<div class="section">
+<div class="section-title">📅 ボスのサイクル</div>
+<div class="grid2">
+<div class="card">
+<div class="card-title">月次ボス</div>
+<div class="card-text">毎月1体。HP: 8,000〜15,000。弱点/耐性は毎月変わる。撃破でストーリーが分岐に影響。月末までに倒せなければ「撤退」ルートへ。</div>
+</div>
+<div class="card">
+<div class="card-title">特殊能力バリエーション</div>
+<div class="card-text">
+🛡️ 金曜HP回復 — 木曜までに集中<br>
+⏱️ 短時間無効 — 15分未満の学習はノーダメ<br>
+🔄 属性ローテ — 毎週弱点が変わる<br>
+💀 反撃 — HP30%以下でダメージ半減<br>
+🌙 夜行性 — 20時以降のダメージ×1.5
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- ===== Tab 5: コンボシステム ===== -->
+<div class="panel" id="p4">
+<div class="section-title">🃏 コンボシステム — 発見する楽しさ</div>
+
+<div class="principle-box">
+<div class="big">「決められた報酬」→「自分で発見する報酬」</div>
+<div class="sub">特定の行動の組み合わせでボーナス発動。最初は隠されていて、やってみて初めてわかる。</div>
+</div>
+
+<div class="section">
+<div class="section-title">📖 コンボ図鑑（12 / 20 発見済み — 例）</div>
+
+<p style="font-size:13px;color:#94a3b8;margin-bottom:12px;">最初から公開されているコンボ3つ + 隠しコンボ17個。やり込むほどコレクションが埋まる。</p>
+
+<div style="margin-bottom:10px;font-size:14px;font-weight:700;color:#34d399;">公開コンボ（最初から条件が見える）</div>
+<div class="combo-grid">
+<div class="combo-card"><div class="combo-icon">🔥</div><div class="combo-name">ファイアースターター</div><div class="combo-cond">3日連続出席</div><div class="combo-reward">3日目に +30pt</div></div>
+<div class="combo-card"><div class="combo-icon">📚</div><div class="combo-name">マルチタレント</div><div class="combo-cond">1日に3教科以上学習</div><div class="combo-reward">その日のpt ×1.5</div></div>
+<div class="combo-card"><div class="combo-icon">💎</div><div class="combo-name">パーフェクトデイ</div><div class="combo-cond">コンディション記録 + 学習 + タスク完了</div><div class="combo-reward">+50pt</div></div>
+</div>
+
+<div style="margin:20px 0 10px;font-size:14px;font-weight:700;color:#fbbf24;">隠しコンボ（発見するまで条件は「???」）</div>
+<div class="combo-grid">
+<div class="combo-card"><div class="combo-icon">🌅</div><div class="combo-name">早起きの剣</div><div class="combo-cond">16時台の学習 + ポモドーロ完走</div><div class="combo-reward">+20pt</div></div>
+<div class="combo-card"><div class="combo-icon">🍅</div><div class="combo-name">ポモドーロマスター</div><div class="combo-cond">1日にポモドーロ5回完走</div><div class="combo-reward">+40pt</div></div>
+<div class="combo-card"><div class="combo-icon">🎯</div><div class="combo-name">スナイパー</div><div class="combo-cond">苦手科目 + 60分以上</div><div class="combo-reward">+35pt</div></div>
+<div class="combo-card"><div class="combo-icon">🌙</div><div class="combo-name">ナイトウォーカー</div><div class="combo-cond">20時以降 + 2教科以上</div><div class="combo-reward">+25pt</div></div>
+<div class="combo-card"><div class="combo-icon">📖</div><div class="combo-name">読書家</div><div class="combo-cond">国語 + 英語 を同じ日に</div><div class="combo-reward">+20pt</div></div>
+<div class="combo-card"><div class="combo-icon">⚡</div><div class="combo-name">サンダーチェイン</div><div class="combo-cond">5日連続ミッションクリア</div><div class="combo-reward">+80pt</div></div>
+<div class="combo-card"><div class="combo-icon">🏠</div><div class="combo-name">ホームヒーロー</div><div class="combo-cond">自宅学習 + ポモドーロ3回</div><div class="combo-reward">+30pt</div></div>
+<div class="combo-card"><div class="combo-icon">👑</div><div class="combo-name">ウィークリーキング</div><div class="combo-cond">週7日中6日以上出席</div><div class="combo-reward">+100pt</div></div>
+<div class="combo-card"><div class="combo-icon">🐉</div><div class="combo-name">ドラゴンキラー</div><div class="combo-cond">ボス弱点科目 + ポモドーロ3回</div><div class="combo-reward">ボスダメージ ×2</div></div>
+</div>
+
+<div style="margin:20px 0 10px;font-size:14px;font-weight:700;color:#64748b;">未発見コンボ（シルエット表示）</div>
+<div class="combo-grid">
+<div class="combo-card hidden-combo"><div class="combo-icon" style="opacity:.3;">❓</div><div class="combo-name" style="color:#475569;">???</div><div class="combo-cond">条件: ???</div><div class="combo-reward" style="color:#475569;">報酬: ???</div></div>
+<div class="combo-card hidden-combo"><div class="combo-icon" style="opacity:.3;">❓</div><div class="combo-name" style="color:#475569;">???</div><div class="combo-cond">条件: ???</div><div class="combo-reward" style="color:#475569;">報酬: ???</div></div>
+<div class="combo-card hidden-combo"><div class="combo-icon" style="opacity:.3;">❓</div><div class="combo-name" style="color:#475569;">???</div><div class="combo-cond">条件: ???</div><div class="combo-reward" style="color:#475569;">報酬: ???</div></div>
+<div class="combo-card hidden-combo"><div class="combo-icon" style="opacity:.3;">❓</div><div class="combo-name" style="color:#475569;">???</div><div class="combo-cond">条件: ???</div><div class="combo-reward" style="color:#475569;">報酬: ???</div></div>
+<div class="combo-card hidden-combo"><div class="combo-icon" style="opacity:.3;">❓</div><div class="combo-name" style="color:#475569;">???</div><div class="combo-cond">条件: ???</div><div class="combo-reward" style="color:#475569;">報酬: ???</div></div>
+</div>
+</div>
+
+<div class="section">
+<div class="section-title">⚙️ 実装メカニクス</div>
+<div class="grid2">
+<div class="card">
+<div class="card-title">判定タイミング</div>
+<div class="card-text">
+・学習セッション完了時に全コンボ条件をチェック<br>
+・条件を満たしたコンボがあれば即座にポップアップ通知<br>
+・初発見の場合は特別演出（コンフェッティ + 図鑑登録アニメーション）<br>
+・2回目以降は通常のボーナス表示のみ
+</div>
+</div>
+<div class="card">
+<div class="card-title">バランス設計</div>
+<div class="card-text">
+・コンボは1日に何個でも発動可能（重複OK）<br>
+・ただし同じコンボは1日1回まで<br>
+・コンボ報酬はポイント経済全体の15〜25%を想定<br>
+・定期的に新コンボを追加して鮮度を維持
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- ===== Tab 6: 分岐ストーリー ===== -->
+<div class="panel" id="p5">
+<div class="section-title">📖 分岐ストーリー — 全員で物語を動かす</div>
+
+<div class="principle-box">
+<div class="big">「自分たちの行動で物語が変わる」</div>
+<div class="sub">Player Agency — ゲームで最も強い没入感を生む要素</div>
+</div>
+
+<div class="section">
+<div class="section-title">📐 構造</div>
+<div class="grid2">
+<div class="card">
+<div class="card-title">月次チャプター制</div>
+<div class="card-text">
+・毎月1章が進行（年間12章の大きな物語）<br>
+・章の結末はクラス全体の行動で分岐<br>
+・2〜3つのルートが存在<br>
+・バッドエンドは無い（全ルートが次の章に繋がる）<br>
+・「灰色の勇者」の世界観を継承
+</div>
+</div>
+<div class="card">
+<div class="card-title">表示場所</div>
+<div class="card-text">
+・<strong>monitor.html</strong>: 教室モニターに物語テキスト+イラスト<br>
+・<strong>student.html</strong>: ホーム画面に今月のチャプター進捗<br>
+・<strong>briefing.html</strong>: 今月のストーリー概要を先生向けに表示<br>
+・週替わりでストーリーが進展（月4回更新）
+</div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<div class="section-title">📖 Chapter 1 例：「氷の洞窟からの脱出」（4月）</div>
+
+<div class="card" style="border-color:#667eea;">
+<div class="card-text" style="color:#e2e8f0;font-style:italic;">
+「宇宙船ヒーローズ号は未知の惑星に不時着した。乗組員たちは巨大な氷の洞窟に閉じ込められている。脱出するには3つの方法がある——正面の氷壁を砕くか、隠された通路を見つけるか、あるいは……」
+</div>
+</div>
+
+<div class="story-branch">
+<div class="branch-card branch-a">
+<div style="font-size:24px;margin-bottom:6px;">⚔️</div>
+<div style="font-weight:700;color:#34d399;">Route A: 正面突破</div>
+<div style="font-size:11px;margin-top:6px;">クラス合計<strong>500ポモドーロ</strong>達成<br>→ 氷壁を砕いて脱出！<br>報酬: 全員+50pt</div>
+</div>
+<div class="branch-card branch-b">
+<div style="font-size:24px;margin-bottom:6px;">🔍</div>
+<div style="font-weight:700;color:#fbbf24;">Route B: 隠し通路</div>
+<div style="font-size:11px;margin-top:6px;">生徒の<strong>80%がコンボ3種以上</strong>発見<br>→ 秘密の通路で脱出＋宝を発見！<br>報酬: 全員+30pt + 隠しエリア解放</div>
+</div>
+<div class="branch-card branch-c">
+<div style="font-size:24px;margin-bottom:6px;">🗺️</div>
+<div style="font-weight:700;color:#94a3b8;">Route C: 戦略的撤退</div>
+<div style="font-size:11px;margin-top:6px;">どちらも未達成<br>→ 別の出口から脱出。宝の地図を発見<br>報酬: 全員+10pt + 次章でボーナス条件</div>
+</div>
+</div>
+
+<div class="section-title" style="font-size:14px;">📅 週次進行</div>
+<div class="story-timeline">
+<div class="story-node">
+<div style="font-weight:700;font-size:13px;">Week 1 — 導入</div>
+<div class="card-text">モニターに氷の洞窟のイメージが表示される。「どうやって脱出する？」ポモドーロカウンターとコンボ発見率がリアルタイムで表示。</div>
+</div>
+<div class="story-node">
+<div style="font-weight:700;font-size:13px;">Week 2 — 展開</div>
+<div class="card-text">Route AとBの進捗が見えてくる。「ポモドーロ 230/500（46%）」「コンボ発見率 45%」。どちらのルートに近いかが判明し始める。</div>
+</div>
+<div class="story-node">
+<div style="font-weight:700;font-size:13px;">Week 3 — クライマックス</div>
+<div class="card-text">「あと○○ポモドーロで正面突破できる！」とモニターに表示。追い込みの緊張感。ボスの特殊能力が発動して障害が追加される可能性も。</div>
+</div>
+<div class="story-node route-a">
+<div style="font-weight:700;font-size:13px;">Week 4 — 結末</div>
+<div class="card-text">達成したルートのストーリーが公開される。モニターに結末テキストとイラスト。次章の予告が表示される。「次なる冒険は……火の山」</div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<div class="section-title">📚 年間チャプター構想（12章）</div>
+<div class="grid4">
+<div class="card"><div class="card-title">Ch.1 4月</div><div class="card-text">氷の洞窟からの脱出</div></div>
+<div class="card"><div class="card-title">Ch.2 5月</div><div class="card-text">火の山の試練</div></div>
+<div class="card"><div class="card-title">Ch.3 6月</div><div class="card-text">嵐の海を越えて</div></div>
+<div class="card"><div class="card-title">Ch.4 7月</div><div class="card-text">古代図書館の謎</div></div>
+<div class="card"><div class="card-title">Ch.5 8月</div><div class="card-text">夏の決戦（夏期講習特別編）</div></div>
+<div class="card"><div class="card-title">Ch.6 9月</div><div class="card-text">裏切りの影</div></div>
+<div class="card"><div class="card-title">Ch.7 10月</div><div class="card-text">失われた都市</div></div>
+<div class="card"><div class="card-title">Ch.8 11月</div><div class="card-text">鏡の迷宮</div></div>
+<div class="card"><div class="card-title">Ch.9 12月</div><div class="card-text">冬の王との対話</div></div>
+<div class="card"><div class="card-title">Ch.10 1月</div><div class="card-text">真実の塔</div></div>
+<div class="card"><div class="card-title">Ch.11 2月</div><div class="card-text">最終決戦への道</div></div>
+<div class="card"><div class="card-title">Ch.12 3月</div><div class="card-text">新たな冒険の始まり</div></div>
+</div>
+</div>
+
+<div class="section">
+<div class="section-title">🔗 ストーリーと他要素の連動</div>
+<div class="grid2">
+<div class="card">
+<div class="card-title">× レイドボス</div>
+<div class="card-text">ボス撃破がストーリーの「正面突破」ルートの条件になる。ボスが物語の敵キャラクターとして登場。</div>
+</div>
+<div class="card">
+<div class="card-title">× コンボ</div>
+<div class="card-text">コンボ発見率が「隠し通路」ルートの条件。コンボが物語の「手がかり」として描写される。</div>
+</div>
+<div class="card">
+<div class="card-title">× マップ</div>
+<div class="card-text">ストーリーの舞台がマップ上のステーションと連動。Ch.1は地球〜月面基地の間の出来事。</div>
+</div>
+<div class="card">
+<div class="card-title">× ランダムミッション</div>
+<div class="card-text">ストーリー進行中に「物語限定ミッション」が出現。通常プールに期間限定カードが追加される。</div>
+</div>
+</div>
+</div>
+</div>
+
+</div><!-- /container -->
+
+<div class="footer-bar">
+HERO'S Points Game Design v2.0<br>
+5 Elements: Random Missions × Space Map × Strategic Raid Boss × Combo System × Branching Story<br>
+Designed for Phase 1 (Solo Culture) with Phase 2/3 expansion hooks
+</div>
+
+<script>
+function showP(i){
+document.querySelectorAll('.panel').forEach((p,j)=>p.classList.toggle('active',j===i));
+document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+}
+</script>
+</body>
+</html>
