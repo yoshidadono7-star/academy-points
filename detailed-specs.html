@@ -1,0 +1,1123 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HERO'S v2.0 詳細技術設計書</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Hiragino Sans',-apple-system,BlinkMacSystemFont,sans-serif;background:#0f172a;color:#e2e8f0;line-height:1.8}
+.container{max-width:1200px;margin:0 auto;padding:20px}
+h1{text-align:center;font-size:22px;margin:20px 0 4px;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.subtitle{text-align:center;color:#94a3b8;font-size:12px;margin-bottom:20px}
+.tabs{display:flex;gap:2px;background:#1e293b;border-radius:12px 12px 0 0;padding:4px 4px 0;flex-wrap:wrap}
+.tab{flex:1;min-width:90px;padding:10px 4px;border:none;border-radius:8px 8px 0 0;background:transparent;color:#94a3b8;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit}
+.tab:hover{color:#e2e8f0}
+.tab.active{background:#1e293b;color:#667eea;border-bottom:3px solid #667eea}
+.panel{display:none;background:#1e293b;border-radius:0 0 12px 12px;padding:20px;min-height:400px}
+.panel.active{display:block}
+.st{font-size:14px;font-weight:700;margin:18px 0 8px;padding-bottom:6px;border-bottom:1px solid #334155}
+.card{background:#0f172a;border:1px solid #334155;border-radius:8px;padding:12px;margin-bottom:8px}
+.card-title{font-size:12px;font-weight:700;margin-bottom:4px}
+.card-text{font-size:11px;color:#94a3b8;line-height:1.8}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px}
+@media(max-width:768px){.grid2,.grid3{grid-template-columns:1fr}}
+pre{background:#020617;border:1px solid #334155;border-radius:6px;padding:12px;font-size:11px;line-height:1.6;overflow-x:auto;color:#a5b4fc;margin:8px 0}
+code{font-family:'SF Mono',Monaco,Consolas,monospace}
+.tag{display:inline-block;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;margin:2px}
+.t-collection{background:#1e3a5f;color:#60a5fa}
+.t-field{background:#064e3b;color:#34d399}
+.t-method{background:#3b0764;color:#c084fc}
+.t-trigger{background:#78350f;color:#fbbf24}
+.t-new{background:#7f1d1d;color:#fca5a5}
+table.spec{width:100%;border-collapse:collapse;font-size:11px;margin:8px 0}
+table.spec th,table.spec td{padding:6px 8px;border:1px solid #334155;text-align:left}
+table.spec th{background:#334155;color:#e2e8f0;font-weight:700;font-size:10px}
+.flow{background:#020617;border:1px solid #334155;border-radius:6px;padding:12px;margin:8px 0;font-size:11px;font-family:monospace;white-space:pre-wrap}
+.note{background:#fbbf2411;border:1px solid #fbbf24;border-radius:6px;padding:10px;font-size:11px;margin:8px 0}
+.note::before{content:'💡 ';font-size:13px}
+.footer-bar{text-align:center;padding:14px;margin-top:20px;border-top:1px solid #334155;font-size:10px;color:#64748b}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>HERO'S v2.0 — 詳細技術設計書</h1>
+<p class="subtitle">5要素の判定ロジック・データ構造・既存コードとの接続点</p>
+
+<div class="tabs">
+<button class="tab active" onclick="showP(0)">🃏 コンボ</button>
+<button class="tab" onclick="showP(1)">🎲 ランダムミッション</button>
+<button class="tab" onclick="showP(2)">🗺️ 宇宙マップ</button>
+<button class="tab" onclick="showP(3)">⚔️ 戦略ボス</button>
+<button class="tab" onclick="showP(4)">📖 分岐ストーリー</button>
+</div>
+
+<!-- ===== Tab 1: コンボシステム詳細設計 ===== -->
+<div class="panel active" id="p0">
+<div class="st">🃏 コンボシステム — 詳細技術設計</div>
+
+<div class="st">1. データ構造</div>
+
+<div class="card">
+<div class="card-title">COMBO_DEFINITIONS（定数。db.jsに定義）</div>
+<pre><code>const COMBO_DEFINITIONS = [
+  // --- 公開コンボ（最初から条件が見える）---
+  {
+    id: 'fire_starter',
+    name: 'ファイアースターター',
+    icon: '🔥',
+    desc: '3日連続で出席して学習',
+    hidden: false,
+    condition: (ctx) => ctx.currentStreak >= 3,
+    reward: { type: 'bonus', points: 30 },
+    cooldown: 'weekly',  // weekly = 週1回まで
+    category: 'streak'
+  },
+  {
+    id: 'multi_talent',
+    name: 'マルチタレント',
+    icon: '📚',
+    desc: '1日に3教科以上学習',
+    hidden: false,
+    condition: (ctx) => ctx.todaySubjects.length >= 3,
+    reward: { type: 'multiplier', value: 1.5 },
+    cooldown: 'daily',
+    category: 'variety'
+  },
+  {
+    id: 'perfect_day',
+    name: 'パーフェクトデイ',
+    icon: '💎',
+    desc: 'コンディション記録 + 学習 + タスク完了',
+    hidden: false,
+    condition: (ctx) => ctx.conditionToday && ctx.studiedToday && ctx.taskCompletedToday,
+    reward: { type: 'bonus', points: 50 },
+    cooldown: 'daily',
+    category: 'completeness'
+  },
+  // --- 隠しコンボ（発見するまで条件は「???」）---
+  {
+    id: 'early_sword',
+    name: '早起きの剣',
+    icon: '🌅',
+    desc: '16時台に学習開始 + ポモドーロ1回完走',
+    hidden: true,
+    condition: (ctx) => ctx.sessionStartHour === 16 && ctx.pomodoroCount >= 1,
+    reward: { type: 'bonus', points: 20 },
+    cooldown: 'daily',
+    category: 'timing'
+  },
+  {
+    id: 'pomodoro_master',
+    name: 'ポモドーロマスター',
+    icon: '🍅',
+    desc: '1日にポモドーロ5回完走',
+    hidden: true,
+    condition: (ctx) => ctx.todayPomodoros >= 5,
+    reward: { type: 'bonus', points: 40 },
+    cooldown: 'daily',
+    category: 'focus'
+  },
+  {
+    id: 'sniper',
+    name: 'スナイパー',
+    icon: '🎯',
+    desc: '苦手科目を60分以上学習',
+    hidden: true,
+    condition: (ctx) => ctx.weakSubjectMinutes >= 60,
+    reward: { type: 'bonus', points: 35 },
+    cooldown: 'daily',
+    category: 'challenge'
+  },
+  {
+    id: 'night_walker',
+    name: 'ナイトウォーカー',
+    icon: '🌙',
+    desc: '20時以降に2教科以上学習',
+    hidden: true,
+    condition: (ctx) => ctx.sessionStartHour >= 20 && ctx.todaySubjects.length >= 2,
+    reward: { type: 'bonus', points: 25 },
+    cooldown: 'daily',
+    category: 'timing'
+  },
+  {
+    id: 'bookworm',
+    name: '読書家',
+    icon: '📖',
+    desc: '国語と英語を同じ日に学習',
+    hidden: true,
+    condition: (ctx) => ctx.todaySubjects.includes('国語') && ctx.todaySubjects.includes('英語'),
+    reward: { type: 'bonus', points: 20 },
+    cooldown: 'daily',
+    category: 'variety'
+  },
+  {
+    id: 'thunder_chain',
+    name: 'サンダーチェイン',
+    icon: '⚡',
+    desc: '5日連続でデイリーミッションクリア',
+    hidden: true,
+    condition: (ctx) => ctx.missionStreak >= 5,
+    reward: { type: 'bonus', points: 80 },
+    cooldown: 'weekly',
+    category: 'mission'
+  },
+  {
+    id: 'home_hero',
+    name: 'ホームヒーロー',
+    icon: '🏠',
+    desc: '自宅学習 + ポモドーロ3回',
+    hidden: true,
+    condition: (ctx) => ctx.location === '自宅' && ctx.pomodoroCount >= 3,
+    reward: { type: 'bonus', points: 30 },
+    cooldown: 'daily',
+    category: 'location'
+  },
+  {
+    id: 'weekly_king',
+    name: 'ウィークリーキング',
+    icon: '👑',
+    desc: '週7日中6日以上出席',
+    hidden: true,
+    condition: (ctx) => ctx.weeklyAttendance >= 6,
+    reward: { type: 'bonus', points: 100 },
+    cooldown: 'weekly',
+    category: 'attendance'
+  },
+  {
+    id: 'dragon_killer',
+    name: 'ドラゴンキラー',
+    icon: '🐉',
+    desc: 'ボス弱点科目 + ポモドーロ3回',
+    hidden: true,
+    condition: (ctx) => ctx.isWeaknessSubject && ctx.pomodoroCount >= 3,
+    reward: { type: 'boss_multiplier', value: 2.0 },
+    cooldown: 'daily',
+    category: 'boss'
+  },
+];</code></pre>
+</div>
+
+<div class="card">
+<div class="card-title"><span class="tag t-collection">comboDiscoveries</span> Firestoreコレクション</div>
+<pre><code>{
+  studentId: "xxx",
+  comboId: "fire_starter",
+  discoveredAt: Timestamp,   // 初回発見日時
+  triggerCount: 5,           // 累計発動回数
+  lastTriggeredAt: Timestamp // 最後に発動した日時
+}</code></pre>
+</div>
+
+<div class="card">
+<div class="card-title"><span class="tag t-collection">comboTriggers</span> Firestoreコレクション（発動ログ）</div>
+<pre><code>{
+  studentId: "xxx",
+  comboId: "multi_talent",
+  points: 0,              // bonus型の付与pt（multiplier型は0）
+  multiplier: 1.5,        // multiplier型の倍率（bonus型は1.0）
+  sessionId: "yyy",       // 紐づく学習セッション
+  date: "2026-04-15",
+  createdAt: Timestamp
+}</code></pre>
+</div>
+
+<div class="st">2. 判定ロジック（コンテキスト構築）</div>
+
+<div class="card">
+<div class="card-title"><span class="tag t-method">ComboDB.buildContext()</span> — 判定用コンテキストの組み立て</div>
+<pre><code>// 学習セッション完了時に呼ばれる
+async buildContext(studentId, session) {
+  const today = getToday();
+  const todayLogs = await StudyLogsDB.getByDate(today);
+  const myTodayLogs = todayLogs.filter(l => l.studentId === studentId);
+  const student = await StudentsDB.getById(studentId);
+  const todayCondition = await ConditionsDB.getToday();
+  const todayTasks = await TasksDB.getCompletions(studentId);
+  const activeBoss = await RaidBossDB.getActive();
+  
+  // 今週の出席日数を計算
+  const weekStart = new Date();
+  weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+  const weekLogs = await StudyLogsDB.getByDateRange(
+    weekStart.toISOString().split('T')[0], today
+  );
+  const weekDays = new Set(
+    weekLogs.filter(l => l.studentId === studentId).map(l => l.date)
+  ).size;
+
+  return {
+    // セッション情報
+    subject: session.subject,
+    duration: session.duration,
+    location: session.location,
+    method: session.method,
+    pomodoroCount: session.pomodoroCount || 0,
+    sessionStartHour: new Date(session.startedAt).getHours(),
+
+    // 本日の集計
+    todaySubjects: [...new Set(myTodayLogs.map(l => l.subject))],
+    todayPomodoros: myTodayLogs.reduce((s,l) => s + (l.pomodoroCount||0), 0),
+    studiedToday: myTodayLogs.length > 0,
+    conditionToday: todayCondition.some(c => c.studentId === studentId),
+    taskCompletedToday: todayTasks.some(t => t.date === today),
+
+    // ストリーク
+    currentStreak: student.streak || 0,
+    missionStreak: student.missionStreak || 0,
+
+    // 週間
+    weeklyAttendance: weekDays,
+
+    // 苦手科目（生徒プロフィールに設定）
+    weakSubjectMinutes: myTodayLogs
+      .filter(l => l.subject === student.weakSubject)
+      .reduce((s,l) => s + (l.duration||0), 0),
+
+    // ボス連動
+    isWeaknessSubject: activeBoss && session.subject === activeBoss.weakness,
+  };
+}</code></pre>
+</div>
+
+<div class="st">3. 判定フロー</div>
+
+<div class="flow">学習セッション完了
+  ↓
+ComboDB.buildContext(studentId, session)
+  ↓
+COMBO_DEFINITIONS を全件ループ
+  ↓ 各コンボに対して:
+  ├─ combo.condition(ctx) === true ?
+  │   ├─ NO → スキップ
+  │   └─ YES → クールダウンチェック
+  │       ├─ cooldown='daily' → 今日すでに発動済み? → スキップ
+  │       ├─ cooldown='weekly' → 今週すでに発動済み? → スキップ
+  │       └─ 発動OK!
+  │           ├─ comboDiscoveriesに記録 (初回なら新規, 既存ならtriggerCount++)
+  │           ├─ comboTriggersにログ追加
+  │           ├─ reward.type === 'bonus' → ポイント加算
+  │           ├─ reward.type === 'multiplier' → セッションポイントに倍率適用
+  │           ├─ reward.type === 'boss_multiplier' → ボスダメージに倍率適用
+  │           └─ 発動結果を配列に追加
+  ↓
+発動したコンボ一覧を返す → student.htmlの完了画面で表示
+  ↓
+初回発見のコンボがあれば → 特別演出（コンフェッティ + 図鑑登録）</div>
+
+<div class="st">4. ComboDB モジュール全体</div>
+<div class="card">
+<div class="card-title"><span class="tag t-method">主要メソッド</span></div>
+<pre><code>const ComboDB = {
+  // コンテキスト構築
+  async buildContext(studentId, session) { ... },
+
+  // 全コンボ判定（セッション完了時に呼ぶ）
+  async checkAll(studentId, session) {
+    const ctx = await this.buildContext(studentId, session);
+    const triggered = [];
+    for (const combo of COMBO_DEFINITIONS) {
+      if (!combo.condition(ctx)) continue;
+      if (await this.isOnCooldown(studentId, combo)) continue;
+      const isNew = await this.record(studentId, combo.id);
+      await this.logTrigger(studentId, combo, session);
+      triggered.push({ ...combo, isFirstDiscovery: isNew });
+    }
+    return triggered; // [{id, name, icon, reward, isFirstDiscovery}, ...]
+  },
+
+  // クールダウン判定
+  async isOnCooldown(studentId, combo) { ... },
+
+  // 発見記録（初回ならtrue, 既存ならfalse）
+  async record(studentId, comboId) { ... },
+
+  // 発動ログ
+  async logTrigger(studentId, combo, session) { ... },
+
+  // 図鑑取得（student.html用）
+  async getDiscoveries(studentId) { ... },
+
+  // 発見率（ストーリー用: 全生徒の平均発見数）
+  async getClassDiscoveryRate() { ... },
+};</code></pre>
+</div>
+
+<div class="st">5. student.html 完了画面との接続</div>
+
+<div class="card">
+<div class="card-text">
+<strong>既存の学習完了フロー</strong>（student.html:1438〜1505）に以下を挿入:<br><br>
+<span class="tag t-trigger">挿入箇所</span> バッジチェック（BadgesDB.checkAndAward）の直前<br><br>
+
+<pre><code>// 既存: ポイント計算後、バッジチェック前
+const duration = Math.floor(timerState.elapsed / 60);
+let points = duration;
+if (studySession.method === 'pomodoro') points += timerState.pomodoroCount * 5;
+
+// ★ NEW: コンボ判定
+const combos = await ComboDB.checkAll(currentStudent.id, {
+  subject: studySession.subject,
+  duration: duration,
+  location: studySession.location,
+  method: studySession.method,
+  pomodoroCount: timerState.pomodoroCount,
+  startedAt: studySession.startedAt,
+});
+
+// コンボ報酬の適用
+let comboMultiplier = 1.0;
+let comboBonus = 0;
+let bossMultiplier = 1.0;
+for (const c of combos) {
+  if (c.reward.type === 'bonus') comboBonus += c.reward.points;
+  if (c.reward.type === 'multiplier') comboMultiplier *= c.reward.value;
+  if (c.reward.type === 'boss_multiplier') bossMultiplier *= c.reward.value;
+}
+points = Math.floor(points * comboMultiplier) + comboBonus;
+
+// 既存: ポイント付与
+await StudentsDB.addPoints(currentStudent.id, points);
+
+// ★ NEW: 完了画面にコンボ表示
+showComboResults(combos); // 初発見なら特別演出</code></pre>
+</div>
+</div>
+
+<div class="note">
+<strong>BadgesDBとの設計パターンの違い:</strong>
+バッジは「一度獲得したら永久」。コンボは「毎回発動するがクールダウンあり」。
+バッジはcheckAndAward()で条件チェック+付与が一体。コンボはcheckAll()で判定→返却値を元にUI側で報酬適用する分離型。
+これはコンボの報酬タイプ（bonus/multiplier/boss_multiplier）が複数あり、適用先が違うため。
+</div>
+</div>
+
+<!-- ===== Tab 2: ランダムミッション詳細設計 ===== -->
+<div class="panel" id="p1">
+<div class="st">🎲 ランダムミッション — 詳細技術設計</div>
+
+<div class="st">1. データ構造</div>
+
+<div class="card">
+<div class="card-title">DAILY_MISSION_POOL（定数。db.jsに定義）</div>
+<pre><code>const DAILY_MISSION_POOL = [
+  // rarity: 'common'(50%) / 'uncommon'(30%) / 'rare'(15%) / 'epic'(4%) / 'legendary'(1%)
+  // checkType: 判定タイプ
+  //   'auto_session' = 学習セッション完了時に自動判定
+  //   'auto_daily'   = 1日の終わりに自動判定
+  //   'manual'       = 先生が手動で達成をマーク
+
+  // --- Common ---
+  { id: 'dm_pomo2', name: 'ポモドーロ2回', desc: 'ポモドーロを2回完走',
+    rarity: 'common', points: 15, icon: '🍅',
+    checkType: 'auto_daily',
+    condition: (dayStats) => dayStats.totalPomodoros >= 2 },
+
+  { id: 'dm_30min', name: '30分学習', desc: '合計30分以上学習',
+    rarity: 'common', points: 10, icon: '⏱️',
+    checkType: 'auto_daily',
+    condition: (dayStats) => dayStats.totalMinutes >= 30 },
+
+  { id: 'dm_condition', name: 'コンディション記録', desc: 'コンディションを記録',
+    rarity: 'common', points: 5, icon: '😊',
+    checkType: 'auto_daily',
+    condition: (dayStats) => dayStats.conditionRecorded },
+
+  { id: 'dm_task1', name: 'タスク1つ', desc: 'タスクを1つ完了',
+    rarity: 'common', points: 10, icon: '✅',
+    checkType: 'auto_daily',
+    condition: (dayStats) => dayStats.tasksCompleted >= 1 },
+
+  { id: 'dm_review', name: '振り返りノート', desc: '学習を振り返って記録',
+    rarity: 'common', points: 10, icon: '📝',
+    checkType: 'manual', condition: null },
+
+  { id: 'dm_preview', name: '予習チャレンジ', desc: '翌日の授業科目を予習',
+    rarity: 'common', points: 10, icon: '📖',
+    checkType: 'manual', condition: null },
+
+  // --- Uncommon ---
+  { id: 'dm_weak20', name: '苦手科目20分', desc: '苦手科目を20分以上',
+    rarity: 'uncommon', points: 25, icon: '💪',
+    checkType: 'auto_daily',
+    condition: (dayStats) => dayStats.weakSubjectMinutes >= 20 },
+
+  { id: 'dm_pomo3', name: 'ポモドーロ3連続', desc: 'ポモドーロ3回連続完走',
+    rarity: 'uncommon', points: 30, icon: '🍅',
+    checkType: 'auto_daily',
+    condition: (dayStats) => dayStats.totalPomodoros >= 3 },
+
+  { id: 'dm_2subj', name: '2教科学習', desc: '2教科以上学習',
+    rarity: 'uncommon', points: 20, icon: '📚',
+    checkType: 'auto_daily',
+    condition: (dayStats) => dayStats.subjectCount >= 2 },
+
+  { id: 'dm_60min', name: '60分マラソン', desc: '60分以上学習',
+    rarity: 'uncommon', points: 30, icon: '⏱️',
+    checkType: 'auto_daily',
+    condition: (dayStats) => dayStats.totalMinutes >= 60 },
+
+  { id: 'dm_home', name: '自宅学習', desc: '自宅から学習セッション完了',
+    rarity: 'uncommon', points: 20, icon: '🏠',
+    checkType: 'auto_daily',
+    condition: (dayStats) => dayStats.homeStudied },
+
+  // --- Rare ---
+  { id: 'dm_3subj', name: '3教科チャレンジ', desc: '3教科以上学習',
+    rarity: 'rare', points: 50, icon: '🌟',
+    checkType: 'auto_daily',
+    condition: (dayStats) => dayStats.subjectCount >= 3 },
+
+  { id: 'dm_morning', name: '早朝ミッション', desc: '12時前に学習開始',
+    rarity: 'rare', points: 40, icon: '🌅',
+    checkType: 'auto_daily',
+    condition: (dayStats) => dayStats.earliestHour < 12 },
+
+  { id: 'dm_pomo5', name: 'ポモドーロ5回', desc: 'ポモドーロ5回完走',
+    rarity: 'rare', points: 60, icon: '🍅',
+    checkType: 'auto_daily',
+    condition: (dayStats) => dayStats.totalPomodoros >= 5 },
+
+  { id: 'dm_boss_weak', name: 'ボス弱点攻撃', desc: 'ボスの弱点科目を45分',
+    rarity: 'rare', points: 55, icon: '🎯',
+    checkType: 'auto_daily',
+    condition: (dayStats) => dayStats.bossWeaknessMinutes >= 45 },
+
+  // --- Epic ---
+  { id: 'dm_5day_clear', name: '5日連続クリア', desc: 'ミッション5日連続達成',
+    rarity: 'epic', points: 100, icon: '🔥',
+    checkType: 'auto_daily',
+    condition: (dayStats) => dayStats.missionStreak >= 5 },
+
+  { id: 'dm_perfect', name: 'パーフェクトデイ', desc: '全活動を完了',
+    rarity: 'epic', points: 80, icon: '💎',
+    checkType: 'auto_daily',
+    condition: (dayStats) => dayStats.conditionRecorded && dayStats.totalMinutes >= 30 && dayStats.tasksCompleted >= 1 },
+
+  // --- Legendary ---
+  { id: 'dm_weekly_king', name: 'ウィークリーキング', desc: '週6日以上出席',
+    rarity: 'legendary', points: 200, icon: '👑',
+    checkType: 'auto_daily',
+    condition: (dayStats) => dayStats.weeklyAttendance >= 6 },
+
+  { id: 'dm_hidden1', name: '???', desc: '???',
+    rarity: 'legendary', points: 150, icon: '🌌',
+    checkType: 'auto_daily', hidden: true,
+    condition: (dayStats) => dayStats.totalPomodoros >= 7 && dayStats.subjectCount >= 4 },
+];</code></pre>
+</div>
+
+<div class="card">
+<div class="card-title"><span class="tag t-collection">dailyMissionDraws</span> Firestoreコレクション</div>
+<pre><code>{
+  studentId: "xxx",
+  date: "2026-04-15",        // 抽選日
+  missions: [                 // 抽選された3つ
+    { missionId: 'dm_pomo2', rarity: 'common' },
+    { missionId: 'dm_weak20', rarity: 'uncommon' },
+    { missionId: 'dm_3subj', rarity: 'rare' }
+  ],
+  accepted: 'dm_weak20',     // 受注したミッションID (null=未選択)
+  completed: false,           // 達成したか
+  completedAt: null,
+  createdAt: Timestamp
+}</code></pre>
+</div>
+
+<div class="st">2. 抽選アルゴリズム</div>
+
+<div class="card">
+<div class="card-title"><span class="tag t-method">DailyMissionsDB.draw()</span></div>
+<pre><code>async draw(studentId) {
+  const today = getToday();
+  
+  // 今日の抽選済みチェック
+  const existing = await db.collection('dailyMissionDraws')
+    .where('studentId', '==', studentId)
+    .where('date', '==', today).limit(1).get();
+  if (!existing.empty) return existing.docs[0].data(); // 既存を返す
+  
+  // レアリティ抽選（3枠独立）
+  const drawn = [];
+  for (let i = 0; i < 3; i++) {
+    const rarity = this.rollRarity();
+    const pool = DAILY_MISSION_POOL.filter(
+      m => m.rarity === rarity && !drawn.some(d => d.missionId === m.id)
+    );
+    if (pool.length === 0) continue; // fallback: common
+    const pick = pool[Math.floor(Math.random() * pool.length)];
+    drawn.push({ missionId: pick.id, rarity: pick.rarity });
+  }
+  
+  const doc = {
+    studentId, date: today, missions: drawn,
+    accepted: null, completed: false, completedAt: null,
+    createdAt: firebase.firestore.FieldValue.serverTimestamp()
+  };
+  await db.collection('dailyMissionDraws').add(doc);
+  return doc;
+},
+
+rollRarity() {
+  const r = Math.random() * 100;
+  if (r < 1)  return 'legendary';  // 1%
+  if (r < 5)  return 'epic';       // 4%
+  if (r < 20) return 'rare';       // 15%
+  if (r < 50) return 'uncommon';   // 30%
+  return 'common';                  // 50%
+}</code></pre>
+</div>
+
+<div class="st">3. 達成判定フロー</div>
+
+<div class="flow">生徒がログイン → draw(studentId) → 3枚のカード表示
+  ↓
+生徒が1枚を選択 → accept(drawId, missionId)
+  ↓
+学習セッション完了時 or 1日の最終チェック時:
+  buildDayStats(studentId) でその日の全データを集計
+  ↓
+  受注中ミッションの condition(dayStats) を評価
+  ↓
+  true → complete(drawId) → ポイント付与 → student.missionStreak++
+  false → 翌日に持ち越さない（日単位で完結）</div>
+
+<div class="note">
+<strong>既存のMissionsDB（月次ミッション）との共存:</strong>
+月次ミッション = クラス全体の大きな目標（既存のまま）。
+デイリーミッション = 個人の日替わり小目標（今回新規追加）。
+別コレクション・別モジュールで完全に独立。両方同時に進行する。
+</div>
+</div>
+
+<!-- ===== Tab 3: 宇宙マップ詳細設計 ===== -->
+<div class="panel" id="p2">
+<div class="st">🗺️ 宇宙マップ — 詳細技術設計</div>
+
+<div class="st">1. データ構造</div>
+
+<div class="card">
+<div class="card-title">SPACE_STATIONS（定数。db.jsに定義）</div>
+<pre><code>const SPACE_STATIONS = [
+  { id: 'earth',    level: 1,  points: 0,    name: '地球',           icon: '🌍', desc: '冒険の始まり' },
+  { id: 'moon',     level: 2,  points: 50,   name: '月面基地',       icon: '🌙', desc: '宇宙への第一歩' },
+  { id: 'mars',     level: 3,  points: 200,  name: '火星コロニー',   icon: '🔴', desc: '赤い星の開拓者' },
+  { id: 'asteroid', level: 4,  points: 400,  name: '小惑星帯',       icon: '☄️', desc: '混沌を泳ぐ' },
+  { id: 'jupiter',  level: 5,  points: 700,  name: '木星ステーション', icon: '🟤', desc: 'ガス巨星の前哨' },
+  { id: 'saturn',   level: 6,  points: 1000, name: '土星の輪',       icon: '💫', desc: 'リングランナー' },
+  { id: 'uranus',   level: 7,  points: 1500, name: '天王星基地',     icon: '🧊', desc: '氷の世界の探検家' },
+  { id: 'neptune',  level: 8,  points: 2000, name: '海王星深部',     icon: '🔵', desc: '深宇宙ダイバー' },
+  { id: 'pluto',    level: 9,  points: 3000, name: '冥王星前線',     icon: '⚫', desc: '既知宇宙の果て' },
+  { id: 'galaxy',   level: 10, points: 5000, name: '銀河の果て',     icon: '🌌', desc: '宇宙の伝説' },
+];
+
+const HIDDEN_AREAS = [
+  { id: 'comet_cave',   name: '彗星の洞窟',   icon: '☄️',
+    condition: (stats) => stats.comboDiscoveryCount >= 5,
+    reward: { title: 'コンボハンター', frame: 'comet' },
+    afterStation: 'mars' },
+
+  { id: 'wormhole',     name: 'ワームホール', icon: '🕳️',
+    condition: (stats) => stats.bestStreak >= 14,
+    reward: { title: '時空の旅人', frame: 'wormhole' },
+    afterStation: 'asteroid' },
+
+  { id: 'alien_ruins',  name: '異星人の遺跡', icon: '👽',
+    condition: (stats) => stats.allTimeSubjectCount >= 5,
+    reward: { title: 'マルチスペシャリスト', frame: 'alien' },
+    afterStation: 'jupiter' },
+
+  { id: 'meteor_shower', name: '流星群エリア', icon: '🌠',
+    condition: (stats) => stats.totalPomodoros >= 50,
+    reward: { title: null, frame: 'meteor' },
+    afterStation: 'saturn' },
+
+  { id: 'pirate_base',  name: '宇宙海賊基地', icon: '🏴‍☠️',
+    condition: (stats) => stats.legendaryMissionCleared >= 1,
+    reward: { title: '伝説の冒険者', frame: 'pirate' },
+    afterStation: 'uranus' },
+
+  { id: 'observatory',  name: '観測所オメガ', icon: '🔭',
+    condition: (stats) => stats.raidBossKills >= 3,
+    reward: { title: null, frame: 'observatory' },
+    afterStation: 'neptune' },
+];</code></pre>
+</div>
+
+<div class="card">
+<div class="card-title"><span class="tag t-collection">hiddenAreaDiscoveries</span> Firestoreコレクション</div>
+<pre><code>{
+  studentId: "xxx",
+  areaId: "comet_cave",
+  unlockedAt: Timestamp,
+  titleEquipped: false     // 称号を装備中か
+}</code></pre>
+</div>
+
+<div class="st">2. 既存コードとの接続</div>
+
+<div class="card">
+<div class="card-title">calcLevel() → getStation() に拡張</div>
+<pre><code>// 既存の calcLevel(totalPoints) はそのまま残す（互換性）
+
+function getStation(totalPoints) {
+  for (let i = SPACE_STATIONS.length - 1; i >= 0; i--) {
+    if (totalPoints >= SPACE_STATIONS[i].points) return SPACE_STATIONS[i];
+  }
+  return SPACE_STATIONS[0];
+}
+
+function getStationProgress(totalPoints) {
+  const current = getStation(totalPoints);
+  const currentIdx = SPACE_STATIONS.indexOf(current);
+  if (currentIdx >= SPACE_STATIONS.length - 1) return { percent: 100, remaining: 0 };
+  const next = SPACE_STATIONS[currentIdx + 1];
+  const range = next.points - current.points;
+  const progress = totalPoints - current.points;
+  return {
+    current, next,
+    percent: Math.floor(progress / range * 100),
+    remaining: next.points - totalPoints
+  };
+}</code></pre>
+</div>
+
+<div class="card">
+<div class="card-title"><span class="tag t-trigger">student.html ホーム画面の変更箇所</span></div>
+<div class="card-text">
+既存のレベル表示（student.html:1097〜1132）を差し替え:<br><br>
+<strong>Before:</strong> <code>Lv.4 → Lv.5 まであと 300 ポイント</code><br>
+<strong>After:</strong> <code>🔴 火星コロニー → ☄️ 小惑星帯 まであと 120pt</code><br><br>
+プログレスバーのロジックは同じ（currentPoints/range × 100%）。ラベルとアイコンが変わるだけ。<br>
+Lv.4の数字表示は小さく残す（<code style="font-size:10px;">Lv.4</code>として補足表示）。
+</div>
+</div>
+
+<div class="st">3. 隠しエリア判定フロー</div>
+
+<div class="flow">学習セッション完了 or ログイン時:
+  ↓
+SpaceMapDB.checkHiddenAreas(studentId)
+  ↓
+各 HIDDEN_AREA に対して:
+  ├─ 既にunlockedか？ → スキップ
+  └─ condition(stats) === true ?
+      ├─ NO → スキップ
+      └─ YES → hiddenAreaDiscoveries に記録
+               → 特別通知（「🕳️ ワームホールを発見！」）
+               → monitor.htmlのLIVE FEEDに表示</div>
+
+<div class="note">
+<strong>マップの表示はCSSのみで実現可能。</strong>
+ステーション間を線で繋ぐflex/gridレイアウト。到達済み=フルカラー、未到達=グレーアウト、隠しエリア=点線の分岐。
+画像は不要。全てemoji + CSSで構築。monitor.htmlも同じコンポーネントを流用。
+</div>
+</div>
+
+<!-- ===== Tab 4: 戦略レイドボス詳細設計 ===== -->
+<div class="panel" id="p3">
+<div class="st">⚔️ 戦略レイドボス — 詳細技術設計</div>
+
+<div class="st">1. 既存RaidBossDBへの拡張フィールド</div>
+
+<div class="card">
+<div class="card-title"><span class="tag t-collection">raidBosses</span> コレクション拡張</div>
+<pre><code>// 既存フィールド（そのまま維持）
+{
+  name: "計算キング・ドラゴン",
+  icon: "🐉",
+  maxHp: 10000,
+  currentHp: 7200,
+  reward: 100,       // 撃破時の全員ボーナスpt
+  status: 'active',  // active / defeated
+  createdAt: Timestamp,
+}
+
+// ★ 新規追加フィールド
+{
+  weakness: '数学',           // 弱点科目 (ダメージ×2.0)
+  resistance: '英語',         // 耐性科目 (ダメージ×0.5)
+  specialAbility: {
+    type: 'friday_regen',     // 特殊能力タイプ
+    name: '金曜HP回復',
+    desc: '毎週金曜にHP+500回復',
+    value: 500
+  },
+  month: '2026-04',           // 対象月
+  defeatedAt: null,
+  storyImpact: 'route_a',    // 撃破がストーリーのどのルートに影響するか
+}</code></pre>
+</div>
+
+<div class="card">
+<div class="card-title">特殊能力タイプ一覧</div>
+<table class="spec">
+<tr><th>type</th><th>名前</th><th>効果</th><th>value</th></tr>
+<tr><td>friday_regen</td><td>金曜HP回復</td><td>毎週金曜にcurrentHpをvalue分回復</td><td>HP回復量</td></tr>
+<tr><td>min_duration</td><td>短時間無効</td><td>value分未満のセッションはダメージ0</td><td>最低分数</td></tr>
+<tr><td>weekly_rotate</td><td>属性ローテ</td><td>毎週月曜にweakness/resistanceが入替</td><td>—</td></tr>
+<tr><td>enrage</td><td>激怒</td><td>HP30%以下で全ダメージ半減</td><td>HP閾値%</td></tr>
+<tr><td>night_boost</td><td>夜行性</td><td>20時以降のダメージ×value</td><td>倍率</td></tr>
+</table>
+</div>
+
+<div class="st">2. ダメージ計算式（改修）</div>
+
+<div class="card">
+<div class="card-title"><span class="tag t-method">calculateBossDamage()</span> — 新しいダメージ計算</div>
+<pre><code>function calculateBossDamage(session, boss, comboResults) {
+  let damage = session.duration; // ベース = 学習分数
+
+  // 1. 属性倍率
+  if (session.subject === boss.weakness) {
+    damage *= 2.0;  // 弱点ヒット
+  } else if (session.subject === boss.resistance) {
+    damage *= 0.5;  // 耐性で半減
+  }
+  // それ以外は×1.0
+
+  // 2. コンボ倍率（boss_multiplier型のコンボが発動していれば）
+  const bossCombo = comboResults.find(c => c.reward.type === 'boss_multiplier');
+  if (bossCombo) {
+    damage *= bossCombo.reward.value;
+  }
+
+  // 3. ポモドーロボーナス
+  damage += (session.pomodoroCount || 0) * 10;
+
+  // 4. 特殊能力による補正
+  if (boss.specialAbility) {
+    switch (boss.specialAbility.type) {
+      case 'min_duration':
+        if (session.duration < boss.specialAbility.value) return 0;
+        break;
+      case 'enrage':
+        const hpPercent = (boss.currentHp / boss.maxHp) * 100;
+        if (hpPercent <= boss.specialAbility.value) damage *= 0.5;
+        break;
+      case 'night_boost':
+        const hour = new Date().getHours();
+        if (hour >= 20) damage *= boss.specialAbility.value;
+        break;
+    }
+  }
+
+  return Math.floor(damage);
+}</code></pre>
+</div>
+
+<div class="st">3. 既存コードの変更箇所</div>
+
+<div class="card">
+<div class="card-title"><span class="tag t-trigger">student.html 学習完了時のダメージ処理</span></div>
+<div class="card-text">
+既存（student.html:1487付近）では <code>points</code> をそのままダメージとして使用:<br>
+<pre><code>// 既存コード
+const activeBosses = await RaidBossDB.getActive();
+for (const boss of activeBosses) {
+  await RaidBossDB.damage(boss.id, currentStudent.id, 
+    currentStudent.name, points);
+}
+
+// ★ 変更後
+const activeBosses = await RaidBossDB.getActive();
+for (const boss of activeBosses) {
+  const dmg = calculateBossDamage(studySession, boss, combos);
+  await RaidBossDB.damage(boss.id, currentStudent.id,
+    currentStudent.name, dmg);
+  // 完了画面に表示
+  showBossDamage(boss, dmg, session.subject === boss.weakness);
+}</code></pre>
+</div>
+</div>
+
+<div class="card">
+<div class="card-title"><span class="tag t-trigger">index.html ボス作成フォームの拡張</span></div>
+<div class="card-text">
+既存のボス作成フォーム（名前、HP、報酬）に以下を追加:<br>
+・弱点科目セレクト（塾設定の科目リストから選択）<br>
+・耐性科目セレクト<br>
+・特殊能力セレクト + パラメータ入力<br>
+・対象月（YYYY-MM）<br>
+・ストーリー連動フラグ
+</div>
+</div>
+
+<div class="st">4. 特殊能力の自動実行</div>
+
+<div class="card">
+<div class="card-title">定期処理（先生が手動 or cron的に実行）</div>
+<pre><code>// friday_regen: 金曜に実行
+async function processBossSpecials() {
+  const bosses = await RaidBossDB.getActive();
+  const today = new Date();
+  const dayOfWeek = today.getDay(); // 0=日, 5=金
+
+  for (const boss of bosses) {
+    if (!boss.specialAbility) continue;
+    switch (boss.specialAbility.type) {
+      case 'friday_regen':
+        if (dayOfWeek === 5) {
+          const newHp = Math.min(boss.maxHp, 
+            boss.currentHp + boss.specialAbility.value);
+          await db.collection('raidBosses').doc(boss.id)
+            .update({ currentHp: newHp });
+        }
+        break;
+      case 'weekly_rotate':
+        if (dayOfWeek === 1) { // 月曜
+          await db.collection('raidBosses').doc(boss.id).update({
+            weakness: boss.resistance,
+            resistance: boss.weakness
+          });
+        }
+        break;
+    }
+  }
+}</code></pre>
+</div>
+
+<div class="note">
+<strong>Phase 1での運用:</strong>
+金曜HP回復は先生がindex.htmlのボスタブから手動でHPを調整すればOK。
+自動化は将来Cloud Functionsで対応可能だが、Phase 1では手動で十分。
+</div>
+</div>
+
+<!-- ===== Tab 5: 分岐ストーリー詳細設計 ===== -->
+<div class="panel" id="p4">
+<div class="st">📖 分岐ストーリー — 詳細技術設計</div>
+
+<div class="st">1. データ構造</div>
+
+<div class="card">
+<div class="card-title"><span class="tag t-collection">storyChapters</span> Firestoreコレクション</div>
+<pre><code>{
+  id: "ch1_2026_04",
+  title: "氷の洞窟からの脱出",
+  month: "2026-04",
+  status: 'active',          // active / completed
+  
+  // ルート定義（2〜3ルート）
+  routes: [
+    {
+      id: 'route_a',
+      name: '正面突破',
+      icon: '⚔️',
+      desc: '氷壁を全員の力で砕く',
+      metric: 'total_pomodoros',      // 測定指標
+      targetValue: 500,               // 目標値
+      currentValue: 0,                // 現在値（リアルタイム更新）
+      reward: { points: 50, badge: null },
+      ending: {
+        title: '氷壁崩壊！',
+        text: '乗組員たちの絶え間ない努力が実を結んだ。...'
+      }
+    },
+    {
+      id: 'route_b',
+      name: '隠し通路',
+      icon: '🔍',
+      desc: '手がかりを集めて秘密の道を見つける',
+      metric: 'combo_discovery_rate',  // 全生徒の80%がコンボ3種以上
+      targetValue: 80,                 // パーセント
+      currentValue: 0,
+      reward: { points: 30, badge: null, hiddenArea: 'secret_cave' },
+      ending: {
+        title: '秘密の通路を発見！',
+        text: 'あの壁の奥に道があったなんて。...'
+      }
+    },
+    {
+      id: 'route_c',
+      name: '戦略的撤退',
+      icon: '🗺️',
+      desc: 'どちらも未達成の場合',
+      metric: 'fallback',             // AもBも未達成
+      targetValue: 0,
+      currentValue: 0,
+      reward: { points: 10, nextChapterBonus: true },
+      ending: {
+        title: '別の出口を発見',
+        text: '目的の道ではなかったが、宝の地図を手に入れた。...'
+      }
+    }
+  ],
+  
+  // 週次テキスト（モニター表示用）
+  weeklyTexts: [
+    { week: 1, text: '宇宙船ヒーローズ号は未知の惑星に不時着した。乗組員たちは巨大な氷の洞窟に閉じ込められている。' },
+    { week: 2, text: '氷壁の調査が進む。亀裂が見え始めたが、同時に壁の奥から微かな風を感じる者もいた。' },
+    { week: 3, text: '残された時間はあとわずか。全力で氷壁を砕くか、風の正体を追うか。' },
+    { week: 4, text: null }  // 結末は achievedRoute のendingから取得
+  ],
+  
+  achievedRoute: null,       // 達成されたルートID
+  completedAt: null,
+  createdAt: Timestamp
+}</code></pre>
+</div>
+
+<div class="st">2. ルート進捗の更新ロジック</div>
+
+<div class="card">
+<div class="card-title"><span class="tag t-method">StoryDB.updateProgress()</span></div>
+<pre><code>const StoryDB = {
+  // アクティブチャプター取得
+  async getActive() {
+    const snap = await db.collection('storyChapters')
+      .where('status', '==', 'active').limit(1).get();
+    return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
+  },
+
+  // 進捗更新（学習セッション完了時、日次バッチなど）
+  async updateProgress() {
+    const chapter = await this.getActive();
+    if (!chapter) return;
+
+    for (const route of chapter.routes) {
+      if (route.metric === 'fallback') continue;
+
+      let currentValue = 0;
+      switch (route.metric) {
+        case 'total_pomodoros':
+          // 今月の全生徒ポモドーロ合計
+          const monthStart = chapter.month + '-01';
+          const logs = await StudyLogsDB.getByDateRange(monthStart, getToday());
+          currentValue = logs.reduce((s, l) => s + (l.pomodoroCount || 0), 0);
+          break;
+
+        case 'combo_discovery_rate':
+          // 全生徒のうちコンボ3種以上発見した割合(%)
+          const students = await StudentsDB.getAll();
+          let qualified = 0;
+          for (const st of students) {
+            const discoveries = await ComboDB.getDiscoveries(st.id);
+            if (discoveries.length >= 3) qualified++;
+          }
+          currentValue = students.length > 0
+            ? Math.floor(qualified / students.length * 100) : 0;
+          break;
+
+        case 'total_study_hours':
+          // 今月の全生徒合計学習時間
+          const mLogs = await StudyLogsDB.getByDateRange(
+            chapter.month + '-01', getToday());
+          currentValue = Math.floor(
+            mLogs.reduce((s, l) => s + (l.duration || 0), 0) / 60);
+          break;
+
+        case 'boss_defeated':
+          // 今月のボスが撃破されたか (0 or 1)
+          const bosses = await RaidBossDB.getAll();
+          const monthBoss = bosses.find(
+            b => b.month === chapter.month && b.status === 'defeated');
+          currentValue = monthBoss ? 1 : 0;
+          break;
+      }
+
+      route.currentValue = currentValue;
+    }
+
+    // Firestore更新
+    await db.collection('storyChapters').doc(chapter.id)
+      .update({ routes: chapter.routes });
+
+    return chapter;
+  },
+
+  // 月末の結末判定
+  async resolveChapter() {
+    const chapter = await this.getActive();
+    if (!chapter) return;
+
+    // ルートAから順に判定（最初に達成したルートが採用）
+    let achievedRoute = null;
+    for (const route of chapter.routes) {
+      if (route.metric === 'fallback') continue;
+      const percent = route.targetValue > 0
+        ? (route.currentValue / route.targetValue) * 100 : 0;
+      if (percent >= 100) {
+        achievedRoute = route.id;
+        break;
+      }
+    }
+    // どれも未達成ならfallback
+    if (!achievedRoute) {
+      achievedRoute = chapter.routes.find(r => r.metric === 'fallback')?.id;
+    }
+
+    await db.collection('storyChapters').doc(chapter.id).update({
+      status: 'completed',
+      achievedRoute,
+      completedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    // 報酬配布
+    const route = chapter.routes.find(r => r.id === achievedRoute);
+    if (route?.reward?.points) {
+      const students = await StudentsDB.getAll();
+      for (const st of students) {
+        await StudentsDB.addPoints(st.id, route.reward.points);
+      }
+    }
+
+    return { chapter, achievedRoute, route };
+  },
+
+  // チャプター作成（先生がindex.htmlから）
+  async create(data) { ... },
+};</code></pre>
+</div>
+
+<div class="st">3. 表示先と更新タイミング</div>
+
+<table class="spec">
+<tr><th>画面</th><th>表示内容</th><th>更新タイミング</th></tr>
+<tr><td>monitor.html</td><td>チャプタータイトル、週次テキスト、ルート進捗バー(A: 72%, B: 45%)</td><td>onSnapshotでリアルタイム</td></tr>
+<tr><td>student.html</td><td>ホームにチャプターカード。進捗%とルート確率</td><td>ホーム画面表示時にfetch</td></tr>
+<tr><td>index.html</td><td>チャプター管理タブ。作成/テキスト編集/手動結末判定</td><td>タブ切替時にfetch</td></tr>
+<tr><td>parent.html</td><td>表示なし（保護者にはストーリーは不要）</td><td>—</td></tr>
+</table>
+
+<div class="st">4. 5要素の連動マトリクス</div>
+
+<table class="spec">
+<tr><th></th><th>コンボ</th><th>ランダムミッション</th><th>マップ</th><th>ボス</th><th>ストーリー</th></tr>
+<tr><td><strong>コンボ</strong></td><td>—</td><td>コンボ発動でミッション進捗</td><td>コンボ発見数で隠しエリア解放</td><td>boss_multiplier型コンボ</td><td>発見率がルートB条件</td></tr>
+<tr><td><strong>ランダムミッション</strong></td><td>ミッション連続クリアがコンボ条件</td><td>—</td><td>Legendary達成で隠しエリア</td><td>ボス弱点ミッションあり</td><td>ミッション達成率がルート条件候補</td></tr>
+<tr><td><strong>マップ</strong></td><td>隠しエリアの解放条件</td><td>—</td><td>—</td><td>—</td><td>ステーション=ストーリーの舞台</td></tr>
+<tr><td><strong>ボス</strong></td><td>ドラゴンキラーコンボ</td><td>ボス弱点ミッション</td><td>—</td><td>—</td><td>撃破=ルートA条件</td></tr>
+<tr><td><strong>ストーリー</strong></td><td>—</td><td>物語限定ミッション</td><td>舞台連動</td><td>ボス=物語の敵</td><td>—</td></tr>
+</table>
+
+<div class="note">
+<strong>全体の実行順序（学習セッション完了時）:</strong><br>
+① ポイント計算（base = 分数 + ポモドーロ）<br>
+② コンボ判定 → multiplier / bonus 適用 → 最終ポイント確定<br>
+③ ポイント付与（StudentsDB.addPoints）<br>
+④ ボスダメージ計算（属性倍率 × boss_multiplier × ポモドーロ） → ダメージ適用<br>
+⑤ バッジチェック（BadgesDB.checkAndAward）<br>
+⑥ デイリーミッション達成チェック<br>
+⑦ ストーリー進捗更新<br>
+⑧ 隠しエリアチェック<br>
+⑨ 完了画面表示（ポイント、コンボ、ボスダメージ、バッジ、ミッション）
+</div>
+</div>
+
+</div><!-- /container -->
+
+<div class="footer-bar">
+HERO'S v2.0 詳細技術設計書<br>
+5 modules: ComboDB / DailyMissionsDB / SpaceMapDB / RaidBossDB(拡張) / StoryDB
+</div>
+
+<script>
+function showP(i){
+document.querySelectorAll('.panel').forEach((p,j)=>p.classList.toggle('active',j===i));
+document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+}
+</script>
+</body>
+</html>
