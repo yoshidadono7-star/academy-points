@@ -1192,3 +1192,603 @@ function checkBalanceCap(currentPoints) {
   }
   return { overflow: 0, capped: currentPoints };
 }
+
+// ============================================
+// Game Design v2.0 — 5つの新モジュール
+// ============================================
+
+// ===== 宇宙マップ (Space Map) =====
+const SPACE_STATIONS = [
+  { id: 'earth',    level: 1,  points: 0,    name: '地球',           icon: '🌍', desc: '冒険の始まり' },
+  { id: 'moon',     level: 2,  points: 50,   name: '月面基地',       icon: '🌙', desc: '宇宙への第一歩' },
+  { id: 'mars',     level: 3,  points: 200,  name: '火星コロニー',   icon: '🔴', desc: '赤い星の開拓者' },
+  { id: 'asteroid', level: 4,  points: 400,  name: '小惑星帯',       icon: '☄️', desc: '混沌を泳ぐ' },
+  { id: 'jupiter',  level: 5,  points: 700,  name: '木星ステーション', icon: '🟤', desc: 'ガス巨星の前哨' },
+  { id: 'saturn',   level: 6,  points: 1000, name: '土星の輪',       icon: '💫', desc: 'リングランナー' },
+  { id: 'uranus',   level: 7,  points: 1500, name: '天王星基地',     icon: '🧊', desc: '氷の世界の探検家' },
+  { id: 'neptune',  level: 8,  points: 2000, name: '海王星深部',     icon: '🔵', desc: '深宇宙ダイバー' },
+  { id: 'pluto',    level: 9,  points: 3000, name: '冥王星前線',     icon: '⚫', desc: '既知宇宙の果て' },
+  { id: 'galaxy',   level: 10, points: 5000, name: '銀河の果て',     icon: '🌌', desc: '宇宙の伝説' },
+];
+
+const HIDDEN_AREAS = [
+  { id: 'comet_cave',    name: '彗星の洞窟',   icon: '☄️', afterStation: 'mars',
+    condition: 'comboDiscoveryCount >= 5', conditionFn: (s) => s.comboDiscoveryCount >= 5,
+    reward: { title: 'コンボハンター' } },
+  { id: 'wormhole',      name: 'ワームホール', icon: '🕳️', afterStation: 'asteroid',
+    condition: 'bestStreak >= 14', conditionFn: (s) => s.bestStreak >= 14,
+    reward: { title: '時空の旅人' } },
+  { id: 'alien_ruins',   name: '異星人の遺跡', icon: '👽', afterStation: 'jupiter',
+    condition: 'allTimeSubjectCount >= 5', conditionFn: (s) => s.allTimeSubjectCount >= 5,
+    reward: { title: 'マルチスペシャリスト' } },
+  { id: 'meteor_shower', name: '流星群エリア', icon: '🌠', afterStation: 'saturn',
+    condition: 'totalPomodoros >= 50', conditionFn: (s) => s.totalPomodoros >= 50,
+    reward: { title: 'ポモドーロの星' } },
+  { id: 'pirate_base',   name: '宇宙海賊基地', icon: '🏴‍☠️', afterStation: 'uranus',
+    condition: 'legendaryMissionCleared >= 1', conditionFn: (s) => s.legendaryMissionCleared >= 1,
+    reward: { title: '伝説の冒険者' } },
+  { id: 'observatory',   name: '観測所オメガ', icon: '🔭', afterStation: 'neptune',
+    condition: 'raidBossKills >= 3', conditionFn: (s) => s.raidBossKills >= 3,
+    reward: { title: '宇宙の観測者' } },
+];
+
+function getStation(totalPoints) {
+  for (let i = SPACE_STATIONS.length - 1; i >= 0; i--) {
+    if (totalPoints >= SPACE_STATIONS[i].points) return SPACE_STATIONS[i];
+  }
+  return SPACE_STATIONS[0];
+}
+
+function getStationProgress(totalPoints) {
+  const current = getStation(totalPoints);
+  const idx = SPACE_STATIONS.findIndex(s => s.id === current.id);
+  if (idx >= SPACE_STATIONS.length - 1) return { current, next: null, percent: 100, remaining: 0 };
+  const next = SPACE_STATIONS[idx + 1];
+  const range = next.points - current.points;
+  const progress = totalPoints - current.points;
+  return { current, next, percent: Math.floor(progress / range * 100), remaining: next.points - totalPoints };
+}
+
+const SpaceMapDB = {
+  async getDiscoveries(studentId) {
+    const snap = await db.collection('hiddenAreaDiscoveries')
+      .where('studentId', '==', studentId).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async checkAndUnlock(studentId, stats) {
+    const existing = await this.getDiscoveries(studentId);
+    const existingIds = existing.map(e => e.areaId);
+    const newlyUnlocked = [];
+    for (const area of HIDDEN_AREAS) {
+      if (existingIds.includes(area.id)) continue;
+      if (area.conditionFn(stats)) {
+        await db.collection('hiddenAreaDiscoveries').add({
+          studentId, areaId: area.id,
+          unlockedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          titleEquipped: false
+        });
+        newlyUnlocked.push(area);
+      }
+    }
+    return newlyUnlocked;
+  },
+  async equipTitle(discoveryId) {
+    await db.collection('hiddenAreaDiscoveries').doc(discoveryId).update({ titleEquipped: true });
+  }
+};
+
+// ===== コンボシステム (Combo System) =====
+const COMBO_DEFINITIONS = [
+  // 公開コンボ
+  { id: 'fire_starter', name: 'ファイアースターター', icon: '🔥',
+    desc: '3日連続で出席して学習', hidden: false, cooldown: 'weekly', category: 'streak',
+    conditionFn: (ctx) => ctx.currentStreak >= 3,
+    reward: { type: 'bonus', points: 30 } },
+  { id: 'multi_talent', name: 'マルチタレント', icon: '📚',
+    desc: '1日に3教科以上学習', hidden: false, cooldown: 'daily', category: 'variety',
+    conditionFn: (ctx) => ctx.todaySubjects.length >= 3,
+    reward: { type: 'multiplier', value: 1.5 } },
+  { id: 'perfect_day', name: 'パーフェクトデイ', icon: '💎',
+    desc: 'コンディション記録 + 学習 + タスク完了', hidden: false, cooldown: 'daily', category: 'completeness',
+    conditionFn: (ctx) => ctx.conditionToday && ctx.studiedToday && ctx.taskCompletedToday,
+    reward: { type: 'bonus', points: 50 } },
+  // 隠しコンボ
+  { id: 'early_sword', name: '早起きの剣', icon: '🌅',
+    desc: '16時台に学習開始 + ポモドーロ完走', hidden: true, cooldown: 'daily', category: 'timing',
+    conditionFn: (ctx) => ctx.sessionStartHour === 16 && ctx.pomodoroCount >= 1,
+    reward: { type: 'bonus', points: 20 } },
+  { id: 'pomodoro_master', name: 'ポモドーロマスター', icon: '🍅',
+    desc: '1日にポモドーロ5回完走', hidden: true, cooldown: 'daily', category: 'focus',
+    conditionFn: (ctx) => ctx.todayPomodoros >= 5,
+    reward: { type: 'bonus', points: 40 } },
+  { id: 'sniper', name: 'スナイパー', icon: '🎯',
+    desc: '苦手科目を60分以上学習', hidden: true, cooldown: 'daily', category: 'challenge',
+    conditionFn: (ctx) => ctx.weakSubjectMinutes >= 60,
+    reward: { type: 'bonus', points: 35 } },
+  { id: 'night_walker', name: 'ナイトウォーカー', icon: '🌙',
+    desc: '20時以降に2教科以上学習', hidden: true, cooldown: 'daily', category: 'timing',
+    conditionFn: (ctx) => ctx.sessionStartHour >= 20 && ctx.todaySubjects.length >= 2,
+    reward: { type: 'bonus', points: 25 } },
+  { id: 'bookworm', name: '読書家', icon: '📖',
+    desc: '国語と英語を同じ日に学習', hidden: true, cooldown: 'daily', category: 'variety',
+    conditionFn: (ctx) => ctx.todaySubjects.includes('国語') && ctx.todaySubjects.includes('英語'),
+    reward: { type: 'bonus', points: 20 } },
+  { id: 'thunder_chain', name: 'サンダーチェイン', icon: '⚡',
+    desc: '5日連続でデイリーミッションクリア', hidden: true, cooldown: 'weekly', category: 'mission',
+    conditionFn: (ctx) => ctx.missionStreak >= 5,
+    reward: { type: 'bonus', points: 80 } },
+  { id: 'home_hero', name: 'ホームヒーロー', icon: '🏠',
+    desc: '自宅学習 + ポモドーロ3回', hidden: true, cooldown: 'daily', category: 'location',
+    conditionFn: (ctx) => ctx.location === '自宅' && ctx.pomodoroCount >= 3,
+    reward: { type: 'bonus', points: 30 } },
+  { id: 'weekly_king', name: 'ウィークリーキング', icon: '👑',
+    desc: '週7日中6日以上出席', hidden: true, cooldown: 'weekly', category: 'attendance',
+    conditionFn: (ctx) => ctx.weeklyAttendance >= 6,
+    reward: { type: 'bonus', points: 100 } },
+  { id: 'dragon_killer', name: 'ドラゴンキラー', icon: '🐉',
+    desc: 'ボス弱点科目 + ポモドーロ3回', hidden: true, cooldown: 'daily', category: 'boss',
+    conditionFn: (ctx) => ctx.isWeaknessSubject && ctx.pomodoroCount >= 3,
+    reward: { type: 'boss_multiplier', value: 2.0 } },
+];
+
+const ComboDB = {
+  async buildContext(studentId, session) {
+    const today = getToday();
+    const todayLogs = await StudyLogsDB.getByDate(today);
+    const myTodayLogs = todayLogs.filter(l => l.studentId === studentId);
+    const student = await StudentsDB.getById(studentId);
+    const todayConditions = await ConditionsDB.getToday();
+    const taskCompletions = await TasksDB.getCompletions(studentId);
+    const activeBosses = await RaidBossDB.getActive();
+    const boss = activeBosses.length > 0 ? activeBosses[0] : null;
+
+    // 今週の出席日数
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    const weekStartStr = weekStart.toISOString().split('T')[0];
+    const weekLogs = await StudyLogsDB.getByDateRange(weekStartStr, today);
+    const weekDays = new Set(weekLogs.filter(l => l.studentId === studentId).map(l => l.date)).size;
+
+    return {
+      subject: session.subject,
+      duration: session.duration,
+      location: session.location || '塾',
+      method: session.method || 'normal',
+      pomodoroCount: session.pomodoroCount || 0,
+      sessionStartHour: session.startHour || new Date().getHours(),
+      todaySubjects: [...new Set(myTodayLogs.map(l => l.subject))],
+      todayPomodoros: myTodayLogs.reduce((s, l) => s + (l.pomodoroCount || 0), 0),
+      studiedToday: myTodayLogs.length > 0,
+      conditionToday: todayConditions.some(c => c.studentId === studentId),
+      taskCompletedToday: taskCompletions.some(t => t.date === today),
+      currentStreak: student.streak || 0,
+      missionStreak: student.missionStreak || 0,
+      weeklyAttendance: weekDays,
+      weakSubjectMinutes: student.weakSubject
+        ? myTodayLogs.filter(l => l.subject === student.weakSubject).reduce((s, l) => s + (l.duration || 0), 0)
+        : 0,
+      isWeaknessSubject: boss && session.subject === boss.weakness,
+    };
+  },
+
+  async isOnCooldown(studentId, combo) {
+    const today = getToday();
+    const snap = await db.collection('comboTriggers')
+      .where('studentId', '==', studentId)
+      .where('comboId', '==', combo.id)
+      .orderBy('createdAt', 'desc').limit(1).get();
+    if (snap.empty) return false;
+    const last = snap.docs[0].data();
+    if (combo.cooldown === 'daily') return last.date === today;
+    if (combo.cooldown === 'weekly') {
+      const lastDate = new Date(last.date);
+      const now = new Date();
+      const diffDays = Math.floor((now - lastDate) / (24 * 60 * 60 * 1000));
+      return diffDays < 7;
+    }
+    return false;
+  },
+
+  async checkAll(studentId, session) {
+    const ctx = await this.buildContext(studentId, session);
+    const triggered = [];
+    for (const combo of COMBO_DEFINITIONS) {
+      try {
+        if (!combo.conditionFn(ctx)) continue;
+        if (await this.isOnCooldown(studentId, combo)) continue;
+        const isNew = await this.recordDiscovery(studentId, combo.id);
+        await db.collection('comboTriggers').add({
+          studentId, comboId: combo.id,
+          points: combo.reward.points || 0,
+          multiplier: combo.reward.value || 1.0,
+          date: getToday(),
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        triggered.push({ ...combo, isFirstDiscovery: isNew });
+      } catch (e) { console.warn('Combo check error:', combo.id, e); }
+    }
+    return triggered;
+  },
+
+  async recordDiscovery(studentId, comboId) {
+    const existing = await db.collection('comboDiscoveries')
+      .where('studentId', '==', studentId)
+      .where('comboId', '==', comboId).limit(1).get();
+    if (!existing.empty) {
+      await db.collection('comboDiscoveries').doc(existing.docs[0].id).update({
+        triggerCount: firebase.firestore.FieldValue.increment(1),
+        lastTriggeredAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      return false;
+    }
+    await db.collection('comboDiscoveries').add({
+      studentId, comboId,
+      discoveredAt: firebase.firestore.FieldValue.serverTimestamp(),
+      triggerCount: 1,
+      lastTriggeredAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return true;
+  },
+
+  async getDiscoveries(studentId) {
+    const snap = await db.collection('comboDiscoveries')
+      .where('studentId', '==', studentId).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+
+  async getClassDiscoveryRate() {
+    const students = await StudentsDB.getAll();
+    if (students.length === 0) return 0;
+    let qualified = 0;
+    for (const st of students) {
+      const discoveries = await this.getDiscoveries(st.id);
+      if (discoveries.length >= 3) qualified++;
+    }
+    return Math.floor(qualified / students.length * 100);
+  }
+};
+
+// ===== デイリーミッション (Daily Random Missions) =====
+const DAILY_MISSION_POOL = [
+  // Common (50%)
+  { id: 'dm_pomo2', name: 'ポモドーロ2回', desc: 'ポモドーロを2回完走', rarity: 'common', points: 15, icon: '🍅',
+    checkType: 'auto_daily', conditionFn: (ds) => ds.totalPomodoros >= 2 },
+  { id: 'dm_30min', name: '30分学習', desc: '合計30分以上学習', rarity: 'common', points: 10, icon: '⏱️',
+    checkType: 'auto_daily', conditionFn: (ds) => ds.totalMinutes >= 30 },
+  { id: 'dm_condition', name: 'コンディション記録', desc: 'コンディションを記録', rarity: 'common', points: 5, icon: '😊',
+    checkType: 'auto_daily', conditionFn: (ds) => ds.conditionRecorded },
+  { id: 'dm_task1', name: 'タスク1つ', desc: 'タスクを1つ完了', rarity: 'common', points: 10, icon: '✅',
+    checkType: 'auto_daily', conditionFn: (ds) => ds.tasksCompleted >= 1 },
+  { id: 'dm_review', name: '振り返りノート', desc: '学習を振り返って記録', rarity: 'common', points: 10, icon: '📝',
+    checkType: 'manual', conditionFn: null },
+  { id: 'dm_preview', name: '予習チャレンジ', desc: '翌日の授業科目を予習', rarity: 'common', points: 10, icon: '📖',
+    checkType: 'manual', conditionFn: null },
+  // Uncommon (30%)
+  { id: 'dm_weak20', name: '苦手科目20分', desc: '苦手科目を20分以上', rarity: 'uncommon', points: 25, icon: '💪',
+    checkType: 'auto_daily', conditionFn: (ds) => ds.weakSubjectMinutes >= 20 },
+  { id: 'dm_pomo3', name: 'ポモドーロ3連続', desc: 'ポモドーロ3回連続完走', rarity: 'uncommon', points: 30, icon: '🍅',
+    checkType: 'auto_daily', conditionFn: (ds) => ds.totalPomodoros >= 3 },
+  { id: 'dm_2subj', name: '2教科学習', desc: '2教科以上学習', rarity: 'uncommon', points: 20, icon: '📚',
+    checkType: 'auto_daily', conditionFn: (ds) => ds.subjectCount >= 2 },
+  { id: 'dm_60min', name: '60分マラソン', desc: '60分以上学習', rarity: 'uncommon', points: 30, icon: '⏱️',
+    checkType: 'auto_daily', conditionFn: (ds) => ds.totalMinutes >= 60 },
+  { id: 'dm_home', name: '自宅学習', desc: '自宅から学習セッション完了', rarity: 'uncommon', points: 20, icon: '🏠',
+    checkType: 'auto_daily', conditionFn: (ds) => ds.homeStudied },
+  // Rare (15%)
+  { id: 'dm_3subj', name: '3教科チャレンジ', desc: '3教科以上学習', rarity: 'rare', points: 50, icon: '🌟',
+    checkType: 'auto_daily', conditionFn: (ds) => ds.subjectCount >= 3 },
+  { id: 'dm_morning', name: '早朝ミッション', desc: '12時前に学習開始', rarity: 'rare', points: 40, icon: '🌅',
+    checkType: 'auto_daily', conditionFn: (ds) => ds.earliestHour < 12 },
+  { id: 'dm_pomo5', name: 'ポモドーロ5回', desc: 'ポモドーロ5回完走', rarity: 'rare', points: 60, icon: '🍅',
+    checkType: 'auto_daily', conditionFn: (ds) => ds.totalPomodoros >= 5 },
+  { id: 'dm_boss_weak', name: 'ボス弱点攻撃', desc: 'ボスの弱点科目を45分', rarity: 'rare', points: 55, icon: '🎯',
+    checkType: 'auto_daily', conditionFn: (ds) => ds.bossWeaknessMinutes >= 45 },
+  // Epic (4%)
+  { id: 'dm_5day_clear', name: '5日連続クリア', desc: 'ミッション5日連続達成', rarity: 'epic', points: 100, icon: '🔥',
+    checkType: 'auto_daily', conditionFn: (ds) => ds.missionStreak >= 5 },
+  { id: 'dm_perfect', name: 'パーフェクトデイ', desc: '全活動を完了', rarity: 'epic', points: 80, icon: '💎',
+    checkType: 'auto_daily', conditionFn: (ds) => ds.conditionRecorded && ds.totalMinutes >= 30 && ds.tasksCompleted >= 1 },
+  // Legendary (1%)
+  { id: 'dm_weekly_king', name: 'ウィークリーキング', desc: '週6日以上出席', rarity: 'legendary', points: 200, icon: '👑',
+    checkType: 'auto_daily', conditionFn: (ds) => ds.weeklyAttendance >= 6 },
+  { id: 'dm_hidden1', name: '???', desc: '???', rarity: 'legendary', points: 150, icon: '🌌',
+    checkType: 'auto_daily', hidden: true, conditionFn: (ds) => ds.totalPomodoros >= 7 && ds.subjectCount >= 4 },
+];
+
+const DailyMissionsDB = {
+  rollRarity() {
+    const r = Math.random() * 100;
+    if (r < 1) return 'legendary';
+    if (r < 5) return 'epic';
+    if (r < 20) return 'rare';
+    if (r < 50) return 'uncommon';
+    return 'common';
+  },
+
+  async draw(studentId) {
+    const today = getToday();
+    const existing = await db.collection('dailyMissionDraws')
+      .where('studentId', '==', studentId)
+      .where('date', '==', today).limit(1).get();
+    if (!existing.empty) return { id: existing.docs[0].id, ...existing.docs[0].data() };
+
+    const drawn = [];
+    for (let i = 0; i < 3; i++) {
+      const rarity = this.rollRarity();
+      const pool = DAILY_MISSION_POOL.filter(
+        m => m.rarity === rarity && !drawn.some(d => d.missionId === m.id)
+      );
+      const fallback = pool.length > 0 ? pool : DAILY_MISSION_POOL.filter(
+        m => m.rarity === 'common' && !drawn.some(d => d.missionId === m.id)
+      );
+      if (fallback.length === 0) continue;
+      const pick = fallback[Math.floor(Math.random() * fallback.length)];
+      drawn.push({ missionId: pick.id, rarity: pick.rarity });
+    }
+
+    const doc = {
+      studentId, date: today, missions: drawn,
+      accepted: null, completed: false, completedAt: null,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    const ref = await db.collection('dailyMissionDraws').add(doc);
+    return { id: ref.id, ...doc };
+  },
+
+  async accept(drawId, missionId) {
+    await db.collection('dailyMissionDraws').doc(drawId).update({ accepted: missionId });
+  },
+
+  async buildDayStats(studentId) {
+    const today = getToday();
+    const todayLogs = await StudyLogsDB.getByDate(today);
+    const myLogs = todayLogs.filter(l => l.studentId === studentId);
+    const student = await StudentsDB.getById(studentId);
+    const conditions = await ConditionsDB.getToday();
+    const taskCompletions = await TasksDB.getCompletions(studentId);
+    const activeBosses = await RaidBossDB.getActive();
+    const boss = activeBosses.length > 0 ? activeBosses[0] : null;
+
+    const now = new Date();
+    const weekStart = new Date(now);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    const weekLogs = await StudyLogsDB.getByDateRange(weekStart.toISOString().split('T')[0], today);
+    const weekDays = new Set(weekLogs.filter(l => l.studentId === studentId).map(l => l.date)).size;
+
+    return {
+      totalMinutes: myLogs.reduce((s, l) => s + (l.duration || 0), 0),
+      totalPomodoros: myLogs.reduce((s, l) => s + (l.pomodoroCount || 0), 0),
+      subjectCount: new Set(myLogs.map(l => l.subject)).size,
+      conditionRecorded: conditions.some(c => c.studentId === studentId),
+      tasksCompleted: taskCompletions.filter(t => t.date === today).length,
+      homeStudied: myLogs.some(l => l.location === '自宅'),
+      earliestHour: myLogs.length > 0 ? Math.min(...myLogs.map(l => {
+        const d = l.createdAt?.toDate ? l.createdAt.toDate() : new Date();
+        return d.getHours();
+      })) : 24,
+      weeklyAttendance: weekDays,
+      missionStreak: student.missionStreak || 0,
+      weakSubjectMinutes: student.weakSubject
+        ? myLogs.filter(l => l.subject === student.weakSubject).reduce((s, l) => s + (l.duration || 0), 0)
+        : 0,
+      bossWeaknessMinutes: boss
+        ? myLogs.filter(l => l.subject === boss.weakness).reduce((s, l) => s + (l.duration || 0), 0)
+        : 0,
+    };
+  },
+
+  async checkCompletion(studentId) {
+    const today = getToday();
+    const drawSnap = await db.collection('dailyMissionDraws')
+      .where('studentId', '==', studentId)
+      .where('date', '==', today).limit(1).get();
+    if (drawSnap.empty) return null;
+
+    const draw = { id: drawSnap.docs[0].id, ...drawSnap.docs[0].data() };
+    if (!draw.accepted || draw.completed) return draw;
+
+    const mission = DAILY_MISSION_POOL.find(m => m.id === draw.accepted);
+    if (!mission || mission.checkType === 'manual') return draw;
+
+    const dayStats = await this.buildDayStats(studentId);
+    if (mission.conditionFn && mission.conditionFn(dayStats)) {
+      await db.collection('dailyMissionDraws').doc(draw.id).update({
+        completed: true,
+        completedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      await StudentsDB.addPoints(studentId, mission.points);
+      // missionStreak更新
+      await StudentsDB.update(studentId, {
+        missionStreak: firebase.firestore.FieldValue.increment(1)
+      });
+      return { ...draw, completed: true, mission };
+    }
+    return draw;
+  },
+
+  async manualComplete(drawId) {
+    const doc = await db.collection('dailyMissionDraws').doc(drawId).get();
+    if (!doc.exists) return;
+    const draw = doc.data();
+    if (draw.completed) return;
+    const mission = DAILY_MISSION_POOL.find(m => m.id === draw.accepted);
+    await db.collection('dailyMissionDraws').doc(drawId).update({
+      completed: true, completedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    if (mission) await StudentsDB.addPoints(draw.studentId, mission.points);
+  },
+
+  async getHistory(studentId, days = 30) {
+    const since = new Date();
+    since.setDate(since.getDate() - days);
+    const sinceStr = since.toISOString().split('T')[0];
+    const snap = await db.collection('dailyMissionDraws')
+      .where('studentId', '==', studentId)
+      .where('date', '>=', sinceStr)
+      .orderBy('date', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+
+  getMissionDef(missionId) {
+    return DAILY_MISSION_POOL.find(m => m.id === missionId) || null;
+  }
+};
+
+// ===== 戦略レイドボス拡張 (Strategic Raid Boss) =====
+function calculateBossDamage(session, boss, comboResults) {
+  let damage = session.duration || 0;
+
+  // 属性倍率
+  if (boss.weakness && session.subject === boss.weakness) {
+    damage *= 2.0;
+  } else if (boss.resistance && session.subject === boss.resistance) {
+    damage *= 0.5;
+  }
+
+  // コンボ倍率 (boss_multiplier)
+  const bossCombo = (comboResults || []).find(c => c.reward && c.reward.type === 'boss_multiplier');
+  if (bossCombo) damage *= bossCombo.reward.value;
+
+  // ポモドーロボーナス
+  damage += (session.pomodoroCount || 0) * 10;
+
+  // 特殊能力補正
+  if (boss.specialAbility) {
+    switch (boss.specialAbility.type) {
+      case 'min_duration':
+        if (session.duration < boss.specialAbility.value) return 0;
+        break;
+      case 'enrage':
+        if (boss.maxHp > 0 && (boss.currentHp / boss.maxHp * 100) <= boss.specialAbility.value)
+          damage *= 0.5;
+        break;
+      case 'night_boost':
+        if (new Date().getHours() >= 20) damage *= (boss.specialAbility.value || 1.5);
+        break;
+    }
+  }
+
+  return Math.floor(damage);
+}
+
+// ===== 分岐ストーリー (Branching Story) =====
+const StoryDB = {
+  async getActive() {
+    const snap = await db.collection('storyChapters')
+      .where('status', '==', 'active').limit(1).get();
+    return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
+  },
+
+  async create(data) {
+    const routes = (data.routes || []).map(r => ({
+      id: r.id,
+      name: r.name,
+      icon: r.icon || '⚔️',
+      desc: r.desc || '',
+      metric: r.metric,
+      targetValue: r.targetValue || 0,
+      currentValue: 0,
+      reward: r.reward || { points: 0 },
+      ending: r.ending || { title: '', text: '' }
+    }));
+    const ref = await db.collection('storyChapters').add({
+      title: data.title,
+      month: data.month,
+      status: 'active',
+      routes,
+      weeklyTexts: data.weeklyTexts || [],
+      achievedRoute: null,
+      completedAt: null,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return ref.id;
+  },
+
+  async updateProgress() {
+    const chapter = await this.getActive();
+    if (!chapter) return null;
+
+    const monthStart = chapter.month + '-01';
+    const today = getToday();
+
+    for (const route of chapter.routes) {
+      if (route.metric === 'fallback') continue;
+
+      let currentValue = 0;
+      switch (route.metric) {
+        case 'total_pomodoros': {
+          const logs = await StudyLogsDB.getByDateRange(monthStart, today);
+          currentValue = logs.reduce((s, l) => s + (l.pomodoroCount || 0), 0);
+          break;
+        }
+        case 'combo_discovery_rate': {
+          currentValue = await ComboDB.getClassDiscoveryRate();
+          break;
+        }
+        case 'total_study_hours': {
+          const logs = await StudyLogsDB.getByDateRange(monthStart, today);
+          currentValue = Math.floor(logs.reduce((s, l) => s + (l.duration || 0), 0) / 60);
+          break;
+        }
+        case 'boss_defeated': {
+          const bosses = await RaidBossDB.getAll();
+          currentValue = bosses.some(b => b.month === chapter.month && b.status === 'defeated') ? 1 : 0;
+          break;
+        }
+      }
+      route.currentValue = currentValue;
+    }
+
+    await db.collection('storyChapters').doc(chapter.id).update({ routes: chapter.routes });
+    return chapter;
+  },
+
+  async resolveChapter() {
+    const chapter = await this.getActive();
+    if (!chapter) return null;
+
+    let achievedRoute = null;
+    for (const route of chapter.routes) {
+      if (route.metric === 'fallback') continue;
+      if (route.targetValue > 0 && route.currentValue >= route.targetValue) {
+        achievedRoute = route.id;
+        break;
+      }
+    }
+    if (!achievedRoute) {
+      const fallback = chapter.routes.find(r => r.metric === 'fallback');
+      if (fallback) achievedRoute = fallback.id;
+    }
+
+    await db.collection('storyChapters').doc(chapter.id).update({
+      status: 'completed', achievedRoute,
+      completedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+
+    // 報酬配布
+    const route = chapter.routes.find(r => r.id === achievedRoute);
+    if (route && route.reward && route.reward.points) {
+      const students = await StudentsDB.getAll();
+      for (const st of students) {
+        await StudentsDB.addPoints(st.id, route.reward.points);
+      }
+    }
+
+    return { chapter, achievedRoute, route };
+  },
+
+  async getAll() {
+    const snap = await db.collection('storyChapters').orderBy('createdAt', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+
+  getWeeklyText(chapter) {
+    if (!chapter || !chapter.weeklyTexts) return '';
+    const monthStart = new Date(chapter.month + '-01');
+    const now = new Date();
+    const weekNum = Math.min(Math.ceil((now - monthStart) / (7 * 24 * 60 * 60 * 1000)), 4);
+    const wt = chapter.weeklyTexts.find(w => w.week === weekNum);
+    return wt ? wt.text : '';
+  }
+};
