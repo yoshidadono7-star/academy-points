@@ -1,0 +1,568 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HERO'S Phase 1 — ソロ文化確立 具体計画</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Hiragino Sans',-apple-system,BlinkMacSystemFont,sans-serif;background:#0f172a;color:#e2e8f0;line-height:1.7}
+.container{max-width:1200px;margin:0 auto;padding:20px}
+h1{text-align:center;font-size:24px;margin:24px 0 4px;background:linear-gradient(135deg,#667eea,#764ba2);-webkit-background-clip:text;-webkit-text-fill-color:transparent}
+.subtitle{text-align:center;color:#94a3b8;font-size:13px;margin-bottom:24px}
+.tabs{display:flex;gap:3px;background:#1e293b;border-radius:12px 12px 0 0;padding:6px 6px 0;flex-wrap:wrap}
+.tab{flex:1;min-width:100px;padding:11px 6px;border:none;border-radius:10px 10px 0 0;background:transparent;color:#94a3b8;font-size:11px;font-weight:600;cursor:pointer;font-family:inherit;transition:all .2s}
+.tab:hover{color:#e2e8f0}
+.tab.active{background:#1e293b;color:#667eea;border-bottom:3px solid #667eea}
+.panel{display:none;background:#1e293b;border-radius:0 0 12px 12px;padding:24px;min-height:400px}
+.panel.active{display:block}
+.st{font-size:15px;font-weight:700;margin-bottom:10px;padding-bottom:6px;border-bottom:1px solid #334155;display:flex;align-items:center;gap:8px}
+.section{margin-bottom:24px}
+.card{background:#0f172a;border:1px solid #334155;border-radius:10px;padding:14px;margin-bottom:10px;transition:border-color .2s}
+.card:hover{border-color:#667eea}
+.card-title{font-size:13px;font-weight:700;margin-bottom:4px}
+.card-text{font-size:12px;color:#94a3b8;line-height:1.7}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(max-width:768px){.grid2,.grid3{grid-template-columns:1fr}}
+.badge{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;margin-top:4px}
+.b-done{background:#064e3b;color:#34d399}
+.b-new{background:#1e3a5f;color:#60a5fa}
+.b-key{background:#78350f;color:#fbbf24}
+.b-phase2{background:#3b0764;color:#c084fc}
+.week-card{background:#0f172a;border:1px solid #334155;border-radius:12px;padding:16px;margin-bottom:14px}
+.week-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.week-num{font-size:16px;font-weight:800;color:#667eea}
+.week-date{font-size:11px;color:#94a3b8}
+.week-theme{font-size:14px;font-weight:700;margin-bottom:8px}
+.task-list{list-style:none;font-size:12px}
+.task-list li{padding:5px 0;border-bottom:1px solid #1e293b;display:flex;gap:8px}
+.task-list li:last-child{border-bottom:none}
+.task-icon{flex-shrink:0;width:20px;text-align:center}
+.checklist{list-style:none;font-size:12px}
+.checklist li{padding:6px 0;border-bottom:1px solid #1e293b;display:flex;align-items:flex-start;gap:8px}
+.checklist li::before{content:'☐';color:#667eea;font-size:14px;flex-shrink:0}
+.highlight{color:#667eea;font-weight:700}
+.warn{color:#fbbf24}
+.ok{color:#34d399}
+.principle-box{background:linear-gradient(135deg,#667eea11,#764ba211);border:1px solid #667eea;border-radius:10px;padding:14px;margin:12px 0;text-align:center}
+.principle-box .big{font-size:16px;font-weight:800;color:#667eea}
+.principle-box .sub{font-size:11px;color:#94a3b8;margin-top:4px}
+.timeline{position:relative;padding-left:24px}
+.timeline::before{content:'';position:absolute;left:8px;top:0;bottom:0;width:2px;background:#334155}
+.tl-node{position:relative;margin-bottom:16px;padding-left:16px}
+.tl-node::before{content:'';position:absolute;left:-20px;top:6px;width:10px;height:10px;border-radius:50%;background:#667eea;border:2px solid #1e293b}
+.tl-node.done::before{background:#34d399}
+.tl-node.current::before{background:#fbbf24;box-shadow:0 0 8px rgba(251,191,36,.5)}
+table.data{width:100%;border-collapse:collapse;font-size:12px;margin:10px 0}
+table.data th,table.data td{padding:8px 10px;border:1px solid #334155;text-align:left}
+table.data th{background:#334155;color:#e2e8f0;font-weight:700}
+.footer-bar{text-align:center;padding:16px;margin-top:24px;border-top:1px solid #334155;font-size:11px;color:#64748b}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>Phase 1 — ソロ文化確立 具体計画</h1>
+<p class="subtitle">HERO'S延岡校 ｜ 2026年4月〜6月 ｜ 8週間ロードマップ</p>
+
+<div class="tabs">
+<button class="tab active" onclick="showP(0)">📋 全体像</button>
+<button class="tab" onclick="showP(1)">📅 Week 1-2</button>
+<button class="tab" onclick="showP(2)">📅 Week 3-4</button>
+<button class="tab" onclick="showP(3)">📅 Week 5-6</button>
+<button class="tab" onclick="showP(4)">📅 Week 7-8</button>
+<button class="tab" onclick="showP(5)">⚙️ 運用設計</button>
+<button class="tab" onclick="showP(6)">🚀 Phase 2移行</button>
+</div>
+
+<!-- ===== Tab 1: 全体像 ===== -->
+<div class="panel active" id="p0">
+<div class="st">📋 Phase 1 全体像</div>
+
+<div class="principle-box">
+<div class="big">「まずソロで全員がシステムに慣れる。ギルドは作らない。」</div>
+<div class="sub">吉田さんの方針: 組織も生徒もギルド文化がない。ソロモードが固まってからニックネーム匿名ギルドへ。</div>
+</div>
+
+<div class="section">
+<div class="st">🎯 Phase 1のゴール（8週間後の姿）</div>
+<div class="grid2">
+<div class="card">
+<div class="card-title">生徒側</div>
+<div class="card-text">
+✅ 全員がstudent.htmlにログインできる<br>
+✅ ポモドーロタイマーを自然に使える<br>
+✅ コンディション記録が習慣化（週3日以上）<br>
+✅ コンボを3種類以上発見している<br>
+✅ 宇宙マップの現在地を意識している<br>
+✅ ランダムミッションを毎日チェックする習慣<br>
+✅ レイドボスの弱点を意識して科目を選んでいる
+</div>
+</div>
+<div class="card">
+<div class="card-title">先生（吉田さん）側</div>
+<div class="card-text">
+✅ index.htmlでの日常運用が回っている<br>
+✅ ポイント付与のルーティンが確立<br>
+✅ 月次ミッション・レイドボスの設定ができる<br>
+✅ 経済監査で過剰付与がないか確認できる<br>
+✅ 2F 1号室がソロミッションルームとして機能<br>
+✅ 3Fのモニターにmonitor.htmlが常時表示<br>
+✅ Phase 2（匿名ギルド）の準備条件をクリア
+</div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<div class="st">📊 既存コードと新規開発の仕分け</div>
+<table class="data">
+<tr><th>機能</th><th>状態</th><th>Week</th><th>作業</th></tr>
+<tr><td>ログイン（student.html）</td><td class="ok">✅ 実装済み</td><td>W1</td><td>全生徒のPIN設定のみ</td></tr>
+<tr><td>ポモドーロタイマー</td><td class="ok">✅ 実装済み</td><td>W1</td><td>そのまま使用</td></tr>
+<tr><td>コンディション記録</td><td class="ok">✅ 実装済み</td><td>W1</td><td>そのまま使用</td></tr>
+<tr><td>バッジ（19種）</td><td class="ok">✅ 実装済み</td><td>W1</td><td>そのまま使用</td></tr>
+<tr><td>ポイント付与・管理</td><td class="ok">✅ 実装済み</td><td>W1</td><td>COIN_PARAMS確認のみ</td></tr>
+<tr><td>レベル（Lv.1-10）</td><td class="ok">✅ 実装済み</td><td>-</td><td>W3で宇宙マップに差替</td></tr>
+<tr><td>ランク（4段階）</td><td class="ok">✅ 実装済み</td><td>W1</td><td>そのまま使用</td></tr>
+<tr><td>ストリーク</td><td class="ok">✅ 実装済み</td><td>W1</td><td>そのまま使用</td></tr>
+<tr><td>レイドボス（基本）</td><td class="ok">✅ 実装済み</td><td>W2</td><td>弱点/耐性フィールド追加</td></tr>
+<tr><td>ミッション（月次）</td><td class="ok">✅ 実装済み</td><td>W2</td><td>最初のミッション設定</td></tr>
+<tr><td>monitor.html</td><td class="ok">✅ 実装済み</td><td>W1</td><td>3Fモニターに設置</td></tr>
+<tr><td>保護者ポータル</td><td class="ok">✅ 実装済み</td><td>W1</td><td>保護者PINの配布</td></tr>
+<tr><td style="color:#60a5fa">🎲 ランダムミッション</td><td class="warn">🆕 新規開発</td><td>W3-4</td><td>db.js + student.html + index.html</td></tr>
+<tr><td style="color:#60a5fa">🗺️ 宇宙マップ表示</td><td class="warn">🆕 新規開発</td><td>W3-4</td><td>student.html + monitor.html</td></tr>
+<tr><td style="color:#60a5fa">🃏 コンボシステム</td><td class="warn">🆕 新規開発</td><td>W5-6</td><td>db.js + student.html</td></tr>
+<tr><td style="color:#60a5fa">⚔️ ボス弱点/耐性</td><td class="warn">🆕 追加開発</td><td>W5-6</td><td>db.js + index.html + student.html</td></tr>
+<tr><td style="color:#60a5fa">📖 分岐ストーリー</td><td class="warn">🆕 新規開発</td><td>W7-8</td><td>新コレクション + monitor.html</td></tr>
+</table>
+</div>
+
+<div class="section">
+<div class="st">📐 8週間タイムライン</div>
+<div class="timeline">
+<div class="tl-node current"><strong>Week 1-2: 基盤導入</strong><br><span class="card-text">既存機能の稼働開始。生徒のログイン、ポモドーロ、コンディション記録。空間セットアップ。</span></div>
+<div class="tl-node"><strong>Week 3-4: ゲーム要素① 導入</strong><br><span class="card-text">ランダムミッション + 宇宙マップの実装&導入。「毎日が違う」体験の開始。</span></div>
+<div class="tl-node"><strong>Week 5-6: ゲーム要素② 導入</strong><br><span class="card-text">コンボシステム + 戦略レイドボス。「発見する楽しさ」と「科目選択の戦略」の導入。</span></div>
+<div class="tl-node"><strong>Week 7-8: ストーリー導入 + 総仕上げ</strong><br><span class="card-text">分岐ストーリー開始。全5要素が統合されたゲームループの完成。Phase 2移行判定。</span></div>
+</div>
+</div>
+</div>
+
+<!-- ===== Tab 2: Week 1-2 ===== -->
+<div class="panel" id="p1">
+<div class="st">📅 Week 1-2 — 基盤導入「システムを動かす」</div>
+
+<div class="principle-box">
+<div class="big">既存機能だけで開始。新規開発ゼロ。</div>
+<div class="sub">まず今あるコードを実際に使い始める。先生も生徒も「触って慣れる」期間。</div>
+</div>
+
+<div class="week-card">
+<div class="week-header"><span class="week-num">Week 1</span><span class="week-date">4月第1週</span></div>
+<div class="week-theme">🔧 セットアップ & 初期導入</div>
+<ul class="task-list">
+<li><span class="task-icon">🖥️</span><strong>3Fモニター設置</strong> — PCまたはタブレットでmonitor.htmlを常時表示。ダブルクリックでフルスクリーン。</li>
+<li><span class="task-icon">📱</span><strong>生徒のPIN設定</strong> — index.htmlの生徒管理から全生徒にPIN（4桁）を設定。ニックネームを確認。</li>
+<li><span class="task-icon">📋</span><strong>生徒にログインさせる</strong> — 授業開始時にスマホでstudent.htmlにアクセス→ニックネーム+PINでログイン。全員成功するまでサポート。</li>
+<li><span class="task-icon">🍅</span><strong>ポモドーロ体験</strong> — 全員で一斉にポモドーロ1回（25分）を体験。完了画面のポイント表示を見せる。</li>
+<li><span class="task-icon">😊</span><strong>コンディション記録</strong> — 「毎回来たらまずコンディション記録してね」というルールの導入。</li>
+<li><span class="task-icon">🏠</span><strong>2F 1号室の準備</strong> — ソロミッションルームとして開放。静寂ルールの掲示。サブモニター（3Fの様子が見える）は余裕があれば設置。</li>
+</ul>
+</div>
+
+<div class="week-card">
+<div class="week-header"><span class="week-num">Week 2</span><span class="week-date">4月第2週</span></div>
+<div class="week-theme">📊 運用開始 & ポイント経済始動</div>
+<ul class="task-list">
+<li><span class="task-icon">💰</span><strong>ポイント付与の開始</strong> — 出席10C、ポモドーロ5C、振り返り5Cの基本付与ルールを全生徒に説明。briefing.htmlの判断ガイドライン確認。</li>
+<li><span class="task-icon">✅</span><strong>タスク設定</strong> — 生徒ごとに1〜2個のタスクを設定（例：「数学ワーク p.20-25」「英単語テスト範囲暗記」）。</li>
+<li><span class="task-icon">🎁</span><strong>景品ショップ準備</strong> — 3〜5個の景品を登録（例：文房具セット300C、ドリンク1本100C、選べる問題集500C）。</li>
+<li><span class="task-icon">🎯</span><strong>最初の月次ミッション設定</strong> — index.htmlのミッションタブで「4月ミッション：クラス全体で合計100ポモドーロ達成」を作成。</li>
+<li><span class="task-icon">👨‍👩‍👧</span><strong>保護者PINの配布</strong> — LINEまたはプリントで保護者PINを通知。parent.htmlのURLとログイン方法を案内。</li>
+<li><span class="task-icon">📊</span><strong>経済チェック</strong> — Week末にindex.htmlの経済監査タブでポイント発行量を確認。初期はルーキーブースト(×1.5)が効くので高めに出る。</li>
+</ul>
+</div>
+
+<div class="section">
+<div class="st">⚠️ Week 1-2 の注意点</div>
+<div class="grid2">
+<div class="card" style="border-color:#fbbf24;">
+<div class="card-title warn">「強制しない」ルール</div>
+<div class="card-text">ポモドーロも通常タイマーも選べる。コンディション記録を忘れても叱らない。「やると面白いよ」というトーンで。SDTの自律性支援。</div>
+</div>
+<div class="card" style="border-color:#fbbf24;">
+<div class="card-title warn">ポイント付与は寛大に</div>
+<div class="card-text">briefing.htmlの方針「迷ったら付与する」。最初の2週間は多めに渡してOK。ポイントの価値は後から景品で調整できる。最初にケチるとシステムへの信頼が育たない。</div>
+</div>
+<div class="card" style="border-color:#34d399;">
+<div class="card-title ok">成功指標（Week 2末）</div>
+<div class="card-text">
+☐ 全生徒がログインできている<br>
+☐ 80%以上がポモドーロを1回以上体験済み<br>
+☐ コンディション記録率が50%以上<br>
+☐ モニターが常時表示されている<br>
+☐ 保護者の50%以上がparent.htmlにアクセス済み
+</div>
+</div>
+<div class="card" style="border-color:#34d399;">
+<div class="card-title ok">吉田さんの日次ルーティン</div>
+<div class="card-text">
+<strong>開校前(5分):</strong> monitor.html起動、タスク確認<br>
+<strong>授業中:</strong> 来た生徒に「ログインした？」声掛け<br>
+<strong>閉校後(5分):</strong> 経済タブで今日の付与量確認
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- ===== Tab 3: Week 3-4 ===== -->
+<div class="panel" id="p2">
+<div class="st">📅 Week 3-4 — ゲーム要素① 「毎日が違う」</div>
+
+<div class="principle-box">
+<div class="big">ランダムミッション + 宇宙マップ 導入</div>
+<div class="sub">基本操作に慣れた生徒に「選択」と「進行の可視化」を与える</div>
+</div>
+
+<div class="week-card">
+<div class="week-header"><span class="week-num">Week 3</span><span class="week-date">4月第3週</span></div>
+<div class="week-theme">🎲 ランダムミッション実装 & 導入</div>
+<ul class="task-list">
+<li><span class="task-icon">💻</span><strong>開発: DailyMissionsDB</strong> — db.jsに新モジュール追加。ミッションプール定義（最初は15種でスタート）、日次抽選ロジック、達成判定。</li>
+<li><span class="task-icon">💻</span><strong>開発: student.htmlにミッションカード</strong> — ホーム画面に「今日のミッション」カード3枚を表示。タップで受注。達成で自動判定&ポイント付与。</li>
+<li><span class="task-icon">💻</span><strong>開発: index.htmlにミッションプール管理</strong> — 先生がミッションの追加/編集/レアリティ変更ができるUI。</li>
+<li><span class="task-icon">📢</span><strong>導入: 生徒に説明</strong> — 「明日から毎日ログインするとミッションが出るよ。3つの中から1つ選んで挑戦！」</li>
+<li><span class="task-icon">🔮</span><strong>隠しミッション2個を仕込む</strong> — 条件「???」のミッションをプールに追加。発見した最初の生徒に特別ボーナス。</li>
+</ul>
+</div>
+
+<div class="week-card">
+<div class="week-header"><span class="week-num">Week 4</span><span class="week-date">4月第4週</span></div>
+<div class="week-theme">🗺️ 宇宙マップ実装 & 導入</div>
+<ul class="task-list">
+<li><span class="task-icon">💻</span><strong>開発: student.htmlのレベル表示をマップに差替</strong> — ホーム画面の「Lv.4」を「🔴火星コロニー → ☄️小惑星帯」に。プログレスバーを「次のステーションまであとXpt」に。</li>
+<li><span class="task-icon">💻</span><strong>開発: マップ画面</strong> — student.htmlに全10ステーション + 隠しエリア（?マーク）を表示する画面を追加。</li>
+<li><span class="task-icon">💻</span><strong>開発: monitor.htmlに全員マップ表示</strong> — 教室モニターに全生徒の現在位置をマップ上に表示。到達通知をLIVE FEEDに流す。</li>
+<li><span class="task-icon">💻</span><strong>開発: 隠しエリア解放ロジック</strong> — 条件達成でマップに新ノード出現。最初は3エリアだけ実装（彗星の洞窟、ワームホール、異星人の遺跡）。</li>
+<li><span class="task-icon">📢</span><strong>導入: 「宇宙の旅が始まるよ」</strong> — モニターにマップを映して全員に説明。「隠しエリアがあるけど、条件は秘密。見つけた人だけがわかる」</li>
+</ul>
+</div>
+
+<div class="section">
+<div class="st">💻 開発の技術詳細</div>
+<div class="grid2">
+<div class="card">
+<div class="card-title">DailyMissionsDB 設計</div>
+<div class="card-text" style="font-family:monospace;font-size:11px;">
+<strong>Firestoreコレクション:</strong><br>
+dailyMissionPool — ミッション定義<br>
+dailyMissionDraws — 日次抽選結果<br><br>
+<strong>主要メソッド:</strong><br>
+drawMissions(studentId) — 本日の3択を抽選<br>
+acceptMission(drawId, missionId) — 受注<br>
+checkCompletion(studentId) — 自動達成判定<br>
+getMissionPool() — 全ミッション取得<br>
+addToPool(mission) — 新ミッション追加
+</div>
+</div>
+<div class="card">
+<div class="card-title">宇宙マップ 設計</div>
+<div class="card-text" style="font-family:monospace;font-size:11px;">
+<strong>既存のcalcLevel()を拡張:</strong><br>
+getStation(totalPoints) — ステーション名を返す<br>
+getStationProgress(totalPoints) — 次駅までの%<br>
+getHiddenAreas(studentId) — 解放済みエリア<br>
+checkHiddenArea(studentId, stats) — 解放判定<br><br>
+<strong>hiddenAreasコレクション:</strong><br>
+studentId, areaId, unlockedAt
+</div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<div class="st">✅ 成功指標（Week 4末）</div>
+<div class="card" style="border-color:#34d399;">
+<div class="card-text">
+☐ 80%以上の生徒が毎日ミッションをチェック<br>
+☐ ミッション受注率が70%以上<br>
+☐ 宇宙マップの現在地を生徒が把握している<br>
+☐ 隠しエリアを1人以上が発見<br>
+☐ 隠しミッションを1人以上が達成<br>
+☐ モニターのマップ表示で「あの子もう火星だ！」という会話が発生
+</div>
+</div>
+</div>
+</div>
+
+<!-- ===== Tab 4: Week 5-6 ===== -->
+<div class="panel" id="p3">
+<div class="st">📅 Week 5-6 — ゲーム要素② 「発見と戦略」</div>
+
+<div class="principle-box">
+<div class="big">コンボシステム + 戦略レイドボス 導入</div>
+<div class="sub">「行動の組み合わせ」と「科目選択の意味」で深みを加える</div>
+</div>
+
+<div class="week-card">
+<div class="week-header"><span class="week-num">Week 5</span><span class="week-date">5月第1週</span></div>
+<div class="week-theme">🃏 コンボシステム実装 & 導入</div>
+<ul class="task-list">
+<li><span class="task-icon">💻</span><strong>開発: ComboDB</strong> — db.jsにコンボ定義（公開3種+隠し9種）、判定ロジック、図鑑管理。学習セッション完了時に全コンボ条件をチェック。</li>
+<li><span class="task-icon">💻</span><strong>開発: student.htmlにコンボ図鑑</strong> — バッジ画面の隣に「コンボ図鑑」タブを追加。発見済み/未発見のカード表示。</li>
+<li><span class="task-icon">💻</span><strong>開発: コンボ発見演出</strong> — 初発見時にポップアップ + コンフェッティ。「新しいコンボを発見！🃏」</li>
+<li><span class="task-icon">💻</span><strong>開発: 完了画面にコンボボーナス表示</strong> — 学習完了画面に「コンボ発動！マルチタレント ×1.5」を表示。</li>
+<li><span class="task-icon">📢</span><strong>導入</strong> — 「公開コンボ3つだけ教えるね。残りは自分で見つけて！」</li>
+</ul>
+</div>
+
+<div class="week-card">
+<div class="week-header"><span class="week-num">Week 6</span><span class="week-date">5月第2週</span></div>
+<div class="week-theme">⚔️ 戦略レイドボス 実装 & 導入</div>
+<ul class="task-list">
+<li><span class="task-icon">💻</span><strong>開発: ボスに弱点/耐性/特殊能力を追加</strong> — db.jsのRaidBossDBを拡張。弱点科目(×2.0)、耐性科目(×0.5)、特殊能力フィールド。</li>
+<li><span class="task-icon">💻</span><strong>開発: ダメージ計算式の変更</strong> — 学習分数×属性倍率×コンボ倍率+ポモドーロボーナス。student.htmlの完了画面に「ボスに○ダメージ！弱点ヒット！」表示。</li>
+<li><span class="task-icon">💻</span><strong>開発: index.htmlのボス作成フォーム拡張</strong> — 弱点/耐性/特殊能力の設定UI。</li>
+<li><span class="task-icon">💻</span><strong>開発: monitor.htmlにボス弱点表示</strong> — ボスカードに弱点/耐性アイコンを表示。「今日は数学を狙え！」が一目でわかるように。</li>
+<li><span class="task-icon">🐉</span><strong>最初の戦略ボス設定</strong> — 「計算キング・ドラゴン」HP:8000、弱点:数学、耐性:英語、特殊:金曜HP回復+500。</li>
+<li><span class="task-icon">📢</span><strong>導入</strong> — 「このボスは数学が弱点！数学をやるとダメージ2倍だよ」</li>
+</ul>
+</div>
+
+<div class="section">
+<div class="st">✅ 成功指標（Week 6末）</div>
+<div class="card" style="border-color:#34d399;">
+<div class="card-text">
+☐ 50%以上の生徒がコンボを3種類以上発見<br>
+☐ コンボ図鑑をチェックする習慣ができている<br>
+☐ 「ボスの弱点が数学だから今日は数学やろう」という発言が出ている<br>
+☐ ボスのHP減少をモニターで確認して盛り上がっている<br>
+☐ 隠しコンボの情報が生徒間で自然にシェアされ始めている<br>
+☐ ポイント経済のバランスが維持されている（コンボ報酬含めて）
+</div>
+</div>
+</div>
+</div>
+
+<!-- ===== Tab 5: Week 7-8 ===== -->
+<div class="panel" id="p4">
+<div class="st">📅 Week 7-8 — ストーリー導入 & 総仕上げ</div>
+
+<div class="principle-box">
+<div class="big">分岐ストーリー開始。全5要素が統合される。</div>
+<div class="sub">「自分たちの行動で物語が動く」体験。ゲームループの完成。</div>
+</div>
+
+<div class="week-card">
+<div class="week-header"><span class="week-num">Week 7</span><span class="week-date">5月第3週</span></div>
+<div class="week-theme">📖 分岐ストーリー Chapter 1 開始</div>
+<ul class="task-list">
+<li><span class="task-icon">💻</span><strong>開発: StoryDB</strong> — db.jsにチャプター管理、ルート進捗トラッキング、週次テキスト更新。</li>
+<li><span class="task-icon">💻</span><strong>開発: monitor.htmlにストーリーパネル</strong> — 6パネルの1つをストーリー表示に変更。チャプタータイトル、進捗、ルート確率を表示。</li>
+<li><span class="task-icon">💻</span><strong>開発: student.htmlにストーリーカード</strong> — ホーム画面に「Chapter 1: 氷の洞窟からの脱出」の進捗を表示。ルートAまで○%、ルートBまで○%。</li>
+<li><span class="task-icon">📖</span><strong>Chapter 1 コンテンツ作成</strong> — Week 1〜4の4回分のストーリーテキスト。ルートA/B/Cの3パターンの結末。</li>
+<li><span class="task-icon">📢</span><strong>導入</strong> — モニターにチャプター導入テキストを表示。「みんなの力で物語が変わるよ」</li>
+</ul>
+</div>
+
+<div class="week-card">
+<div class="week-header"><span class="week-num">Week 8</span><span class="week-date">5月第4週</span></div>
+<div class="week-theme">🎮 全要素統合 & Phase 2 準備</div>
+<ul class="task-list">
+<li><span class="task-icon">🔄</span><strong>全要素が連動するゲームループ確認</strong> — ランダムミッション→コンボ→ボスダメージ→ストーリー進行→マップ前進。全部が繋がっていることを検証。</li>
+<li><span class="task-icon">📊</span><strong>8週間の振り返りデータ分析</strong> — ログイン率、ポモドーロ回数、コンボ発見数、ストリーク平均、ポイント流通量。</li>
+<li><span class="task-icon">📋</span><strong>Phase 2 移行判定</strong> — 次タブの移行条件をチェック。</li>
+<li><span class="task-icon">🐉</span><strong>2体目のボス準備</strong> — 弱点/耐性/特殊能力を変えた新ボス。</li>
+<li><span class="task-icon">📖</span><strong>Chapter 1 結末公開</strong> — 達成したルートのエンディングをモニターに表示。次章の予告。</li>
+<li><span class="task-icon">🎉</span><strong>Chapter 1 クリア記念</strong> — 達成ルートに応じた全員ボーナスを付与。</li>
+</ul>
+</div>
+</div>
+
+<!-- ===== Tab 6: 運用設計 ===== -->
+<div class="panel" id="p5">
+<div class="st">⚙️ 運用設計 — 吉田さん一人で回すために</div>
+
+<div class="section">
+<div class="st">📋 日次ルーティン（合計15分）</div>
+<table class="data">
+<tr><th>タイミング</th><th>作業</th><th>所要時間</th><th>ツール</th></tr>
+<tr><td>開校前</td><td>monitor.html起動。今日のミッション確認。ボスHP確認。</td><td>3分</td><td>monitor.html</td></tr>
+<tr><td>授業中</td><td>来た生徒に声掛け「ログインした？」「今日のミッション何だった？」。ポイント手動付与（特別貢献時のみ）。</td><td>随時</td><td>index.html</td></tr>
+<tr><td>閉校後</td><td>経済タブで本日の発行量確認。コンディション一覧で気になる子チェック。離脱リスク確認。</td><td>5分</td><td>index.html</td></tr>
+</table>
+</div>
+
+<div class="section">
+<div class="st">📅 週次タスク（合計30分）</div>
+<table class="data">
+<tr><th>曜日</th><th>作業</th><th>所要時間</th></tr>
+<tr><td>月曜</td><td>今週のタスク設定（生徒ごとに1〜2個）</td><td>15分</td></tr>
+<tr><td>金曜</td><td>週間ポイント集計確認。ストリーク状況チェック。ボスHP確認。</td><td>10分</td></tr>
+<tr><td>土曜</td><td>コンディション低い生徒への個別メッセージ送信</td><td>5分</td></tr>
+</table>
+</div>
+
+<div class="section">
+<div class="st">📅 月次タスク（合計60分）</div>
+<table class="data">
+<tr><th>時期</th><th>作業</th><th>所要時間</th></tr>
+<tr><td>月初</td><td>月次ミッション設定。新ボス作成（弱点/耐性設定）。ストーリー新章開始。ストリークフリーパスリセット。</td><td>30分</td></tr>
+<tr><td>月中</td><td>経済監査（インフレチェック）。アノマリースキャン。ミッションプールの更新（新ミッション2〜3個追加）。</td><td>15分</td></tr>
+<tr><td>月末</td><td>ストーリー結末公開。ボス撃破判定。月間レポート確認。保護者レポート送信。</td><td>15分</td></tr>
+</table>
+</div>
+
+<div class="section">
+<div class="st">🏠 空間運用（Phase 1）</div>
+<div class="grid2">
+<div class="card">
+<div class="card-title">3F コマンドセンター</div>
+<div class="card-text">
+・モニターにmonitor.html常時表示<br>
+・16-18時: フォーカスモード（静かに個人学習）<br>
+・18-20時: 中学生ピーク（声OK区域を南半分に限定）<br>
+・20-22時: 高校生レジェンドタイム<br>
+・Phase 1ではギルドテーブルは不要。既存ブース配置のまま。
+</div>
+</div>
+<div class="card">
+<div class="card-title">2F 1号室 ソロミッションルーム</div>
+<div class="card-text">
+・終日開放。静寂ルール。<br>
+・ざわざわが苦手な子の避難場所。<br>
+・通い放題の自習室。<br>
+・サブモニター設置は余裕ができたら（3Fのダッシュボードが見えるとワンウェイミラー効果）
+</div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<div class="st">👨‍👩‍👧 保護者コミュニケーション</div>
+<div class="card">
+<div class="card-text">
+<strong>Week 1:</strong> LINEまたはプリントで保護者PINを配布。parent.htmlのURLを案内。「お子さんの学習状況をスマホで確認できます」<br><br>
+<strong>月次:</strong> parent.htmlのサマリータブで学習日数・時間・ストリークが自動表示されるので、特別な作業は不要。気になる保護者には個別メッセージをindex.htmlから送信。<br><br>
+<strong>ポイント:</strong> 保護者にゲーミフィケーションの詳細を説明する必要はない。「学習の量と習慣が見える化されます」で十分。ポイントや景品の話は生徒と先生の間の話。
+</div>
+</div>
+</div>
+</div>
+
+<!-- ===== Tab 7: Phase 2 移行条件 ===== -->
+<div class="panel" id="p6">
+<div class="st">🚀 Phase 2 移行条件 — いつギルドを始めるか</div>
+
+<div class="principle-box">
+<div class="big">「条件が揃ったら進む。期日で進まない。」</div>
+<div class="sub">8週間は目安。文化が育っていなければ延長。焦らない。</div>
+</div>
+
+<div class="section">
+<div class="st">✅ 移行に必要な5つの条件</div>
+
+<div class="card" style="border-color:#34d399;">
+<div class="card-title">条件1: システム定着率 80%以上</div>
+<div class="card-text">
+全生徒の80%以上が週3回以上ログインしている。<br>
+<strong>測定方法:</strong> Firestoreのstudylogsコレクションから直近2週間のアクティブユーザー率を計算。<br>
+<strong>なぜ必要か:</strong> ギルドミッションは全員が参加していないと成立しない。
+</div>
+</div>
+
+<div class="card" style="border-color:#34d399;">
+<div class="card-title">条件2: ポモドーロ文化の定着</div>
+<div class="card-text">
+生徒の60%以上がポモドーロを週2回以上使っている。<br>
+<strong>測定方法:</strong> studylogsのmethod='pomodoro'の割合。<br>
+<strong>なぜ必要か:</strong> ギルドのHP回復やバフはポモドーロベース。ポモドーロが使われていないとギルドメカニクスが機能しない。
+</div>
+</div>
+
+<div class="card" style="border-color:#34d399;">
+<div class="card-title">条件3: コンボ発見の広がり</div>
+<div class="card-text">
+平均コンボ発見数が3種類以上。<br>
+<strong>測定方法:</strong> comboDiscoveriesコレクションから生徒平均を計算。<br>
+<strong>なぜ必要か:</strong> コンボを使いこなしている = ゲームの「深さ」を理解している = ギルドの戦略的メカニクスについていける。
+</div>
+</div>
+
+<div class="card" style="border-color:#34d399;">
+<div class="card-title">条件4: 先生の運用負荷が安定</div>
+<div class="card-text">
+日次ルーティンが15分以内に収まっている。<br>
+<strong>測定方法:</strong> 吉田さんの主観。「回せている感覚があるか？」<br>
+<strong>なぜ必要か:</strong> ギルド導入でさらに管理項目が増える。ソロの運用が安定していないとパンクする。
+</div>
+</div>
+
+<div class="card" style="border-color:#34d399;">
+<div class="card-title">条件5: 生徒間の自然な交流の芽</div>
+<div class="card-text">
+「あの子もう火星だ」「ボスの弱点何だっけ？」「コンボ見つけた！」など、システムについての会話が自然発生している。<br>
+<strong>測定方法:</strong> 吉田さんの観察。教室内で生徒同士がシステムの話をしているか。<br>
+<strong>なぜ必要か:</strong> 会話が発生していない状態でギルドを作っても「強制されたチーム」になる。自然な交流が芽生えているからこそ「じゃあチームでやってみる？」が効く。
+</div>
+</div>
+</div>
+
+<div class="section">
+<div class="st">🔮 Phase 2 で追加するもの（予告）</div>
+<div class="grid3">
+<div class="card" style="border-color:#c084fc;">
+<div class="card-title" style="color:#c084fc;">⚔️ ニックネーム匿名ギルド</div>
+<div class="card-text">5-6人チーム。学年混合。システム上はニックネームで活動。ギルド編成8原則に従う。</div>
+</div>
+<div class="card" style="border-color:#c084fc;">
+<div class="card-title" style="color:#c084fc;">🎯 ギルドミッション</div>
+<div class="card-text">チーム全員で達成する協力型ミッション。「全員がポモドーロ2回以上」「チーム合計150分学習」</div>
+</div>
+<div class="card" style="border-color:#c084fc;">
+<div class="card-title" style="color:#c084fc;">🎭 レイドボスの役割分担</div>
+<div class="card-text">アタッカー/ヒーラー/サポーターの3ロール。チーム内で分担して効率的にボスを攻略。</div>
+</div>
+<div class="card" style="border-color:#c084fc;">
+<div class="card-title" style="color:#c084fc;">📅 土曜ギルドデー</div>
+<div class="card-text">毎週土曜14:00〜。ウォームアップ→ギルドミッション→レイドボス戦。Zoom参加可。</div>
+</div>
+<div class="card" style="border-color:#c084fc;">
+<div class="card-title" style="color:#c084fc;">🤝 チームコンボ</div>
+<div class="card-text">2人以上の連携で発動する新コンボカテゴリ。教え合いやチーム学習で発動。</div>
+</div>
+<div class="card" style="border-color:#c084fc;">
+<div class="card-title" style="color:#c084fc;">🏆 ギルドランキング</div>
+<div class="card-text">チーム対抗のポイントランキング。monitor.htmlでリアルタイム表示。</div>
+</div>
+</div>
+</div>
+
+<div class="section">
+<div class="st">📐 Phase 全体マップ</div>
+<div class="timeline">
+<div class="tl-node current"><strong>Phase 1: ソロ文化確立</strong>（今ここ / 4月〜）<br><span class="card-text">8週間。全員ソロ。5つのゲーム要素を段階導入。</span></div>
+<div class="tl-node"><strong>Phase 2: ニックネーム匿名ギルド</strong>（6月〜）<br><span class="card-text">ギルド編成。土曜ギルドデー開始。顔は見えるがシステム上はニックネーム。</span></div>
+<div class="tl-node"><strong>Phase 3: 顔出し実名ギルド</strong>（文化定着後）<br><span class="card-text">自然に実名へ移行。フレームワークv4の完成形。</span></div>
+</div>
+</div>
+</div>
+
+</div><!-- /container -->
+
+<div class="footer-bar">
+HERO'S延岡校 Phase 1 ソロ文化確立計画<br>
+Based on: Game Design v2.0 × Storytelling Framework v4 × 統合設計書<br>
+2026年4月〜6月（8週間）
+</div>
+
+<script>
+function showP(i){
+document.querySelectorAll('.panel').forEach((p,j)=>p.classList.toggle('active',j===i));
+document.querySelectorAll('.tab').forEach((t,j)=>t.classList.toggle('active',j===i));
+}
+</script>
+</body>
+</html>
