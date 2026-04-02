@@ -1,0 +1,396 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HERO'S セッションレポート — 2026年4月2日</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Hiragino Sans',-apple-system,BlinkMacSystemFont,sans-serif;background:#f8fafc;color:#1e293b;line-height:1.9;font-size:14px}
+.container{max-width:900px;margin:0 auto;padding:24px}
+h1{font-size:22px;margin:20px 0 4px;color:#1e293b}
+.subtitle{color:#64748b;font-size:13px;margin-bottom:8px}
+.meta{color:#94a3b8;font-size:12px;margin-bottom:30px;padding-bottom:16px;border-bottom:2px solid #e2e8f0}
+.toc{background:#f1f5f9;border-radius:10px;padding:18px 24px;margin-bottom:30px}
+.toc-title{font-size:13px;font-weight:700;color:#64748b;margin-bottom:8px}
+.toc a{display:block;color:#667eea;text-decoration:none;font-size:13px;padding:3px 0}
+.toc a:hover{text-decoration:underline}
+.section{margin-bottom:40px;page-break-inside:avoid}
+.section-num{display:inline-block;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;width:32px;height:32px;border-radius:50%;text-align:center;line-height:32px;font-size:14px;font-weight:800;margin-right:8px;vertical-align:middle}
+.section-title{font-size:18px;font-weight:800;color:#1e293b;margin-bottom:4px;display:inline;vertical-align:middle}
+.section-file{color:#667eea;font-size:12px;font-family:monospace;margin:4px 0 12px;display:block}
+.section-desc{color:#475569;font-size:13px;margin-bottom:16px;line-height:2}
+h3{font-size:14px;font-weight:700;color:#334155;margin:16px 0 8px;padding-left:12px;border-left:3px solid #667eea}
+.detail-table{width:100%;border-collapse:collapse;font-size:12px;margin:10px 0}
+.detail-table th,.detail-table td{padding:8px 12px;border:1px solid #e2e8f0;text-align:left;vertical-align:top}
+.detail-table th{background:#f1f5f9;color:#475569;font-weight:700;white-space:nowrap}
+.detail-table td{color:#334155}
+.highlight{background:#667eea;color:#fff;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:700}
+.highlight-green{background:#059669;color:#fff;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:700}
+.highlight-amber{background:#d97706;color:#fff;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:700}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:16px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,0.04)}
+.card-title{font-size:13px;font-weight:700;color:#334155;margin-bottom:6px}
+.card-text{font-size:12px;color:#64748b;line-height:1.9}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+@media(max-width:768px){.grid2{grid-template-columns:1fr}}
+.summary-box{background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-radius:12px;padding:20px;margin:16px 0}
+.summary-box h3{color:#fff;border-left-color:#fff;padding-left:12px}
+.summary-box .stat{display:inline-block;text-align:center;margin:8px 16px}
+.summary-box .stat-num{font-size:28px;font-weight:800}
+.summary-box .stat-label{font-size:11px;opacity:.8}
+ul.bullet{list-style:none;padding:0;font-size:12px;color:#475569}
+ul.bullet li{padding:4px 0;padding-left:20px;position:relative;line-height:1.8}
+ul.bullet li::before{content:'•';position:absolute;left:6px;color:#667eea;font-weight:700}
+.quote-box{background:#f8fafc;border-left:4px solid #667eea;padding:12px 16px;margin:10px 0;font-size:13px;color:#475569;font-style:italic}
+.next-steps{background:#fffbeb;border:1px solid #fde68a;border-radius:10px;padding:16px;margin-top:30px}
+.next-steps h3{color:#92400e;border-left-color:#f59e0b}
+.footer{text-align:center;padding:20px;margin-top:40px;border-top:2px solid #e2e8f0;font-size:11px;color:#94a3b8}
+</style>
+</head>
+<body>
+<div class="container">
+
+<h1>HERO'S ゲーミフィケーション・システム設計</h1>
+<p class="subtitle">セッションレポート</p>
+<p class="meta">
+日時: 2026年4月2日 ｜ プロジェクト: academy-points ｜ ブランチ: claude/gamification-system-design-d2FD9
+</p>
+
+<!-- ===== 総括 ===== -->
+<div class="summary-box">
+<h3 style="margin-top:0;">セッション総括</h3>
+<p style="font-size:13px;opacity:.9;margin-bottom:12px;">
+このセッションでは、HERO'S延岡校の学習塾ポイントシステム(academy-points)を「ポイントカード」から「本物のゲーム」に進化させるための設計と一部実装を行いました。
+前回セッション（2026年4月1日）で確定したストーリーテリング・フレームワークv4、空間設計、ギルド編成8原則、3フェーズ段階的導入ロードマップを踏まえ、Phase 1（ソロ文化確立）の具体計画を策定しました。
+</p>
+<div style="text-align:center;">
+<div class="stat"><div class="stat-num">6</div><div class="stat-label">成果物</div></div>
+<div class="stat"><div class="stat-num">3,964</div><div class="stat-label">追加コード行数</div></div>
+<div class="stat"><div class="stat-num">5</div><div class="stat-label">新規モジュール</div></div>
+<div class="stat"><div class="stat-num">12</div><div class="stat-label">コンボ定義</div></div>
+<div class="stat"><div class="stat-num">18</div><div class="stat-label">ミッション定義</div></div>
+</div>
+</div>
+
+<!-- ===== 目次 ===== -->
+<div class="toc">
+<div class="toc-title">目次</div>
+<a href="#s1">1. 既存システムの把握・整理 (system-overview.html)</a>
+<a href="#s2">2. ゲームデザイン2.0 — 5要素統合設計 (game-design-v2.html)</a>
+<a href="#s3">3. Phase 1 ソロ文化確立 8週間計画 (phase1-plan.html)</a>
+<a href="#s4">4. 5モジュール詳細技術仕様 (detailed-specs.html)</a>
+<a href="#s5">5. db.js データ層の実装 (+600行)</a>
+<a href="#s6">6. ストーリーテリング Phase 1 + 保護者資料 (storytelling-phase1.html)</a>
+<a href="#next">今後の作業</a>
+</div>
+
+<!-- ===== 項目1 ===== -->
+<div class="section" id="s1">
+<span class="section-num">1</span><span class="section-title">既存システムの把握・整理</span>
+<span class="section-file">system-overview.html（502行）</span>
+
+<div class="section-desc">
+リポジトリにある既存の全ファイル（index.html, student.html, parent.html, briefing.html, monitor.html, db.js）を精読し、各画面の機能・実装状況・画面間の関係を整理しました。また、前回セッション（4月1日）のCLAUDE_HEROS_STORYTELLING.mdと前々回の開発セッション記録を読み込み、プロジェクト全体の現状を把握しました。
+</div>
+
+<h3>把握した事実</h3>
+<table class="detail-table">
+<tr><th>項目</th><th>内容</th></tr>
+<tr><td>画面数</td><td>5画面（管理ダッシュボード / 生徒ポータル / 保護者ポータル / 教室モニター / ブリーフィング）</td></tr>
+<tr><td>管理ダッシュボード</td><td>17タブ。全タブにJavaScriptロジックが実装済み（当初「UI枠のみ」と判断したが、精査の結果すべてdb.jsと連動して動作することを確認）</td></tr>
+<tr><td>生徒ポータル</td><td>14画面。ログイン、ホーム、コンディション、タスク、学習モード選択、タイマー、完了、ランキング、景品、履歴、バッジ(19種)、メッセージ、ギルド、レイドボス</td></tr>
+<tr><td>db.js</td><td>16モジュール。StudentsDB, StudyLogsDB, TasksDB, PrizesDB, ConditionsDB, BadgesDB, MessagesDB, GuildsDB, RaidBossDB, ExamResultsDB, NotificationsDB, CoachingDB, RiskDetector, MissionsDB, EventsDB, CoinsDB 等</td></tr>
+<tr><td>Firestore</td><td>19コレクション。テストデータ31名登録済み</td></tr>
+<tr><td>ポイント設計</td><td>1分=1pt基本。ポモドーロボーナス+5pt/回。10段階レベル(0→5000pt)。4段階ランク(rookie→captain)。ストリークボーナス(3日+5pt〜20日+50pt)</td></tr>
+</table>
+
+<h3>重要な発見</h3>
+<ul class="bullet">
+<li>コードは既にほぼ完成していた。問題は「どの機能を、どの順序で、現場に導入するか」というオペレーション設計だった</li>
+<li>前回セッションで「今すぐギルドは作れない。ソロが先」という吉田さんの方針が最重要の制約条件</li>
+<li>Phase 1→2→3の段階的導入ロードマップが必要という結論が前回確定済み</li>
+</ul>
+</div>
+
+<!-- ===== 項目2 ===== -->
+<div class="section" id="s2">
+<span class="section-num">2</span><span class="section-title">ゲームデザイン2.0 — 5要素統合設計</span>
+<span class="section-file">game-design-v2.html（654行）/ 6タブ構成</span>
+
+<div class="section-desc">
+既存のポイントシステム（v1）を「プロのゲームデザイナー視点」で批評し、5つの改善要素を提案。それらを1つの統合ゲームループとして設計しました。
+</div>
+
+<h3>v1（現状）の問題点</h3>
+<table class="detail-table">
+<tr><th>問題</th><th>具体的に何が起きているか</th></tr>
+<tr><td>プレイヤーに選択がない</td><td>勉強する→ポイントが貯まる→景品交換。スーパーのスタンプカードと同じ構造。「選ぶ」場面がゼロ。</td></tr>
+<tr><td>ポイントが直線的</td><td>1分=1pt。予測可能。驚きがない。作業であってゲームではない。</td></tr>
+<tr><td>レイドボスが見せかけ</td><td>普通に勉強→自動でダメージ。プレイヤーの判断がゼロ。戦略がない。</td></tr>
+<tr><td>外発的動機の罠</td><td>ポイントと景品への依存。SDTを理論基盤にしているのに実装が逆。</td></tr>
+</table>
+
+<h3>5つの改善要素</h3>
+<table class="detail-table">
+<tr><th>要素</th><th>設計内容</th><th>なぜ面白いか</th></tr>
+<tr><td><span class="highlight">🎲 ランダムミッション</span></td><td>毎日ログイン時に3つのミッションがランダムに出現。5段階レアリティ（Common〜Legendary）。1つ選んで挑戦。隠しミッションあり。</td><td>「今日は何が来るかな？」という毎日の期待感。ローグライクゲームの中毒性。</td></tr>
+<tr><td><span class="highlight">🗺️ 宇宙マップ</span></td><td>Lv.1-10を「地球→銀河の果て」の10ステーションに変換。6つの隠しエリア（特定条件で出現）。称号報酬。</td><td>数字が増えるだけでなく「世界が広がる」感覚。発見の楽しさ。</td></tr>
+<tr><td><span class="highlight">⚔️ 戦略レイドボス</span></td><td>ボスに弱点科目(×2.0)・耐性科目(×0.5)・特殊能力を設定。「何を勉強するか」が戦略的判断に。</td><td>科目選択に意味が生まれる。同じ学習時間でもダメージが2.8倍違う。</td></tr>
+<tr><td><span class="highlight">🃏 コンボシステム</span></td><td>特定行動の組み合わせでボーナス発動。公開3種+隠し9種。初発見は図鑑に登録される発見型。</td><td>「こんな組み合わせでボーナスが！」というパズル的快感。行動の多様性を促進。</td></tr>
+<tr><td><span class="highlight">📖 分岐ストーリー</span></td><td>月次チャプター制。クラス全体の行動で2〜3ルートに分岐。週次で進行。バッドエンドなし。</td><td>「自分たちの行動で物語が動く」——ゲーム最強の没入要素。</td></tr>
+</table>
+
+<h3>4層ゲームループ</h3>
+<div class="card">
+<div class="card-text">
+<strong>月次ループ（📖）:</strong> ストーリー章進行 + マップ新エリア解放<br>
+　↓ 月の目標が決まる<br>
+<strong>週次ループ（⚔️）:</strong> ボスの弱点を見て「今週は何を重点的にやるか」を考える<br>
+　↓ 週の戦略が決まる<br>
+<strong>日次ループ（🎲）:</strong> ランダムミッション3択から1つ選ぶ + コンディション記録<br>
+　↓ 今日のやることが決まる<br>
+<strong>セッションループ（🃏）:</strong> コンボ条件を意識して学習 → 発見 → ボスにダメージ<br><br>
+<strong>設計原則:</strong> 全てのループに「生徒が自分で選ぶ瞬間」がある。これが現状との最大の違い。
+</div>
+</div>
+</div>
+
+<!-- ===== 項目3 ===== -->
+<div class="section" id="s3">
+<span class="section-num">3</span><span class="section-title">Phase 1 ソロ文化確立 — 8週間ロードマップ</span>
+<span class="section-file">phase1-plan.html（568行）/ 7タブ構成</span>
+
+<div class="section-desc">
+前回セッションで確定した「Phase 1: ソロ文化確立（2026年4月〜）」の具体的な導入計画。何を、いつ、どの順番で導入するか。既存コードと新規開発の仕分けを含む。
+</div>
+
+<h3>8週間の全体スケジュール</h3>
+<table class="detail-table">
+<tr><th>期間</th><th>テーマ</th><th>主な作業</th><th>新規開発</th></tr>
+<tr><td><strong>Week 1-2</strong><br>4月第1-2週</td><td>基盤導入<br>「システムを動かす」</td><td>全員ログイン、初回ポモドーロ体験、コンディション記録開始、モニター設置、保護者PIN配布、最初の月次ミッション設定、景品登録</td><td><span class="highlight-green">なし</span><br>既存コードのみ</td></tr>
+<tr><td><strong>Week 3-4</strong><br>4月第3-4週</td><td>ゲーム要素①<br>「毎日が違う」</td><td>ランダムミッション導入（3択カード）、宇宙マップ導入（レベル表示を差替）、隠しミッション・隠しエリアの仕込み</td><td><span class="highlight-amber">新規開発あり</span><br>DailyMissionsDB<br>SpaceMapDB<br>student.html改修</td></tr>
+<tr><td><strong>Week 5-6</strong><br>5月第1-2週</td><td>ゲーム要素②<br>「発見と戦略」</td><td>コンボシステム導入（公開3種+隠し9種）、戦略レイドボス導入（弱点/耐性）、最初の戦略ボス作成</td><td><span class="highlight-amber">新規開発あり</span><br>ComboDB<br>ボス拡張<br>student.html改修</td></tr>
+<tr><td><strong>Week 7-8</strong><br>5月第3-4週</td><td>ストーリー導入<br>総仕上げ</td><td>分岐ストーリーChapter 1開始、全5要素統合確認、Phase 2移行判定</td><td><span class="highlight-amber">新規開発あり</span><br>StoryDB<br>monitor.html改修</td></tr>
+</table>
+
+<h3>既存コード vs 新規開発の仕分け</h3>
+<div class="grid2">
+<div class="card">
+<div class="card-title" style="color:#059669;">✅ そのまま使える既存機能（11個）</div>
+<div class="card-text">
+ログイン認証 / ポモドーロタイマー / コンディション記録 / バッジ(19種) / ポイント付与・管理 / ランク(4段階) / ストリーク / レイドボス(基本) / ミッション(月次) / monitor.html / 保護者ポータル
+</div>
+</div>
+<div class="card">
+<div class="card-title" style="color:#d97706;">🆕 新規開発が必要な機能（5個）</div>
+<div class="card-text">
+ランダムミッション(日次3択) / 宇宙マップ表示 / コンボシステム / ボスの弱点・耐性・特殊能力 / 分岐ストーリー
+</div>
+</div>
+</div>
+
+<h3>運用負荷の設計</h3>
+<table class="detail-table">
+<tr><th>頻度</th><th>作業内容</th><th>所要時間</th></tr>
+<tr><td>日次</td><td>開校前: モニター起動・ミッション確認(3分) / 授業中: 声掛け(随時) / 閉校後: 経済チェック・コンディション確認(5分)</td><td>約15分/日</td></tr>
+<tr><td>週次</td><td>月曜: タスク設定(15分) / 金曜: 週間集計確認(10分) / 土曜: 個別メッセージ(5分)</td><td>約30分/週</td></tr>
+<tr><td>月次</td><td>月初: ミッション・ボス・ストーリー設定(30分) / 月中: 経済監査(15分) / 月末: ストーリー結末・レポート(15分)</td><td>約60分/月</td></tr>
+</table>
+
+<h3>Phase 2への移行条件（5つ）</h3>
+<ul class="bullet">
+<li><strong>条件1:</strong> システム定着率80%以上（全生徒の80%が週3回以上ログイン）</li>
+<li><strong>条件2:</strong> ポモドーロ文化の定着（60%以上が週2回以上使用）</li>
+<li><strong>条件3:</strong> コンボ発見の広がり（平均コンボ発見数が3種類以上）</li>
+<li><strong>条件4:</strong> 先生の運用負荷が安定（日次15分以内で回せている）</li>
+<li><strong>条件5:</strong> 生徒間の自然な交流の芽（「ボスの弱点何だっけ？」等の会話が発生）</li>
+</ul>
+<div class="quote-box">
+「条件が揃ったら進む。期日で進まない。」——8週間は目安。文化が育っていなければ延長。焦らない。
+</div>
+</div>
+
+<!-- ===== 項目4 ===== -->
+<div class="section" id="s4">
+<span class="section-num">4</span><span class="section-title">5モジュール詳細技術仕様</span>
+<span class="section-file">detailed-specs.html（1,123行）/ 5タブ構成</span>
+
+<div class="section-desc">
+5つの新ゲーム要素それぞれについて、実装に直結するレベルの技術仕様を作成。Firestoreのコレクション設計、判定ロジックのJavaScriptコード、既存コード(student.html, db.js)との接続点を明示。
+</div>
+
+<h3>各モジュールの仕様概要</h3>
+<table class="detail-table">
+<tr><th>モジュール</th><th>Firestoreコレクション</th><th>主要メソッド</th><th>判定方式</th></tr>
+<tr><td><strong>🃏 ComboDB</strong><br>12コンボ定義</td><td>comboDiscoveries（発見記録）<br>comboTriggers（発動ログ）</td><td>buildContext() — 学習セッション+日次集計+ストリーク+ボス連動を1つのコンテキストに統合<br>checkAll() — 全コンボ判定<br>isOnCooldown() — daily/weeklyクールダウン<br>recordDiscovery() — 初回ならtrue</td><td>学習セッション完了時に全12コンボの条件を評価。3種の報酬タイプ（bonus/multiplier/boss_multiplier）で処理を分岐</td></tr>
+<tr><td><strong>🎲 DailyMissionsDB</strong><br>18ミッション定義</td><td>dailyMissionDraws（抽選結果）</td><td>draw() — 日次3枚抽選<br>rollRarity() — 確率抽選<br>accept() — 受注<br>buildDayStats() — 日次集計<br>checkCompletion() — 自動達成判定</td><td>ログイン時にdraw()で3枚抽選 → 生徒が1枚accept() → セッション完了時にcheckCompletion()で自動判定。manualは先生が手動マーク</td></tr>
+<tr><td><strong>🗺️ SpaceMapDB</strong><br>10ステーション+6隠しエリア</td><td>hiddenAreaDiscoveries（解放記録）</td><td>getStation() — 現在地取得<br>getStationProgress() — 次駅までの進捗<br>checkAndUnlock() — 隠しエリア判定</td><td>既存のcalcLevel()を拡張。ポイントに応じてステーション名を返す。隠しエリアは統計条件（コンボ5種発見、14日ストリーク等）で判定</td></tr>
+<tr><td><strong>⚔️ ボス拡張</strong><br>5種の特殊能力</td><td>raidBosses（既存に3フィールド追加: weakness, resistance, specialAbility）</td><td>calculateBossDamage() — 新ダメージ計算式</td><td>ダメージ = 学習分数 × 属性倍率 × コンボ倍率 + ポモドーロボーナス（特殊能力で補正）</td></tr>
+<tr><td><strong>📖 StoryDB</strong><br>チャプター+ルート構造</td><td>storyChapters（チャプター管理）</td><td>create() — チャプター作成<br>updateProgress() — 全ルート進捗集計<br>resolveChapter() — 月末結末判定<br>getWeeklyText() — 週次テキスト取得</td><td>各ルートのmetric（total_pomodoros, combo_discovery_rate, boss_defeated等）をFirestoreから集計。目標値に達したルートが採用</td></tr>
+</table>
+
+<h3>学習セッション完了時の処理順序</h3>
+<div class="card">
+<div class="card-text">
+① ポイント計算（base = 学習分数 + ポモドーロ×5）<br>
+② <strong>コンボ判定</strong> → multiplier/bonus適用 → 最終ポイント確定<br>
+③ ポイント付与（StudentsDB.addPoints）<br>
+④ <strong>ボスダメージ計算</strong>（属性倍率 × boss_multiplier + ポモドーロ×10）→ 適用<br>
+⑤ バッジチェック（BadgesDB.checkAndAward）<br>
+⑥ <strong>デイリーミッション達成チェック</strong><br>
+⑦ <strong>ストーリー進捗更新</strong><br>
+⑧ <strong>隠しエリアチェック</strong><br>
+⑨ 完了画面表示（ポイント、コンボ、ボスダメージ、バッジ、ミッション）<br>
+<br>
+太字が今回新規追加の処理。既存の①③⑤⑨の間に②④⑥⑦⑧を挿入する設計。
+</div>
+</div>
+
+<h3>5要素連動マトリクス</h3>
+<div class="card">
+<div class="card-text">
+全5要素は独立ではなく相互に影響し合う設計:<br><br>
+<strong>コンボ → ボス:</strong> 「ドラゴンキラー」コンボでボスダメージ×2<br>
+<strong>コンボ → マップ:</strong> コンボ5種発見で隠しエリア「彗星の洞窟」解放<br>
+<strong>コンボ → ストーリー:</strong> クラスのコンボ発見率がルートB（隠し通路）の条件<br>
+<strong>ミッション → コンボ:</strong> 5日連続ミッションクリアでコンボ「サンダーチェイン」発動<br>
+<strong>ボス → ストーリー:</strong> ボス撃破がルートA（正面突破）の条件<br>
+<strong>マップ → ストーリー:</strong> ステーションがストーリーの舞台と連動
+</div>
+</div>
+</div>
+
+<!-- ===== 項目5 ===== -->
+<div class="section" id="s5">
+<span class="section-num">5</span><span class="section-title">db.js データ層の実装</span>
+<span class="section-file">db.js（1,195行 → 1,794行 / +599行追加）</span>
+
+<div class="section-desc">
+詳細仕様書（項目4）に基づき、5つの新モジュールをdb.jsに実装しました。既存の16モジュールに5モジュールを追加し、合計21モジュールになりました。これはデータ層（Firestoreとのやり取り）の実装であり、画面（UI）の実装はまだ行っていません。
+</div>
+
+<h3>追加した5モジュールの実装内容</h3>
+<table class="detail-table">
+<tr><th>モジュール</th><th>追加行数</th><th>実装したメソッド</th><th>依存する既存モジュール</th></tr>
+<tr><td><strong>SpaceMapDB</strong></td><td>約70行</td><td>getStation(), getStationProgress(), getDiscoveries(), checkAndUnlock(), equipTitle()</td><td>StudentsDB</td></tr>
+<tr><td><strong>ComboDB</strong></td><td>約150行</td><td>buildContext(), isOnCooldown(), checkAll(), recordDiscovery(), getDiscoveries(), getClassDiscoveryRate()</td><td>StudyLogsDB, ConditionsDB, TasksDB, RaidBossDB, StudentsDB</td></tr>
+<tr><td><strong>DailyMissionsDB</strong></td><td>約180行</td><td>rollRarity(), draw(), accept(), buildDayStats(), checkCompletion(), manualComplete(), getHistory(), getMissionDef()</td><td>StudyLogsDB, ConditionsDB, TasksDB, RaidBossDB, StudentsDB</td></tr>
+<tr><td><strong>calculateBossDamage()</strong></td><td>約30行</td><td>属性倍率判定, コンボ倍率適用, ポモドーロボーナス, 特殊能力補正(min_duration, enrage, night_boost)</td><td>RaidBossDB</td></tr>
+<tr><td><strong>StoryDB</strong></td><td>約120行</td><td>getActive(), create(), updateProgress(), resolveChapter(), getAll(), getWeeklyText()</td><td>StudyLogsDB, ComboDB, RaidBossDB, StudentsDB</td></tr>
+</table>
+
+<h3>追加した定数定義</h3>
+<table class="detail-table">
+<tr><th>定数</th><th>件数</th><th>内容</th></tr>
+<tr><td>SPACE_STATIONS</td><td>10件</td><td>地球(0pt)〜銀河の果て(5000pt)の10ステーション。id, level, points, name, icon, desc</td></tr>
+<tr><td>HIDDEN_AREAS</td><td>6件</td><td>彗星の洞窟〜観測所オメガ。conditionFn(条件関数), reward(称号), afterStation(出現位置)</td></tr>
+<tr><td>COMBO_DEFINITIONS</td><td>12件</td><td>公開3種(ファイアースターター, マルチタレント, パーフェクトデイ) + 隠し9種。conditionFn, reward, cooldown</td></tr>
+<tr><td>DAILY_MISSION_POOL</td><td>18件</td><td>Common 6種, Uncommon 5種, Rare 4種, Epic 2種, Legendary 2種(うち隠し1種)</td></tr>
+</table>
+
+<h3>現状の注意点</h3>
+<div class="card">
+<div class="card-text">
+<strong>実装済み:</strong> データ層（Firestoreへの読み書きロジック）<br>
+<strong>未実装:</strong> UI層（student.html, index.html, monitor.htmlの画面表示）<br><br>
+つまり、ゲームのルール（計算式・判定ロジック・データ保存）は完成しているが、プレイヤーが操作する画面はまだ変更していない状態。
+データ層が先に完成しているため、UI実装時には「表示するだけ」の作業で済む。
+</div>
+</div>
+</div>
+
+<!-- ===== 項目6 ===== -->
+<div class="section" id="s6">
+<span class="section-num">6</span><span class="section-title">ストーリーテリング Phase 1 + 保護者説明資料</span>
+<span class="section-file">storytelling-phase1.html（517行）/ 5タブ構成</span>
+
+<div class="section-desc">
+前回セッション（4月1日）のフレームワークv4をPhase 1（ソロ文化・ギルドなし）に適応。三重螺旋（生徒×保護者×ギルド）を二重螺旋（生徒×保護者）に縮小。加えて、保護者向け説明資料と初日の導入台本を作成しました。
+</div>
+
+<h3>Phase 1の物語テーマ</h3>
+<div class="card">
+<div class="card-title">「ひとりの宇宙飛行士」</div>
+<div class="card-text">
+生徒 = 新人宇宙飛行士。まだクルーに配属されていない。ひとりで宇宙空間を歩く訓練期間。<br>
+保護者 = 地上管制室。飛行士のバイタルデータを見守る。口出しせず見守ることが役割。<br>
+ギルド = Phase 1では存在しない。ただしモニターに「CREW ASSIGNMENT: PENDING」と表示し、「いずれ仲間ができる」予感を漂わせる。
+</div>
+</div>
+
+<h3>7ステージ × 8週間の対応</h3>
+<table class="detail-table">
+<tr><th>ステージ</th><th>対応時期</th><th>キーメッセージ</th><th>Phase 1での具体的体験</th></tr>
+<tr><td>1. 日常世界</td><td>入塾前</td><td>「勉強が嫌いなのは、冒険が見つかっていないだけ」</td><td>HP、チラシ、SNS</td></tr>
+<tr><td>2. 冒険への呼びかけ</td><td>体験入塾</td><td>「ミッションコントロールが、キミを見つけた」</td><td>2F 2号室での体験</td></tr>
+<tr><td>3. ガイドとの出会い</td><td>Week 1</td><td>「これがキミのポータルだ」</td><td>初ログイン、初ポモドーロ</td></tr>
+<tr><td>4. 試練の道</td><td>Week 2-5</td><td>「暗い宇宙でも、ポモドーロの光は消えない」</td><td>ミッション挑戦、コンボ発見、マップ進行</td></tr>
+<tr><td>5. 変容</td><td>Week 5-7</td><td>「もう指示を待つ新人じゃない」</td><td>自ら高難度を選ぶ、戦略を考える</td></tr>
+<tr><td>6. 帰還</td><td>Week 7-8</td><td>「同じ星を目指していた仲間がいた」</td><td>Chapter 1結末、ボス撃破</td></tr>
+<tr><td>7. 新たな冒険</td><td>Phase 2移行</td><td>「クルー編成プログラムを起動する」</td><td>ギルド配属選択画面</td></tr>
+</table>
+
+<h3>チャネル別テンプレート</h3>
+<table class="detail-table">
+<tr><th>チャネル</th><th>作成した内容</th></tr>
+<tr><td>HP（Webサイト）</td><td>ファーストビューのコピー、ミッションコントロール紹介セクション、保護者向けセクション</td></tr>
+<tr><td>体験入塾</td><td>生徒への説明（5分）+ 保護者への説明（10分）の台本。NG例3つ</td></tr>
+<tr><td>チラシ・SNS</td><td>キャッチコピー4案 + 本文テンプレ + SNS短文テンプレ</td></tr>
+<tr><td>アプリ内テキスト</td><td>ログイン、ポモドーロ開始/完了、コンボ発見、ステーション到着、ボスダメージ、ストリーク途切れ</td></tr>
+<tr><td>教室モニター</td><td>ストーリーパネル、ボス弱点表示、到達・発見通知のテキスト</td></tr>
+</table>
+
+<h3>保護者説明資料</h3>
+<div class="grid2">
+<div class="card">
+<div class="card-title">核心の方針</div>
+<div class="card-text">
+保護者に伝えるのは「ゲーム」ではなく「学習の見える化」。ポイント・コンボ・レイドボスの話は不要。「お子さんの学習量と習慣がスマホで見えます」で十分。
+</div>
+</div>
+<div class="card">
+<div class="card-title">作成したQ&A（5問）</div>
+<div class="card-text">
+Q1. ゲームばかりして勉強にならないのでは？<br>
+Q2. ポイントで何が買えますか？お金がかかりますか？<br>
+Q3. 他の子と比較されて傷つかないですか？<br>
+Q4. 保護者ポータルで何を見ればいいですか？<br>
+Q5. チーム活動はいつから始まりますか？
+</div>
+</div>
+</div>
+
+<h3>導入シナリオ（Day 1 台本）</h3>
+<div class="card">
+<div class="card-text">
+<strong>ステップ1 予告（3分）:</strong> モニターにmonitor.htmlを映して「今日から新しいシステムが入る」<br>
+<strong>ステップ2 ログイン（5分）:</strong> 全員がstudent.htmlにログイン。巡回サポート<br>
+<strong>ステップ3 初回体験（7分）:</strong> 全員で7分間タイマーを動かす。完了画面でポイント確認<br><br>
+声掛けの○×ルール:<br>
+○「今日のミッション何だった？」 / ○「コンボ見つけた？」 / ○「ボスに何ダメージ入った？」<br>
+×「ちゃんとポモドーロやった？」(監視) / ×「ポイント貯めなきゃ」(外発強化)
+</div>
+</div>
+</div>
+
+<!-- ===== 今後の作業 ===== -->
+<div class="next-steps" id="next">
+<h3 style="margin-top:0;">今後の作業（未実施）</h3>
+<table class="detail-table">
+<tr><th>#</th><th>作業内容</th><th>対象ファイル</th><th>概要</th></tr>
+<tr><td>A</td><td><strong>生徒画面のUI実装</strong></td><td>student.html</td><td>ホーム画面のレベル表示→宇宙マップに差替。ランダムミッション3択カードの追加。コンボ図鑑画面の新設。学習完了画面にコンボ・ボスダメージ表示を追加。ボス弱点表示の追加。</td></tr>
+<tr><td>B</td><td><strong>管理画面のUI追加</strong></td><td>index.html</td><td>ボス作成フォームに弱点/耐性/特殊能力の設定を追加。ストーリーチャプター管理画面の新設。デイリーミッションプールの管理UI。</td></tr>
+<tr><td>C</td><td><strong>モニター画面の表示追加</strong></td><td>monitor.html</td><td>全生徒の宇宙マップ位置表示。ストーリーテキスト+進捗パネルの追加。ボス弱点表示の強化。</td></tr>
+<tr><td>D</td><td><strong>Firebaseデプロイ</strong></td><td>—</td><td>完成後に本番環境(hero-s-points.web.app)に公開</td></tr>
+</table>
+</div>
+
+<div class="footer">
+HERO'S延岡校 ゲーミフィケーション・システム設計セッションレポート<br>
+2026年4月2日 ｜ ブランチ: claude/gamification-system-design-d2FD9<br>
+全成果物: system-overview.html / game-design-v2.html / phase1-plan.html / detailed-specs.html / db.js / storytelling-phase1.html
+</div>
+
+</div><!-- /container -->
+</body>
+</html>
