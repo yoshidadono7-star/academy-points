@@ -36,6 +36,12 @@ const StudentsDB = {
       buddyId: data.buddyId || null,
       pomodoroTotal: data.pomodoroTotal || 0,
       callsign: data.callsign || data.nickname || '', // コールサイン
+      // --- PROJECT: ORBIT 拡張 ---
+      testType: data.testType || 'midterm',    // 'midterm'(中間テストあり) | 'no_midterm'(なし)
+      weakSubject: data.weakSubject || null,    // 苦手科目（コンボ・ミッション判定用）
+      targetStation: data.targetStation || null, // 志望校（マップ終着点、本人のみ表示）
+      role: data.role || 'student',             // 'student' | 'supporter'(私立合格後)
+      missionStreak: data.missionStreak || 0,   // デイリーミッション連続達成数
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     return ref.id;
@@ -1329,6 +1335,11 @@ const COMBO_DEFINITIONS = [
     desc: 'ボス弱点科目 + ポモドーロ3回', hidden: true, cooldown: 'daily', category: 'boss',
     conditionFn: (ctx) => ctx.isWeaknessSubject && ctx.pomodoroCount >= 3,
     reward: { type: 'boss_multiplier', value: 2.0 } },
+  // --- PROJECT: ORBIT 追加コンボ ---
+  { id: 'indomitable_engine', name: '不屈のエンジン', icon: '🔧',
+    desc: '疲れている時に来て学習した', hidden: true, cooldown: 'daily', category: 'grit',
+    conditionFn: (ctx) => ctx.conditionEnergyLow && ctx.studiedToday,
+    reward: { type: 'bonus', points: 40 } },
 ];
 
 const ComboDB = {
@@ -1361,6 +1372,7 @@ const ComboDB = {
       todayPomodoros: myTodayLogs.reduce((s, l) => s + (l.pomodoroCount || 0), 0),
       studiedToday: myTodayLogs.length > 0,
       conditionToday: todayConditions.some(c => c.studentId === studentId),
+      conditionEnergyLow: todayConditions.some(c => c.studentId === studentId && (c.energy <= 2 || c.motivation <= 2)),
       taskCompletedToday: taskCompletions.some(t => t.date === today),
       currentStreak: student.streak || 0,
       missionStreak: student.missionStreak || 0,
@@ -1653,6 +1665,11 @@ function calculateBossDamage(session, boss, comboResults) {
   // ポモドーロボーナス
   damage += (session.pomodoroCount || 0) * 10;
 
+  // サポート艦隊バフ（supporterBuffが渡された場合に適用）
+  if (session._supporterBuff && session._supporterBuff > 1.0) {
+    damage *= session._supporterBuff;
+  }
+
   // 特殊能力補正
   if (boss.specialAbility) {
     switch (boss.specialAbility.type) {
@@ -1792,3 +1809,137 @@ const StoryDB = {
     return wt ? wt.text : '';
   }
 };
+
+// ============================================
+// PROJECT: ORBIT — 延岡ローカライズ拡張
+// ============================================
+
+// ===== 志望校ステーション（マップ終着点） =====
+// ※ student.html の本人画面にのみ表示。monitor.htmlには非公開（匿名性の原則）
+const TARGET_STATIONS = {
+  nobeoka_h:     { name: '延岡高校',   icon: '🌟', code: 'プラネット・アルファ' },
+  nobeoka_seiun: { name: '延岡星雲高校', icon: '🌀', code: 'ノースクラウド星雲' },
+  nobeoka_sho:   { name: '延岡商業',   icon: '📊', code: 'セクター・コマース' },
+  nobeoka_ko:    { name: '延岡工業',   icon: '⚙️', code: 'インダストリアル・プラント' },
+  gakuen:        { name: '延岡学園',   icon: '🏛️', code: 'ステーション・アカデミア' },
+  ursula:        { name: '聖心ウルスラ', icon: '✝️', code: 'サンクチュアリ・ウルスラ' },
+  other:         { name: 'その他',     icon: '🚀', code: 'カスタム・ステーション' },
+};
+
+function getTargetStationDisplay(targetStationId) {
+  const ts = TARGET_STATIONS[targetStationId];
+  if (!ts) return null;
+  return { ...ts, id: targetStationId };
+}
+
+// ===== サポート艦隊（私立合格者のクラスチェンジ） =====
+const SupportFleetDB = {
+  // 生徒をサポーターに変更（私立合格後）
+  async promoteToSupporter(studentId) {
+    await StudentsDB.update(studentId, { role: 'supporter' });
+  },
+
+  // サポーターを通常に戻す
+  async revertToStudent(studentId) {
+    await StudentsDB.update(studentId, { role: 'student' });
+  },
+
+  // 現在のサポーター一覧
+  async getSupporters() {
+    const snap = await db.collection('students')
+      .where('role', '==', 'supporter').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+
+  // サポーターバフ倍率の計算
+  // サポーターが今日学習していれば、県立組のボスダメージにバフが乗る
+  async calculateBuff() {
+    const supporters = await this.getSupporters();
+    if (supporters.length === 0) return 1.0;
+
+    const today = getToday();
+    const todayLogs = await StudyLogsDB.getByDate(today);
+    let activeSupporters = 0;
+    for (const sup of supporters) {
+      if (todayLogs.some(l => l.studentId === sup.id)) {
+        activeSupporters++;
+      }
+    }
+
+    // バフ計算: 基本1.0 + アクティブサポーター1人につき+0.15（最大1.0+0.6=1.6倍）
+    const buff = 1.0 + Math.min(activeSupporters * 0.15, 0.6);
+    return buff;
+  },
+
+  // サポーターの支援行動を記録（先生が手動で評価）
+  async logSupportAction(supporterId, actionType) {
+    // actionType: 'quiet_study'(静かに自習), 'teaching'(後輩に教える), 'encouragement'(声掛け)
+    const pointMap = { quiet_study: 5, teaching: 15, encouragement: 10 };
+    const points = pointMap[actionType] || 5;
+    await db.collection('supportActions').add({
+      supporterId,
+      actionType,
+      points,
+      date: getToday(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    // サポーター自身にもポイント付与
+    await StudentsDB.addPoints(supporterId, points);
+    return points;
+  },
+};
+
+// ===== テスト有無によるミッション分岐 =====
+// DailyMissionsDB.draw() の拡張版
+// testType='no_midterm' の生徒には「シールド防衛型」ミッションを優先的に出す
+const SHIELD_DEFENSE_MISSIONS = [
+  // テストがない月に出現する「毎日コツコツ型」ミッション
+  { id: 'dm_shield_1pomo', name: 'シールド維持', desc: '今日1ポモドーロで船を守れ',
+    rarity: 'common', points: 12, icon: '🛡️',
+    checkType: 'auto_daily', conditionFn: (ds) => ds.totalPomodoros >= 1 },
+  { id: 'dm_shield_review', name: '単元テスト復習', desc: '直近の単元テスト範囲を15分復習',
+    rarity: 'uncommon', points: 20, icon: '🛡️',
+    checkType: 'manual', conditionFn: null },
+  { id: 'dm_shield_streak', name: '鉄壁防御', desc: '3日連続で来塾して学習',
+    rarity: 'rare', points: 45, icon: '🛡️',
+    checkType: 'auto_daily', conditionFn: (ds) => ds.missionStreak >= 3 },
+];
+
+// テスト月かどうかを判定
+function isExamMonth() {
+  const month = new Date().getMonth() + 1; // 1-12
+  // 6月(期末), 9月(実力①), 10月(中間/実力②), 11月(期末/実力③), 1月(私立), 2月(県立推薦), 3月(県立一般)
+  return [6, 9, 10, 11, 1, 2, 3].includes(month);
+}
+
+// 5月・10月など「中間テストなし組」にシールドミッションを追加で抽選する月
+function isNoMidtermShieldMonth() {
+  const month = new Date().getMonth() + 1;
+  return [5, 10].includes(month); // 中間テストがある月
+}
+
+// ===== 月次ストーリーテーマ（年間シナリオ） =====
+const STORY_THEMES = {
+  '04': { code: 'LAUNCH',           name: '発進と軌道投入',       icon: '🚀', desc: 'ソロ文化確立。1日1ポモドーロの習慣化。' },
+  '05': { code: 'BRANCHING_PATH',   name: '特異宙域でのルート分岐', icon: '🔀', desc: '中間テスト有無による分岐。テストなし組はシールド防衛戦。' },
+  '06': { code: 'CONVERGENCE',      name: '全機合流と期末要塞',    icon: '🏰', desc: '中体連の疲労 → 全員共通の期末テスト。不屈のエンジン発動月。' },
+  '07': { code: 'RENDEZVOUS',       name: '艦隊結成',             icon: '⚔️', desc: 'Phase 2移行。ギルド解禁。夏休み突入。' },
+  '08': { code: 'SUMMER_LEVIATHAN', name: '巨大星雲の死闘',       icon: '🐙', desc: '夏期講習。超巨大レイドボス。全教室の総力戦。' },
+  '09': { code: 'REALITY_RADAR_1',  name: '第1次レーダー観測',    icon: '📡', desc: '地区実力テスト①②。偏差値＝現在座標の確認。' },
+  '10': { code: 'DISTORTION_FIELD', name: '幻惑の星雲',           icon: '🌫️', desc: '文化祭・合唱コンクール。集中力の維持。' },
+  '11': { code: 'LOCK_ON',          name: '最終座標の確定',       icon: '🎯', desc: '地区実力③。三者面談。志望校確定→マップ終着点ロック。' },
+  '12': { code: 'WINTER_HYPER',     name: '絶対零度空間',         icon: '❄️', desc: '冬期講習。私立過去問。Legendaryミッション頻出。' },
+  '01': { code: 'FIRST_TOUCHDOWN',  name: '前衛星系着陸',         icon: '🛬', desc: '私立入試。合格者→サポート艦隊にクラスチェンジ。' },
+  '02': { code: 'FINAL_VANGUARD',   name: '最終防衛線',           icon: '🛡️', desc: '県立推薦入試。サポート艦隊のバフが最大出力。' },
+  '03': { code: 'MISSION_COMPLETE', name: '目標星着陸',           icon: '🏁', desc: '県立一般入試。フライトレコーダーのエンドロール。卒業。' },
+};
+
+function getStoryTheme(month) {
+  // month: 1-12 or '01'-'12'
+  const key = String(month).padStart(2, '0');
+  return STORY_THEMES[key] || null;
+}
+
+function getCurrentStoryTheme() {
+  return getStoryTheme(new Date().getMonth() + 1);
+}
