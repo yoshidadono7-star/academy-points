@@ -1,0 +1,591 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PROJECT: ORBIT — 年間計画 2026-2027</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Hiragino Sans',-apple-system,BlinkMacSystemFont,sans-serif;background:#0a0e27;color:#e8ecff;line-height:1.8;font-size:14px}
+.container{max-width:1100px;margin:0 auto;padding:20px}
+h1{text-align:center;font-size:22px;margin:16px 0 4px;color:#00d4ff;font-family:'Courier New',monospace;letter-spacing:2px}
+.subtitle{text-align:center;color:#7a82b0;font-size:12px;margin-bottom:24px}
+.month-card{background:#111638;border:1px solid rgba(0,212,255,.2);border-radius:12px;margin-bottom:16px;overflow:hidden}
+.month-header{display:flex;justify-content:space-between;align-items:center;padding:14px 18px;cursor:pointer}
+.month-header:hover{background:rgba(0,212,255,.05)}
+.month-num{font-family:'Courier New',monospace;font-size:20px;font-weight:900;color:#00d4ff;min-width:40px}
+.month-code{font-family:'Courier New',monospace;font-size:13px;color:#00ff88;letter-spacing:1px}
+.month-name{font-size:14px;font-weight:700;flex:1;margin:0 12px}
+.month-phase{font-size:10px;font-weight:700;padding:3px 10px;border-radius:10px;white-space:nowrap}
+.phase1{background:rgba(0,212,255,.15);color:#00d4ff;border:1px solid #00d4ff}
+.phase2{background:rgba(0,255,136,.15);color:#00ff88;border:1px solid #00ff88}
+.phase3{background:rgba(255,136,0,.15);color:#ff8800;border:1px solid #ff8800}
+.month-body{padding:0 18px 16px;display:none}
+.month-body.open{display:block}
+.row{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px}
+@media(max-width:768px){.row{grid-template-columns:1fr}}
+.cell{background:#1a1f4e;border:1px solid rgba(0,212,255,.1);border-radius:8px;padding:12px}
+.cell-title{font-size:11px;font-weight:700;color:#7a82b0;letter-spacing:1px;margin-bottom:6px;text-transform:uppercase}
+.cell-text{font-size:12px;color:#c8cef0;line-height:1.8}
+.boss-card{background:linear-gradient(135deg,#1a0a2e,#111638);border:2px solid #8866ff;border-radius:10px;padding:14px;margin:8px 0}
+.boss-name{font-size:14px;font-weight:800;color:#8866ff;text-align:center}
+.boss-stats{display:flex;justify-content:center;gap:16px;margin-top:6px;font-size:11px}
+.boss-weak{color:#00ff88}
+.boss-resist{color:#ff3366}
+.boss-special{color:#ff8800}
+.story-box{background:#0a0e27;border-left:3px solid #00d4ff;padding:10px 14px;margin:8px 0;font-size:12px;font-style:italic;color:#7a82b0}
+.event-tag{display:inline-block;font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;margin:2px}
+.tag-exam{background:#ff336633;color:#ff3366;border:1px solid #ff3366}
+.tag-school{background:#ff880033;color:#ff8800;border:1px solid #ff8800}
+.tag-system{background:#00d4ff33;color:#00d4ff;border:1px solid #00d4ff}
+.tag-story{background:#8866ff33;color:#8866ff;border:1px solid #8866ff}
+.summary{background:#111638;border:1px solid rgba(0,212,255,.2);border-radius:12px;padding:18px;margin-bottom:20px}
+.summary h3{font-size:14px;color:#00d4ff;margin-bottom:8px}
+.legend{display:flex;flex-wrap:wrap;gap:8px;margin:8px 0}
+.footer{text-align:center;padding:16px;margin-top:20px;border-top:1px solid #1a1f4e;font-size:10px;color:#7a82b0}
+table.plan{width:100%;border-collapse:collapse;font-size:11px;margin:12px 0}
+table.plan th,table.plan td{padding:6px 8px;border:1px solid #1a1f4e;text-align:left;vertical-align:top}
+table.plan th{background:#1a1f4e;color:#7a82b0;font-weight:700}
+</style>
+</head>
+<body>
+<div class="container">
+<h1>PROJECT: ORBIT</h1>
+<p class="subtitle">延岡・中3ゲーミフィケーション年間計画 ｜ 2026年4月 → 2027年3月</p>
+
+<div class="summary">
+<h3>年間ロードマップ概要</h3>
+<div class="legend">
+<span class="month-phase phase1">Phase 1: ソロ文化（4-6月）</span>
+<span class="month-phase phase2">Phase 2: ギルド（7-12月）</span>
+<span class="month-phase phase3">Phase 3: サポート艦隊（1-3月）</span>
+</div>
+<div class="cell-text" style="margin-top:8px;">
+3つのPhaseは期日ではなく条件ベースで移行。日程は目安。<br>
+ストーリー・ボス・ミッションの具体内容は<strong>2ヶ月先まで</strong>を詳細設計し、以降はローリング更新。<br>
+本計画は概略版。各月の実施前に詳細を確定する。
+</div>
+</div>
+
+<!-- ===== 4月 ===== -->
+<div class="month-card">
+<div class="month-header" onclick="toggle(this)">
+<span class="month-num">04</span>
+<span class="month-name">LAUNCH — 発進と軌道投入</span>
+<span class="month-code">🚀</span>
+<span class="month-phase phase1">Phase 1</span>
+</div>
+<div class="month-body">
+<div class="story-box">「新人飛行士たちよ、まずは単独での軌道投入だ。ポモドーロ酸素ボンベを装着し、最初の25分間の船外活動を開始せよ。」</div>
+<div class="row">
+<div class="cell">
+<div class="cell-title">現実のイベント</div>
+<div class="cell-text">
+<span class="event-tag tag-school">新学期開始</span>
+<span class="event-tag tag-school">部活本格化</span><br>
+新クラスの緊張。勉強習慣がない。部活で体力的に疲れている。
+</div>
+</div>
+<div class="cell">
+<div class="cell-title">システム導入</div>
+<div class="cell-text">
+<span class="event-tag tag-system">Week1-2 基盤導入</span><br>
+全員ログイン。初ポモドーロ体験。コンディション記録開始。モニター設置。保護者PIN配布。景品登録。
+</div>
+</div>
+</div>
+<div class="row">
+<div class="cell">
+<div class="cell-title">ミッション重点</div>
+<div class="cell-text">「1日1ポモドーロ（25分）」のストリーク構築に全振り。低難度Commonミッションを高頻度で出現。Week3-4でランダムミッション解禁。</div>
+</div>
+<div class="cell">
+<div class="cell-title">先生のアクション</div>
+<div class="cell-text">毎日「ログインした？」の声掛け。ポイント付与は寛大に。コンディション低い子には個別メッセージ。月末に経済チェック。</div>
+</div>
+</div>
+<div class="boss-card">
+<div class="boss-name">ボスなし（4月は基盤定着に集中）</div>
+<div class="boss-stats"><span>月次ミッション: 「クラス全体で合計100ポモドーロ」</span></div>
+</div>
+</div>
+</div>
+
+<!-- ===== 5月 ===== -->
+<div class="month-card">
+<div class="month-header" onclick="toggle(this)">
+<span class="month-num">05</span>
+<span class="month-name">BRANCHING PATH — ルート分岐</span>
+<span class="month-code">🔀</span>
+<span class="month-phase phase1">Phase 1</span>
+</div>
+<div class="month-body">
+<div class="story-box">「各機に通達。前方に特異宙域を確認。自機のレーダーに合わせ、2つのルートに分岐して任務を遂行せよ。」</div>
+<div class="row">
+<div class="cell">
+<div class="cell-title">現実のイベント</div>
+<div class="cell-text">
+<span class="event-tag tag-exam">中間テスト（一部校のみ）</span>
+<span class="event-tag tag-school">GW明けの中だるみ</span><br>
+★中間テストがある学校とない学校が混在。テストなし組が「まだいいや」とサボる危険。
+</div>
+</div>
+<div class="cell">
+<div class="cell-title">システム対応 ★testType分岐★</div>
+<div class="cell-text">
+<span class="event-tag tag-system">コンボ解禁</span>
+<span class="event-tag tag-system">宇宙マップ解禁</span><br>
+<strong>ルートA（テストあり組）:</strong> 「巨大デブリ迎撃」= テスト前集中ボス<br>
+<strong>ルートB（テストなし組）:</strong> 「シールド防衛戦」= 毎日1ポモドーロ維持
+</div>
+</div>
+</div>
+<div class="boss-card">
+<div class="boss-name">🪨 デブリ・クラスター（ルートA専用）</div>
+<div class="boss-stats">
+<span>HP: 3,000</span>
+<span class="boss-weak">弱点: テスト範囲科目</span>
+<span class="boss-special">特殊: テスト3日前にダメージ×2</span>
+</div>
+</div>
+<div class="story-box" style="border-color:#00ff88;">ルートBの生徒画面: 「シールド耐久度: ██████░░ 78% — ストリークが途切れるとシールドが減少する」</div>
+</div>
+</div>
+
+<!-- ===== 6月 ===== -->
+<div class="month-card">
+<div class="month-header" onclick="toggle(this)">
+<span class="month-num">06</span>
+<span class="month-name">CONVERGENCE — 全機合流と期末要塞</span>
+<span class="month-code">🏰</span>
+<span class="month-phase phase1">Phase 1</span>
+</div>
+<div class="month-body">
+<div class="story-box">「超重力場（中体連）を抜け、全艦隊が再合流した。目前に巨大要塞（期末テスト）が迫る！」</div>
+<div class="row">
+<div class="cell">
+<div class="cell-title">現実のイベント</div>
+<div class="cell-text">
+<span class="event-tag tag-school">延岡地区中体連</span>
+<span class="event-tag tag-exam">期末テスト（全校共通）</span><br>
+中体連で肉体・精神が限界。その直後に期末テスト。最もつらい月。
+</div>
+</div>
+<div class="cell">
+<div class="cell-title">システム対応</div>
+<div class="cell-text">
+<span class="event-tag tag-system">隠しコンボ「不屈のエンジン」活躍月</span><br>
+コンディション「疲れている」で学習→+40pt。全ルートが合流して同じボスに挑む。テストなし組のボスは激怒(Enrage)状態（テスト範囲が広い分HP増加）。
+</div>
+</div>
+</div>
+<div class="boss-card">
+<div class="boss-name">🏰 期末フォートレス</div>
+<div class="boss-stats">
+<span>HP: 8,000</span>
+<span class="boss-weak">弱点: 週替わり（理→英→数→社理）</span>
+<span class="boss-special">特殊: 中体連週はダメージ半減</span>
+</div>
+</div>
+</div>
+</div>
+
+<!-- ===== 7月 ===== -->
+<div class="month-card">
+<div class="month-header" onclick="toggle(this)">
+<span class="month-num">07</span>
+<span class="month-name">RENDEZVOUS — 艦隊結成</span>
+<span class="month-code">⚔️</span>
+<span class="month-phase phase2">Phase 2</span>
+</div>
+<div class="month-body">
+<div class="story-box">「単独訓練終了。適性テストの結果が出た。これより深宇宙探査クルーを結成する——仲間とともに、未知の宙域へ。」</div>
+<div class="row">
+<div class="cell">
+<div class="cell-title">現実のイベント</div>
+<div class="cell-text">
+<span class="event-tag tag-school">部活引退</span>
+<span class="event-tag tag-school">夏休み突入</span><br>
+急に時間が空く。中だるみ。「受験生の自覚」がまだ薄い子がいる。
+</div>
+</div>
+<div class="cell">
+<div class="cell-title">システム対応 ★Phase 2移行★</div>
+<div class="cell-text">
+<span class="event-tag tag-system">ギルド解禁</span>
+<span class="event-tag tag-system">コマンダーシステム開始</span><br>
+Phase 2移行5条件をクリアしていれば、ニックネーム匿名ギルドを結成。先生のコマンダーCP自動蓄積+バフ自動発動も開始。
+</div>
+</div>
+</div>
+<div class="boss-card">
+<div class="boss-name">🌊 タイダル・ウェーブ（夏休みの怠惰）</div>
+<div class="boss-stats">
+<span>HP: 6,000</span>
+<span class="boss-weak">弱点: 1-2年の総復習科目</span>
+<span class="boss-resist">耐性: なし</span>
+<span class="boss-special">特殊: 3日以上サボると味方にデバフ</span>
+</div>
+</div>
+</div>
+</div>
+
+<!-- ===== 8月 ===== -->
+<div class="month-card">
+<div class="month-header" onclick="toggle(this)">
+<span class="month-num">08</span>
+<span class="month-name">SUMMER LEVIATHAN — 巨大星雲の死闘</span>
+<span class="month-code">🐙</span>
+<span class="month-phase phase2">Phase 2</span>
+</div>
+<div class="month-body">
+<div class="story-box">「巨大宇宙生物『サマー・リヴァイアサン』との遭遇！ 全艦隊、一斉射撃せよ！ こいつは一人では倒せない——」</div>
+<div class="row">
+<div class="cell">
+<div class="cell-title">現実のイベント</div>
+<div class="cell-text">
+<span class="event-tag tag-school">夏期講習</span><br>
+天王山。1-2年の総復習。毎日長時間学習。孤独との戦い。
+</div>
+</div>
+<div class="cell">
+<div class="cell-title">システム対応</div>
+<div class="cell-text">
+<span class="event-tag tag-story">年間最大イベント</span><br>
+個人では絶対に倒せない超高HPボス。教室全員の総学習時間で1ヶ月かけて撃破。ギルド対抗のダメージランキング。
+</div>
+</div>
+</div>
+<div class="boss-card">
+<div class="boss-name">🐙 サマー・リヴァイアサン</div>
+<div class="boss-stats">
+<span>HP: 30,000（生徒数×想定学習時間で調整）</span>
+<span class="boss-weak">弱点: 週替わり（全5教科ローテ）</span>
+<span class="boss-special">特殊: 毎週月曜にHP 2,000回復</span>
+</div>
+</div>
+</div>
+</div>
+
+<!-- ===== 9月 ===== -->
+<div class="month-card">
+<div class="month-header" onclick="toggle(this)">
+<span class="month-num">09</span>
+<span class="month-name">REALITY RADAR — 第1次レーダー観測</span>
+<span class="month-code">📡</span>
+<span class="month-phase phase2">Phase 2</span>
+</div>
+<div class="month-body">
+<div class="story-box">「現在地の座標を確認。レーダーが示す数値（偏差値）を直視せよ。弱点属性を見極め、攻撃計画を修正しろ。」</div>
+<div class="row">
+<div class="cell">
+<div class="cell-title">現実のイベント</div>
+<div class="cell-text">
+<span class="event-tag tag-exam">地区実力テスト①②</span>
+<span class="event-tag tag-school">体育大会準備</span><br>
+初めて偏差値が出る。現実を突きつけられる月。体育大会の準備と重なり忙しい。
+</div>
+</div>
+<div class="cell">
+<div class="cell-title">システム対応</div>
+<div class="cell-text">
+ボスの弱点 = 実力テストで伸ばすべき科目。ゲームの戦略がそのままテスト対策に直結。テスト結果をExamResultsDBに入力→保護者ポータルに自動反映。
+</div>
+</div>
+</div>
+<div class="boss-card">
+<div class="boss-name">📡 スキャナー・ドローン（偏差値の壁）</div>
+<div class="boss-stats">
+<span>HP: 10,000</span>
+<span class="boss-weak">弱点: クラス平均が低い科目</span>
+<span class="boss-special">特殊: テスト直前1週間はダメージ×2</span>
+</div>
+</div>
+</div>
+</div>
+
+<!-- ===== 10月 ===== -->
+<div class="month-card">
+<div class="month-header" onclick="toggle(this)">
+<span class="month-num">10</span>
+<span class="month-name">DISTORTION FIELD — 幻惑の星雲</span>
+<span class="month-code">🌫️</span>
+<span class="month-phase phase2">Phase 2</span>
+</div>
+<div class="month-body">
+<div class="story-box">「幻惑の星雲に入った。レーダーにノイズが混じっている。文化祭の誘惑に負けるな。気を抜いた艦隊から脱落する。」</div>
+<div class="row">
+<div class="cell">
+<div class="cell-title">現実のイベント</div>
+<div class="cell-text">
+<span class="event-tag tag-school">文化祭・合唱コンクール</span>
+<span class="event-tag tag-exam">中間テスト（一部校）/ 実力テスト</span><br>
+学校行事で気が散る。成績が伸び悩む生徒が出始める。5月同様のtestType分岐。
+</div>
+</div>
+<div class="cell">
+<div class="cell-title">システム対応</div>
+<div class="cell-text">
+<span class="event-tag tag-story">ストーリー分岐月</span><br>
+クラス全体のミッション達成率で11月のストーリーが「安全航路」か「暗礁宙域」に分岐。連帯感を醸成。testType分岐（5月と同じルートA/B方式）。
+</div>
+</div>
+</div>
+<div class="boss-card">
+<div class="boss-name">🌫️ ミラージュ・ファントム（幻惑）</div>
+<div class="boss-stats">
+<span>HP: 10,000</span>
+<span class="boss-weak">弱点: 数学（2学期の山場）</span>
+<span class="boss-resist">耐性: なし</span>
+<span class="boss-special">特殊: 行事期間中はHP自動回復+300/日</span>
+</div>
+</div>
+</div>
+</div>
+
+<!-- ===== 11月 ===== -->
+<div class="month-card">
+<div class="month-header" onclick="toggle(this)">
+<span class="month-num">11</span>
+<span class="month-name">LOCK-ON — 最終座標の確定</span>
+<span class="month-code">🎯</span>
+<span class="month-phase phase2">Phase 2</span>
+</div>
+<div class="month-body">
+<div class="story-box">「航路計算完了。最終到達星系へのルートをロックした。もう迷わない。ここからは一直線に突き進むのみ。」</div>
+<div class="row">
+<div class="cell">
+<div class="cell-title">現実のイベント</div>
+<div class="cell-text">
+<span class="event-tag tag-exam">地区実力テスト③（最終）</span>
+<span class="event-tag tag-school">三者面談・志望校決定</span><br>
+最後の実力テスト。三者面談で志望校が確定。プレッシャーのピーク。
+</div>
+</div>
+<div class="cell">
+<div class="cell-title">システム対応 ★志望校マップロック★</div>
+<div class="cell-text">
+<span class="event-tag tag-system">targetStation設定</span><br>
+各生徒のマップ終着点が志望校に確定。student.htmlの本人画面にのみ「🌟 プラネット・アルファまであとXXXpt」と表示。monitor.htmlには「各自の目標星に向けて航行中」とだけ表示（匿名性保護）。
+</div>
+</div>
+</div>
+<div class="boss-card">
+<div class="boss-name">🎯 ジャッジメント・ゲート（最終判定の門）</div>
+<div class="boss-stats">
+<span>HP: 12,000</span>
+<span class="boss-weak">弱点: 各自の苦手科目（先生が個別設定）</span>
+<span class="boss-special">特殊: 全員が1ポモドーロ以上やった日はダメージ×1.5</span>
+</div>
+</div>
+</div>
+</div>
+
+<!-- ===== 12月 ===== -->
+<div class="month-card">
+<div class="month-header" onclick="toggle(this)">
+<span class="month-num">12</span>
+<span class="month-name">WINTER HYPER-DRIVE — 絶対零度空間</span>
+<span class="month-code">❄️</span>
+<span class="month-phase phase2">Phase 2</span>
+</div>
+<div class="month-body">
+<div class="story-box">「前衛星系への着陸準備に入る。絶対零度の空間を乗り越えろ。1月の着陸に向け、全システムを最終チェック。」</div>
+<div class="row">
+<div class="cell">
+<div class="cell-title">現実のイベント</div>
+<div class="cell-text">
+<span class="event-tag tag-school">冬期講習</span>
+<span class="event-tag tag-exam">私立入試準備（延学・ウルスラ過去問）</span><br>
+私立入試まであと1ヶ月。過去問演習の追い込み。年末年始の誘惑。
+</div>
+</div>
+<div class="cell">
+<div class="cell-title">システム対応</div>
+<div class="cell-text">
+「○○高校の過去問を1年分解く」がLegendaryミッションとして頻出。冬期講習期間の集中ボス。年末年始もストリーク維持を促すシールド防衛戦。
+</div>
+</div>
+</div>
+<div class="boss-card">
+<div class="boss-name">❄️ アブソリュート・ゼロ（絶対零度）</div>
+<div class="boss-stats">
+<span>HP: 15,000</span>
+<span class="boss-weak">弱点: 私立入試頻出科目</span>
+<span class="boss-special">特殊: 年末年始(12/29-1/3)にHP+3,000回復</span>
+</div>
+</div>
+</div>
+</div>
+
+<!-- ===== 1月 ===== -->
+<div class="month-card">
+<div class="month-header" onclick="toggle(this)">
+<span class="month-num">01</span>
+<span class="month-name">FIRST TOUCHDOWN — 前衛星系着陸</span>
+<span class="month-code">🛬</span>
+<span class="month-phase phase3">Phase 3</span>
+</div>
+<div class="month-body">
+<div class="story-box">「ステーション・アカデミア、サンクチュアリ・ウルスラへの着陸を確認！ 先行部隊は管制塔へ移行し、後続部隊を支援せよ！」</div>
+<div class="row">
+<div class="cell">
+<div class="cell-title">現実のイベント</div>
+<div class="cell-text">
+<span class="event-tag tag-exam">延岡学園入試</span>
+<span class="event-tag tag-exam">聖心ウルスラ入試</span>
+<span class="event-tag tag-exam">私立合格発表</span><br>
+★最大の課題: 合格者が抜けて教室が「終わった空気」になる。県立組の邪魔になりやすい。
+</div>
+</div>
+<div class="cell">
+<div class="cell-title">システム対応 ★サポート艦隊★</div>
+<div class="cell-text">
+<span class="event-tag tag-system">Phase 3移行</span>
+<span class="event-tag tag-system">role: supporter</span><br>
+私立合格者 → サポーターにクラスチェンジ。サポーターの学習で県立組のダメージ最大×1.6バフ。支援行動でサポーター自身もポイント獲得。<br>
+<strong>「合格者が教室の邪魔」→「合格者が最強の味方」に変換</strong>
+</div>
+</div>
+</div>
+<div class="boss-card">
+<div class="boss-name">🛬 県立入試カウントダウン・ボス</div>
+<div class="boss-stats">
+<span>HP: 20,000</span>
+<span class="boss-weak">弱点: 週替わり（5教科ローテ）</span>
+<span class="boss-special">特殊: サポート艦隊のバフが適用</span>
+</div>
+</div>
+</div>
+</div>
+
+<!-- ===== 2月 ===== -->
+<div class="month-card">
+<div class="month-header" onclick="toggle(this)">
+<span class="month-num">02</span>
+<span class="month-name">FINAL VANGUARD — 最終防衛線</span>
+<span class="month-code">🛡️</span>
+<span class="month-phase phase3">Phase 3</span>
+</div>
+<div class="month-body">
+<div class="story-box">「推薦組も着陸成功！ 管制塔からの支援エネルギーが最大出力に達した！ 県立一般組——お前たちの着陸準備は完了している。」</div>
+<div class="row">
+<div class="cell">
+<div class="cell-title">現実のイベント</div>
+<div class="cell-text">
+<span class="event-tag tag-exam">県立推薦入試</span>
+<span class="event-tag tag-exam">推薦合格発表</span><br>
+推薦合格者がさらに増える。一般入試組の焦りと孤独感がピークに。
+</div>
+</div>
+<div class="cell">
+<div class="cell-title">システム対応</div>
+<div class="cell-text">
+推薦合格者もサポート艦隊に合流。県立一般組の画面に毎日「サポート艦隊からの支援バフ適用中！」と表示。一体感が最高潮。<br>
+ラスト2週間: デイリーミッションが全てEpic/Legendary級に。
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- ===== 3月 ===== -->
+<div class="month-card">
+<div class="month-header" onclick="toggle(this)">
+<span class="month-num">03</span>
+<span class="month-name">MISSION COMPLETE — 目標星着陸</span>
+<span class="month-code">🏁</span>
+<span class="month-phase phase3">Phase 3</span>
+</div>
+<div class="month-body">
+<div class="story-box">「ALL GREEN。全てのクルーが自らの星に降り立った。長い旅だった——でも、この1年で手に入れたものは、点数だけじゃない。」</div>
+<div class="row">
+<div class="cell">
+<div class="cell-title">現実のイベント</div>
+<div class="cell-text">
+<span class="event-tag tag-exam">県立一般入試本番</span>
+<span class="event-tag tag-exam">合格発表</span>
+<span class="event-tag tag-school">卒業</span>
+</div>
+</div>
+<div class="cell">
+<div class="cell-title">システム対応 ★フライトレコーダー★</div>
+<div class="cell-text">
+入試前日: 特別バッジ「ALL GREEN」を全員に付与。<br>
+合格発表日: ログインすると1年間の全記録が<strong>フライトレコーダー</strong>としてエンドロール表示。<br>
+・総ポモドーロ数 ・発見した全コンボ ・倒した全ボス ・仲間への支援回数 ・到達したステーション<br>
+<strong>最高の達成感と共にシステムから卒業。</strong>
+</div>
+</div>
+</div>
+</div>
+</div>
+
+<!-- ===== コマンダーシステム概要 ===== -->
+<div class="summary" style="margin-top:24px;border-color:rgba(0,255,136,.3);">
+<h3 style="color:#00ff88;">👨‍✈️ コマンダーシステム（先生の参戦）</h3>
+<div class="cell-text">
+<strong>設計原則:</strong> 先生は今まで通りの業務をするだけで、CPが自動で貯まり、バフが自動で発動する。追加の操作負荷はゼロ。<br><br>
+<strong>CP（指揮力ポイント）の自動蓄積:</strong><br>
+・ポイント付与操作 → +5 CP<br>
+・コンディション確認 → +2 CP<br>
+・メッセージ送信 → +3 CP<br>
+・タスク設定 → +5 CP<br>
+・ボス/ミッション設定 → +10 CP<br><br>
+<strong>バフの自動発動:</strong><br>
+・CP 50到達 → 「📡 通信ブースト: 次の30分間、全員のポイント+20%」を自動発動<br>
+・CP 100到達 → 「⚔️ 総員攻撃命令: 次の60分間、全員のボスダメージ×1.5」を自動発動<br>
+・CPは毎日リセット。日々の業務をしっかりやれば毎日バフが出る設計。<br><br>
+<strong>モニター表示:</strong><br>
+バフ発動時に「🚨 コマンダー吉田から戦術支援！ ダメージ1.5倍発動中！」と演出。
+</div>
+</div>
+
+<!-- ===== UIスキン（Phase 2以降） ===== -->
+<div class="summary" style="border-color:rgba(136,102,255,.3);">
+<h3 style="color:#8866ff;">🎨 UIスキン（Phase 2以降で解放）</h3>
+<div class="cell-text">
+<strong>Phase 1:</strong> デフォルトテーマ（スターフォース）のみ<br>
+<strong>Phase 2以降:</strong> クルー昇格時にスキン選択を解放<br><br>
+<strong>🔴 スターフォース</strong>（標準）: 黒×ネオンブルー。メカニック。現在のmonitor.htmlと同じテイスト<br>
+<strong>🌸 アストロ・パステル</strong>: 白×パステルピンク。可愛い宇宙ウサギ探査船<br>
+<strong>💻 サイバー・ミニマル</strong>: 白×グレー。ゲームっぽさを消したミニマル<br><br>
+<strong>設計原則:</strong> 世界とボスは全員共通。見た目だけが変わる。吉田さんの月次設定は1回で済む。<br>
+<strong>実装:</strong> CSSの色変数を切り替えるだけ。student.htmlの<code>uiTheme</code>フィールドを参照。
+</div>
+</div>
+
+<!-- ===== 年間サマリーテーブル ===== -->
+<div class="summary">
+<h3>📊 年間サマリー</h3>
+<table class="plan">
+<tr><th>月</th><th>コード</th><th>Phase</th><th>ボス</th><th>主要システムイベント</th></tr>
+<tr><td>4月</td><td>LAUNCH</td><td>1</td><td>なし（ミッションのみ）</td><td>基盤導入。全員ログイン。ポモドーロ習慣化</td></tr>
+<tr><td>5月</td><td>BRANCHING</td><td>1</td><td>デブリ・クラスター</td><td>testType分岐。コンボ+マップ解禁</td></tr>
+<tr><td>6月</td><td>CONVERGENCE</td><td>1</td><td>期末フォートレス</td><td>全ルート合流。不屈のエンジン活躍月</td></tr>
+<tr><td>7月</td><td>RENDEZVOUS</td><td>2</td><td>タイダル・ウェーブ</td><td>ギルド解禁。コマンダー開始</td></tr>
+<tr><td>8月</td><td>LEVIATHAN</td><td>2</td><td>サマー・リヴァイアサン(HP30000)</td><td>年間最大イベント。全教室の総力戦</td></tr>
+<tr><td>9月</td><td>RADAR</td><td>2</td><td>スキャナー・ドローン</td><td>実力テスト連動。弱点科目ボス</td></tr>
+<tr><td>10月</td><td>DISTORTION</td><td>2</td><td>ミラージュ・ファントム</td><td>ストーリー分岐。testType再分岐</td></tr>
+<tr><td>11月</td><td>LOCK-ON</td><td>2</td><td>ジャッジメント・ゲート</td><td>志望校マップロック（targetStation確定）</td></tr>
+<tr><td>12月</td><td>HYPER-DRIVE</td><td>2</td><td>アブソリュート・ゼロ</td><td>私立過去問Legendaryミッション</td></tr>
+<tr><td>1月</td><td>TOUCHDOWN</td><td>3</td><td>カウントダウン・ボス</td><td>私立入試。サポート艦隊クラスチェンジ</td></tr>
+<tr><td>2月</td><td>VANGUARD</td><td>3</td><td>（1月ボス継続）</td><td>推薦入試。サポートバフ最大出力</td></tr>
+<tr><td>3月</td><td>COMPLETE</td><td>3</td><td>なし</td><td>県立入試。フライトレコーダー。卒業</td></tr>
+</table>
+</div>
+
+<div class="footer">
+PROJECT: ORBIT — 延岡・中3ゲーミフィケーション年間計画<br>
+HERO'S延岡校 ｜ 2026年4月 → 2027年3月 ｜ Phase 1(ソロ) → Phase 2(ギルド) → Phase 3(サポート艦隊)<br>
+概略版 — 各月の詳細は実施2ヶ月前にローリング更新
+</div>
+
+</div><!-- /container -->
+<script>
+function toggle(el){el.nextElementSibling.classList.toggle('open')}
+// 最初の月（4月）を開いておく
+document.querySelector('.month-body').classList.add('open');
+</script>
+</body>
+</html>
