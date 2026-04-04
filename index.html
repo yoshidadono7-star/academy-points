@@ -1792,11 +1792,15 @@ function openStudentModal(student) {
         <input type="text" class="form-control" id="studentCallsign" value="${isEdit ? escapeHtml(student.callsign || student.nickname || '') : ''}" placeholder="例: Star-7">
       </div>
       <div class="form-group">
-        <label>PIN (4桁)</label>
+        <label>PIN (4桁・生徒用)</label>
         <input type="text" class="form-control" id="studentPin" value="${isEdit ? (student.pin || '') : ''}" maxlength="4" pattern="[0-9]{4}">
       </div>
     </div>
     <div class="form-row">
+      <div class="form-group">
+        <label>保護者PIN (4桁)</label>
+        <input type="text" class="form-control" id="studentParentPin" value="${isEdit ? (student.parentPin || '') : ''}" maxlength="4" pattern="[0-9]{4}" placeholder="保護者ポータル用">
+      </div>
       <div class="form-group">
         <label>ニックネーム</label>
         <input type="text" class="form-control" id="studentNickname" value="${isEdit ? escapeHtml(student.nickname || '') : ''}">
@@ -1885,6 +1889,7 @@ async function saveStudent(id) {
   const nickname = document.getElementById('studentNickname').value.trim();
   const callsign = document.getElementById('studentCallsign').value.trim();
   const pin = document.getElementById('studentPin').value.trim();
+  const parentPin = document.getElementById('studentParentPin').value.trim();
   const grade = document.getElementById('studentGrade').value;
   const rank = document.getElementById('studentRank').value;
   const testType = document.getElementById('studentTestType').value || 'midterm';
@@ -1895,7 +1900,7 @@ async function saveStudent(id) {
   if (!name) { showToast('名前を入力してください', 'error'); return; }
 
   try {
-    const data = { name, nickname, callsign, pin, grade, rank, testType, weakSubject, targetStation, role };
+    const data = { name, nickname, callsign, pin, parentPin, grade, rank, testType, weakSubject, targetStation, role };
     if (id) {
       await StudentsDB.update(id, data);
       showToast('生徒情報を更新しました');
