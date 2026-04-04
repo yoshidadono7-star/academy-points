@@ -405,25 +405,22 @@ function switchTab(tabId) {
 async function loadSummary() {
   try {
   const sid = currentStudent.id;
-  const now = Date.now();
-  const day30 = now - 30 * 24 * 60 * 60 * 1000;
-  const day14 = now - 14 * 24 * 60 * 60 * 1000;
+  const now = new Date();
+  const today = now.toISOString().slice(0,10);
+  const day30ago = new Date(now.getTime() - 30 * 24*60*60*1000).toISOString().slice(0,10);
+  const day14ago = new Date(now.getTime() - 14 * 24*60*60*1000).toISOString().slice(0,10);
 
-  // セッション取得
-  const sessSnap = await db.collection('studySessions')
+  // studyLogsから取得（dateフィールドはYYYY-MM-DD文字列）
+  const sessSnap = await db.collection('studyLogs')
     .where('studentId', '==', sid)
-    .where('status', '==', 'completed')
-    .orderBy('startedAt', 'desc').limit(200).get();
-  const sessions = sessSnap.docs.map(d => ({
-    ...d.data(),
-    startMs: d.data().startedAt?.toMillis ? d.data().startedAt.toMillis() : (d.data().startedAtMs || 0)
-  }));
+    .orderBy('date', 'desc').limit(200).get();
+  const logs = sessSnap.docs.map(d => d.data());
 
-  const recent30 = sessions.filter(s => s.startMs >= day30);
-  const recent14 = sessions.filter(s => s.startMs >= day14);
+  const recent30 = logs.filter(s => s.date >= day30ago);
+  const recent14 = logs.filter(s => s.date >= day14ago);
 
   // 学習日数・時間
-  const days30 = new Set(recent30.map(s => new Date(s.startMs).toISOString().slice(0,10))).size;
+  const days30 = new Set(recent30.map(s => s.date)).size;
   const totalMins = recent30.reduce((sum, s) => sum + (s.duration || 0), 0);
   document.getElementById('stat-days').innerHTML = `${days30}<span class="stat-unit">日</span>`;
   document.getElementById('stat-hours').innerHTML = `${(totalMins/60).toFixed(1)}<span class="stat-unit">h</span>`;
@@ -433,13 +430,13 @@ async function loadSummary() {
   document.getElementById('stat-pomo').innerHTML = `${totalPomo}<span class="stat-unit">回</span>`;
 
   // 連続日数
-  const allDates = [...new Set(sessions.map(s => new Date(s.startMs).toISOString().slice(0,10)))].sort().reverse();
+  const allDates = [...new Set(logs.map(s => s.date))].sort().reverse();
   let streak = 0;
-  let checkDate = new Date().toISOString().slice(0,10);
+  let checkDate = today;
   for (const d of allDates) {
     if (d === checkDate) {
       streak++;
-      const prev = new Date(checkDate);
+      const prev = new Date(checkDate + 'T00:00:00');
       prev.setDate(prev.getDate() - 1);
       checkDate = prev.toISOString().slice(0,10);
     } else if (d < checkDate) break;
@@ -450,9 +447,9 @@ async function loadSummary() {
   const heatmap = document.getElementById('heatmap');
   heatmap.innerHTML = '';
   for (let d = 13; d >= 0; d--) {
-    const date = new Date(now - d * 24*60*60*1000);
+    const date = new Date(now.getTime() - d * 24*60*60*1000);
     const dateStr = date.toISOString().slice(0,10);
-    const dayMins = recent14.filter(s => new Date(s.startMs).toISOString().slice(0,10) === dateStr)
+    const dayMins = recent14.filter(s => s.date === dateStr)
       .reduce((sum, s) => sum + (s.duration || 0), 0);
     const intensity = dayMins === 0 ? 0 : dayMins < 30 ? 1 : dayMins < 60 ? 2 : 3;
     const colors = ['#e2e8f0', '#bbf7d0', '#4ade80', '#16a34a'];
@@ -488,14 +485,14 @@ async function loadSummary() {
   // コンディション
   const condSnap = await db.collection('conditions')
     .where('studentId', '==', sid)
-    .orderBy('timestamp', 'desc').limit(5).get();
+    .orderBy('createdAt', 'desc').limit(5).get();
   const condList = document.getElementById('conditionList');
   if (condSnap.empty) {
     condList.innerHTML = '<p class="empty-msg">コンディション記録がありません</p>';
   } else {
     condList.innerHTML = condSnap.docs.map(d => {
       const c = d.data();
-      const date = c.timestamp?.toMillis ? new Date(c.timestamp.toMillis()).toLocaleDateString('ja-JP') : '';
+      const date = c.createdAt?.toMillis ? new Date(c.createdAt.toMillis()).toLocaleDateString('ja-JP') : (c.date || '');
       return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #f1f5f9;">
         <span style="font-size:20px;">${c.mood || '😊'}</span>
         <div style="flex:1;">
@@ -545,33 +542,34 @@ async function loadExams() {
 }
 
 // ===== バッジ =====
+// db.js の BADGE_DEFINITIONS と同期
 const BADGE_DEFS = {
-  b_first_study: { icon: '🌱', name: '初めての一歩' },
-  b_study_3days: { icon: '🔥', name: '3日連続' },
-  b_study_7days: { icon: '⚡', name: '7日連続' },
-  b_study_30days: { icon: '💎', name: '30日連続' },
-  b_60min: { icon: '⏱️', name: '60分集中' },
-  b_total_10h: { icon: '📚', name: '累計10時間' },
-  b_total_50h: { icon: '🏆', name: '累計50時間' },
-  b_100pts: { icon: '💰', name: '100pts達成' },
-  b_500pts: { icon: '💎', name: '500pts達成' },
-  b_1000pts: { icon: '👑', name: '1000pts達成' },
-  b_pomodoro_1: { icon: '🍅', name: 'ポモドーロ初回' },
-  b_pomodoro_10: { icon: '🍅🍅', name: 'ポモドーロ10回' },
-  b_home_study: { icon: '🏠', name: '自宅でも学習' },
-  b_zoom_study: { icon: '💻', name: 'Zoom授業参加' },
-  b_tasks_10: { icon: '✅', name: 'タスク10個達成' },
-  b_5subjects: { icon: '🌈', name: '5科目制覇' },
-  b_early_bird: { icon: '🌅', name: '早起き学習' },
-  b_night_owl: { icon: '🦉', name: '夜の集中' },
-  b_perfect_week: { icon: '⭐', name: 'パーフェクトウィーク' },
+  first_study: { icon: '👣', name: '初めの一歩' },
+  streak_3: { icon: '🔥', name: '3日連続' },
+  streak_7: { icon: '⭐', name: '1週間マスター' },
+  streak_14: { icon: '🏆', name: '2週間チャンピオン' },
+  streak_30: { icon: '👑', name: '月間レジェンド' },
+  points_100: { icon: '💰', name: 'ポイントハンター' },
+  points_500: { icon: '💎', name: 'ポイントマスター' },
+  points_1000: { icon: '🏅', name: 'ポイントキング' },
+  study_10h: { icon: '📖', name: '学習者' },
+  study_50h: { icon: '📚', name: '勉強家' },
+  study_100h: { icon: '🎓', name: '学習マスター' },
+  pomodoro_10: { icon: '🍅', name: 'ポモドーロ入門' },
+  pomodoro_50: { icon: '🍅', name: 'ポモドーロ達人' },
+  multi_subject: { icon: '🌟', name: 'マルチタレント' },
+  early_bird: { icon: '🌅', name: '早起き学習' },
+  night_owl: { icon: '🦉', name: '夜型学習' },
+  home_study: { icon: '🏠', name: '自宅学習マスター' },
+  zoom_study: { icon: '💻', name: 'オンライン学習者' },
+  raid_killer: { icon: '⚔️', name: 'レイドボス討伐' },
 };
 
 async function loadBadges() {
   try {
   const snap = await db.collection('badges')
     .where('studentId', '==', currentStudent.id)
-    .orderBy('timestamp', 'desc').get();
+    .orderBy('awardedAt', 'desc').get();
   const container = document.getElementById('badgesList');
   const count = snap.size;
   document.getElementById('badgeCount').textContent = `${count}個獲得`;
@@ -583,7 +581,7 @@ async function loadBadges() {
   container.innerHTML = snap.docs.map(d => {
     const b = d.data();
     const def = BADGE_DEFS[b.badgeId] || { icon: '🏅', name: b.badgeId };
-    const date = b.timestamp?.toMillis ? new Date(b.timestamp.toMillis()).toLocaleDateString('ja-JP') : '';
+    const date = b.awardedAt?.toMillis ? new Date(b.awardedAt.toMillis()).toLocaleDateString('ja-JP') : '';
     return `<div class="badge-item" title="${date}">
       <span>${def.icon}</span><span>${def.name}</span>
     </div>`;
@@ -595,21 +593,18 @@ async function loadBadges() {
 async function loadMessages() {
   try {
   const snap = await db.collection('messages')
-    .where('studentId', '==', currentStudent.id)
-    .orderBy('sentAt', 'desc').limit(20).get();
+    .where('toStudentId', '==', currentStudent.id)
+    .orderBy('createdAt', 'desc').limit(20).get();
   const container = document.getElementById('messagesList');
   if (snap.empty) {
     container.innerHTML = '<p class="empty-msg">メッセージはありません</p>';
     return;
   }
-  const typeLabel = { praise: '🏆 褒める', encourage: '💪 励ます', info: '📢 お知らせ' };
-  const typeBorder = { praise: '#f59e0b', encourage: '#3b82f6', info: '#10b981' };
   container.innerHTML = snap.docs.map(d => {
     const m = d.data();
-    const date = m.sentAt?.toMillis ? new Date(m.sentAt.toMillis()).toLocaleDateString('ja-JP') : '';
-    return `<div class="msg-item" style="border-left-color:${typeBorder[m.type]||'#667eea'};">
-      <div class="msg-type">${typeLabel[m.type] || ''}</div>
-      <div class="msg-text">${m.text || ''}</div>
+    const date = m.createdAt?.toMillis ? new Date(m.createdAt.toMillis()).toLocaleDateString('ja-JP') : '';
+    return `<div class="msg-item">
+      <div class="msg-text">${m.content || ''}</div>
       <div class="msg-date">${date}</div>
     </div>`;
   }).join('');

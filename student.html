@@ -1921,13 +1921,29 @@ async function stopStudy(save) {
     try {
       const comboDiscoveries = await ComboDB.getDiscoveries(currentStudent.id);
       const allLogs = await StudyLogsDB.getByStudent(currentStudent.id, 500);
+      // レジェンダリーミッションクリア数を取得
+      const missionHistory = await DailyMissionsDB.getHistory(currentStudent.id, 365);
+      const legendaryCleared = missionHistory.filter(m => {
+        if (!m.completed || !m.accepted) return false;
+        const def = DailyMissionsDB.getMissionDef(m.accepted);
+        return def && def.rarity === 'legendary';
+      }).length;
+
+      // レイドボス討伐貢献数を取得（ダメージを与えた討伐済みボスの数）
+      const defeatedBosses = await RaidBossDB.getDefeated();
+      let bossKills = 0;
+      for (const boss of defeatedBosses) {
+        const dmgLog = await RaidBossDB.getDamageLog(boss.id);
+        if (dmgLog.some(d => d.studentId === currentStudent.id)) bossKills++;
+      }
+
       const hiddenStats = {
         comboDiscoveryCount: comboDiscoveries.length,
         bestStreak: currentStudent.bestStreak || 0,
         allTimeSubjectCount: new Set(allLogs.map(l => l.subject)).size,
         totalPomodoros: allLogs.reduce((s, l) => s + (l.pomodoroCount || 0), 0),
-        legendaryMissionCleared: 0, // TODO: track from mission history
-        raidBossKills: 0 // TODO: track from raid history
+        legendaryMissionCleared: legendaryCleared,
+        raidBossKills: bossKills
       };
       await SpaceMapDB.checkAndUnlock(currentStudent.id, hiddenStats);
     } catch(e) {}
