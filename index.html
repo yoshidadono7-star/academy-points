@@ -2038,6 +2038,15 @@ function openStudentModal(student) {
         <option value="高3" ${isEdit && student.grade === '高3' ? 'selected' : ''}>高3</option>
       </select>
     </div>
+    <div class="form-group">
+      <label>在籍中学校</label>
+      <select class="form-control" id="studentSchool">
+        <option value="" ${isEdit && !student.school ? 'selected' : ''}>未設定</option>
+        ${Object.entries(JUNIOR_HIGH_SCHOOLS).map(([k,v]) =>
+          '<option value="' + k + '"' + (isEdit && student.school === k ? ' selected' : '') + '>' + v.name + '</option>'
+        ).join('')}
+      </select>
+    </div>
     <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
       <div style="font-size:13px;font-weight:700;color:var(--text-light);margin-bottom:8px">&#128640; PROJECT: ORBIT 設定</div>
       <div class="form-row">
@@ -2120,12 +2129,13 @@ async function saveStudent(id) {
   const weakSubject = document.getElementById('studentWeakSubject').value || null;
   const targetStation = document.getElementById('studentTargetStation').value || null;
   const role = document.getElementById('studentRole').value || 'student';
+  const school = document.getElementById('studentSchool').value || null;
   const materials = [...document.querySelectorAll('.student-material-check:checked')].map(c => c.value);
 
   if (!name) { showToast('名前を入力してください', 'error'); return; }
 
   try {
-    const data = { name, nickname, callsign, pin, parentPin, grade, rank, testType, weakSubject, targetStation, role, materials };
+    const data = { name, nickname, callsign, pin, parentPin, grade, rank, school, testType, weakSubject, targetStation, role, materials };
     if (id) {
       await StudentsDB.update(id, data);
       showToast('生徒情報を更新しました');
@@ -3063,7 +3073,8 @@ async function loadExamSchedules() {
       : exams.map(e => {
       const days = calcDaysUntil(e.date);
       const type = EXAM_TYPES[e.examType] || EXAM_TYPES.other;
-      const grades = (e.targetGrades || []).join(', ') || '全員';
+      const schoolNames = (e.targetSchools || []).map(s => JUNIOR_HIGH_SCHOOLS[s]?.name || s).join(', ');
+      const grades = [(e.targetGrades || []).join(', '), schoolNames].filter(Boolean).join(' / ') || '全員';
       return `<tr>
         <td><strong>${escapeHtml(e.examName)}</strong></td>
         <td>${type.icon} ${type.label}</td>
@@ -3077,14 +3088,24 @@ async function loadExamSchedules() {
 }
 
 function openExamScheduleModal() {
-  const typeOpts = Object.entries(EXAM_TYPES).map(([k,v]) =>
-    `<option value="${k}">${v.icon} ${v.label}</option>`).join('');
+  // カテゴリ別にグループ化
+  const catLabels = { school: '--- 中学校別テスト ---', common: '--- 全学年共通テスト ---', high_mock: '--- 高校対外模試 ---', other: '--- その他 ---' };
+  let typeOpts = '';
+  let lastCat = '';
+  Object.entries(EXAM_TYPES).forEach(([k,v]) => {
+    if (v.category !== lastCat) { typeOpts += `<option disabled style="font-weight:700;color:#64748b;">${catLabels[v.category] || ''}</option>`; lastCat = v.category; }
+    typeOpts += `<option value="${k}">${v.icon} ${v.label}</option>`;
+  });
+
   const gradeOpts = ['小1','小2','小3','小4','小5','小6','中1','中2','中3','高1','高2','高3']
     .map(g => `<label style="font-size:12px;display:inline-flex;align-items:center;gap:3px;margin-right:8px;"><input type="checkbox" class="es-grade" value="${g}"> ${g}</label>`).join('');
 
+  const schoolOpts = Object.entries(JUNIOR_HIGH_SCHOOLS)
+    .map(([k,v]) => `<label style="font-size:12px;display:inline-flex;align-items:center;gap:3px;margin-right:8px;"><input type="checkbox" class="es-school" value="${k}"> ${v.name}</label>`).join('');
+
   openModal('テスト日程登録', `
     <div class="form-group"><label>テスト種類</label>
-      <select class="form-control" id="esType" onchange="document.getElementById('esName').value=EXAM_TYPES[this.value]?.label||''">
+      <select class="form-control" id="esType" onchange="document.getElementById('esName').value=EXAM_TYPES[this.value]?.label||''; document.getElementById('esSchoolGroup').style.display=(EXAM_TYPES[this.value]?.category==='school')?'':'none';">
         ${typeOpts}
       </select></div>
     <div class="form-group"><label>テスト名</label>
@@ -3093,6 +3114,9 @@ function openExamScheduleModal() {
       <input type="date" class="form-control" id="esDate"></div>
     <div class="form-group"><label>対象学年（未選択=全員）</label>
       <div>${gradeOpts}</div></div>
+    <div class="form-group" id="esSchoolGroup">
+      <label>対象中学校（中間・期末テスト用、未選択=全校）</label>
+      <div>${schoolOpts}</div></div>
     <div class="form-group"><label>メモ</label>
       <textarea class="form-control" id="esMemo" rows="2" placeholder="テスト範囲など"></textarea></div>
   `, `
@@ -3105,11 +3129,13 @@ async function saveExamSchedule() {
   const date = document.getElementById('esDate').value;
   if (!date) { showToast('日付を入力してください', 'error'); return; }
   const grades = [...document.querySelectorAll('.es-grade:checked')].map(c => c.value);
+  const schools = [...document.querySelectorAll('.es-school:checked')].map(c => c.value);
   await ExamSchedulesDB.add({
     examType: document.getElementById('esType').value,
     examName: document.getElementById('esName').value.trim(),
     date,
     targetGrades: grades,
+    targetSchools: schools,
     memo: document.getElementById('esMemo').value.trim()
   });
   showToast('📅 テスト日程を登録しました');

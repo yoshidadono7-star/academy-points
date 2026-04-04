@@ -39,6 +39,7 @@ const StudentsDB = {
       // --- PROJECT: ORBIT 拡張 ---
       testType: data.testType || 'midterm',    // 'midterm'(中間テストあり) | 'no_midterm'(なし)
       weakSubject: data.weakSubject || null,    // 苦手科目（コンボ・ミッション判定用）
+      school: data.school || null,               // 在籍中学校（JUNIOR_HIGH_SCHOOLS キー）
       targetStation: data.targetStation || null, // 志望校（マップ終着点、本人のみ表示）
       role: data.role || 'student',             // 'student' | 'supporter'(私立合格後)
       missionStreak: data.missionStreak || 0,   // デイリーミッション連続達成数
@@ -1843,6 +1844,21 @@ function getTargetStationDisplay(targetStationId) {
   return { ...ts, id: targetStationId };
 }
 
+// ===== 中学校マスタ =====
+const JUNIOR_HIGH_SCHOOLS = {
+  nobeoka:    { name: '延岡中' },
+  tsunetomi:  { name: '恒富中' },
+  tokai:      { name: '東海中' },
+  okatomi:    { name: '岡富中' },
+  minami:     { name: '南中' },
+  nishishina: { name: '西階中' },
+  totoro:     { name: '土々呂中' },
+  minamikata: { name: '南方中' },
+  kitagata:   { name: '北方学園' },
+  asahi:      { name: '旭中' },
+  other_jh:   { name: 'その他中学校' }
+};
+
 // ===== サポート艦隊（私立合格者のクラスチェンジ） =====
 const SupportFleetDB = {
   // 生徒をサポーターに変更（私立合格後）
@@ -2303,12 +2319,23 @@ const DailyPlansDB = {
 
 // ===== テスト日程管理 (Exam Schedules) =====
 const EXAM_TYPES = {
-  midterm:        { label: '中間テスト',   icon: '📝', color: '#3b82f6' },
-  final:          { label: '期末テスト',   icon: '📝', color: '#8b5cf6' },
-  ikushin:        { label: '育伸社テスト', icon: '📋', color: '#10b981' },
-  miyazaki_moshi: { label: '宮崎模試',    icon: '📊', color: '#f59e0b' },
-  entrance:       { label: '入試本番',     icon: '🎯', color: '#ef4444' },
-  other:          { label: 'その他',       icon: '📌', color: '#6b7280' }
+  // 中学校別テスト（学校フィルタ対象）
+  midterm:        { label: '中間テスト',         icon: '📝', color: '#3b82f6', category: 'school' },
+  final:          { label: '期末テスト',         icon: '📝', color: '#8b5cf6', category: 'school' },
+  // 全学年共通テスト
+  jitsuryoku:     { label: '実力テスト',         icon: '💪', color: '#06b6d4', category: 'common' },
+  ikushin:        { label: '育伸社テスト',       icon: '📋', color: '#10b981', category: 'common' },
+  miyazaki_moshi: { label: '宮崎県統一模試',     icon: '📊', color: '#f59e0b', category: 'common' },
+  entrance:       { label: '入試本番',           icon: '🎯', color: '#ef4444', category: 'common' },
+  // 高校生対外模試
+  kawai_kyotsu:   { label: '全統共通テスト模試', icon: '🏛️', color: '#7c3aed', category: 'high_mock' },
+  kawai_kijutsu:  { label: '全統記述模試',       icon: '🏛️', color: '#7c3aed', category: 'high_mock' },
+  sundai:         { label: '駿台模試',           icon: '🔵', color: '#2563eb', category: 'high_mock' },
+  shinken:        { label: '進研模試',           icon: '🟢', color: '#16a34a', category: 'high_mock' },
+  toshin:         { label: '東進模試',           icon: '🟠', color: '#ea580c', category: 'high_mock' },
+  kyotsu_honban:  { label: '共通テスト本番',     icon: '🎯', color: '#dc2626', category: 'high_mock' },
+  // その他
+  other:          { label: 'その他',             icon: '📌', color: '#6b7280', category: 'other' }
 };
 
 const ExamSchedulesDB = {
@@ -2319,6 +2346,7 @@ const ExamSchedulesDB = {
       date: data.date,
       targetGrades: data.targetGrades || [],
       targetStudentIds: data.targetStudentIds || [],
+      targetSchools: data.targetSchools || [],
       subjects: data.subjects || [],
       memo: data.memo || '',
       active: true,
@@ -2347,7 +2375,11 @@ const ExamSchedulesDB = {
     const upcoming = await this.getUpcoming(10);
     return upcoming.filter(e => {
       if (e.targetStudentIds && e.targetStudentIds.length > 0) return e.targetStudentIds.includes(studentId);
-      if (e.targetGrades && e.targetGrades.length > 0 && student.grade) return e.targetGrades.includes(student.grade);
+      let gradeMatch = true;
+      let schoolMatch = true;
+      if (e.targetGrades && e.targetGrades.length > 0 && student.grade) gradeMatch = e.targetGrades.includes(student.grade);
+      if (e.targetSchools && e.targetSchools.length > 0) schoolMatch = student.school ? e.targetSchools.includes(student.school) : false;
+      if ((e.targetGrades && e.targetGrades.length > 0) || (e.targetSchools && e.targetSchools.length > 0)) return gradeMatch && schoolMatch;
       return true;
     });
   }
