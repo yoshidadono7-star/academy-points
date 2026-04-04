@@ -9,176 +9,174 @@ service cloud.firestore {
 
     // === 管理者のみ作成・削除 / 生徒もupdate可能 ===
 
-    // 生徒マスタ（create/deleteは管理者、updateは生徒も行う: ポイント加算・ストリーク・世界観設定等）
     match /students/{studentId} {
-      allow read: true;
+      allow read: if true;
       allow create, delete: if isAdmin();
-      allow update: true;
+      allow update: if true;
     }
 
-    // レイドボス（create/deleteは管理者、updateは生徒のダメージ計算で使用）
     match /raidBosses/{bossId} {
-      allow read: true;
+      allow read: if true;
       allow create, delete: if isAdmin();
-      allow update: true;
+      allow update: if true;
     }
 
-    // === 管理者専用（先生のみ書き込み） ===
+    // === 管理者専用 ===
 
     match /tasks/{taskId} {
-      allow read: true;
+      allow read: if true;
       allow write: if isAdmin();
     }
 
     match /prizes/{prizeId} {
-      allow read: true;
+      allow read: if true;
       allow write: if isAdmin();
     }
 
     match /examResults/{resultId} {
-      allow read: true;
+      allow read: if true;
       allow write: if isAdmin();
     }
 
     match /missions/{missionId} {
-      allow read: true;
+      allow read: if true;
       allow write: if isAdmin();
     }
 
     match /events/{eventId} {
-      allow read: true;
+      allow read: if true;
       allow write: if isAdmin();
     }
 
     match /rewards/{rewardId} {
-      allow read: true;
+      allow read: if true;
       allow write: if isAdmin();
     }
 
     match /guilds/{guildId} {
-      allow read: true;
+      allow read: if true;
       allow write: if isAdmin();
     }
 
     match /storyChapters/{chapterId} {
-      allow read: true;
+      allow read: if true;
       allow write: if isAdmin();
     }
 
     match /settings/{settingId} {
-      allow read: true;
+      allow read: if true;
       allow write: if isAdmin();
     }
 
     // === 生徒もcreate可能 / update・deleteは管理者のみ ===
 
     match /studyLogs/{logId} {
-      allow read: true;
-      allow create: true;
+      allow read: if true;
+      allow create: if true;
       allow update, delete: if isAdmin();
     }
 
     match /conditions/{conditionId} {
-      allow read: true;
-      allow create: true;
+      allow read: if true;
+      allow create: if true;
       allow update, delete: if isAdmin();
     }
 
     match /badges/{badgeId} {
-      allow read: true;
-      allow create: true;
+      allow read: if true;
+      allow create: if true;
       allow update, delete: if isAdmin();
     }
 
     match /messages/{messageId} {
-      allow read: true;
-      allow create: true;
+      allow read: if true;
+      allow create: if true;
       allow update, delete: if isAdmin();
     }
 
     match /prizeHistory/{historyId} {
-      allow read: true;
-      allow create: true;
+      allow read: if true;
+      allow create: if true;
       allow update, delete: if isAdmin();
     }
 
     match /raidDamage/{damageId} {
-      allow read: true;
-      allow create: true;
+      allow read: if true;
+      allow create: if true;
       allow update, delete: if isAdmin();
     }
 
     match /taskCompletions/{completionId} {
-      allow read: true;
-      allow create: true;
+      allow read: if true;
+      allow create: if true;
       allow update, delete: if isAdmin();
     }
 
     match /coins/{coinId} {
-      allow read: true;
-      allow create: true;
+      allow read: if true;
+      allow create: if true;
       allow update, delete: if isAdmin();
     }
 
     match /rewardHistory/{historyId} {
-      allow read: true;
-      allow create: true;
+      allow read: if true;
+      allow create: if true;
       allow update, delete: if isAdmin();
     }
 
     match /comboTriggers/{triggerId} {
-      allow read: true;
-      allow create: true;
+      allow read: if true;
+      allow create: if true;
       allow update, delete: if isAdmin();
     }
 
     match /comboDiscoveries/{discoveryId} {
-      allow read: true;
-      allow create: true;
+      allow read: if true;
+      allow create: if true;
       allow update, delete: if isAdmin();
     }
 
     match /hiddenAreaDiscoveries/{discoveryId} {
-      allow read: true;
-      allow create: true;
+      allow read: if true;
+      allow create: if true;
       allow update, delete: if isAdmin();
     }
 
     match /supportActions/{actionId} {
-      allow read: true;
-      allow create: true;
+      allow read: if true;
+      allow create: if true;
       allow update, delete: if isAdmin();
     }
 
     match /supportLogs/{logId} {
-      allow read: true;
-      allow create: true;
+      allow read: if true;
+      allow create: if true;
       allow update, delete: if isAdmin();
     }
 
     // === 生徒もcreate・update可能 ===
 
     match /notifications/{notifId} {
-      allow read: true;
-      allow create, update: true;
+      allow read: if true;
+      allow create, update: if true;
       allow delete: if isAdmin();
     }
 
     match /dailyMissionDraws/{drawId} {
-      allow read: true;
-      allow create, update: true;
+      allow read: if true;
+      allow create, update: if true;
       allow delete: if isAdmin();
     }
 
     match /stationProgress/{progressId} {
-      allow read: true;
-      allow create, update: true;
+      allow read: if true;
+      allow create, update: if true;
       allow delete: if isAdmin();
     }
 
     match /fcmTokens/{tokenId} {
-      allow read: true;
-      allow create, update: true;
+      allow read: if true;
+      allow create, update: if true;
       allow delete: if isAdmin();
     }
   }
