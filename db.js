@@ -1256,6 +1256,8 @@ function getStationProgress(totalPoints) {
 }
 
 const SpaceMapDB = {
+  getStation,
+  getStationProgress,
   async getDiscoveries(studentId) {
     const snap = await db.collection('hiddenAreaDiscoveries')
       .where('studentId', '==', studentId).get();
