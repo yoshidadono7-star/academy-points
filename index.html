@@ -3321,28 +3321,27 @@ async function exportCSV(type) {
     filename = '生徒一覧.csv';
 
   } else if (type === 'history') {
-    const snap = await db.collection('history').orderBy('createdAt', 'desc').limit(1000).get();
+    // ポイント履歴: studyLogsのpoints情報をエクスポート
+    const snap = await db.collection('studyLogs').orderBy('date', 'desc').limit(1000).get();
     const studentsSnap = await db.collection('students').get();
     const stuMap = {};
     studentsSnap.forEach(d => stuMap[d.id] = d.data().nickname || '');
-    headers = ['日時', 'ニックネーム', 'ポイント', 'カテゴリ', '理由', '科目'];
+    headers = ['日付', 'ニックネーム', 'ポイント', '科目', '学習時間(分)', '場所'];
     rows = snap.docs.map(d => {
       const h = d.data();
-      const dt = h.createdAt ? new Date(h.createdAt.toMillis()).toLocaleString('ja-JP') : '';
-      return [dt, stuMap[h.studentId] || '', h.amount || 0, h.category || '', h.reason || '', h.subject || ''];
+      return [h.date || '', stuMap[h.studentId] || '', h.points || 0, h.subject || '', h.duration || 0, h.location || '塾'];
     });
     filename = 'ポイント履歴.csv';
 
   } else if (type === 'sessions') {
-    const snap = await db.collection('studySessions').orderBy('startedAt', 'desc').limit(1000).get();
+    const snap = await db.collection('studyLogs').orderBy('date', 'desc').limit(1000).get();
     const studentsSnap = await db.collection('students').get();
     const stuMap = {};
     studentsSnap.forEach(d => stuMap[d.id] = d.data().nickname || '');
-    headers = ['日時', 'ニックネーム', '科目', '学習時間(分)', '場所', 'モード', 'ポモドーロ回数'];
+    headers = ['日付', 'ニックネーム', '科目', '学習時間(分)', '場所', 'モード', 'ポモドーロ回数'];
     rows = snap.docs.map(d => {
       const s = d.data();
-      const dt = s.startedAt ? new Date(s.startedAt.toMillis()).toLocaleString('ja-JP') : '';
-      return [dt, stuMap[s.studentId] || '', s.subject || '', s.duration || 0, s.location || '塾', s.mode || '通常', s.pomodoroCount || 0];
+      return [s.date || '', stuMap[s.studentId] || '', s.subject || '', s.duration || 0, s.location || '塾', s.method || '通常', s.pomodoroCount || 0];
     });
     filename = '学習記録.csv';
 
@@ -3577,14 +3576,12 @@ async function generateReportData(studentId, days) {
   const student = await StudentsDB.getById(studentId);
   if (!student) return null;
 
-  const snap = await db.collection('studySessions')
+  const fromDate = new Date(fromMs).toISOString().slice(0, 10);
+  const snap = await db.collection('studyLogs')
     .where('studentId', '==', studentId)
-    .where('status', '==', 'completed')
-    .orderBy('startedAt', 'desc').limit(100).get();
-  const sessions = snap.docs.map(d => d.data()).filter(s => {
-    const ms = s.startedAt?.toMillis ? s.startedAt.toMillis() : (s.startedAtMs || 0);
-    return ms >= fromMs;
-  });
+    .where('date', '>=', fromDate)
+    .orderBy('date', 'desc').limit(100).get();
+  const sessions = snap.docs.map(d => d.data());
 
   const condSnap = await db.collection('conditions')
     .where('studentId', '==', studentId)
@@ -3594,20 +3591,11 @@ async function generateReportData(studentId, days) {
     return ms >= fromMs;
   });
 
-  const histSnap = await db.collection('history')
-    .where('studentId', '==', studentId)
-    .orderBy('createdAt', 'desc').limit(100).get();
-  const history = histSnap.docs.map(d => d.data()).filter(h => {
-    const ms = h.createdAt?.toMillis ? h.createdAt.toMillis() : (h.createdAtMs || 0);
-    return ms >= fromMs;
-  });
+  // ポイント履歴はstudyLogsのpointsフィールドから集計（totalPtsはsessionsから算出済み）
 
   const totalMinutes = sessions.reduce((s, se) => s + (se.duration || 0), 0);
-  const totalDays = new Set(sessions.map(se => {
-    const ms = se.startedAt?.toMillis ? se.startedAt.toMillis() : 0;
-    return new Date(ms).toISOString().slice(0, 10);
-  })).size;
-  const totalPts = history.reduce((s, h) => s + (h.amount || 0), 0);
+  const totalDays = new Set(sessions.map(se => se.date).filter(Boolean)).size;
+  const totalPts = sessions.reduce((s, se) => s + (se.points || 0), 0);
   const subjects = [...new Set(sessions.map(s => s.subject).filter(Boolean))];
   const avgMotivation = conditions.length > 0
     ? (conditions.reduce((s, c) => s + (c.motivationValue || 3), 0) / conditions.length).toFixed(1)

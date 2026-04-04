@@ -1302,8 +1302,8 @@ const COMBO_DEFINITIONS = [
     reward: { type: 'bonus', points: 50 } },
   // 隠しコンボ
   { id: 'early_sword', name: '早起きの剣', icon: '🌅',
-    desc: '16時台に学習開始 + ポモドーロ完走', hidden: true, cooldown: 'daily', category: 'timing',
-    conditionFn: (ctx) => ctx.sessionStartHour === 16 && ctx.pomodoroCount >= 1,
+    desc: '朝7時台までに学習開始 + ポモドーロ完走', hidden: true, cooldown: 'daily', category: 'timing',
+    conditionFn: (ctx) => ctx.sessionStartHour <= 7 && ctx.pomodoroCount >= 1,
     reward: { type: 'bonus', points: 20 } },
   { id: 'pomodoro_master', name: 'ポモドーロマスター', icon: '🍅',
     desc: '1日にポモドーロ5回完走', hidden: true, cooldown: 'daily', category: 'focus',
