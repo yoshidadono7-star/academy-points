@@ -414,6 +414,15 @@
   </div>
   <div class="header-right" style="display:flex;align-items:center;gap:8px;">
     <span id="adminEmailLabel" style="font-size:11px;color:rgba(255,255,255,0.7);display:none;"></span>
+    <div id="commanderCpWidget" style="display:none;background:rgba(255,255,255,0.15);border-radius:8px;padding:4px 10px;font-size:11px;color:#fff;cursor:default" title="コマンダーCP">
+      <div style="display:flex;align-items:center;gap:4px">
+        <span>&#9889;CP</span>
+        <div style="width:40px;height:6px;background:rgba(255,255,255,0.2);border-radius:3px;overflow:hidden">
+          <div id="commanderCpBar" style="height:100%;background:#ffd700;border-radius:3px;width:0%;transition:width 0.5s"></div>
+        </div>
+        <span id="commanderCpText" style="font-size:10px">0</span>
+      </div>
+    </div>
     <button class="notification-bell" onclick="toggleNotifications()" title="通知">
       &#128276;
       <span class="notification-badge hidden" id="notifBadge">0</span>
@@ -437,6 +446,7 @@
   <button class="tab-btn" data-tab="students">&#128100; 生徒管理</button>
   <button class="tab-btn" data-tab="guilds">&#9876;&#65039; ギルド</button>
   <button class="tab-btn" data-tab="raidboss">&#128121; レイドボス</button>
+  <button class="tab-btn" data-tab="story">&#128214; ストーリー</button>
   <button class="tab-btn" data-tab="missions">&#127919; ミッション</button>
   <button class="tab-btn" data-tab="events">&#9889; イベント</button>
   <button class="tab-btn" data-tab="economy">&#128176; ポイント経済</button>
@@ -678,6 +688,20 @@
     <div class="card">
       <div class="card-title"><span class="icon">&#128195;</span> 討伐済みボス</div>
       <div id="defeatedBosses"></div>
+    </div>
+  </div>
+
+  <!-- ===== ストーリー管理 ===== -->
+  <div class="tab-content" id="tab-story">
+    <div style="margin-bottom:16px;display:flex;gap:8px;align-items:center">
+      <button class="btn btn-primary" onclick="openStoryModal()">&#10133; チャプター作成</button>
+      <button class="btn btn-secondary" onclick="updateStoryProgress()">&#128260; 進捗更新</button>
+    </div>
+    <div id="storyCurrentTheme" class="card" style="display:none"></div>
+    <div id="storyActiveChapter"></div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128195;</span> 完了済みチャプター</div>
+      <div id="storyCompletedChapters"></div>
     </div>
   </div>
 
@@ -1241,6 +1265,7 @@ function switchTab(tabId) {
     students: loadStudents,
     guilds: loadGuilds,
     raidboss: loadRaidBoss,
+    story: loadStory,
     missions: loadMissions,
     events: loadEvents,
     economy: loadEconomy,
@@ -1733,8 +1758,9 @@ async function loadStudents() {
       ? '<tr><td colspan="7" style="text-align:center;color:var(--text-light)">生徒がいません</td></tr>'
       : allStudents.map(s => {
           const ri = getRankInfo(s.rank || 'rookie');
+          const roleTag = s.role === 'supporter' ? '<span style="background:#fbbf24;color:#78350f;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:4px">&#128588;サポーター</span>' : '';
           return `<tr>
-          <td><strong>${escapeHtml(s.name)}</strong></td>
+          <td><strong>${escapeHtml(s.name)}</strong>${roleTag}</td>
           <td>${escapeHtml(s.callsign || s.nickname || '-')}</td>
           <td>${escapeHtml(s.grade || '-')}</td>
           <td>${ri.icon} ${ri.name}</td>
@@ -1743,6 +1769,7 @@ async function loadStudents() {
           <td>
             <div class="btn-group">
               <button class="btn btn-secondary btn-sm" onclick="editStudent('${s.id}')">編集</button>
+              <button class="btn btn-sm" style="background:${s.role === 'supporter' ? '#fbbf24' : '#e2e8f0'};color:${s.role === 'supporter' ? '#78350f' : 'var(--text)'};font-size:10px" onclick="toggleStudentRole('${s.id}','${s.role || 'student'}')" title="${s.role === 'supporter' ? '生徒に戻す' : 'サポーターに変更'}">${s.role === 'supporter' ? '&#128588;' : '&#128100;'}</button>
               <button class="btn btn-danger btn-sm" onclick="deleteStudent('${s.id}')">削除</button>
             </div>
           </td>
@@ -1802,6 +1829,51 @@ function openStudentModal(student) {
         <option value="高3" ${isEdit && student.grade === '高3' ? 'selected' : ''}>高3</option>
       </select>
     </div>
+    <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
+      <div style="font-size:13px;font-weight:700;color:var(--text-light);margin-bottom:8px">&#128640; PROJECT: ORBIT 設定</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>テストタイプ</label>
+          <select class="form-control" id="studentTestType">
+            <option value="midterm" ${isEdit && student.testType === 'midterm' ? 'selected' : ''}>中間テストあり</option>
+            <option value="no_midterm" ${isEdit && student.testType === 'no_midterm' ? 'selected' : ''}>中間テストなし</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>苦手科目</label>
+          <select class="form-control" id="studentWeakSubject">
+            <option value="" ${isEdit && !student.weakSubject ? 'selected' : ''}>なし</option>
+            <option value="国語" ${isEdit && student.weakSubject === '国語' ? 'selected' : ''}>国語</option>
+            <option value="数学" ${isEdit && student.weakSubject === '数学' ? 'selected' : ''}>数学</option>
+            <option value="英語" ${isEdit && student.weakSubject === '英語' ? 'selected' : ''}>英語</option>
+            <option value="理科" ${isEdit && student.weakSubject === '理科' ? 'selected' : ''}>理科</option>
+            <option value="社会" ${isEdit && student.weakSubject === '社会' ? 'selected' : ''}>社会</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>志望校</label>
+          <select class="form-control" id="studentTargetStation">
+            <option value="" ${isEdit && !student.targetStation ? 'selected' : ''}>未設定</option>
+            <option value="nobeoka_h" ${isEdit && student.targetStation === 'nobeoka_h' ? 'selected' : ''}>&#127775; 延岡高校</option>
+            <option value="nobeoka_seiun" ${isEdit && student.targetStation === 'nobeoka_seiun' ? 'selected' : ''}>&#127744; 延岡星雲高校</option>
+            <option value="nobeoka_sho" ${isEdit && student.targetStation === 'nobeoka_sho' ? 'selected' : ''}>&#128200; 延岡商業</option>
+            <option value="nobeoka_ko" ${isEdit && student.targetStation === 'nobeoka_ko' ? 'selected' : ''}>&#9881; 延岡工業</option>
+            <option value="gakuen" ${isEdit && student.targetStation === 'gakuen' ? 'selected' : ''}>&#127963; 延岡学園</option>
+            <option value="ursula" ${isEdit && student.targetStation === 'ursula' ? 'selected' : ''}>&#10013; 聖心ウルスラ</option>
+            <option value="other" ${isEdit && student.targetStation === 'other' ? 'selected' : ''}>&#128640; その他</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>ロール</label>
+          <select class="form-control" id="studentRole">
+            <option value="student" ${isEdit && student.role !== 'supporter' ? 'selected' : ''}>&#128100; 生徒</option>
+            <option value="supporter" ${isEdit && student.role === 'supporter' ? 'selected' : ''}>&#128588; サポーター</option>
+          </select>
+        </div>
+      </div>
+    </div>
   `, `
     <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
     <button class="btn btn-primary" onclick="saveStudent('${isEdit ? student.id : ''}')">${isEdit ? '更新' : '追加'}</button>
@@ -1815,15 +1887,20 @@ async function saveStudent(id) {
   const pin = document.getElementById('studentPin').value.trim();
   const grade = document.getElementById('studentGrade').value;
   const rank = document.getElementById('studentRank').value;
+  const testType = document.getElementById('studentTestType').value || 'midterm';
+  const weakSubject = document.getElementById('studentWeakSubject').value || null;
+  const targetStation = document.getElementById('studentTargetStation').value || null;
+  const role = document.getElementById('studentRole').value || 'student';
 
   if (!name) { showToast('名前を入力してください', 'error'); return; }
 
   try {
+    const data = { name, nickname, callsign, pin, grade, rank, testType, weakSubject, targetStation, role };
     if (id) {
-      await StudentsDB.update(id, { name, nickname, callsign, pin, grade, rank });
+      await StudentsDB.update(id, data);
       showToast('生徒情報を更新しました');
     } else {
-      await StudentsDB.add({ name, nickname, callsign, pin, grade, rank });
+      await StudentsDB.add(data);
       showToast('生徒を追加しました');
     }
     closeModal();
@@ -1983,6 +2060,7 @@ async function loadRaidBoss() {
                 <div class="boss-name">${escapeHtml(b.name)}</div>
                 <div class="hp-bar-wrap"><div class="hp-bar" style="width:${hpPct}%"></div></div>
                 <div class="hp-text">HP: ${b.currentHp} / ${b.maxHp} (${hpPct.toFixed(1)}%) | 報酬: ${b.reward} pt</div>
+                ${b.weakness || b.resistance || b.specialAbility ? `<div style="font-size:12px;margin-top:4px;opacity:0.7">${b.weakness ? '🔥弱点:' + b.weakness + ' ' : ''}${b.resistance ? '🛡耐性:' + b.resistance + ' ' : ''}${b.specialAbility ? '⚡' + (b.specialAbility.name || b.specialAbility.type) : ''}</div>` : ''}
               </div>
             </div>
             ${damageLog.length > 0 ? `
@@ -2011,7 +2089,7 @@ function openRaidBossModal() {
   openModal('レイドボス作成', `
     <div class="form-group">
       <label>ボス名 *</label>
-      <input type="text" class="form-control" id="bossName" placeholder="例: ドラゴン王">
+      <input type="text" class="form-control" id="bossName" placeholder="例: 中間テストの魔王">
     </div>
     <div class="form-row">
       <div class="form-group">
@@ -2027,26 +2105,342 @@ function openRaidBossModal() {
         <input type="number" class="form-control" id="bossReward" value="50" min="0">
       </div>
     </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>&#128293; 弱点科目（2倍ダメージ）</label>
+        <select class="form-control" id="bossWeakness">
+          <option value="">なし</option>
+          <option value="国語">国語</option>
+          <option value="数学">数学</option>
+          <option value="英語">英語</option>
+          <option value="理科">理科</option>
+          <option value="社会">社会</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>&#128737; 耐性科目（0.5倍ダメージ）</label>
+        <select class="form-control" id="bossResistance">
+          <option value="">なし</option>
+          <option value="国語">国語</option>
+          <option value="数学">数学</option>
+          <option value="英語">英語</option>
+          <option value="理科">理科</option>
+          <option value="社会">社会</option>
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>&#9889; 特殊能力</label>
+      <select class="form-control" id="bossSpecialType" onchange="toggleSpecialValue()">
+        <option value="">なし</option>
+        <option value="min_duration">最低学習時間ガード（学習時間が足りないと0ダメージ）</option>
+        <option value="enrage">激怒（HP低下でダメージ半減）</option>
+        <option value="night_boost">夜間強化（20時以降ダメージ増）</option>
+      </select>
+    </div>
+    <div class="form-group" id="bossSpecialValueGroup" style="display:none">
+      <label id="bossSpecialValueLabel">値</label>
+      <input type="number" class="form-control" id="bossSpecialValue" value="30">
+    </div>
   `, `
     <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
     <button class="btn btn-primary" onclick="saveRaidBoss()">作成</button>
   `);
 }
 
+function toggleSpecialValue() {
+  const type = document.getElementById('bossSpecialType').value;
+  const group = document.getElementById('bossSpecialValueGroup');
+  const label = document.getElementById('bossSpecialValueLabel');
+  const input = document.getElementById('bossSpecialValue');
+  if (!type) { group.style.display = 'none'; return; }
+  group.style.display = 'block';
+  switch(type) {
+    case 'min_duration': label.textContent = '最低学習時間（分）'; input.value = 30; break;
+    case 'enrage': label.textContent = '激怒HP閾値（%）'; input.value = 30; break;
+    case 'night_boost': label.textContent = 'ダメージ倍率'; input.value = 1.5; break;
+  }
+}
+
 async function saveRaidBoss() {
   const name = document.getElementById('bossName').value.trim();
-  const icon = document.getElementById('bossIcon').value.trim() || '&#128121;';
+  const icon = document.getElementById('bossIcon').value.trim() || '👹';
   const maxHp = parseInt(document.getElementById('bossHp').value) || 1000;
   const reward = parseInt(document.getElementById('bossReward').value) || 50;
+  const weakness = document.getElementById('bossWeakness').value || null;
+  const resistance = document.getElementById('bossResistance').value || null;
+  const specialType = document.getElementById('bossSpecialType').value || null;
+  const specialValue = parseFloat(document.getElementById('bossSpecialValue').value) || 0;
 
   if (!name) { showToast('ボス名を入力してください', 'error'); return; }
+  if (weakness && weakness === resistance) { showToast('弱点と耐性に同じ科目は設定できません', 'error'); return; }
+
+  const data = { name, icon, maxHp, reward, weakness, resistance };
+  if (specialType) {
+    data.specialAbility = { type: specialType, value: specialValue, name: {
+      min_duration: `最低${specialValue}分ガード`,
+      enrage: `HP${specialValue}%以下で激怒`,
+      night_boost: `夜間${specialValue}倍`
+    }[specialType] || specialType };
+  }
 
   try {
-    await RaidBossDB.create({ name, icon, maxHp, reward });
+    await RaidBossDB.create(data);
     showToast('レイドボスを作成しました');
     closeModal();
     loadRaidBoss();
   } catch (e) { showToast('作成に失敗しました', 'error'); }
+}
+
+// ============================================
+// 9b. ストーリー管理
+// ============================================
+async function loadStory() {
+  try {
+    // Show current month theme
+    const themeEl = document.getElementById('storyCurrentTheme');
+    if (typeof getCurrentStoryTheme === 'function') {
+      const theme = getCurrentStoryTheme();
+      if (theme) {
+        themeEl.style.display = 'block';
+        themeEl.innerHTML = `
+          <div style="display:flex;align-items:center;gap:12px">
+            <div style="font-size:36px">${theme.icon}</div>
+            <div>
+              <div style="font-weight:700;font-size:16px">${theme.code}: ${theme.name}</div>
+              <div style="font-size:13px;color:var(--text-light);margin-top:2px">${theme.desc}</div>
+            </div>
+          </div>
+        `;
+      } else { themeEl.style.display = 'none'; }
+    } else { themeEl.style.display = 'none'; }
+
+    // Active chapter
+    const chapters = await StoryDB.getAll();
+    const active = chapters.filter(c => c.status === 'active');
+    const completed = chapters.filter(c => c.status === 'completed');
+
+    const activeEl = document.getElementById('storyActiveChapter');
+    if (active.length > 0) {
+      activeEl.innerHTML = active.map(ch => {
+        const weekText = StoryDB.getWeeklyText(ch);
+        return `<div class="card">
+          <div class="card-title"><span class="icon">&#128214;</span> ${escapeHtml(ch.title)} <span style="font-size:12px;opacity:0.7">(${ch.month})</span></div>
+          ${weekText ? `<div style="background:var(--bg);padding:12px;border-radius:8px;margin-bottom:12px;font-size:13px;line-height:1.6">${escapeHtml(weekText)}</div>` : ''}
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+            ${(ch.routes || []).map(r => `
+              <div style="background:var(--bg);padding:12px;border-radius:8px">
+                <div style="font-weight:700;font-size:14px">${r.icon || ''} ${escapeHtml(r.name)}</div>
+                <div style="font-size:12px;color:var(--text-light);margin:4px 0">${escapeHtml(r.desc || '')}</div>
+                <div style="font-size:13px">指標: ${r.metric} | 目標: ${r.targetValue}</div>
+                <div style="font-size:13px;color:var(--primary);font-weight:600">現在: ${r.currentValue || 0}</div>
+                <div style="background:#e2e8f0;height:6px;border-radius:3px;margin-top:6px;overflow:hidden">
+                  <div style="height:100%;border-radius:3px;background:var(--primary);width:${Math.min(100, (r.currentValue || 0) / r.targetValue * 100)}%"></div>
+                </div>
+              </div>
+            `).join('')}
+          </div>
+          <div style="margin-top:12px;display:flex;gap:8px">
+            <button class="btn btn-secondary btn-sm" onclick="resolveStoryChapter('${ch.id}')">&#127937; チャプター決着</button>
+          </div>
+        </div>`;
+      }).join('');
+    } else {
+      activeEl.innerHTML = '<div class="card"><p style="text-align:center;color:var(--text-light)">アクティブなチャプターはありません</p></div>';
+    }
+
+    // Completed chapters
+    const completedEl = document.getElementById('storyCompletedChapters');
+    if (completed.length > 0) {
+      completedEl.innerHTML = completed.map(ch => {
+        const achievedRoute = (ch.routes || []).find(r => r.id === ch.achievedRoute);
+        return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid var(--border)">
+          <div style="font-size:20px">${achievedRoute ? achievedRoute.icon : '📖'}</div>
+          <div>
+            <strong>${escapeHtml(ch.title)}</strong> (${ch.month})
+            <div style="font-size:12px;color:var(--text-light)">結末: ${achievedRoute ? escapeHtml(achievedRoute.name) : '不明'}</div>
+          </div>
+        </div>`;
+      }).join('');
+    } else {
+      completedEl.innerHTML = '<p style="text-align:center;color:var(--text-light);padding:12px">なし</p>';
+    }
+  } catch(e) { console.error('ストーリー読み込みエラー:', e); }
+}
+
+function openStoryModal() {
+  const now = new Date();
+  const defaultMonth = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}`;
+  openModal('ストーリーチャプター作成', `
+    <div class="form-row">
+      <div class="form-group">
+        <label>チャプタータイトル *</label>
+        <input type="text" class="form-control" id="storyTitle" placeholder="例: 発進と軌道投入">
+      </div>
+      <div class="form-group">
+        <label>月 (YYYY-MM)</label>
+        <input type="month" class="form-control" id="storyMonth" value="${defaultMonth}">
+      </div>
+    </div>
+    <div style="font-size:13px;font-weight:700;margin:12px 0 8px">ルート設定（最大3つ + フォールバック）</div>
+    <div id="storyRoutes">
+      <div class="story-route-item" style="background:var(--bg);padding:12px;border-radius:8px;margin-bottom:8px">
+        <div class="form-row">
+          <div class="form-group"><label>ルート名</label><input type="text" class="form-control story-route-name" placeholder="例: 理想ルート"></div>
+          <div class="form-group"><label>アイコン</label><input type="text" class="form-control story-route-icon" value="&#11088;"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>指標</label>
+            <select class="form-control story-route-metric">
+              <option value="total_pomodoros">合計ポモドーロ数</option>
+              <option value="total_study_hours">合計学習時間(h)</option>
+              <option value="combo_discovery_rate">コンボ発見率(%)</option>
+              <option value="boss_defeated">ボス討伐</option>
+            </select>
+          </div>
+          <div class="form-group"><label>目標値</label><input type="number" class="form-control story-route-target" value="100"></div>
+          <div class="form-group"><label>報酬pt</label><input type="number" class="form-control story-route-reward" value="50"></div>
+        </div>
+      </div>
+    </div>
+    <button class="btn btn-secondary btn-sm" onclick="addStoryRoute()" style="margin-bottom:12px">&#10133; ルート追加</button>
+    <div style="font-size:13px;font-weight:700;margin:12px 0 8px">週次テキスト</div>
+    <div class="form-group"><label>Week 1</label><textarea class="form-control" id="storyWeek1" rows="2" placeholder="月初のナレーション..."></textarea></div>
+    <div class="form-group"><label>Week 2</label><textarea class="form-control" id="storyWeek2" rows="2"></textarea></div>
+    <div class="form-group"><label>Week 3</label><textarea class="form-control" id="storyWeek3" rows="2"></textarea></div>
+    <div class="form-group"><label>Week 4</label><textarea class="form-control" id="storyWeek4" rows="2"></textarea></div>
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" onclick="saveStoryChapter()">作成</button>
+  `);
+}
+
+function addStoryRoute() {
+  const container = document.getElementById('storyRoutes');
+  const idx = container.children.length;
+  const div = document.createElement('div');
+  div.className = 'story-route-item';
+  div.style.cssText = 'background:var(--bg);padding:12px;border-radius:8px;margin-bottom:8px';
+  div.innerHTML = `
+    <div class="form-row">
+      <div class="form-group"><label>ルート名</label><input type="text" class="form-control story-route-name" placeholder="ルート${idx+1}"></div>
+      <div class="form-group"><label>アイコン</label><input type="text" class="form-control story-route-icon" value="&#128293;"></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group"><label>指標</label>
+        <select class="form-control story-route-metric">
+          <option value="total_pomodoros">合計ポモドーロ数</option>
+          <option value="total_study_hours">合計学習時間(h)</option>
+          <option value="combo_discovery_rate">コンボ発見率(%)</option>
+          <option value="boss_defeated">ボス討伐</option>
+          <option value="fallback">フォールバック（未達成時）</option>
+        </select>
+      </div>
+      <div class="form-group"><label>目標値</label><input type="number" class="form-control story-route-target" value="50"></div>
+      <div class="form-group"><label>報酬pt</label><input type="number" class="form-control story-route-reward" value="30"></div>
+    </div>
+  `;
+  container.appendChild(div);
+}
+
+async function saveStoryChapter() {
+  const title = document.getElementById('storyTitle').value.trim();
+  const month = document.getElementById('storyMonth').value;
+  if (!title) { showToast('タイトルを入力してください', 'error'); return; }
+
+  const routeItems = document.querySelectorAll('.story-route-item');
+  const routes = Array.from(routeItems).map((item, i) => ({
+    id: 'route_' + i,
+    name: item.querySelector('.story-route-name').value.trim() || ('ルート' + (i+1)),
+    icon: item.querySelector('.story-route-icon').value.trim() || '⭐',
+    desc: '',
+    metric: item.querySelector('.story-route-metric').value,
+    targetValue: parseInt(item.querySelector('.story-route-target').value) || 100,
+    currentValue: 0,
+    reward: { points: parseInt(item.querySelector('.story-route-reward').value) || 30 },
+    ending: { title: '', text: '' }
+  }));
+
+  const weeklyTexts = [1,2,3,4].map(w => ({
+    week: w,
+    text: (document.getElementById('storyWeek' + w).value || '').trim()
+  })).filter(w => w.text);
+
+  try {
+    await StoryDB.create({ title, month, routes, weeklyTexts });
+    showToast('ストーリーチャプターを作成しました');
+    closeModal();
+    loadStory();
+  } catch(e) { showToast('作成に失敗しました', 'error'); }
+}
+
+async function updateStoryProgress() {
+  try {
+    const result = await StoryDB.updateProgress();
+    if (result) {
+      showToast('進捗を更新しました');
+      loadStory();
+    } else {
+      showToast('アクティブなチャプターがありません', 'error');
+    }
+  } catch(e) { showToast('進捗更新に失敗しました', 'error'); }
+}
+
+async function resolveStoryChapter(chapterId) {
+  if (!confirm('このチャプターを決着させますか？達成ルートが判定され、全生徒に報酬が配布されます。')) return;
+  try {
+    const result = await StoryDB.resolveChapter();
+    if (result && result.route) {
+      showToast(`${result.route.name} ルート達成！ 全員に ${result.route.reward.points}pt 配布`);
+    } else {
+      showToast('チャプターを完了しました');
+    }
+    loadStory();
+  } catch(e) { showToast('決着処理に失敗しました', 'error'); }
+}
+
+// ============================================
+// 9c. サポート艦隊管理
+// ============================================
+async function toggleStudentRole(studentId, currentRole) {
+  const newRole = currentRole === 'supporter' ? 'student' : 'supporter';
+  const msg = newRole === 'supporter'
+    ? 'この生徒をサポーター（私立合格者）に変更しますか？'
+    : 'この生徒を通常生徒に戻しますか？';
+  if (!confirm(msg)) return;
+  try {
+    if (newRole === 'supporter') {
+      await SupportFleetDB.promoteToSupporter(studentId);
+    } else {
+      await SupportFleetDB.revertToStudent(studentId);
+    }
+    showToast(`ロールを「${newRole === 'supporter' ? 'サポーター' : '生徒'}」に変更しました`);
+    loadStudents();
+  } catch(e) { showToast('ロール変更に失敗しました', 'error'); }
+}
+
+// ============================================
+// 9d. コマンダーCP
+// ============================================
+async function loadCommanderCP() {
+  // Commander Points auto-accumulate from teacher actions (logins, boss creation, message sends, etc.)
+  // Simple heuristic: count today's admin actions as CP
+  try {
+    const today = getToday();
+    const [todayLogs, messages, bosses] = await Promise.all([
+      StudyLogsDB.getByDate(today),
+      MessagesDB.getAll(),
+      RaidBossDB.getAll()
+    ]);
+    // CP = today's logs reviewed(1pt each) + messages sent today(3pt each) + bosses created(5pt each)
+    const todayMessages = messages.filter(m => m.fromType === 'teacher' && m.createdAt && formatDate(m.createdAt).includes(today.replace(/-/g, '/')));
+    const cp = todayLogs.length + todayMessages.length * 3 + bosses.length * 5;
+    const maxCp = 50;
+    const pct = Math.min(100, (cp / maxCp) * 100);
+    const buffActive = cp >= maxCp;
+
+    return { cp, maxCp, pct, buffActive };
+  } catch(e) { return { cp: 0, maxCp: 50, pct: 0, buffActive: false }; }
 }
 
 // ============================================
@@ -2423,6 +2817,18 @@ async function initApp() {
     // データロード
     await loadRanking();
     loadNotifications();
+
+    // コマンダーCP表示
+    loadCommanderCP().then(cp => {
+      const widget = document.getElementById('commanderCpWidget');
+      widget.style.display = 'block';
+      document.getElementById('commanderCpBar').style.width = cp.pct + '%';
+      document.getElementById('commanderCpText').textContent = cp.cp;
+      if (cp.buffActive) {
+        widget.style.background = 'rgba(255,215,0,0.3)';
+        widget.title = 'コマンダーバフ発動中！';
+      }
+    }).catch(() => {});
 
     // リスク検知（バックグラウンド）
     RiskDetector.checkAll().then(risks => {
