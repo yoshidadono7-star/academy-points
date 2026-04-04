@@ -399,6 +399,7 @@ function switchTab(tabId) {
 
 // ===== サマリー =====
 async function loadSummary() {
+  try {
   const sid = currentStudent.id;
   const now = Date.now();
   const day30 = now - 30 * 24 * 60 * 60 * 1000;
@@ -500,10 +501,12 @@ async function loadSummary() {
       </div>`;
     }).join('');
   }
+  } catch(e) { console.error('loadSummary error:', e); }
 }
 
 // ===== テスト結果 =====
 async function loadExams() {
+  try {
   const snap = await db.collection('examResults')
     .where('studentId', '==', currentStudent.id)
     .orderBy('date', 'desc').limit(10).get();
@@ -534,6 +537,7 @@ async function loadExams() {
         ${subjectTags ? `<div class="subject-scores">${subjectTags}</div>` : ''}
       </div>`;
   }).join('');
+  } catch(e) { console.error('loadExams error:', e); }
 }
 
 // ===== バッジ =====
@@ -560,6 +564,7 @@ const BADGE_DEFS = {
 };
 
 async function loadBadges() {
+  try {
   const snap = await db.collection('badges')
     .where('studentId', '==', currentStudent.id)
     .orderBy('timestamp', 'desc').get();
@@ -579,10 +584,12 @@ async function loadBadges() {
       <span>${def.icon}</span><span>${def.name}</span>
     </div>`;
   }).join('');
+  } catch(e) { console.error('loadBadges error:', e); }
 }
 
 // ===== メッセージ =====
 async function loadMessages() {
+  try {
   const snap = await db.collection('messages')
     .where('studentId', '==', currentStudent.id)
     .orderBy('sentAt', 'desc').limit(20).get();
@@ -602,6 +609,7 @@ async function loadMessages() {
       <div class="msg-date">${date}</div>
     </div>`;
   }).join('');
+  } catch(e) { console.error('loadMessages error:', e); }
 }
 
 // ===== 起動 =====
