@@ -5,7 +5,18 @@
       "firebase.json",
       "**/.*",
       "**/node_modules/**",
-      "README.md"
+      "README.md",
+      "HANDOFF.md",
+      "CLAUDE_HEROS_STORYTELLING.md",
+      "session-report.html",
+      "session-report-v2.html",
+      "system-overview.html",
+      "game-design-v2.html",
+      "detailed-specs.html",
+      "phase1-plan.html",
+      "storytelling-phase1.html",
+      "annual-plan.html",
+      "*.docx"
     ],
     "rewrites": [
       {
