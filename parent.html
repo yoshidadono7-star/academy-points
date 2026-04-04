@@ -376,7 +376,7 @@ async function showPortal() {
   document.getElementById('portalLevel').textContent = `Lv. ${level}`;
   document.getElementById('portalStreak').textContent = `連続通塾: ${s.streak || 0}日`;
 
-  await Promise.all([
+  await Promise.allSettled([
     loadSummary(),
     loadExams(),
     loadBadges(),
