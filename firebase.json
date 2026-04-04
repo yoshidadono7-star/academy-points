@@ -20,8 +20,7 @@
       "phase1-plan.html",
       "storytelling-phase1.html",
       "annual-plan.html",
-      "*.docx",
-      "seed-data.js"
+      "*.docx"
     ],
     "rewrites": [
       {
