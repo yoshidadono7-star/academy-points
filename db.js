@@ -1943,3 +1943,146 @@ function getStoryTheme(month) {
 function getCurrentStoryTheme() {
   return getStoryTheme(new Date().getMonth() + 1);
 }
+
+// ============================================
+// MULTIVERSE（マルチバース）翻訳システム
+// ============================================
+
+// 6つの世界観定義
+const WORLD_THEMES = {
+  legend: {
+    id: 'legend', name: '伝説の冒険者', icon: '⚔️', colorPrimary: '#d97706', colorBg: '#fffbeb',
+    roles: {
+      player: '勇者', teacher: '導きの大賢者', friendMulti: 'パーティメンバー',
+      friendSolo: '精霊の相棒', parent: '故郷の王'
+    },
+    terms: {
+      points: 'EXP', pomodoro: '修行', mission: 'クエスト', boss: '大魔王',
+      combo: '隠しスキル', streak: '連戦記録', condition: '体力チェック',
+      station: '新しい街', hiddenArea: '秘密のダンジョン', complete: '勝利！',
+      damage: '剣技ダメージ', buff: '神の加護', storyIntro: 'が現れた！'
+    }
+  },
+  tactical: {
+    id: 'tactical', name: '特殊部隊作戦', icon: '🎯', colorPrimary: '#38bdf8', colorBg: '#0f172a',
+    roles: {
+      player: 'エージェント', teacher: '司令官(HQ)', friendMulti: '戦術分隊',
+      friendSolo: 'サポートAI', parent: '後方支援部隊'
+    },
+    terms: {
+      points: 'CREDITS', pomodoro: 'ミッション遂行', mission: '極秘指令', boss: '敵セキュリティ',
+      combo: '戦術コード解析', streak: '連続作戦日数', condition: 'バイタルチェック',
+      station: '新たな宙域', hiddenArea: '未確認エリア', complete: 'ミッション完了',
+      damage: '精密射撃', buff: '戦術支援', storyIntro: 'を検知。迎撃せよ。'
+    }
+  },
+  heroine: {
+    id: 'heroine', name: 'ヒロインの物語', icon: '👑', colorPrimary: '#f43f5e', colorBg: '#fff1f2',
+    roles: {
+      player: 'ヒロイン', teacher: '敏腕プロデューサー', friendMulti: 'ユニット仲間',
+      friendSolo: '鏡の妖精', parent: 'ファン第一号'
+    },
+    terms: {
+      points: 'SP(シャイン度)', pomodoro: 'レッスン', mission: 'オーディション課題', boss: '運命の試練',
+      combo: '新しい魔法', streak: '輝き連続日数', condition: 'コンディションチェック',
+      station: '次のステージ', hiddenArea: '秘密の衣装部屋', complete: '合格！おめでとう！',
+      damage: '輝きのパワー', buff: '声援パワー', storyIntro: 'が始まります！'
+    }
+  },
+  academia: {
+    id: 'academia', name: '真理の探究者', icon: '📜', colorPrimary: '#57534e', colorBg: '#fafaf9',
+    roles: {
+      player: '研究生', teacher: '主任教授', friendMulti: '共同研究チーム',
+      friendSolo: '使い魔のフクロウ', parent: 'パトロン'
+    },
+    terms: {
+      points: 'INT(知性)', pomodoro: '集中研究', mission: '研究課題', boss: '未解明の謎',
+      combo: '隠された法則', streak: '研究継続日数', condition: '精神状態記録',
+      station: '新たな書庫', hiddenArea: '禁書の間', complete: '解明完了。',
+      damage: '知性の一撃', buff: '叡智の結集', storyIntro: 'が浮上した。調査せよ。'
+    }
+  },
+  cozy: {
+    id: 'cozy', name: '星の庭師', icon: '🌱', colorPrimary: '#4ade80', colorBg: '#f0fdf4',
+    roles: {
+      player: '庭師', teacher: '見守りの大樹', friendMulti: 'お隣の庭師たち',
+      friendSolo: '森の小動物たち', parent: 'お日様と大地'
+    },
+    terms: {
+      points: '光のしずく', pomodoro: 'お水やり', mission: '今日のお手入れ', boss: '大きな黒い雲',
+      combo: '新しいお花', streak: 'お手入れ連続日数', condition: '今日のきもち',
+      station: '新しい花壇', hiddenArea: '妖精の泉', complete: 'きれいに咲いたよ！',
+      damage: '光のチカラ', buff: 'みんなの光', storyIntro: 'が近づいてきたよ。'
+    }
+  },
+  space: {
+    id: 'space', name: '星海の探検家', icon: '🚀', colorPrimary: '#818cf8', colorBg: '#0c0a20',
+    roles: {
+      player: '飛行士', teacher: '管制塔', friendMulti: '艦隊クルー',
+      friendSolo: 'ナビ・ドロイド', parent: '地球の通信基地'
+    },
+    terms: {
+      points: 'ポイント', pomodoro: '船外活動', mission: '本日の指令', boss: '宇宙怪獣',
+      combo: '推進装置の隠し機能', streak: '連続航行日数', condition: 'バイタルサイン',
+      station: '新ステーション', hiddenArea: '未知の宙域', complete: '帰還成功！',
+      damage: 'ダメージ', buff: '支援バフ', storyIntro: 'が出現！全機警戒せよ。'
+    }
+  }
+};
+
+// 翻訳関数: 共通テキストを生徒の世界観に変換
+function translateTerm(worldId, termKey) {
+  const world = WORLD_THEMES[worldId];
+  if (!world || !world.terms[termKey]) return termKey;
+  return world.terms[termKey];
+}
+
+// ボス名の翻訳: 「中間テスト」→ 各世界観に変換
+function translateBossName(worldId, baseName) {
+  const world = WORLD_THEMES[worldId];
+  if (!world) return baseName;
+  return `${world.terms.boss}「${baseName}」${world.terms.storyIntro}`;
+}
+
+// ストーリーテキストの翻訳
+function translateStoryText(worldId, baseText) {
+  const world = WORLD_THEMES[worldId];
+  if (!world) return baseText;
+  // 共通キーワードを世界観の言葉に置換
+  let text = baseText;
+  text = text.replace(/ポイント/g, world.terms.points);
+  text = text.replace(/ポモドーロ/g, world.terms.pomodoro);
+  text = text.replace(/ミッション/g, world.terms.mission);
+  text = text.replace(/ボス/g, world.terms.boss);
+  text = text.replace(/コンボ/g, world.terms.combo);
+  return text;
+}
+
+// 世界観の取得
+function getWorldTheme(worldId) {
+  return WORLD_THEMES[worldId] || WORLD_THEMES['space']; // デフォルトは宇宙
+}
+
+// 次元シフト（世界観変更）の可否判定
+// 年4回: 7月上旬, 9月上旬, 11月下旬, 1月下旬
+function isDimensionShiftOpen() {
+  const now = new Date();
+  const month = now.getMonth() + 1; // 1-12
+  const day = now.getDate();
+  // 各月の1-7日（1週間限定）を解放期間とする
+  const shiftWindows = [
+    { month: 7, startDay: 1, endDay: 7 },   // 覚醒の夏
+    { month: 9, startDay: 1, endDay: 7 },   // 軌道修正
+    { month: 11, startDay: 20, endDay: 27 }, // 最終形態
+    { month: 1, startDay: 20, endDay: 27 },  // 次代への継承
+  ];
+  return shiftWindows.some(w => month === w.month && day >= w.startDay && day <= w.endDay);
+}
+
+// 世界観の変更（シフト期間中のみ）
+async function changeWorld(studentId, newWorldId) {
+  if (!isDimensionShiftOpen()) return { success: false, reason: '次元ゲートは現在閉鎖中です' };
+  if (!WORLD_THEMES[newWorldId]) return { success: false, reason: '不明な世界です' };
+  await StudentsDB.update(studentId, { worldId: newWorldId });
+  return { success: true, world: WORLD_THEMES[newWorldId] };
+}
