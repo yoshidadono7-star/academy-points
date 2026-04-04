@@ -414,6 +414,12 @@ const RaidBossDB = {
     const snap = await db.collection('raidBosses').orderBy('createdAt', 'desc').get();
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   },
+  async getDefeated() {
+    const snap = await db.collection('raidBosses')
+      .where('defeated', '==', true)
+      .orderBy('createdAt', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
   async getActive() {
     const snap = await db.collection('raidBosses')
       .where('defeated', '==', false)
