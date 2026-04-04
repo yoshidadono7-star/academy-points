@@ -442,7 +442,8 @@
 
 <!-- Tab Navigation -->
 <nav class="tab-nav" id="tabNav">
-  <button class="tab-btn active" data-tab="ranking">&#127942; ランキング</button>
+  <button class="tab-btn active" data-tab="plans">&#128640; 今日のプラン</button>
+  <button class="tab-btn" data-tab="ranking">&#127942; ランキング</button>
   <button class="tab-btn" data-tab="monitor">&#128202; 学習モニター</button>
   <button class="tab-btn" data-tab="tasks">&#128203; タスク管理</button>
   <button class="tab-btn" data-tab="condition">&#128154; コンディション</button>
@@ -467,7 +468,51 @@
 <main class="main">
 
   <!-- ===== ランキング ===== -->
-  <div class="tab-content active" id="tab-ranking">
+  <!-- 今日のプラン管理 -->
+  <div class="tab-content active" id="tab-plans">
+    <div class="card">
+      <h3>🚀 今日のプラン管理</h3>
+      <p style="font-size:13px;color:#718096;margin-bottom:16px;">各生徒の本日の学習プランを設定します。プランがある生徒は、生徒画面でワンタップで学習を開始できます。</p>
+
+      <!-- 一括設定 -->
+      <div style="background:#f0f4ff;border-radius:12px;padding:16px;margin-bottom:20px;">
+        <div style="font-size:14px;font-weight:700;color:#2d3748;margin-bottom:12px;">📋 一括プラン設定</div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
+          <label style="font-size:12px;display:flex;align-items:center;gap:4px;">
+            <input type="checkbox" id="planSpeedRead" checked> 📚 速読
+            <input type="number" id="planSpeedReadMin" value="15" min="5" max="30" style="width:50px;padding:2px 4px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;">分
+          </label>
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;" id="planSubjects">
+          <div class="plan-subject-row" style="display:flex;align-items:center;gap:6px;">
+            <select style="padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;" class="plan-subject-select">
+              <option value="数学">📐 数学</option>
+              <option value="英語">🔤 英語</option>
+              <option value="国語">📕 国語</option>
+              <option value="理科">🔬 理科</option>
+              <option value="社会">🌍 社会</option>
+              <option value="その他">📝 その他</option>
+            </select>
+            <input type="number" value="50" min="10" max="120" style="width:50px;padding:2px 4px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;" class="plan-subject-min">分
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-bottom:12px;">
+          <button onclick="addPlanSubjectRow()" style="padding:6px 12px;background:#e0e7ff;border:none;border-radius:6px;font-size:12px;color:#4338ca;cursor:pointer;font-weight:600;">+ 科目追加</button>
+        </div>
+
+        <div style="display:flex;gap:8px;flex-wrap:wrap;">
+          <button onclick="applyPlanToAll()" style="padding:8px 16px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">全員に適用</button>
+          <button onclick="applyPlanToSelected()" style="padding:8px 16px;background:#4338ca;color:#fff;border:none;border-radius:8px;font-size:13px;font-weight:700;cursor:pointer;">選択した生徒に適用</button>
+        </div>
+      </div>
+
+      <!-- 生徒別プラン状況 -->
+      <div style="font-size:14px;font-weight:700;color:#2d3748;margin-bottom:12px;">👥 生徒別プラン状況</div>
+      <div id="planStudentList" style="font-size:13px;color:#718096;">読み込み中...</div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="tab-ranking">
     <div class="stats-grid" id="rankingStats"></div>
     <div class="card">
       <div class="card-title"><span class="icon">&#127942;</span> ポイントランキング</div>
@@ -1263,6 +1308,7 @@ function switchTab(tabId) {
 
   // タブ切替時にデータロード
   const loaders = {
+    plans: loadPlanStatus,
     ranking: loadRanking,
     monitor: loadMonitor,
     tasks: loadTasks,
@@ -2815,6 +2861,123 @@ function adminLogout() {
   }
 }
 
+// ============================================
+// 今日のプラン管理
+// ============================================
+function addPlanSubjectRow() {
+  const container = document.getElementById('planSubjects');
+  const row = document.createElement('div');
+  row.className = 'plan-subject-row';
+  row.style.cssText = 'display:flex;align-items:center;gap:6px;margin-top:6px;';
+  row.innerHTML = `
+    <select style="padding:4px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px;" class="plan-subject-select">
+      <option value="数学">📐 数学</option><option value="英語">🔤 英語</option><option value="国語">📕 国語</option>
+      <option value="理科">🔬 理科</option><option value="社会">🌍 社会</option><option value="その他">📝 その他</option>
+    </select>
+    <input type="number" value="50" min="10" max="120" style="width:50px;padding:2px 4px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;" class="plan-subject-min">分
+    <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:16px;">×</button>`;
+  container.appendChild(row);
+}
+
+function buildPlanPhases() {
+  const phases = [];
+  if (document.getElementById('planSpeedRead').checked) {
+    const min = parseInt(document.getElementById('planSpeedReadMin').value) || 15;
+    phases.push({ type: 'speedReading', duration: min, status: 'pending' });
+  }
+  document.querySelectorAll('.plan-subject-row').forEach(row => {
+    const subject = row.querySelector('.plan-subject-select').value;
+    const dur = parseInt(row.querySelector('.plan-subject-min').value) || 50;
+    phases.push({ type: 'study', subject, duration: dur, status: 'pending' });
+  });
+  return phases;
+}
+
+async function applyPlanToAll() {
+  const phases = buildPlanPhases();
+  if (phases.length === 0) { alert('プランにフェーズを追加してください'); return; }
+  if (!confirm(`全生徒に${phases.length}フェーズのプランを設定しますか？`)) return;
+  try {
+    const students = await StudentsDB.getAll();
+    const ids = students.map(s => s.id);
+    await DailyPlansDB.createBulk(ids, phases, 'teacher');
+    alert(`${ids.length}名にプランを設定しました`);
+    loadPlanStatus();
+  } catch(e) { alert('エラー: ' + e.message); }
+}
+
+async function applyPlanToSelected() {
+  const phases = buildPlanPhases();
+  if (phases.length === 0) { alert('プランにフェーズを追加してください'); return; }
+  const checkboxes = document.querySelectorAll('.plan-student-check:checked');
+  if (checkboxes.length === 0) { alert('生徒を選択してください'); return; }
+  const ids = [...checkboxes].map(c => c.value);
+  if (!confirm(`${ids.length}名にプランを設定しますか？`)) return;
+  try {
+    await DailyPlansDB.createBulk(ids, phases, 'teacher');
+    alert(`${ids.length}名にプランを設定しました`);
+    loadPlanStatus();
+  } catch(e) { alert('エラー: ' + e.message); }
+}
+
+async function loadPlanStatus() {
+  try {
+    const [students, plans, attendance] = await Promise.all([
+      StudentsDB.getAll(),
+      DailyPlansDB.getTodayAll(),
+      AttendanceDB.getTodayAttendance()
+    ]);
+    const planMap = {};
+    plans.forEach(p => planMap[p.studentId] = p);
+    const attMap = {};
+    attendance.forEach(a => attMap[a.studentId] = a);
+
+    const container = document.getElementById('planStudentList');
+    if (students.length === 0) {
+      container.innerHTML = '<p style="color:#94a3b8;">生徒が登録されていません</p>';
+      return;
+    }
+
+    container.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:13px;">'
+      + '<tr style="background:#f8fafc;"><th style="padding:8px;text-align:left;border-bottom:1px solid #e2e8f0;width:30px;"><input type="checkbox" onchange="toggleAllPlanChecks(this.checked)"></th>'
+      + '<th style="padding:8px;text-align:left;border-bottom:1px solid #e2e8f0;">生徒</th>'
+      + '<th style="padding:8px;text-align:left;border-bottom:1px solid #e2e8f0;">出席</th>'
+      + '<th style="padding:8px;text-align:left;border-bottom:1px solid #e2e8f0;">プラン</th>'
+      + '<th style="padding:8px;text-align:left;border-bottom:1px solid #e2e8f0;">進捗</th></tr>'
+      + students.map(s => {
+        const plan = planMap[s.id];
+        const att = attMap[s.id];
+        const attStatus = att ? '✅ 到着済み' : '⬜ 未到着';
+        let planStatus = '—';
+        let progress = '';
+        if (plan) {
+          const total = plan.phases.length;
+          const done = plan.phases.filter(p => p.status === 'completed').length;
+          const active = plan.phases.filter(p => p.status === 'active').length;
+          planStatus = plan.phases.map(p => {
+            const icon = p.type === 'speedReading' ? '📚' : '📐';
+            return `${icon}${p.type === 'speedReading' ? '速読' : p.subject}`;
+          }).join(' → ');
+          progress = `${done}/${total}完了` + (active > 0 ? ' ⏳進行中' : '');
+        }
+        return `<tr style="border-bottom:1px solid #f1f5f9;">
+          <td style="padding:8px;"><input type="checkbox" class="plan-student-check" value="${s.id}"></td>
+          <td style="padding:8px;font-weight:600;">${s.nickname || s.name}</td>
+          <td style="padding:8px;">${attStatus}</td>
+          <td style="padding:8px;font-size:12px;">${planStatus}</td>
+          <td style="padding:8px;font-size:12px;">${progress}</td>
+        </tr>`;
+      }).join('')
+      + '</table>';
+  } catch(e) {
+    document.getElementById('planStudentList').innerHTML = '<p style="color:#e53e3e;">読み込みエラー</p>';
+  }
+}
+
+function toggleAllPlanChecks(checked) {
+  document.querySelectorAll('.plan-student-check').forEach(c => c.checked = checked);
+}
+
 async function initApp() {
   // ダッシュボードを初期化（認証後に呼ぶ）
   try {
@@ -2827,6 +2990,7 @@ async function initApp() {
     document.getElementById('historyStart').value = start.toISOString().split('T')[0];
 
     // データロード
+    await loadPlanStatus();
     await loadRanking();
     loadNotifications();
 

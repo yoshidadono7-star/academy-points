@@ -932,6 +932,35 @@ body.theme-space {
     <span id="homeNarrationText">状況を読み込んでいます...</span>
   </div>
 
+  <!-- ミッションブリーフィング（到着〜速読〜学習ガイド） -->
+  <div id="missionBriefing" style="margin:0 16px 12px;display:none;">
+
+    <!-- 未到着: チェックインボタン -->
+    <div id="briefingArrival" style="display:none;">
+      <button onclick="doCheckIn()" style="width:100%;padding:16px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
+        🚀 到着！冒険をはじめる
+      </button>
+    </div>
+
+    <!-- 到着済み: 今日のプラン表示 -->
+    <div id="briefingPlan" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;">
+      <div style="font-size:14px;font-weight:700;color:#2d3748;margin-bottom:12px;">🗺️ 今日のミッション</div>
+      <div id="briefingPhases"></div>
+      <div id="briefingAction" style="margin-top:12px;"></div>
+    </div>
+
+    <!-- 速読中 -->
+    <div id="briefingSpeedReading" style="display:none;background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:14px;padding:20px;text-align:center;">
+      <div style="font-size:32px;margin-bottom:8px;">📚</div>
+      <div style="font-size:16px;font-weight:700;color:#78350f;margin-bottom:4px;">速読トレーニング中</div>
+      <div style="font-size:28px;font-weight:900;color:#92400e;font-family:'Orbitron',monospace;" id="speedReadTimer">00:00</div>
+      <div style="font-size:12px;color:#92400e;margin:8px 0;">専用アプリで速読を行ってください</div>
+      <button onclick="completeSpeedReading()" style="margin-top:8px;padding:12px 32px;background:#92400e;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">
+        ✅ 速読完了
+      </button>
+    </div>
+  </div>
+
   <!-- Space Map -->
   <div id="homeSpaceMap" class="space-map">
     <div class="space-map-stars">. * . . * . * . .</div>
@@ -1590,15 +1619,212 @@ async function loadHome() {
     }
   } catch(e) {}
 
-  // ナレーション生成
+  // ナレーション + ミッションブリーフィング
   try {
     const station = SpaceMapDB.getStation(s.totalPoints || 0);
     const bosses = await RaidBossDB.getActive();
     const boss = bosses.length > 0 ? bosses[0] : null;
     const logs = await StudyLogsDB.getByStudent(s.id, 5);
-    const narration = generateStudentNarration(s, station, boss, s.streak || 0, calcLevel(s.totalPoints || 0), logs);
+    await loadMissionBriefing(s, station, boss, logs);
+  } catch(e) { console.error('Briefing error:', e); }
+}
+
+// ============================================
+// ミッションブリーフィング（到着〜速読〜プラン）
+// ============================================
+let currentPlan = null;
+let speedReadInterval = null;
+let speedReadStart = 0;
+
+async function loadMissionBriefing(student, station, boss, logs) {
+  const briefing = document.getElementById('missionBriefing');
+  const arrivalEl = document.getElementById('briefingArrival');
+  const planEl = document.getElementById('briefingPlan');
+  const srEl = document.getElementById('briefingSpeedReading');
+  briefing.style.display = 'block';
+  arrivalEl.style.display = 'none';
+  planEl.style.display = 'none';
+  srEl.style.display = 'none';
+
+  const checkedIn = await AttendanceDB.isCheckedIn(student.id);
+  currentPlan = await DailyPlansDB.getForStudent(student.id);
+
+  if (!checkedIn) {
+    // 未到着: チェックインボタン表示
+    arrivalEl.style.display = 'block';
+    const name = student.callsign || student.nickname || '冒険者';
+    document.getElementById('homeNarrationText').textContent =
+      `宇宙船は静かに待機している。${name}の到着を待っている... 「到着」ボタンを押して今日の冒険を始めよう。`;
+    return;
+  }
+
+  // 到着済み: プランまたはガイド表示
+  renderBriefingPlan(student, station, boss, logs);
+}
+
+function renderBriefingPlan(student, station, boss, logs) {
+  const planEl = document.getElementById('briefingPlan');
+  const srEl = document.getElementById('briefingSpeedReading');
+  const phasesEl = document.getElementById('briefingPhases');
+  const actionEl = document.getElementById('briefingAction');
+  const name = student.callsign || student.nickname || '冒険者';
+
+  if (!currentPlan) {
+    // プランなし: 自由フローのナレーション
+    planEl.style.display = 'none';
+    const narration = generateStudentNarration(student, station, boss, student.streak || 0, calcLevel(student.totalPoints || 0), logs);
     document.getElementById('homeNarrationText').textContent = narration;
-  } catch(e) { console.error('Narration error:', e); }
+    return;
+  }
+
+  // プランあり: フェーズ表示
+  const phases = currentPlan.phases || [];
+  const currentIdx = phases.findIndex(p => p.status === 'pending' || p.status === 'active');
+
+  // 速読フェーズがアクティブ
+  if (currentIdx >= 0 && phases[currentIdx].type === 'speedReading' && phases[currentIdx].status === 'active') {
+    srEl.style.display = 'block';
+    planEl.style.display = 'none';
+    document.getElementById('homeNarrationText').textContent =
+      `${name}は知覚強化トレーニング中。集中力を高めて次のミッションに備えよ。`;
+    return;
+  }
+
+  planEl.style.display = 'block';
+
+  // フェーズ一覧を描画
+  phasesEl.innerHTML = phases.map((p, i) => {
+    const icon = p.type === 'speedReading' ? '📚' : '📐';
+    const label = p.type === 'speedReading' ? '速読トレーニング' : p.subject;
+    const dur = p.duration ? `${p.duration}分` : '';
+    let statusBadge = '';
+    if (p.status === 'completed') statusBadge = '<span style="color:#059669;font-weight:700;">✅ 完了</span>';
+    else if (p.status === 'active') statusBadge = '<span style="color:#d97706;font-weight:700;">⏳ 進行中</span>';
+    else if (i === currentIdx) statusBadge = '<span style="color:#667eea;font-weight:700;">👉 次</span>';
+    else statusBadge = '<span style="color:#94a3b8;">待機中</span>';
+
+    return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i > 0 ? 'border-top:1px solid #f1f5f9;' : ''}">
+      <span style="font-size:20px;">${icon}</span>
+      <div style="flex:1;">
+        <div style="font-size:13px;font-weight:600;color:#2d3748;">${label}</div>
+        <div style="font-size:11px;color:#94a3b8;">${dur}</div>
+      </div>
+      ${statusBadge}
+    </div>`;
+  }).join('');
+
+  // 次のアクションボタン
+  if (currentIdx < 0) {
+    // 全フェーズ完了
+    actionEl.innerHTML = '<div style="text-align:center;padding:8px;color:#059669;font-weight:700;font-size:14px;">🎉 本日のミッション全達成！</div>';
+    document.getElementById('homeNarrationText').textContent =
+      `${name}は本日のミッションを全て達成した！ 素晴らしい航海だった。`;
+  } else {
+    const next = phases[currentIdx];
+    if (next.type === 'speedReading') {
+      actionEl.innerHTML = `<button onclick="startSpeedReading()" style="width:100%;padding:14px;background:linear-gradient(135deg,#f59e0b,#d97706);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">📚 速読スタート</button>`;
+      document.getElementById('homeNarrationText').textContent =
+        `${name}が司令室に到着した。まずは知覚強化トレーニング（速読）から始めよう。`;
+    } else {
+      actionEl.innerHTML = `<button onclick="startGuidedStudy(${currentIdx})" style="width:100%;padding:14px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:10px;font-size:15px;font-weight:700;cursor:pointer;">📐 ${next.subject}の学習を開始</button>`;
+      const completedCount = phases.filter(p => p.status === 'completed').length;
+      document.getElementById('homeNarrationText').textContent =
+        completedCount > 0
+          ? `前のミッション完了！ 次は「${next.subject}」の領域へ向かう。${name}、準備はいいか？`
+          : `${name}が司令室に到着した。本日の最初のミッションは「${next.subject}」だ。`;
+    }
+  }
+}
+
+async function doCheckIn() {
+  if (!currentStudent) return;
+  try {
+    await AttendanceDB.checkIn(currentStudent.id);
+    showToast('🚀 到着記録完了！');
+    loadHome();
+  } catch(e) { showToast('エラーが発生しました'); }
+}
+
+async function startSpeedReading() {
+  if (!currentPlan) return;
+  const phases = currentPlan.phases || [];
+  const idx = phases.findIndex(p => p.type === 'speedReading' && p.status === 'pending');
+  if (idx < 0) return;
+
+  await DailyPlansDB.updatePhaseStatus(currentPlan.id, idx, 'active');
+  currentPlan.phases[idx].status = 'active';
+  speedReadStart = Date.now();
+
+  // タイマー表示
+  document.getElementById('briefingPlan').style.display = 'none';
+  document.getElementById('briefingSpeedReading').style.display = 'block';
+
+  speedReadInterval = setInterval(() => {
+    const elapsed = Math.floor((Date.now() - speedReadStart) / 1000);
+    const m = String(Math.floor(elapsed / 60)).padStart(2, '0');
+    const s = String(elapsed % 60).padStart(2, '0');
+    document.getElementById('speedReadTimer').textContent = `${m}:${s}`;
+  }, 1000);
+
+  document.getElementById('homeNarrationText').textContent =
+    `知覚強化トレーニング実施中... 専用アプリで速読を行ってください。終わったら「速読完了」を押してね。`;
+}
+
+async function completeSpeedReading() {
+  if (!currentPlan) return;
+  clearInterval(speedReadInterval);
+  const elapsed = Math.floor((Date.now() - speedReadStart) / 1000);
+  const duration = Math.max(1, Math.floor(elapsed / 60));
+
+  const phases = currentPlan.phases || [];
+  const idx = phases.findIndex(p => p.type === 'speedReading' && p.status === 'active');
+  if (idx >= 0) {
+    await DailyPlansDB.updatePhaseStatus(currentPlan.id, idx, 'completed', duration);
+    currentPlan.phases[idx].status = 'completed';
+  }
+
+  // 速読分のポイント付与（1分=1ポイント）
+  const points = duration;
+  await StudyLogsDB.add({
+    studentId: currentStudent.id,
+    studentName: currentStudent.nickname || '',
+    subject: '速読',
+    duration,
+    points,
+    location: '塾',
+    method: 'normal',
+    pomodoroCount: 0
+  });
+  await StudentsDB.addPoints(currentStudent.id, points);
+  currentStudent = await StudentsDB.getById(currentStudent.id);
+
+  showToast(`📚 速読完了！ +${points}pt`);
+  loadHome();
+}
+
+async function startGuidedStudy(phaseIndex) {
+  if (!currentPlan) return;
+  const phase = currentPlan.phases[phaseIndex];
+  if (!phase) return;
+
+  // フェーズをactiveに
+  await DailyPlansDB.updatePhaseStatus(currentPlan.id, phaseIndex, 'active');
+
+  // 学習モードをプリセットして直接遷移
+  studySession = { subject: phase.subject, location: '塾', method: null };
+  navigate('studyMode');
+
+  // 科目と場所をプリセット選択状態にする
+  setTimeout(() => {
+    document.querySelectorAll('.mode-btn').forEach(b => {
+      if (b.textContent.includes(phase.subject)) {
+        b.classList.add('selected');
+      }
+      if (b.textContent.includes('塾')) {
+        b.classList.add('selected');
+      }
+    });
+  }, 100);
 }
 
 // ============================================
@@ -2023,6 +2249,16 @@ async function stopStudy(save) {
 
     // Refresh student again after possible raid rewards
     currentStudent = await StudentsDB.getById(currentStudent.id);
+
+    // プランのフェーズステータスを更新
+    if (currentPlan) {
+      const phases = currentPlan.phases || [];
+      const activeIdx = phases.findIndex(p => p.type === 'study' && p.status === 'active');
+      if (activeIdx >= 0) {
+        await DailyPlansDB.updatePhaseStatus(currentPlan.id, activeIdx, 'completed', duration);
+        currentPlan.phases[activeIdx].status = 'completed';
+      }
+    }
 
     // Show complete screen
     showCompleteScreen(duration, points, newBadges, raidResults, comboResults, missionResult);

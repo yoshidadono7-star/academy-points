@@ -2094,3 +2094,98 @@ async function changeWorld(studentId, newWorldId) {
   await StudentsDB.update(studentId, { worldId: newWorldId });
   return { success: true, world: WORLD_THEMES[newWorldId] };
 }
+
+// ===== 出席管理 (Attendance) =====
+const AttendanceDB = {
+  async checkIn(studentId) {
+    const today = getToday();
+    const existing = await db.collection('attendance')
+      .where('studentId', '==', studentId)
+      .where('date', '==', today).limit(1).get();
+    if (!existing.empty) return { id: existing.docs[0].id, alreadyCheckedIn: true };
+    const ref = await db.collection('attendance').add({
+      studentId, date: today,
+      arrivedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      departedAt: null
+    });
+    return { id: ref.id, alreadyCheckedIn: false };
+  },
+  async checkOut(studentId) {
+    const today = getToday();
+    const snap = await db.collection('attendance')
+      .where('studentId', '==', studentId)
+      .where('date', '==', today).limit(1).get();
+    if (snap.empty) return null;
+    await db.collection('attendance').doc(snap.docs[0].id).update({
+      departedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return snap.docs[0].id;
+  },
+  async getTodayAttendance() {
+    const today = getToday();
+    const snap = await db.collection('attendance')
+      .where('date', '==', today).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async isCheckedIn(studentId) {
+    const today = getToday();
+    const snap = await db.collection('attendance')
+      .where('studentId', '==', studentId)
+      .where('date', '==', today).limit(1).get();
+    return !snap.empty;
+  }
+};
+
+// ===== 日次プラン管理 (Daily Plans) =====
+const DailyPlansDB = {
+  async create(studentId, phases, createdBy) {
+    const today = getToday();
+    // 既存プランがあれば上書き
+    const existing = await db.collection('dailyPlans')
+      .where('studentId', '==', studentId)
+      .where('date', '==', today).limit(1).get();
+    if (!existing.empty) {
+      await db.collection('dailyPlans').doc(existing.docs[0].id).update({
+        phases, updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+      return existing.docs[0].id;
+    }
+    const ref = await db.collection('dailyPlans').add({
+      studentId, date: today, phases,
+      createdBy: createdBy || 'teacher',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return ref.id;
+  },
+  async getForStudent(studentId) {
+    const today = getToday();
+    const snap = await db.collection('dailyPlans')
+      .where('studentId', '==', studentId)
+      .where('date', '==', today).limit(1).get();
+    return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
+  },
+  async updatePhaseStatus(planId, phaseIndex, status, actualDuration) {
+    const doc = await db.collection('dailyPlans').doc(planId).get();
+    if (!doc.exists) return;
+    const phases = doc.data().phases;
+    if (phases[phaseIndex]) {
+      phases[phaseIndex].status = status;
+      if (actualDuration !== undefined) phases[phaseIndex].actualDuration = actualDuration;
+    }
+    await db.collection('dailyPlans').doc(planId).update({ phases });
+  },
+  async getTodayAll() {
+    const today = getToday();
+    const snap = await db.collection('dailyPlans')
+      .where('date', '==', today).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async createBulk(studentIds, phases, createdBy) {
+    const results = [];
+    for (const sid of studentIds) {
+      const id = await this.create(sid, JSON.parse(JSON.stringify(phases)), createdBy);
+      results.push({ studentId: sid, planId: id });
+    }
+    return results;
+  }
+};

@@ -179,5 +179,21 @@ service cloud.firestore {
       allow create, update: if true;
       allow delete: if isAdmin();
     }
+
+    // 出席管理
+    match /attendance/{attendanceId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;
+      allow delete: if isAdmin();
+    }
+
+    // 日次プラン
+    match /dailyPlans/{planId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if true;
+      allow delete: if isAdmin();
+    }
   }
 }
