@@ -451,6 +451,7 @@
   <button class="tab-btn" data-tab="prizes">&#127873; 景品交換</button>
   <button class="tab-btn" data-tab="messages" style="position:relative;">&#128140; メッセージ<span id="msgTabBadge" class="notification-badge hidden" style="position:absolute;top:4px;right:4px;font-size:9px;min-width:14px;height:14px;line-height:14px;">0</span></button>
   <button class="tab-btn" data-tab="students">&#128100; 生徒管理</button>
+  <button class="tab-btn" data-tab="matprogress">&#128230; 教材進捗</button>
   <button class="tab-btn" data-tab="guilds">&#9876;&#65039; ギルド</button>
   <button class="tab-btn" data-tab="raidboss">&#128121; レイドボス</button>
   <button class="tab-btn" data-tab="story">&#128214; ストーリー</button>
@@ -480,6 +481,13 @@
         <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;">
           <label style="font-size:12px;display:flex;align-items:center;gap:4px;">
             <input type="checkbox" id="planSpeedRead" checked> 📚 速読
+            <select id="planSpeedReadMaterial" style="padding:2px 6px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;">
+              <option value="">SRJ指定なし</option>
+              <option value="srj_sokudoku">📚 速読速解力</option>
+              <option value="srj_eigo">🔤 速読聴英語</option>
+              <option value="srj_sansu">🔢 算数的思考力</option>
+              <option value="srj_kokugo">📕 新国語</option>
+            </select>
             <input type="number" id="planSpeedReadMin" value="15" min="5" max="30" style="width:50px;padding:2px 4px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;">分
           </label>
         </div>
@@ -492,6 +500,16 @@
               <option value="理科">🔬 理科</option>
               <option value="社会">🌍 社会</option>
               <option value="その他">📝 その他</option>
+            </select>
+            <select style="padding:4px 6px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;" class="plan-material-select">
+              <option value="">教材指定なし</option>
+              <option value="atama_plus">💡 atama+</option>
+              <option value="edu_plus">📱 edu+</option>
+              <option value="manabi_aid">🎓 学びエイド</option>
+              <option value="monoxer">🧠 Monoxer</option>
+              <option value="ikushin">📝 育伸社テスト</option>
+              <option value="miyazaki_moshi">📋 宮崎模試</option>
+              <option value="paper_other">📄 その他紙教材</option>
             </select>
             <input type="number" value="50" min="10" max="120" style="width:50px;padding:2px 4px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;" class="plan-subject-min">分
           </div>
@@ -705,7 +723,7 @@
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>名前</th><th>コールサイン</th><th>学年</th><th>ランク</th><th>残高</th><th>レベル</th><th>操作</th></tr>
+            <tr><th>名前</th><th>コールサイン</th><th>学年</th><th>教材</th><th>ランク</th><th>残高</th><th>レベル</th><th>操作</th></tr>
           </thead>
           <tbody id="studentsTable"></tbody>
         </table>
@@ -714,6 +732,71 @@
   </div>
 
   <!-- ===== ギルド ===== -->
+  <!-- 教材進捗入力 -->
+  <div class="tab-content" id="tab-matprogress">
+    <div class="card">
+      <h3>📦 教材進捗入力</h3>
+      <p style="font-size:13px;color:#718096;margin-bottom:16px;">各教材の管理画面から収集した進捗データを記録します。</p>
+
+      <div class="form-row">
+        <div class="form-group">
+          <label>生徒</label>
+          <select class="form-control" id="mpStudent" onchange="onMpStudentChange()">
+            <option value="">生徒を選択</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>教材</label>
+          <select class="form-control" id="mpMaterial" onchange="onMpMaterialChange()">
+            <option value="">教材を選択</option>
+          </select>
+        </div>
+      </div>
+
+      <div id="mpForm" style="display:none;">
+        <div class="form-row">
+          <div class="form-group" id="mpSubjectGroup" style="display:none;">
+            <label>科目</label>
+            <select class="form-control" id="mpSubject">
+              <option value="数学">数学</option><option value="英語">英語</option>
+              <option value="国語">国語</option><option value="理科">理科</option>
+              <option value="社会">社会</option>
+            </select>
+          </div>
+          <div class="form-group">
+            <label>単元名</label>
+            <input type="text" class="form-control" id="mpUnit" placeholder="例: 一次方程式">
+          </div>
+        </div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>進捗率 (%)</label>
+            <input type="number" class="form-control" id="mpProgress" min="0" max="100" placeholder="0-100">
+          </div>
+          <div class="form-group">
+            <label>正答率 (%)</label>
+            <input type="number" class="form-control" id="mpAccuracy" min="0" max="100" placeholder="0-100">
+          </div>
+        </div>
+
+        <!-- 教材固有指標（動的生成） -->
+        <div id="mpMetricsArea"></div>
+
+        <div class="form-group">
+          <label>メモ</label>
+          <textarea class="form-control" id="mpMemo" rows="2" placeholder="補足メモ"></textarea>
+        </div>
+        <button class="btn btn-primary" onclick="saveMaterialProgress()" style="margin-top:8px;">💾 保存</button>
+      </div>
+
+      <!-- 過去の記録 -->
+      <div style="margin-top:20px;border-top:1px solid #e2e8f0;padding-top:16px;">
+        <div style="font-size:14px;font-weight:700;color:#2d3748;margin-bottom:12px;">📋 記録履歴</div>
+        <div id="mpHistory" style="font-size:13px;color:#718096;">生徒と教材を選択してください</div>
+      </div>
+    </div>
+  </div>
+
   <div class="tab-content" id="tab-guilds">
     <div style="margin-bottom:16px">
       <button class="btn btn-primary" onclick="openGuildModal()">&#10133; ギルド作成</button>
@@ -1316,6 +1399,7 @@ function switchTab(tabId) {
     history: () => {},
     prizes: loadPrizes,
     students: loadStudents,
+    matprogress: loadMatProgress,
     guilds: loadGuilds,
     raidboss: loadRaidBoss,
     story: loadStory,
@@ -1808,14 +1892,16 @@ async function loadStudents() {
   try {
     allStudents = await StudentsDB.getAll();
     document.getElementById('studentsTable').innerHTML = allStudents.length === 0
-      ? '<tr><td colspan="7" style="text-align:center;color:var(--text-light)">生徒がいません</td></tr>'
+      ? '<tr><td colspan="8" style="text-align:center;color:var(--text-light)">生徒がいません</td></tr>'
       : allStudents.map(s => {
           const ri = getRankInfo(s.rank || 'rookie');
           const roleTag = s.role === 'supporter' ? '<span style="background:#fbbf24;color:#78350f;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:4px">&#128588;サポーター</span>' : '';
+          const matIcons = (s.materials || []).map(mid => { const m = getMaterialById(mid); return m ? m.icon : ''; }).join('');
           return `<tr>
           <td><strong>${escapeHtml(s.name)}</strong>${roleTag}</td>
           <td>${escapeHtml(s.callsign || s.nickname || '-')}</td>
           <td>${escapeHtml(s.grade || '-')}</td>
+          <td style="font-size:11px;" title="${(s.materials||[]).map(mid=>{const m=getMaterialById(mid);return m?m.name:'';}).join(', ')}">${matIcons || '<span style="color:#cbd5e1">未設定</span>'}</td>
           <td>${ri.icon} ${ri.name}</td>
           <td>${(s.currentPoints || 0).toLocaleString()}</td>
           <td>${levelIcon(s.level || calcLevel(s.totalPoints || 0))} Lv.${s.level || calcLevel(s.totalPoints || 0)}</td>
@@ -1931,6 +2017,25 @@ function openStudentModal(student) {
         </div>
       </div>
     </div>
+    <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
+      <div style="font-size:13px;font-weight:700;color:var(--text-light);margin-bottom:8px">&#128230; 利用教材</div>
+      ${(() => {
+        const cats = { srj: '&#128218; SRJ講座', digital: '&#128187; デジタル教材', test: '&#128221; テスト', paper: '&#128196; 紙教材' };
+        const mats = isEdit ? (student.materials || []) : [];
+        return Object.entries(MATERIALS).map(([cat, items]) =>
+          '<div style="margin-bottom:8px;"><div style="font-size:12px;font-weight:600;color:#64748b;margin-bottom:4px;">' + cats[cat] + '</div>'
+          + '<div style="display:flex;flex-wrap:wrap;gap:6px;">'
+          + items.map(m =>
+            '<label style="font-size:12px;display:flex;align-items:center;gap:3px;background:#f8fafc;padding:4px 8px;border-radius:6px;border:1px solid #e2e8f0;cursor:pointer;">'
+            + '<input type="checkbox" class="student-material-check" value="' + m.id + '"'
+            + (mats.includes(m.id) ? ' checked' : '') + '>'
+            + m.icon + ' ' + m.name
+            + '</label>'
+          ).join('')
+          + '</div></div>'
+        ).join('');
+      })()}
+    </div>
   `, `
     <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
     <button class="btn btn-primary" onclick="saveStudent('${isEdit ? student.id : ''}')">${isEdit ? '更新' : '追加'}</button>
@@ -1949,11 +2054,12 @@ async function saveStudent(id) {
   const weakSubject = document.getElementById('studentWeakSubject').value || null;
   const targetStation = document.getElementById('studentTargetStation').value || null;
   const role = document.getElementById('studentRole').value || 'student';
+  const materials = [...document.querySelectorAll('.student-material-check:checked')].map(c => c.value);
 
   if (!name) { showToast('名前を入力してください', 'error'); return; }
 
   try {
-    const data = { name, nickname, callsign, pin, parentPin, grade, rank, testType, weakSubject, targetStation, role };
+    const data = { name, nickname, callsign, pin, parentPin, grade, rank, testType, weakSubject, targetStation, role, materials };
     if (id) {
       await StudentsDB.update(id, data);
       showToast('生徒情報を更新しました');
@@ -2862,6 +2968,165 @@ function adminLogout() {
 }
 
 // ============================================
+// 教材進捗入力
+// ============================================
+async function loadMatProgress() {
+  const sel = document.getElementById('mpStudent');
+  if (sel.options.length <= 1) {
+    const students = allStudents.length ? allStudents : await StudentsDB.getAll();
+    students.forEach(s => {
+      const opt = document.createElement('option');
+      opt.value = s.id;
+      opt.textContent = s.nickname || s.name;
+      opt.dataset.materials = JSON.stringify(s.materials || []);
+      sel.appendChild(opt);
+    });
+  }
+}
+
+function onMpStudentChange() {
+  const sel = document.getElementById('mpStudent');
+  const matSel = document.getElementById('mpMaterial');
+  matSel.innerHTML = '<option value="">教材を選択</option>';
+  document.getElementById('mpForm').style.display = 'none';
+  document.getElementById('mpHistory').innerHTML = '教材を選択してください';
+
+  if (!sel.value) return;
+  const opt = sel.options[sel.selectedIndex];
+  const mats = JSON.parse(opt.dataset.materials || '[]');
+
+  if (mats.length === 0) {
+    // 教材未登録 → 全教材を表示
+    getAllMaterials().forEach(m => {
+      const o = document.createElement('option');
+      o.value = m.id;
+      o.textContent = m.icon + ' ' + m.name;
+      matSel.appendChild(o);
+    });
+  } else {
+    mats.forEach(mid => {
+      const m = getMaterialById(mid);
+      if (m) {
+        const o = document.createElement('option');
+        o.value = m.id;
+        o.textContent = m.icon + ' ' + m.name;
+        matSel.appendChild(o);
+      }
+    });
+  }
+}
+
+function onMpMaterialChange() {
+  const matId = document.getElementById('mpMaterial').value;
+  const form = document.getElementById('mpForm');
+  if (!matId) { form.style.display = 'none'; return; }
+  form.style.display = 'block';
+
+  const mat = getMaterialById(matId);
+  // 科目グループ表示
+  document.getElementById('mpSubjectGroup').style.display = (mat && mat.subjects) ? '' : 'none';
+
+  // 固有指標エリア
+  const area = document.getElementById('mpMetricsArea');
+  area.innerHTML = '';
+  if (mat && mat.metrics) {
+    area.innerHTML = '<div style="border-top:1px solid #e2e8f0;margin:12px 0;padding-top:12px;">'
+      + '<div style="font-size:13px;font-weight:700;color:#2d3748;margin-bottom:8px;">' + mat.icon + ' ' + mat.name + ' 固有指標</div>'
+      + '<div class="form-row">'
+      + mat.metrics.map(m => {
+        if (m.type === 'select') {
+          return '<div class="form-group"><label>' + m.label + '</label>'
+            + '<select class="form-control mp-metric" data-key="' + m.key + '">'
+            + '<option value="">選択</option>'
+            + m.options.map(o => '<option value="' + o + '">' + o + '</option>').join('')
+            + '</select></div>';
+        }
+        return '<div class="form-group"><label>' + m.label + (m.unit ? ' (' + m.unit + ')' : '') + '</label>'
+          + '<input type="number" class="form-control mp-metric" data-key="' + m.key + '"'
+          + (m.max ? ' max="' + m.max + '"' : '') + ' min="0"></div>';
+      }).join('')
+      + '</div></div>';
+  }
+
+  // 履歴読み込み
+  loadMpHistory();
+}
+
+async function loadMpHistory() {
+  const studentId = document.getElementById('mpStudent').value;
+  const matId = document.getElementById('mpMaterial').value;
+  const container = document.getElementById('mpHistory');
+  if (!studentId || !matId) { container.innerHTML = ''; return; }
+
+  try {
+    const records = await MaterialProgressDB.getByStudentAndMaterial(studentId, matId, 10);
+    if (records.length === 0) {
+      container.innerHTML = '<p style="color:#94a3b8;">まだ記録がありません</p>';
+      return;
+    }
+    const mat = getMaterialById(matId);
+    container.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:12px;">'
+      + '<tr style="background:#f8fafc;"><th style="padding:6px;text-align:left;">日付</th><th style="padding:6px;">単元</th><th style="padding:6px;">進捗</th><th style="padding:6px;">正答率</th>'
+      + (mat && mat.metrics ? mat.metrics.map(m => '<th style="padding:6px;">' + m.label + '</th>').join('') : '')
+      + '<th style="padding:6px;">メモ</th></tr>'
+      + records.map(r => {
+        const metricsHtml = (mat && mat.metrics) ? mat.metrics.map(m => {
+          const v = (r.metrics || {})[m.key];
+          return '<td style="padding:6px;text-align:center;">' + (v != null ? v + (m.unit || '') : '-') + '</td>';
+        }).join('') : '';
+        return '<tr style="border-bottom:1px solid #f1f5f9;">'
+          + '<td style="padding:6px;">' + (r.collectedAt || '-') + '</td>'
+          + '<td style="padding:6px;">' + (r.unit || '-') + '</td>'
+          + '<td style="padding:6px;text-align:center;">' + (r.progress != null ? r.progress + '%' : '-') + '</td>'
+          + '<td style="padding:6px;text-align:center;">' + (r.accuracy != null ? r.accuracy + '%' : '-') + '</td>'
+          + metricsHtml
+          + '<td style="padding:6px;font-size:11px;color:#64748b;">' + (r.memo || '') + '</td>'
+          + '</tr>';
+      }).join('')
+      + '</table>';
+  } catch(e) { container.innerHTML = '<p style="color:#e53e3e;">読み込みエラー</p>'; }
+}
+
+async function saveMaterialProgress() {
+  const studentId = document.getElementById('mpStudent').value;
+  const materialId = document.getElementById('mpMaterial').value;
+  if (!studentId || !materialId) { showToast('生徒と教材を選択してください', 'error'); return; }
+
+  const subject = document.getElementById('mpSubject').value || null;
+  const mat = getMaterialById(materialId);
+  const showSubject = mat && mat.subjects;
+
+  // 固有指標を収集
+  const metrics = {};
+  document.querySelectorAll('.mp-metric').forEach(el => {
+    const key = el.dataset.key;
+    const val = el.type === 'number' ? (el.value ? parseFloat(el.value) : null) : (el.value || null);
+    if (val != null) metrics[key] = val;
+  });
+
+  try {
+    await MaterialProgressDB.add({
+      studentId, materialId,
+      subject: showSubject ? subject : null,
+      unit: document.getElementById('mpUnit').value.trim() || null,
+      progress: document.getElementById('mpProgress').value ? parseFloat(document.getElementById('mpProgress').value) : null,
+      accuracy: document.getElementById('mpAccuracy').value ? parseFloat(document.getElementById('mpAccuracy').value) : null,
+      metrics,
+      memo: document.getElementById('mpMemo').value.trim() || null,
+      collectedBy: 'teacher'
+    });
+    showToast('📦 教材進捗を保存しました');
+    // フォームリセット
+    document.getElementById('mpUnit').value = '';
+    document.getElementById('mpProgress').value = '';
+    document.getElementById('mpAccuracy').value = '';
+    document.getElementById('mpMemo').value = '';
+    document.querySelectorAll('.mp-metric').forEach(el => el.value = '');
+    loadMpHistory();
+  } catch(e) { showToast('エラー: ' + e.message, 'error'); }
+}
+
+// ============================================
 // 今日のプラン管理
 // ============================================
 function addPlanSubjectRow() {
@@ -2874,6 +3139,13 @@ function addPlanSubjectRow() {
       <option value="数学">📐 数学</option><option value="英語">🔤 英語</option><option value="国語">📕 国語</option>
       <option value="理科">🔬 理科</option><option value="社会">🌍 社会</option><option value="その他">📝 その他</option>
     </select>
+    <select style="padding:4px 6px;border:1px solid #d1d5db;border-radius:6px;font-size:12px;" class="plan-material-select">
+      <option value="">教材指定なし</option>
+      <option value="atama_plus">💡 atama+</option><option value="edu_plus">📱 edu+</option>
+      <option value="manabi_aid">🎓 学びエイド</option><option value="monoxer">🧠 Monoxer</option>
+      <option value="ikushin">📝 育伸社テスト</option><option value="miyazaki_moshi">📋 宮崎模試</option>
+      <option value="paper_other">📄 その他紙教材</option>
+    </select>
     <input type="number" value="50" min="10" max="120" style="width:50px;padding:2px 4px;border:1px solid #d1d5db;border-radius:4px;font-size:12px;" class="plan-subject-min">分
     <button onclick="this.parentElement.remove()" style="background:none;border:none;color:#ef4444;cursor:pointer;font-size:16px;">×</button>`;
   container.appendChild(row);
@@ -2883,12 +3155,14 @@ function buildPlanPhases() {
   const phases = [];
   if (document.getElementById('planSpeedRead').checked) {
     const min = parseInt(document.getElementById('planSpeedReadMin').value) || 15;
-    phases.push({ type: 'speedReading', duration: min, status: 'pending' });
+    const srjMat = document.getElementById('planSpeedReadMaterial').value || null;
+    phases.push({ type: 'speedReading', duration: min, status: 'pending', material: srjMat });
   }
   document.querySelectorAll('.plan-subject-row').forEach(row => {
     const subject = row.querySelector('.plan-subject-select').value;
     const dur = parseInt(row.querySelector('.plan-subject-min').value) || 50;
-    phases.push({ type: 'study', subject, duration: dur, status: 'pending' });
+    const mat = row.querySelector('.plan-material-select') ? row.querySelector('.plan-material-select').value || null : null;
+    phases.push({ type: 'study', subject, duration: dur, status: 'pending', material: mat });
   });
   return phases;
 }
@@ -2955,8 +3229,11 @@ async function loadPlanStatus() {
           const done = plan.phases.filter(p => p.status === 'completed').length;
           const active = plan.phases.filter(p => p.status === 'active').length;
           planStatus = plan.phases.map(p => {
-            const icon = p.type === 'speedReading' ? '📚' : '📐';
-            return `${icon}${p.type === 'speedReading' ? '速読' : p.subject}`;
+            const matInfo = p.material ? getMaterialById(p.material) : null;
+            const icon = matInfo ? matInfo.icon : (p.type === 'speedReading' ? '📚' : '📐');
+            const label = p.type === 'speedReading' ? (matInfo ? matInfo.name.replace('SRJ','').trim() : '速読') : p.subject;
+            const matTag = (matInfo && p.type !== 'speedReading') ? `[${matInfo.name}]` : '';
+            return `${icon}${label}${matTag}`;
           }).join(' → ');
           progress = `${done}/${total}完了` + (active > 0 ? ' ⏳進行中' : '');
         }

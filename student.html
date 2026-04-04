@@ -952,7 +952,7 @@ body.theme-space {
     <!-- 速読中 -->
     <div id="briefingSpeedReading" style="display:none;background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:14px;padding:20px;text-align:center;">
       <div style="font-size:32px;margin-bottom:8px;">📚</div>
-      <div style="font-size:16px;font-weight:700;color:#78350f;margin-bottom:4px;">速読トレーニング中</div>
+      <div style="font-size:16px;font-weight:700;color:#78350f;margin-bottom:4px;" id="speedReadTitle">速読トレーニング中</div>
       <div style="font-size:28px;font-weight:900;color:#92400e;font-family:'Orbitron',monospace;" id="speedReadTimer">00:00</div>
       <div style="font-size:12px;color:#92400e;margin:8px 0;">専用アプリで速読を行ってください</div>
       <button onclick="completeSpeedReading()" style="margin-top:8px;padding:12px 32px;background:#92400e;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">
@@ -962,6 +962,9 @@ body.theme-space {
   </div>
 
   <!-- Space Map -->
+  <!-- 教材進捗カード -->
+  <div id="materialProgressCards" style="margin:0 16px 12px;display:none;"></div>
+
   <div id="homeSpaceMap" class="space-map">
     <div class="space-map-stars">. * . . * . * . .</div>
     <div class="space-map-station">
@@ -1302,7 +1305,7 @@ body.theme-space {
 // ============================================
 let currentStudent = null;
 let currentScreen = 'login';
-let studySession = { subject: null, location: null, method: null };
+let studySession = { subject: null, location: null, method: null, material: null, materialNote: null };
 let timerState = { running: false, elapsed: 0, interval: null, pomodoroCount: 0, pomodoroPhase: 'work', pomodoroTime: 0 };
 let conditionValues = { mood: 0, energy: 0, motivation: 0 };
 let rankingData = [];
@@ -1627,6 +1630,61 @@ async function loadHome() {
     const logs = await StudyLogsDB.getByStudent(s.id, 5);
     await loadMissionBriefing(s, station, boss, logs);
   } catch(e) { console.error('Briefing error:', e); }
+
+  // 教材進捗カード
+  try { await loadMaterialProgressCards(s); } catch(e) {}
+}
+
+async function loadMaterialProgressCards(student) {
+  const container = document.getElementById('materialProgressCards');
+  const mats = student.materials || [];
+  if (mats.length === 0) { container.style.display = 'none'; return; }
+
+  const cards = [];
+  for (const mid of mats) {
+    const mat = getMaterialById(mid);
+    if (!mat) continue;
+    const latest = await MaterialProgressDB.getLatest(student.id, mid);
+    if (!latest) {
+      cards.push(`<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;display:flex;align-items:center;gap:8px;">
+        <span style="font-size:18px;">${mat.icon}</span>
+        <div style="flex:1;"><div style="font-size:12px;font-weight:600;color:#2d3748;">${mat.name}</div>
+        <div style="font-size:11px;color:#94a3b8;">データなし</div></div></div>`);
+      continue;
+    }
+
+    // 固有指標表示
+    let metricsHtml = '';
+    if (mat.metrics && latest.metrics) {
+      metricsHtml = mat.metrics.map(m => {
+        const v = latest.metrics[m.key];
+        if (v == null) return '';
+        return `<span style="font-size:11px;background:#eef2ff;color:#4338ca;padding:1px 6px;border-radius:4px;">${m.label}: ${v}${m.unit}</span>`;
+      }).filter(Boolean).join(' ');
+    }
+
+    // 汎用指標
+    let genHtml = '';
+    if (latest.unit) genHtml += `<span style="font-size:11px;color:#64748b;">${latest.unit}</span> `;
+    if (latest.progress != null) genHtml += `<span style="font-size:11px;color:#059669;">進捗${latest.progress}%</span> `;
+    if (latest.accuracy != null) genHtml += `<span style="font-size:11px;color:#d97706;">正答率${latest.accuracy}%</span>`;
+
+    cards.push(`<div style="background:#fff;border:1px solid #e2e8f0;border-radius:10px;padding:10px 12px;">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:4px;">
+        <span style="font-size:18px;">${mat.icon}</span>
+        <div style="font-size:12px;font-weight:600;color:#2d3748;">${mat.name}</div>
+        <div style="font-size:10px;color:#94a3b8;margin-left:auto;">${latest.collectedAt || ''}</div>
+      </div>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">${metricsHtml}</div>
+      ${genHtml ? '<div style="margin-top:4px;">' + genHtml + '</div>' : ''}
+    </div>`);
+  }
+
+  if (cards.length > 0) {
+    container.style.display = 'block';
+    container.innerHTML = '<div style="font-size:13px;font-weight:700;color:#2d3748;margin-bottom:8px;">📦 教材進捗</div>'
+      + '<div style="display:flex;flex-direction:column;gap:8px;">' + cards.join('') + '</div>';
+  }
 }
 
 // ============================================
@@ -1695,7 +1753,9 @@ function renderBriefingPlan(student, station, boss, logs) {
   // フェーズ一覧を描画
   phasesEl.innerHTML = phases.map((p, i) => {
     const icon = p.type === 'speedReading' ? '📚' : '📐';
-    const label = p.type === 'speedReading' ? '速読トレーニング' : p.subject;
+    const matInfo = p.material ? getMaterialById(p.material) : null;
+    const label = p.type === 'speedReading' ? (matInfo ? matInfo.name : '速読トレーニング') : p.subject;
+    const matTag = (matInfo && p.type !== 'speedReading') ? ` <span style="font-size:10px;color:#667eea;">[${matInfo.name}]</span>` : '';
     const dur = p.duration ? `${p.duration}分` : '';
     let statusBadge = '';
     if (p.status === 'completed') statusBadge = '<span style="color:#059669;font-weight:700;">✅ 完了</span>';
@@ -1706,7 +1766,7 @@ function renderBriefingPlan(student, station, boss, logs) {
     return `<div style="display:flex;align-items:center;gap:10px;padding:8px 0;${i > 0 ? 'border-top:1px solid #f1f5f9;' : ''}">
       <span style="font-size:20px;">${icon}</span>
       <div style="flex:1;">
-        <div style="font-size:13px;font-weight:600;color:#2d3748;">${label}</div>
+        <div style="font-size:13px;font-weight:600;color:#2d3748;">${label}${matTag}</div>
         <div style="font-size:11px;color:#94a3b8;">${dur}</div>
       </div>
       ${statusBadge}
@@ -1755,6 +1815,11 @@ async function startSpeedReading() {
   currentPlan.phases[idx].status = 'active';
   speedReadStart = Date.now();
 
+  // SRJ教材名を表示
+  const srjMat = phases[idx].material ? getMaterialById(phases[idx].material) : null;
+  const srjName = srjMat ? srjMat.name : '速読トレーニング';
+  document.getElementById('speedReadTitle').textContent = srjName + '中';
+
   // タイマー表示
   document.getElementById('briefingPlan').style.display = 'none';
   document.getElementById('briefingSpeedReading').style.display = 'block';
@@ -1785,6 +1850,8 @@ async function completeSpeedReading() {
 
   // 速読分のポイント付与（1分=1ポイント）
   const points = duration;
+  const srjPhase = phases[idx >= 0 ? idx : 0] || {};
+  const srjMatInfo = srjPhase.material ? getMaterialById(srjPhase.material) : null;
   await StudyLogsDB.add({
     studentId: currentStudent.id,
     studentName: currentStudent.nickname || '',
@@ -1793,7 +1860,9 @@ async function completeSpeedReading() {
     points,
     location: '塾',
     method: 'normal',
-    pomodoroCount: 0
+    pomodoroCount: 0,
+    material: srjPhase.material || null,
+    materialName: srjMatInfo ? srjMatInfo.name : null
   });
   await StudentsDB.addPoints(currentStudent.id, points);
   currentStudent = await StudentsDB.getById(currentStudent.id);
@@ -1811,7 +1880,12 @@ async function startGuidedStudy(phaseIndex) {
   await DailyPlansDB.updatePhaseStatus(currentPlan.id, phaseIndex, 'active');
 
   // 学習モードをプリセットして直接遷移
-  studySession = { subject: phase.subject, location: '塾', method: null };
+  const matInfo = phase.material ? getMaterialById(phase.material) : null;
+  studySession = {
+    subject: phase.subject, location: '塾', method: null,
+    material: phase.material || null,
+    materialNote: matInfo ? matInfo.name : null
+  };
   navigate('studyMode');
 
   // 科目と場所をプリセット選択状態にする
@@ -2115,7 +2189,9 @@ async function stopStudy(save) {
       points: points,
       location: studySession.location,
       method: studySession.method,
-      pomodoroCount: timerState.pomodoroCount
+      pomodoroCount: timerState.pomodoroCount,
+      material: studySession.material || null,
+      materialName: studySession.materialNote || null
     });
 
     // Add points to student

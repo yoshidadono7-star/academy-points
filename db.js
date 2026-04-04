@@ -77,6 +77,9 @@ const StudyLogsDB = {
       location: data.location || '塾', // 塾/自宅/Zoom
       method: data.method || 'normal', // normal/pomodoro
       pomodoroCount: data.pomodoroCount || 0,
+      material: data.material || null,
+      materialName: data.materialName || null,
+      materialNote: data.materialNote || null,
       date: data.date || new Date().toISOString().split('T')[0],
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -2070,6 +2073,114 @@ function translateStoryText(worldId, baseText) {
 function getWorldTheme(worldId) {
   return WORLD_THEMES[worldId] || WORLD_THEMES['space']; // デフォルトは宇宙
 }
+
+// ===== 教材マスタ (Materials) =====
+const MATERIALS = {
+  srj: [
+    { id: 'srj_sokudoku', name: 'SRJ速読速解力講座', icon: '📚', phase: 'speedReading',
+      metrics: [
+        { key: 'readingSpeed', label: '読書速度', unit: '文字/分', type: 'number' },
+        { key: 'comprehension', label: '短文理解度', unit: '/10問', type: 'number', max: 10 }
+      ]},
+    { id: 'srj_eigo', name: 'SRJ速読聴英語講座', icon: '🔤', phase: 'speedReading',
+      metrics: [
+        { key: 'wpm', label: 'WPM', unit: '語/分', type: 'number' },
+        { key: 'listeningPlays', label: 'リスニング再生回数', unit: '回', type: 'number' }
+      ]},
+    { id: 'srj_sansu', name: 'SRJ算数的思考力', icon: '🔢', phase: 'speedReading',
+      metrics: [
+        { key: 'calcAccuracy', label: '計算正答率', unit: '%', type: 'number', max: 100 },
+        { key: 'thinkingAccuracy', label: '思考力問題正答率', unit: '%', type: 'number', max: 100 }
+      ]},
+    { id: 'srj_kokugo', name: 'SRJ新国語講座', icon: '📕', phase: 'speedReading',
+      metrics: [
+        { key: 'monthlyTestScore', label: '月次確認テスト正答率', unit: '/11問', type: 'number', max: 11 },
+        { key: 'weakCategory', label: '弱点カテゴリ', unit: '', type: 'select',
+          options: ['係り受け','指示語・照応','同義文','推理・推論','図表の読解','定義と具体例'] }
+      ]},
+  ],
+  digital: [
+    { id: 'atama_plus',  name: 'atama+',    icon: '💡', subjects: true },
+    { id: 'edu_plus',    name: 'edu+',      icon: '📱', subjects: true },
+    { id: 'manabi_aid',  name: '学びエイド', icon: '🎓', subjects: true },
+    { id: 'monoxer',     name: 'Monoxer',   icon: '🧠' },
+  ],
+  test: [
+    { id: 'ikushin',        name: '育伸社学力テスト', icon: '📝' },
+    { id: 'miyazaki_moshi', name: '宮崎県統一模試',   icon: '📋' },
+  ],
+  paper: [
+    { id: 'paper_other', name: 'その他紙教材', icon: '📄', freeText: true },
+  ]
+};
+
+function getMaterialById(id) {
+  for (const cat of Object.values(MATERIALS)) {
+    const found = cat.find(m => m.id === id);
+    if (found) return found;
+  }
+  return null;
+}
+
+function getAllMaterials() {
+  return Object.entries(MATERIALS).flatMap(([cat, items]) =>
+    items.map(m => ({ ...m, category: cat }))
+  );
+}
+
+// ===== 教材進捗管理 (Material Progress) =====
+const MaterialProgressDB = {
+  async add(data) {
+    const record = {
+      studentId: data.studentId,
+      materialId: data.materialId,
+      subject: data.subject || null,
+      unit: data.unit || null,
+      progress: data.progress != null ? data.progress : null,
+      accuracy: data.accuracy != null ? data.accuracy : null,
+      metrics: data.metrics || {},
+      memo: data.memo || null,
+      collectedBy: data.collectedBy || 'teacher',
+      collectedAt: data.collectedAt || getToday(),
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    const ref = await db.collection('materialProgress').add(record);
+    return ref.id;
+  },
+  async getByStudent(studentId, limit) {
+    let q = db.collection('materialProgress')
+      .where('studentId', '==', studentId)
+      .orderBy('createdAt', 'desc');
+    if (limit) q = q.limit(limit);
+    const snap = await q.get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getLatest(studentId, materialId) {
+    const snap = await db.collection('materialProgress')
+      .where('studentId', '==', studentId)
+      .where('materialId', '==', materialId)
+      .orderBy('createdAt', 'desc')
+      .limit(1).get();
+    return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
+  },
+  async getByStudentAndMaterial(studentId, materialId, limit) {
+    let q = db.collection('materialProgress')
+      .where('studentId', '==', studentId)
+      .where('materialId', '==', materialId)
+      .orderBy('createdAt', 'desc');
+    if (limit) q = q.limit(limit);
+    const snap = await q.get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async addBulk(records) {
+    const results = [];
+    for (const r of records) {
+      const id = await this.add(r);
+      results.push({ studentId: r.studentId, id });
+    }
+    return results;
+  }
+};
 
 // 次元シフト（世界観変更）の可否判定
 // 年4回: 7月上旬, 9月上旬, 11月下旬, 1月下旬
