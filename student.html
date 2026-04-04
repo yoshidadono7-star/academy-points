@@ -552,10 +552,191 @@ body {
   to { top: 110vh; transform: rotate(720deg) translateX(100px); opacity: 0; }
 }
 
+/* ===== Space Map (Home) ===== */
+.space-map {
+  margin: 16px 16px 0;
+  background: linear-gradient(135deg, #0f0c29, #302b63, #24243e);
+  border-radius: var(--radius);
+  padding: 20px 16px;
+  color: white;
+  position: relative;
+  overflow: hidden;
+}
+.space-map::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: radial-gradient(circle at 20% 30%, rgba(102,126,234,0.15) 0%, transparent 50%),
+              radial-gradient(circle at 80% 70%, rgba(118,75,162,0.15) 0%, transparent 50%);
+}
+.space-map-station {
+  position: relative;
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 12px;
+}
+.space-map-icon { font-size: 36px; flex-shrink: 0; }
+.space-map-info { flex: 1; }
+.space-map-name { font-size: 16px; font-weight: 700; }
+.space-map-desc { font-size: 11px; opacity: 0.7; margin-top: 2px; }
+.space-map-progress {
+  position: relative;
+  background: rgba(255,255,255,0.15);
+  height: 10px; border-radius: 5px;
+  overflow: hidden; margin-top: 8px;
+}
+.space-map-progress-fill {
+  height: 100%; border-radius: 5px;
+  background: linear-gradient(90deg, #667eea, #764ba2, #ffd700);
+  transition: width 0.8s ease;
+}
+.space-map-next {
+  position: relative;
+  font-size: 11px; opacity: 0.7; margin-top: 4px;
+  text-align: right;
+}
+.space-map-stars {
+  position: absolute; top: 8px; right: 12px;
+  font-size: 10px; opacity: 0.4;
+  letter-spacing: 3px;
+}
+
+/* ===== Daily Mission Cards ===== */
+.mission-section {
+  margin: 16px 16px 0;
+}
+.mission-section-title {
+  font-size: 16px; font-weight: 700; margin-bottom: 10px;
+  display: flex; align-items: center; gap: 6px;
+}
+.mission-cards {
+  display: flex; gap: 8px; overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 4px;
+  scroll-snap-type: x mandatory;
+}
+.mission-card {
+  flex: 0 0 calc(100% / 3 - 6px);
+  min-width: 110px;
+  background: white; border-radius: var(--radius);
+  padding: 14px 10px; text-align: center;
+  box-shadow: var(--shadow); cursor: pointer;
+  transition: all 0.2s; border: 2px solid transparent;
+  scroll-snap-align: start;
+}
+.mission-card:active { transform: scale(0.96); }
+.mission-card.selected { border-color: var(--primary); background: var(--gradient-light); }
+.mission-card.completed { border-color: var(--success); opacity: 0.7; }
+.mission-card-icon { font-size: 28px; margin-bottom: 4px; }
+.mission-card-name { font-size: 11px; font-weight: 600; line-height: 1.3; }
+.mission-card-rarity {
+  font-size: 9px; margin-top: 4px; padding: 2px 8px;
+  border-radius: 8px; display: inline-block; font-weight: 600;
+}
+.rarity-common { background: #e2e8f0; color: #4a5568; }
+.rarity-uncommon { background: #c6f6d5; color: #276749; }
+.rarity-rare { background: #bee3f8; color: #2a69ac; }
+.rarity-epic { background: #e9d8fd; color: #6b46c1; }
+.rarity-legendary { background: linear-gradient(135deg, #ffd700, #ff8c00); color: #7c2d12; }
+.mission-card-pts {
+  font-size: 12px; font-weight: 700; color: var(--primary); margin-top: 6px;
+}
+.mission-accepted-banner {
+  background: var(--gradient-light); border-radius: var(--radius);
+  padding: 12px 16px; margin-top: 10px;
+  display: flex; align-items: center; gap: 10px;
+}
+.mission-accepted-info { flex: 1; }
+.mission-accepted-name { font-size: 13px; font-weight: 700; }
+.mission-accepted-desc { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+
+/* ===== Combo Encyclopedia ===== */
+.combo-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 10px; margin: 0 16px;
+}
+.combo-item {
+  background: white; border-radius: var(--radius);
+  padding: 14px 12px; box-shadow: var(--shadow);
+  text-align: center;
+}
+.combo-item.locked {
+  opacity: 0.35; filter: grayscale(1);
+}
+.combo-item.hidden-combo { border: 2px dashed #e2e8f0; }
+.combo-icon { font-size: 32px; margin-bottom: 4px; }
+.combo-name { font-size: 13px; font-weight: 700; }
+.combo-desc { font-size: 10px; color: var(--text-light); margin-top: 2px; line-height: 1.3; }
+.combo-reward { font-size: 11px; color: var(--primary); font-weight: 600; margin-top: 4px; }
+.combo-count { text-align: center; padding: 12px; color: var(--text-light); font-size: 14px; font-weight: 600; }
+.combo-trigger-count { font-size: 10px; color: var(--success); margin-top: 2px; }
+
+/* ===== Complete Screen Combo/Boss ===== */
+.combo-notification {
+  background: linear-gradient(135deg, #f6d365, #fda085);
+  color: #7c2d12; border-radius: var(--radius);
+  padding: 16px; margin: 12px 16px;
+  animation: slideUp 0.5s ease;
+}
+.combo-first-discovery {
+  font-size: 10px; background: rgba(255,255,255,0.6);
+  padding: 2px 8px; border-radius: 8px; display: inline-block;
+  margin-bottom: 4px; font-weight: 700;
+}
+.boss-damage-detail {
+  font-size: 12px; opacity: 0.85; margin-top: 6px; line-height: 1.5;
+}
+
+/* ===== Boss Weakness/Resistance ===== */
+.raid-attributes {
+  display: flex; gap: 8px; justify-content: center;
+  margin-top: 10px; position: relative;
+}
+.raid-attr {
+  padding: 4px 12px; border-radius: 16px; font-size: 12px; font-weight: 600;
+}
+.raid-attr-weak { background: rgba(252,92,125,0.3); color: #fca5a5; }
+.raid-attr-resist { background: rgba(99,179,237,0.3); color: #93c5fd; }
+.raid-special {
+  text-align: center; font-size: 11px; opacity: 0.7;
+  margin-top: 6px; position: relative; font-style: italic;
+}
+
+/* ===== Theme Variables (6 worlds) ===== */
+body.theme-legend {
+  --primary: #dc2626; --primary-dark: #991b1b;
+  --gradient: linear-gradient(135deg, #dc2626 0%, #991b1b 100%);
+  --gradient-light: linear-gradient(135deg, #dc262633 0%, #991b1b33 100%);
+}
+body.theme-tactical {
+  --primary: #059669; --primary-dark: #064e3b;
+  --gradient: linear-gradient(135deg, #059669 0%, #064e3b 100%);
+  --gradient-light: linear-gradient(135deg, #05966933 0%, #064e3b33 100%);
+}
+body.theme-heroine {
+  --primary: #db2777; --primary-dark: #9d174d;
+  --gradient: linear-gradient(135deg, #db2777 0%, #9d174d 100%);
+  --gradient-light: linear-gradient(135deg, #db277733 0%, #9d174d33 100%);
+}
+body.theme-academia {
+  --primary: #7c3aed; --primary-dark: #4c1d95;
+  --gradient: linear-gradient(135deg, #7c3aed 0%, #4c1d95 100%);
+  --gradient-light: linear-gradient(135deg, #7c3aed33 0%, #4c1d9533 100%);
+}
+body.theme-cozy {
+  --primary: #16a34a; --primary-dark: #166534;
+  --gradient: linear-gradient(135deg, #16a34a 0%, #166534 100%);
+  --gradient-light: linear-gradient(135deg, #16a34a33 0%, #16653433 100%);
+}
+body.theme-space {
+  --primary: #667eea; --primary-dark: #764ba2;
+  --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --gradient-light: linear-gradient(135deg, #667eea33 0%, #764ba233 100%);
+}
+
 /* ===== Responsive ===== */
 @media (min-width: 480px) {
   .badge-grid { grid-template-columns: repeat(4, 1fr); }
   .quick-actions { grid-template-columns: 1fr 1fr 1fr; max-width: 480px; margin: 0 auto; padding-top: 24px; }
+  .mission-card { flex: 0 0 calc(100% / 3 - 6px); }
 }
 @media (min-width: 768px) {
   body { max-width: 480px; margin: 0 auto; }
@@ -634,6 +815,29 @@ body {
       <div class="home-level-fill" id="homeLevelFill" style="width:0%"></div>
     </div>
     <div class="home-level-text" id="homeLevelText"></div>
+  </div>
+
+  <!-- Space Map -->
+  <div id="homeSpaceMap" class="space-map">
+    <div class="space-map-stars">. * . . * . * . .</div>
+    <div class="space-map-station">
+      <div class="space-map-icon" id="spaceMapIcon">🌍</div>
+      <div class="space-map-info">
+        <div class="space-map-name" id="spaceMapName">地球</div>
+        <div class="space-map-desc" id="spaceMapDesc">旅の始まり</div>
+      </div>
+    </div>
+    <div class="space-map-progress">
+      <div class="space-map-progress-fill" id="spaceMapFill" style="width:0%"></div>
+    </div>
+    <div class="space-map-next" id="spaceMapNext"></div>
+  </div>
+
+  <!-- Daily Missions -->
+  <div id="homeMissionSection" class="mission-section" style="display:none">
+    <div class="mission-section-title">🎯 今日のミッション</div>
+    <div id="homeMissionCards" class="mission-cards"></div>
+    <div id="homeMissionAccepted" style="display:none"></div>
   </div>
 
   <div class="quick-actions">
@@ -817,8 +1021,10 @@ body {
         <div class="complete-stat-lbl">累計ポイント</div>
       </div>
     </div>
+    <div id="completeCombos"></div>
     <div id="completeBadges"></div>
     <div id="completeRaid"></div>
+    <div id="completeMission" style="display:none"></div>
     <div style="padding:0 16px 20px;">
       <button class="btn btn-primary btn-block btn-lg" onclick="navigate('home')">ホームに戻る</button>
     </div>
@@ -906,6 +1112,17 @@ body {
   <div id="raidBossContent"></div>
 </div>
 
+<!-- ========== Combo Encyclopedia ========== -->
+<div id="screenCombo" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="navigate('home')">←</button>
+    <div class="header-title">コンボ図鑑</div>
+    <div></div>
+  </div>
+  <div class="combo-count" id="comboCount">0 / 0 発見</div>
+  <div id="comboGrid" class="combo-grid"></div>
+</div>
+
 <!-- ========== Bottom Navigation ========== -->
 <nav id="bottomNav" class="bottom-nav" style="display:none;">
   <button class="nav-item active" onclick="navTo('home')">
@@ -946,6 +1163,7 @@ let timerState = { running: false, elapsed: 0, interval: null, pomodoroCount: 0,
 let conditionValues = { mood: 0, energy: 0, motivation: 0 };
 let rankingData = [];
 let profileMenuOpen = false;
+let currentMissionDraw = null; // Daily mission draw cache
 
 // Subject icon map
 const SUBJECT_ICONS = { '国語': '📕', '数学': '📐', '英語': '🔤', '理科': '🔬', '社会': '🌍', 'その他': '📝' };
@@ -984,6 +1202,7 @@ function navigate(screen) {
     case 'messages': loadMessages(); break;
     case 'guild': loadGuild(); break;
     case 'raidBoss': loadRaidBoss(); break;
+    case 'combo': loadComboEncyclopedia(); break;
   }
 }
 
@@ -1007,6 +1226,7 @@ function showProfileMenu() {
   showModal('👤', 'マイページ', currentStudent ? currentStudent.name : '', `
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('history')" style="margin-bottom:8px">📊 学習履歴</button>
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('badges')" style="margin-bottom:8px">🏅 バッジ</button>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('combo')" style="margin-bottom:8px">🔥 コンボ図鑑</button>
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('guild')" style="margin-bottom:8px">⚔️ ギルド</button>
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('condition')" style="margin-bottom:8px">😊 コンディション</button>
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('messages')" style="margin-bottom:8px">💬 メッセージ</button>
@@ -1130,6 +1350,31 @@ async function loadHome() {
   const progress = Math.min(100, ((pts - currentThreshold) / (nextThreshold - currentThreshold)) * 100);
   document.getElementById('homeLevelFill').style.width = progress + '%';
   document.getElementById('homeLevelText').textContent = `Lv.${level} → Lv.${level + 1} まであと ${Math.max(0, nextThreshold - pts)} ポイント`;
+
+  // Apply world theme
+  applyWorldTheme(s.worldId || 'space');
+
+  // Space Map
+  try {
+    const station = SpaceMapDB.getStation(pts);
+    const prog = SpaceMapDB.getStationProgress(pts);
+    document.getElementById('spaceMapIcon').textContent = station.icon;
+    document.getElementById('spaceMapName').textContent = station.name;
+    document.getElementById('spaceMapDesc').textContent = station.desc;
+    document.getElementById('spaceMapFill').style.width = prog.percent + '%';
+    if (prog.next) {
+      document.getElementById('spaceMapNext').textContent = `→ ${prog.next.icon} ${prog.next.name} まであと ${prog.remaining} pt`;
+    } else {
+      document.getElementById('spaceMapNext').textContent = '最終ステーション到達！';
+    }
+  } catch(e) { console.error('SpaceMap error:', e); }
+
+  // Daily Missions
+  try {
+    const draw = await DailyMissionsDB.draw(s.id);
+    currentMissionDraw = draw;
+    renderDailyMissions(draw);
+  } catch(e) { console.error('Mission error:', e); }
 
   // Recent logs
   try {
@@ -1331,7 +1576,7 @@ async function selectLocationZoom(btn) {
 function startStudy() {
   if (!studySession.subject || !studySession.location || !studySession.method) return;
 
-  timerState = { running: false, elapsed: 0, interval: null, pomodoroCount: 0, pomodoroPhase: 'work', pomodoroTime: 25 * 60 };
+  timerState = { running: false, elapsed: 0, interval: null, pomodoroCount: 0, pomodoroPhase: 'work', pomodoroTime: 25 * 60, startHour: new Date().getHours() };
 
   const badge = document.getElementById('timerSubjectBadge');
   const zoomTag = studySession.location === 'Zoom' ? ' <span style="background:#2D8CFF;color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:4px;">🎥 Zoom授業中</span>' : '';
@@ -1471,21 +1716,64 @@ async function stopStudy(save) {
       } catch(e) {}
     }
 
-    // Raid boss damage
+    // Combo check
+    let comboResults = [];
+    try {
+      comboResults = await ComboDB.checkAll(currentStudent.id, {
+        subject: studySession.subject,
+        duration: duration,
+        location: studySession.location,
+        method: studySession.method,
+        pomodoroCount: timerState.pomodoroCount,
+        startHour: timerState.startHour || new Date().getHours()
+      });
+      // Award combo points
+      for (const combo of comboResults) {
+        if (combo.reward && combo.reward.points) {
+          await StudentsDB.addPoints(currentStudent.id, combo.reward.points);
+          points += combo.reward.points;
+        }
+      }
+    } catch(e) { console.error('Combo error:', e); }
+
+    // Supporter buff
+    let supporterBuff = 1.0;
+    try {
+      if (currentStudent.role === 'student') {
+        supporterBuff = await SupportFleetDB.calculateBuff();
+      }
+    } catch(e) {}
+
+    // Raid boss damage (with new calculateBossDamage)
     let raidResults = [];
     try {
       const activeBosses = await RaidBossDB.getActive();
+      const session = {
+        duration: duration,
+        subject: studySession.subject,
+        pomodoroCount: timerState.pomodoroCount,
+        _supporterBuff: supporterBuff
+      };
       for (const boss of activeBosses) {
-        const result = await RaidBossDB.damage(boss.id, currentStudent.id, currentStudent.name, points);
+        const damage = calculateBossDamage(session, boss, comboResults);
+        const result = await RaidBossDB.damage(boss.id, currentStudent.id, currentStudent.name, damage);
         if (result) {
-          raidResults.push({ ...result, bossName: boss.name, bossIcon: boss.icon });
+          raidResults.push({
+            ...result,
+            bossName: boss.name,
+            bossIcon: boss.icon,
+            damage: damage,
+            weakness: boss.weakness,
+            resistance: boss.resistance,
+            specialAbility: boss.specialAbility
+          });
           if (result.defeated) {
             await StudentsDB.addPoints(currentStudent.id, result.reward);
             await BadgesDB.award(currentStudent.id, 'raid_killer');
           }
         }
       }
-    } catch(e) {}
+    } catch(e) { console.error('Raid error:', e); }
 
     // Check badges
     let newBadges = [];
@@ -1504,11 +1792,32 @@ async function stopStudy(save) {
       newBadges = await BadgesDB.checkAndAward(currentStudent.id, stats);
     } catch(e) {}
 
+    // Check daily mission completion
+    let missionResult = null;
+    try {
+      missionResult = await DailyMissionsDB.checkCompletion(currentStudent.id);
+    } catch(e) { console.error('Mission check error:', e); }
+
+    // Hidden area check
+    try {
+      const comboDiscoveries = await ComboDB.getDiscoveries(currentStudent.id);
+      const allLogs = await StudyLogsDB.getByStudent(currentStudent.id, 500);
+      const hiddenStats = {
+        comboDiscoveryCount: comboDiscoveries.length,
+        bestStreak: currentStudent.bestStreak || 0,
+        allTimeSubjectCount: new Set(allLogs.map(l => l.subject)).size,
+        totalPomodoros: allLogs.reduce((s, l) => s + (l.pomodoroCount || 0), 0),
+        legendaryMissionCleared: 0, // TODO: track from mission history
+        raidBossKills: 0 // TODO: track from raid history
+      };
+      await SpaceMapDB.checkAndUnlock(currentStudent.id, hiddenStats);
+    } catch(e) {}
+
     // Refresh student again after possible raid rewards
     currentStudent = await StudentsDB.getById(currentStudent.id);
 
     // Show complete screen
-    showCompleteScreen(duration, points, newBadges, raidResults);
+    showCompleteScreen(duration, points, newBadges, raidResults, comboResults, missionResult);
   } catch(e) {
     console.error(e);
     showToast('記録に失敗しました');
@@ -1544,7 +1853,8 @@ async function updateStreak() {
   } catch(e) { console.error(e); }
 }
 
-function showCompleteScreen(duration, points, newBadges, raidResults) {
+function showCompleteScreen(duration, points, newBadges, raidResults, comboResults, missionResult) {
+  comboResults = comboResults || [];
   document.getElementById('completePoints').textContent = `+${points}`;
   document.getElementById('completeDuration').textContent = `${duration}分`;
   document.getElementById('completeSubject').textContent = studySession.subject;
@@ -1559,6 +1869,24 @@ function showCompleteScreen(duration, points, newBadges, raidResults) {
   } else {
     pomoEl.style.display = 'none';
     pomoLabel.style.display = 'none';
+  }
+
+  // Combos
+  const comboEl = document.getElementById('completeCombos');
+  if (comboResults.length > 0) {
+    comboEl.innerHTML = comboResults.map(c => `
+      <div class="combo-notification">
+        ${c.isFirstDiscovery ? '<div class="combo-first-discovery">NEW! 初発見！</div>' : ''}
+        <div style="font-size:13px;opacity:0.9">🔥 コンボ発動！</div>
+        <div style="font-size:28px;margin:6px 0">${c.icon}</div>
+        <div style="font-weight:700">${c.name}</div>
+        <div style="font-size:12px;opacity:0.85">${c.desc}</div>
+        ${c.reward && c.reward.points ? `<div style="font-weight:700;margin-top:4px">+${c.reward.points} ボーナスポイント</div>` : ''}
+        ${c.reward && c.reward.type === 'boss_multiplier' ? `<div style="font-weight:700;margin-top:4px">ボスダメージ ${c.reward.value}倍！</div>` : ''}
+      </div>
+    `).join('');
+  } else {
+    comboEl.innerHTML = '';
   }
 
   // Badges
@@ -1577,19 +1905,46 @@ function showCompleteScreen(duration, points, newBadges, raidResults) {
     badgesEl.innerHTML = '';
   }
 
-  // Raid
+  // Raid (with detailed damage breakdown)
   const raidEl = document.getElementById('completeRaid');
   if (raidResults.length > 0) {
-    raidEl.innerHTML = raidResults.map(r => `
-      <div class="raid-notification">
-        <div style="font-size:13px;opacity:0.9">⚔️ レイドボスにダメージ！</div>
-        <div style="font-size:24px;margin:6px 0">${r.bossIcon || '👹'} ${r.bossName || 'ボス'}</div>
-        <div style="font-weight:700">${points}ダメージ</div>
-        ${r.defeated ? '<div style="color:#ffd700;font-weight:700;margin-top:4px">🎉 討伐成功！ +' + r.reward + 'ポイント ボーナス！</div>' : ''}
-      </div>
-    `).join('');
+    raidEl.innerHTML = raidResults.map(r => {
+      let details = [];
+      if (r.weakness === studySession.subject) details.push('弱点属性 x2.0');
+      if (r.resistance === studySession.subject) details.push('耐性属性 x0.5');
+      if (r._supporterBuff > 1.0) details.push(`サポート艦隊 x${r._supporterBuff.toFixed(1)}`);
+      return `
+        <div class="raid-notification">
+          <div style="font-size:13px;opacity:0.9">⚔️ レイドボスにダメージ！</div>
+          <div style="font-size:24px;margin:6px 0">${r.bossIcon || '👹'} ${r.bossName || 'ボス'}</div>
+          <div style="font-weight:700">${r.damage || points}ダメージ</div>
+          ${details.length > 0 ? `<div class="boss-damage-detail">${details.join(' / ')}</div>` : ''}
+          ${r.defeated ? '<div style="color:#ffd700;font-weight:700;margin-top:4px">🎉 討伐成功！ +' + r.reward + 'ポイント ボーナス！</div>' : ''}
+        </div>
+      `;
+    }).join('');
   } else {
     raidEl.innerHTML = '';
+  }
+
+  // Mission completion
+  const missionEl = document.getElementById('completeMission');
+  if (missionResult && missionResult.completed) {
+    const mDef = DailyMissionsDB.getMissionDef(missionResult.accepted);
+    if (mDef) {
+      missionEl.style.display = 'block';
+      missionEl.innerHTML = `
+        <div class="badge-notification" style="background:linear-gradient(135deg,#48bb78,#38a169)">
+          <div style="font-size:13px;opacity:0.9">🎯 ミッション達成！</div>
+          <div style="font-size:28px;margin:6px 0">${mDef.icon}</div>
+          <div style="font-weight:700">${mDef.name}</div>
+          <div style="font-weight:700;margin-top:4px">+${mDef.points} ポイント</div>
+        </div>
+      `;
+    }
+  } else {
+    missionEl.style.display = 'none';
+    missionEl.innerHTML = '';
   }
 
   navigate('complete');
@@ -1942,6 +2297,13 @@ async function loadRaidBoss() {
         <div class="raid-card">
           <div class="raid-boss-icon">${boss.icon || '👹'}</div>
           <div class="raid-boss-name">${boss.name}</div>
+          ${!defeated && (boss.weakness || boss.resistance) ? `
+            <div class="raid-attributes">
+              ${boss.weakness ? `<span class="raid-attr raid-attr-weak">弱点: ${SUBJECT_ICONS[boss.weakness] || ''} ${boss.weakness}</span>` : ''}
+              ${boss.resistance ? `<span class="raid-attr raid-attr-resist">耐性: ${SUBJECT_ICONS[boss.resistance] || ''} ${boss.resistance}</span>` : ''}
+            </div>
+          ` : ''}
+          ${!defeated && boss.specialAbility ? `<div class="raid-special">特殊能力: ${boss.specialAbility.name || boss.specialAbility.type}</div>` : ''}
           <div class="raid-hp-bar">
             <div class="raid-hp-fill" style="width:${hpPercent}%;${defeated ? 'background:#48bb78' : ''}"></div>
           </div>
@@ -2101,6 +2463,156 @@ async function setupPushNotifications(studentId) {
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('sw.js').catch(e => console.log('SW registration failed:', e));
+}
+
+// ============================================
+// World Theme
+// ============================================
+function applyWorldTheme(worldId) {
+  const themes = ['legend', 'tactical', 'heroine', 'academia', 'cozy', 'space'];
+  document.body.classList.remove(...themes.map(t => 'theme-' + t));
+  if (worldId && themes.includes(worldId)) {
+    document.body.classList.add('theme-' + worldId);
+  }
+  // Update meta theme-color
+  const theme = typeof getWorldTheme === 'function' ? getWorldTheme(worldId) : null;
+  if (theme) {
+    const meta = document.querySelector('meta[name="theme-color"]');
+    if (meta) meta.setAttribute('content', theme.colorPrimary || '#667eea');
+  }
+}
+
+// ============================================
+// Daily Missions
+// ============================================
+function renderDailyMissions(draw) {
+  const section = document.getElementById('homeMissionSection');
+  const cardsEl = document.getElementById('homeMissionCards');
+  const acceptedEl = document.getElementById('homeMissionAccepted');
+
+  if (!draw || !draw.missions || draw.missions.length === 0) {
+    section.style.display = 'none';
+    return;
+  }
+  section.style.display = 'block';
+
+  // If already accepted, show accepted banner
+  if (draw.accepted) {
+    const mDef = DailyMissionsDB.getMissionDef(draw.accepted);
+    cardsEl.style.display = 'none';
+    acceptedEl.style.display = 'block';
+    if (mDef) {
+      const isComplete = draw.completed;
+      acceptedEl.innerHTML = `
+        <div class="mission-accepted-banner" style="${isComplete ? 'border:2px solid var(--success)' : ''}">
+          <div style="font-size:28px">${mDef.icon}</div>
+          <div class="mission-accepted-info">
+            <div class="mission-accepted-name">${isComplete ? '✅ ' : ''}${mDef.name}</div>
+            <div class="mission-accepted-desc">${mDef.desc}</div>
+          </div>
+          <div style="font-weight:700;color:var(--primary)">${isComplete ? '達成！' : `+${mDef.points}pt`}</div>
+        </div>
+        ${!isComplete && mDef.checkType === 'manual' ? `<button class="btn btn-success btn-sm" onclick="manualCompleteMission('${draw.id}')" style="margin-top:8px;width:100%">手動で達成報告</button>` : ''}
+      `;
+    }
+    return;
+  }
+
+  // Show 3 mission cards to choose from
+  cardsEl.style.display = 'flex';
+  acceptedEl.style.display = 'none';
+  cardsEl.innerHTML = draw.missions.map(m => {
+    const mDef = DailyMissionsDB.getMissionDef(m.missionId);
+    if (!mDef) return '';
+    const isHidden = mDef.hidden;
+    return `
+      <div class="mission-card" onclick="acceptMission('${draw.id}','${m.missionId}')">
+        <div class="mission-card-icon">${isHidden ? '❓' : mDef.icon}</div>
+        <div class="mission-card-name">${isHidden ? '???' : mDef.name}</div>
+        <div class="mission-card-rarity rarity-${m.rarity}">${m.rarity.toUpperCase()}</div>
+        <div class="mission-card-pts">${isHidden ? '???' : `+${mDef.points}pt`}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function acceptMission(drawId, missionId) {
+  const mDef = DailyMissionsDB.getMissionDef(missionId);
+  const name = mDef ? mDef.name : missionId;
+  showModal('🎯', 'ミッション受注', `「${name}」を今日のミッションにしますか？`, `
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" onclick="closeModal();doAcceptMission('${drawId}','${missionId}')">受注する！</button>
+  `, true);
+}
+
+async function doAcceptMission(drawId, missionId) {
+  try {
+    await DailyMissionsDB.accept(drawId, missionId);
+    const draw = await DailyMissionsDB.draw(currentStudent.id);
+    currentMissionDraw = draw;
+    renderDailyMissions(draw);
+    showToast('ミッションを受注しました！');
+  } catch(e) {
+    console.error(e);
+    showToast('受注に失敗しました');
+  }
+}
+
+async function manualCompleteMission(drawId) {
+  showModal('🎯', 'ミッション達成', 'このミッションを達成報告しますか？', `
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-success" onclick="closeModal();doManualComplete('${drawId}')">達成！</button>
+  `, true);
+}
+
+async function doManualComplete(drawId) {
+  try {
+    await DailyMissionsDB.manualComplete(drawId);
+    currentStudent = await StudentsDB.getById(currentStudent.id);
+    const draw = await DailyMissionsDB.draw(currentStudent.id);
+    currentMissionDraw = draw;
+    renderDailyMissions(draw);
+    showToast('ミッション達成！ポイント獲得！');
+  } catch(e) {
+    console.error(e);
+    showToast('達成報告に失敗しました');
+  }
+}
+
+// ============================================
+// Combo Encyclopedia
+// ============================================
+async function loadComboEncyclopedia() {
+  showLoading();
+  try {
+    const discoveries = await ComboDB.getDiscoveries(currentStudent.id);
+    const discoveredIds = new Set(discoveries.map(d => d.comboId));
+    const discoveryMap = {};
+    discoveries.forEach(d => discoveryMap[d.comboId] = d);
+
+    const total = COMBO_DEFINITIONS.length;
+    const found = discoveredIds.size;
+    document.getElementById('comboCount').textContent = `${found} / ${total} 発見`;
+
+    const container = document.getElementById('comboGrid');
+    container.innerHTML = COMBO_DEFINITIONS.map(c => {
+      const unlocked = discoveredIds.has(c.id);
+      const disc = discoveryMap[c.id];
+      return `
+        <div class="combo-item ${unlocked ? '' : 'locked'} ${c.hidden ? 'hidden-combo' : ''}">
+          <div class="combo-icon">${unlocked ? c.icon : (c.hidden ? '❓' : c.icon)}</div>
+          <div class="combo-name">${unlocked ? c.name : (c.hidden ? '???' : c.name)}</div>
+          <div class="combo-desc">${unlocked ? c.desc : (c.hidden ? '隠しコンボ' : '未発見')}</div>
+          ${unlocked && c.reward && c.reward.points ? `<div class="combo-reward">+${c.reward.points}pt</div>` : ''}
+          ${unlocked && disc ? `<div class="combo-trigger-count">${disc.triggerCount || 1}回発動</div>` : ''}
+        </div>
+      `;
+    }).join('');
+  } catch(e) {
+    console.error(e);
+    showToast('コンボ図鑑の読み込みに失敗しました');
+  }
+  hideLoading();
 }
 
 // ============================================
