@@ -1239,7 +1239,8 @@ async function renderBossPanel() {
     }).join('');
   } catch(e) {
     console.error('Boss error:', e);
-    container.innerHTML = '<div style="color:var(--accent-red);font-size:11px">読込エラー</div>';
+    // インデックス未作成やボスなしの場合は「待機中」と表示
+    container.innerHTML = '<div style="text-align:center;color:var(--text-secondary);font-size:12px;padding:20px">🛸 待機中</div>';
   }
 }
 
