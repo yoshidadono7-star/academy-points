@@ -364,24 +364,28 @@ async function showPortal() {
   document.getElementById('loadingMsg').style.display = 'block';
   document.getElementById('portalContent').style.display = 'none';
 
-  const s = currentStudent;
-  document.getElementById('headerStudentName').textContent = `${s.nickname}さんの学習状況`;
-  document.getElementById('portalNickname').textContent = s.nickname;
-  document.getElementById('portalGrade').textContent = s.grade || '';
-  document.getElementById('portalSchool').textContent = s.school || '';
+  try {
+    const s = currentStudent;
+    document.getElementById('headerStudentName').textContent = `${s.nickname}さんの学習状況`;
+    document.getElementById('portalNickname').textContent = s.nickname;
+    document.getElementById('portalGrade').textContent = s.grade || '';
+    document.getElementById('portalSchool').textContent = s.school || '';
 
-  // レベル計算
-  const pts = s.totalPoints || s.points || 0;
-  const level = calcLevel ? calcLevel(pts) : Math.floor(pts / 500) + 1;
-  document.getElementById('portalLevel').textContent = `Lv. ${level}`;
-  document.getElementById('portalStreak').textContent = `連続通塾: ${s.streak || 0}日`;
+    // レベル計算
+    const pts = s.totalPoints || s.points || 0;
+    const level = (typeof calcLevel === 'function') ? calcLevel(pts) : Math.floor(pts / 500) + 1;
+    document.getElementById('portalLevel').textContent = `Lv. ${level}`;
+    document.getElementById('portalStreak').textContent = `連続通塾: ${s.streak || 0}日`;
 
-  await Promise.allSettled([
-    loadSummary(),
-    loadExams(),
-    loadBadges(),
-    loadMessages(),
-  ]);
+    await Promise.allSettled([
+      loadSummary(),
+      loadExams(),
+      loadBadges(),
+      loadMessages(),
+    ]);
+  } catch(e) {
+    console.error('showPortal error:', e);
+  }
 
   document.getElementById('loadingMsg').style.display = 'none';
   document.getElementById('portalContent').style.display = 'block';
