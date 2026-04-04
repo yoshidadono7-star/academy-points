@@ -742,6 +742,99 @@ body.theme-space {
   body { max-width: 480px; margin: 0 auto; }
   .bottom-nav { max-width: 480px; left: 50%; transform: translateX(-50%); }
 }
+
+/* ===== World Select Screen ===== */
+.world-select-screen {
+  min-height: 100vh;
+  background: linear-gradient(135deg, #0c0a20, #1a1040, #0c0a20);
+  padding: 24px 16px;
+  text-align: center;
+  overflow-y: auto;
+}
+.world-select-title {
+  font-size: 24px; font-weight: 900; color: #fff;
+  margin-bottom: 4px;
+}
+.world-select-subtitle {
+  font-size: 13px; color: rgba(255,255,255,0.6);
+  margin-bottom: 24px; line-height: 1.6;
+}
+.world-cards {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 12px; max-width: 400px; margin: 0 auto;
+}
+.world-card {
+  border-radius: 16px; padding: 18px 12px;
+  cursor: pointer; transition: all 0.3s;
+  border: 3px solid transparent;
+  position: relative; overflow: hidden;
+  text-align: center;
+}
+.world-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(0,0,0,0.3);
+  z-index: 0;
+}
+.world-card:active { transform: scale(0.96); }
+.world-card.selected { border-color: #ffd700; box-shadow: 0 0 20px rgba(255,215,0,0.4); }
+.world-card > * { position: relative; z-index: 1; }
+.world-card-icon { font-size: 40px; margin-bottom: 6px; }
+.world-card-name { font-size: 14px; font-weight: 700; color: #fff; }
+.world-card-role { font-size: 11px; color: rgba(255,255,255,0.7); margin-top: 2px; }
+.world-card-terms {
+  font-size: 10px; color: rgba(255,255,255,0.5);
+  margin-top: 6px; line-height: 1.4;
+}
+.world-preview {
+  margin-top: 20px; max-width: 400px; margin-left: auto; margin-right: auto;
+  background: rgba(255,255,255,0.05); border-radius: 16px;
+  padding: 20px; display: none;
+}
+.world-preview.show { display: block; }
+.world-preview-header {
+  display: flex; align-items: center; gap: 12px;
+  margin-bottom: 12px;
+}
+.world-preview-icon { font-size: 48px; }
+.world-preview-info { text-align: left; }
+.world-preview-name { font-size: 18px; font-weight: 700; color: #fff; }
+.world-preview-desc { font-size: 12px; color: rgba(255,255,255,0.6); margin-top: 2px; }
+.world-preview-roles {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 6px; margin-bottom: 16px;
+}
+.world-preview-role {
+  background: rgba(255,255,255,0.08); border-radius: 8px;
+  padding: 8px; text-align: center;
+}
+.world-preview-role-label {
+  font-size: 9px; color: rgba(255,255,255,0.4);
+  text-transform: uppercase;
+}
+.world-preview-role-name {
+  font-size: 13px; font-weight: 600; color: #fff; margin-top: 2px;
+}
+.world-preview-terms {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  justify-content: center; margin-bottom: 16px;
+}
+.world-term-chip {
+  background: rgba(255,255,255,0.1); border-radius: 12px;
+  padding: 4px 10px; font-size: 11px; color: rgba(255,255,255,0.8);
+}
+.world-confirm-btn {
+  width: 100%; padding: 14px; border-radius: 14px;
+  border: none; font-size: 16px; font-weight: 700;
+  color: #fff; cursor: pointer; font-family: inherit;
+  transition: all 0.2s;
+}
+.world-confirm-btn:active { transform: scale(0.97); }
+.world-confirm-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+.world-shift-info {
+  margin-top: 12px; font-size: 11px; color: rgba(255,255,255,0.4);
+  line-height: 1.5;
+}
 </style>
 </head>
 <body>
@@ -787,6 +880,21 @@ body.theme-space {
       <button class="btn btn-primary btn-block btn-lg" onclick="handleLogin()">ログイン</button>
       <div id="loginError" class="login-error">ニックネームまたはPINが正しくありません</div>
     </div>
+  </div>
+</div>
+
+<!-- ========== 1b. 世界観選択画面 ========== -->
+<div id="screenWorldSelect" class="screen screen-login">
+  <div class="world-select-screen">
+    <div style="font-size:48px;margin-bottom:8px">🌌</div>
+    <div class="world-select-title">次元ゲート</div>
+    <div class="world-select-subtitle">
+      あなたの冒険の舞台を選んでください。<br>
+      見え方が変わるだけで、ルールは同じです。
+    </div>
+    <div class="world-cards" id="worldCards"></div>
+    <div class="world-preview" id="worldPreview"></div>
+    <div class="world-shift-info" id="worldShiftInfo"></div>
   </div>
 </div>
 
@@ -1184,7 +1292,7 @@ function navigate(screen) {
 
   // Show/hide bottom nav
   const nav = document.getElementById('bottomNav');
-  nav.style.display = (screen === 'login') ? 'none' : 'flex';
+  nav.style.display = (screen === 'login' || screen === 'worldSelect') ? 'none' : 'flex';
 
   // Update nav active states
   document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
@@ -1230,6 +1338,7 @@ function showProfileMenu() {
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('guild')" style="margin-bottom:8px">⚔️ ギルド</button>
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('condition')" style="margin-bottom:8px">😊 コンディション</button>
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('messages')" style="margin-bottom:8px">💬 メッセージ</button>
+    ${typeof isDimensionShiftOpen === 'function' && isDimensionShiftOpen() ? '<button class="btn btn-block btn-secondary" onclick="closeModal();openDimensionShift()" style="margin-bottom:8px">🌌 次元シフト（世界観変更）</button>' : ''}
     <button class="btn btn-block btn-danger" onclick="closeModal();logout()">ログアウト</button>
   `, true);
 }
@@ -1262,7 +1371,12 @@ async function handleLogin() {
     localStorage.setItem('heroAcademy_student', JSON.stringify({ id: student.id, nickname, pin }));
     // プッシュ通知のセットアップ（バックグラウンドで実行）
     setupPushNotifications(student.id);
-    navigate('home');
+    if (checkWorldSelectNeeded()) {
+      renderWorldSelect(true);
+      navigate('worldSelect');
+    } else {
+      navigate('home');
+    }
   } catch(e) {
     console.error(e);
     errEl.textContent = 'ログインに失敗しました。通信状態を確認してください。';
@@ -1288,7 +1402,12 @@ async function tryAutoLogin() {
     const student = await StudentsDB.getByNicknameAndPin(nickname, pin);
     if (student) {
       currentStudent = student;
-      navigate('home');
+      if (checkWorldSelectNeeded()) {
+        renderWorldSelect(true);
+        navigate('worldSelect');
+      } else {
+        navigate('home');
+      }
     }
   } catch(e) { console.error(e); }
   hideLoading();
@@ -2480,6 +2599,130 @@ function applyWorldTheme(worldId) {
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', theme.colorPrimary || '#667eea');
   }
+}
+
+// ============================================
+// World Select
+// ============================================
+let selectedWorldId = null;
+
+function renderWorldSelect(isFirstTime) {
+  const container = document.getElementById('worldCards');
+  const themes = Object.values(WORLD_THEMES);
+
+  container.innerHTML = themes.map(w => `
+    <div class="world-card" id="wcard-${w.id}" onclick="selectWorldCard('${w.id}')"
+         style="background:linear-gradient(135deg, ${w.colorPrimary}, ${w.colorPrimary}88)">
+      <div class="world-card-icon">${w.icon}</div>
+      <div class="world-card-name">${w.name}</div>
+      <div class="world-card-role">あなたは「${w.roles.player}」</div>
+      <div class="world-card-terms">${w.terms.points} / ${w.terms.pomodoro} / ${w.terms.mission}</div>
+    </div>
+  `).join('');
+
+  // Show dimension shift info
+  const infoEl = document.getElementById('worldShiftInfo');
+  if (isFirstTime) {
+    infoEl.textContent = '初回選択です。あとから変更するチャンスもあります（年4回の次元シフト期間中）。';
+  } else {
+    infoEl.textContent = '次元シフト期間中です。世界観を変更できます。次回の変更チャンスは数ヶ月後です。';
+  }
+
+  // Reset preview
+  document.getElementById('worldPreview').classList.remove('show');
+  selectedWorldId = null;
+}
+
+function selectWorldCard(worldId) {
+  selectedWorldId = worldId;
+  const w = WORLD_THEMES[worldId];
+  if (!w) return;
+
+  // Highlight selected card
+  document.querySelectorAll('.world-card').forEach(c => c.classList.remove('selected'));
+  document.getElementById('wcard-' + worldId).classList.add('selected');
+
+  // Show preview
+  const preview = document.getElementById('worldPreview');
+  preview.classList.add('show');
+  preview.innerHTML = `
+    <div class="world-preview-header">
+      <div class="world-preview-icon">${w.icon}</div>
+      <div class="world-preview-info">
+        <div class="world-preview-name">${w.name}</div>
+        <div class="world-preview-desc">あなたは「${w.roles.player}」として冒険する</div>
+      </div>
+    </div>
+    <div class="world-preview-roles">
+      <div class="world-preview-role">
+        <div class="world-preview-role-label">あなた</div>
+        <div class="world-preview-role-name">${w.roles.player}</div>
+      </div>
+      <div class="world-preview-role">
+        <div class="world-preview-role-label">先生</div>
+        <div class="world-preview-role-name">${w.roles.teacher}</div>
+      </div>
+      <div class="world-preview-role">
+        <div class="world-preview-role-label">仲間</div>
+        <div class="world-preview-role-name">${w.roles.friendMulti}</div>
+      </div>
+      <div class="world-preview-role">
+        <div class="world-preview-role-label">保護者</div>
+        <div class="world-preview-role-name">${w.roles.parent}</div>
+      </div>
+    </div>
+    <div class="world-preview-terms">
+      <div class="world-term-chip">ポイント → ${w.terms.points}</div>
+      <div class="world-term-chip">ポモドーロ → ${w.terms.pomodoro}</div>
+      <div class="world-term-chip">ミッション → ${w.terms.mission}</div>
+      <div class="world-term-chip">ボス → ${w.terms.boss}</div>
+      <div class="world-term-chip">コンボ → ${w.terms.combo}</div>
+    </div>
+    <button class="world-confirm-btn" onclick="confirmWorldSelect()"
+            style="background:linear-gradient(135deg, ${w.colorPrimary}, ${w.colorPrimary}cc)">
+      この世界で冒険する
+    </button>
+  `;
+
+  // Scroll preview into view
+  preview.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+async function confirmWorldSelect() {
+  if (!selectedWorldId || !currentStudent) return;
+
+  showLoading();
+  try {
+    // For first-time selection, bypass dimension shift check — directly update worldId
+    await StudentsDB.update(currentStudent.id, { worldId: selectedWorldId });
+    currentStudent.worldId = selectedWorldId;
+    applyWorldTheme(selectedWorldId);
+    const w = WORLD_THEMES[selectedWorldId];
+    showToast(`${w.icon} ${w.name}の世界へようこそ！`);
+    navigate('home');
+  } catch(e) {
+    console.error(e);
+    showToast('世界観の設定に失敗しました');
+  }
+  hideLoading();
+}
+
+function checkWorldSelectNeeded() {
+  if (!currentStudent) return false;
+  // Show world select if worldId is not set (first time)
+  if (!currentStudent.worldId) return true;
+  return false;
+}
+
+function openDimensionShift() {
+  renderWorldSelect(false);
+  // Pre-select current world
+  if (currentStudent && currentStudent.worldId) {
+    selectedWorldId = currentStudent.worldId;
+    const card = document.getElementById('wcard-' + currentStudent.worldId);
+    if (card) card.classList.add('selected');
+  }
+  navigate('worldSelect');
 }
 
 // ============================================
