@@ -932,6 +932,12 @@ body.theme-space {
     <span id="homeNarrationText">状況を読み込んでいます...</span>
   </div>
 
+  <!-- テストカウントダウン -->
+  <div id="examCountdown" style="margin:0 16px 12px;display:none;"></div>
+
+  <!-- 学習ルート進捗 -->
+  <div id="routeProgress" style="margin:0 16px 12px;display:none;"></div>
+
   <!-- ミッションブリーフィング（到着〜速読〜学習ガイド） -->
   <div id="missionBriefing" style="margin:0 16px 12px;display:none;">
 
@@ -1631,8 +1637,75 @@ async function loadHome() {
     await loadMissionBriefing(s, station, boss, logs);
   } catch(e) { console.error('Briefing error:', e); }
 
+  // テストカウントダウン
+  try { await loadExamCountdown(s); } catch(e) {}
+
+  // 学習ルート進捗
+  try { await loadRouteProgressCards(s); } catch(e) {}
+
   // 教材進捗カード
   try { await loadMaterialProgressCards(s); } catch(e) {}
+}
+
+async function loadExamCountdown(student) {
+  const container = document.getElementById('examCountdown');
+  try {
+    const exams = await ExamSchedulesDB.getByStudent(student.id, student);
+    if (exams.length === 0) { container.style.display = 'none'; return; }
+    const top = exams.slice(0, 2);
+    container.style.display = 'block';
+    container.innerHTML = top.map(e => {
+      const days = calcDaysUntil(e.date);
+      const type = EXAM_TYPES[e.examType] || EXAM_TYPES.other;
+      let bgColor = 'linear-gradient(135deg,#3b82f6,#1d4ed8)';
+      if (days <= 7) bgColor = 'linear-gradient(135deg,#ef4444,#b91c1c)';
+      else if (days <= 30) bgColor = 'linear-gradient(135deg,#f59e0b,#d97706)';
+      return `<div style="background:${bgColor};border-radius:12px;padding:14px 16px;margin-bottom:8px;color:#fff;">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div>
+            <div style="font-size:12px;opacity:0.85;">${type.icon} ${e.examName}</div>
+            <div style="font-size:11px;opacity:0.7;">${e.date}</div>
+          </div>
+          <div style="text-align:right;">
+            <div style="font-size:28px;font-weight:900;font-family:'Orbitron',monospace;">${days}</div>
+            <div style="font-size:11px;opacity:0.85;">日後</div>
+          </div>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { container.style.display = 'none'; }
+}
+
+async function loadRouteProgressCards(student) {
+  const container = document.getElementById('routeProgress');
+  try {
+    const routes = await StudyRoutesDB.getActive(student.id);
+    if (routes.length === 0) { container.style.display = 'none'; return; }
+    const cards = [];
+    for (const route of routes.slice(0, 3)) {
+      const tasks = await RouteTasksDB.getByRoute(route.id);
+      if (tasks.length === 0) continue;
+      const completed = tasks.filter(t => t.status === 'completed').length;
+      const pct = Math.round((completed / tasks.length) * 100);
+      const current = tasks.find(t => t.status === 'in_progress' || t.status === 'pending');
+      const overdue = tasks.filter(t => t.endDate && t.endDate < getToday() && t.status !== 'completed').length;
+      cards.push(`<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:12px 14px;margin-bottom:8px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <div style="font-size:13px;font-weight:700;color:#2d3748;">📊 ${route.routeName}</div>
+          <div style="font-size:12px;color:#64748b;">${completed}/${tasks.length}完了</div>
+        </div>
+        <div style="background:#e2e8f0;border-radius:6px;height:8px;overflow:hidden;">
+          <div style="background:linear-gradient(90deg,#3b82f6,#8b5cf6);height:100%;width:${pct}%;border-radius:6px;transition:width 0.3s;"></div>
+        </div>
+        ${current ? `<div style="font-size:11px;color:#64748b;margin-top:6px;">次: ${current.taskName}${current.endDate ? ' (~' + current.endDate.slice(5) + ')' : ''}</div>` : ''}
+        ${overdue > 0 ? `<div style="font-size:11px;color:#ef4444;margin-top:2px;">⚠️ ${overdue}件の遅れあり</div>` : ''}
+      </div>`);
+    }
+    if (cards.length > 0) {
+      container.style.display = 'block';
+      container.innerHTML = cards.join('');
+    } else { container.style.display = 'none'; }
+  } catch(e) { container.style.display = 'none'; }
 }
 
 async function loadMaterialProgressCards(student) {

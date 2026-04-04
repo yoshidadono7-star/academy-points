@@ -211,6 +211,7 @@
       <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('today')">📡 今日のようす</button>
         <button class="tab-btn" onclick="switchTab('summary')">📊 サマリー</button>
+        <button class="tab-btn" onclick="switchTab('routes')">📊 学習ルート</button>
         <button class="tab-btn" onclick="switchTab('matprogress')">📦 教材進捗</button>
         <button class="tab-btn" onclick="switchTab('exams')">📝 テスト</button>
         <button class="tab-btn" onclick="switchTab('badges')">🏅 バッジ</button>
@@ -219,9 +220,18 @@
 
       <!-- 今日のようすタブ -->
       <div class="tab-panel active" id="panel-today">
+        <div id="parentExamCountdown" style="margin-bottom:12px;"></div>
         <div class="card">
           <div class="card-title">📡 今日のようす</div>
           <div id="todayFeed" style="font-size:13px;color:#718096;">読み込み中...</div>
+        </div>
+      </div>
+
+      <!-- 学習ルートタブ -->
+      <div class="tab-panel" id="panel-routes">
+        <div class="card">
+          <div class="card-title">📊 学習ルート</div>
+          <div id="parentRoutes" style="font-size:13px;color:#718096;">読み込み中...</div>
         </div>
       </div>
 
@@ -405,7 +415,9 @@ async function showPortal() {
 
     await Promise.allSettled([
       loadTodayFeed(),
+      loadParentExamCountdown(),
       loadSummary(),
+      loadParentRoutes(),
       loadParentMatProgress(),
       loadExams(),
       loadBadges(),
@@ -465,11 +477,74 @@ async function generateParentNarration() {
 // ===== タブ切替 =====
 function switchTab(tabId) {
   document.querySelectorAll('.tab-btn').forEach((b, i) => {
-    const tabs = ['today', 'summary', 'matprogress', 'exams', 'badges', 'messages'];
+    const tabs = ['today', 'summary', 'routes', 'matprogress', 'exams', 'badges', 'messages'];
     b.classList.toggle('active', tabs[i] === tabId);
   });
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + tabId).classList.add('active');
+}
+
+// ===== テストカウントダウン（保護者） =====
+async function loadParentExamCountdown() {
+  const container = document.getElementById('parentExamCountdown');
+  try {
+    const exams = await ExamSchedulesDB.getByStudent(currentStudent.id, currentStudent);
+    if (exams.length === 0) { container.innerHTML = ''; return; }
+    container.innerHTML = exams.slice(0, 3).map(e => {
+      const days = calcDaysUntil(e.date);
+      const type = EXAM_TYPES[e.examType] || EXAM_TYPES.other;
+      let bg = '#3b82f6';
+      if (days <= 7) bg = '#ef4444';
+      else if (days <= 30) bg = '#f59e0b';
+      return `<div style="display:inline-flex;align-items:center;gap:8px;background:${bg};color:#fff;border-radius:10px;padding:8px 14px;margin-right:8px;margin-bottom:8px;font-size:13px;">
+        ${type.icon} ${e.examName} <strong style="font-size:18px;font-family:'Orbitron',monospace;">${days}</strong>日後
+      </div>`;
+    }).join('');
+  } catch(e) { container.innerHTML = ''; }
+}
+
+// ===== 学習ルート（保護者） =====
+async function loadParentRoutes() {
+  const container = document.getElementById('parentRoutes');
+  try {
+    const routes = await StudyRoutesDB.getActive(currentStudent.id);
+    if (routes.length === 0) { container.innerHTML = '<div style="color:#94a3b8;text-align:center;padding:20px;">学習ルートはまだ設定されていません</div>'; return; }
+    let html = '';
+    for (const route of routes) {
+      const tasks = await RouteTasksDB.getByRoute(route.id);
+      const completed = tasks.filter(t => t.status === 'completed').length;
+      const pct = tasks.length ? Math.round((completed / tasks.length) * 100) : 0;
+      const overdue = tasks.filter(t => t.endDate && t.endDate < getToday() && t.status !== 'completed');
+
+      html += `<div style="margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+          <div style="font-size:14px;font-weight:700;color:#2d3748;">${route.routeName}</div>
+          <div style="font-size:12px;color:#64748b;">${route.subject} | ${completed}/${tasks.length}完了 (${pct}%)</div>
+        </div>
+        <div style="background:#e2e8f0;border-radius:6px;height:10px;overflow:hidden;margin-bottom:8px;">
+          <div style="background:linear-gradient(90deg,#3b82f6,#8b5cf6);height:100%;width:${pct}%;border-radius:6px;"></div>
+        </div>`;
+
+      // タスク一覧（シンプル版）
+      html += '<div style="font-size:12px;">';
+      tasks.forEach(t => {
+        const statusIcon = t.status === 'completed' ? '✅' : t.status === 'in_progress' ? '⏳' : (t.endDate && t.endDate < getToday() ? '🔴' : '⬜');
+        html += `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #f1f5f9;">
+          <span>${statusIcon}</span>
+          <span style="flex:1;${t.status === 'completed' ? 'text-decoration:line-through;color:#94a3b8;' : ''}">${t.taskName}</span>
+          <span style="color:#94a3b8;font-size:11px;">${t.startDate ? t.startDate.slice(5) : ''} ~ ${t.endDate ? t.endDate.slice(5) : ''}</span>
+          <span style="font-size:11px;font-weight:600;color:${t.progress >= 100 ? '#059669' : '#3b82f6'};">${t.progress}%</span>
+        </div>`;
+      });
+      html += '</div>';
+
+      if (overdue.length > 0) {
+        html += `<div style="margin-top:6px;font-size:11px;color:#ef4444;">⚠️ ${overdue.length}件の遅れ: ${overdue.map(t => t.taskName).join(', ')}</div>`;
+      }
+      html += '</div>';
+    }
+    container.innerHTML = html;
+  } catch(e) { container.innerHTML = '<div style="color:#e53e3e;">読み込みエラー</div>'; }
 }
 
 // ===== 今日のようす（リアルタイムフィード） =====

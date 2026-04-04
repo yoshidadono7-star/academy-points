@@ -202,5 +202,24 @@ service cloud.firestore {
       allow create, update: if true;
       allow delete: if isAdmin();
     }
+
+    // テスト日程
+    match /examSchedules/{scheduleId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ���習ルート
+    match /studyRoutes/{routeId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // ルートタス��
+    match /routeTasks/{taskId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isAdmin();
+    }
   }
 }

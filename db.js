@@ -2300,3 +2300,133 @@ const DailyPlansDB = {
     return results;
   }
 };
+
+// ===== テスト日程管理 (Exam Schedules) =====
+const EXAM_TYPES = {
+  midterm:        { label: '中間テスト',   icon: '📝', color: '#3b82f6' },
+  final:          { label: '期末テスト',   icon: '📝', color: '#8b5cf6' },
+  ikushin:        { label: '育伸社テスト', icon: '📋', color: '#10b981' },
+  miyazaki_moshi: { label: '宮崎模試',    icon: '📊', color: '#f59e0b' },
+  entrance:       { label: '入試本番',     icon: '🎯', color: '#ef4444' },
+  other:          { label: 'その他',       icon: '📌', color: '#6b7280' }
+};
+
+const ExamSchedulesDB = {
+  async add(data) {
+    const ref = await db.collection('examSchedules').add({
+      examType: data.examType || 'other',
+      examName: data.examName || '',
+      date: data.date,
+      targetGrades: data.targetGrades || [],
+      targetStudentIds: data.targetStudentIds || [],
+      subjects: data.subjects || [],
+      memo: data.memo || '',
+      active: true,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return ref.id;
+  },
+  async update(id, data) {
+    data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    await db.collection('examSchedules').doc(id).update(data);
+  },
+  async delete(id) { await db.collection('examSchedules').doc(id).delete(); },
+  async getAll() {
+    const snap = await db.collection('examSchedules').where('active', '==', true).orderBy('date', 'asc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getUpcoming(limit) {
+    const today = getToday();
+    let q = db.collection('examSchedules').where('active', '==', true).where('date', '>=', today).orderBy('date', 'asc');
+    if (limit) q = q.limit(limit);
+    const snap = await q.get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getByStudent(studentId, student) {
+    const upcoming = await this.getUpcoming(10);
+    return upcoming.filter(e => {
+      if (e.targetStudentIds && e.targetStudentIds.length > 0) return e.targetStudentIds.includes(studentId);
+      if (e.targetGrades && e.targetGrades.length > 0 && student.grade) return e.targetGrades.includes(student.grade);
+      return true;
+    });
+  }
+};
+
+function calcDaysUntil(dateStr) {
+  const target = new Date(dateStr + 'T00:00:00');
+  const today = new Date(getToday() + 'T00:00:00');
+  return Math.ceil((target - today) / (1000 * 60 * 60 * 24));
+}
+
+// ===== 学習ルート管理 (Study Routes) =====
+const StudyRoutesDB = {
+  async add(data) {
+    const ref = await db.collection('studyRoutes').add({
+      studentId: data.studentId, routeName: data.routeName || '', subject: data.subject || '',
+      targetDate: data.targetDate || null, status: 'active', memo: data.memo || '',
+      createdBy: data.createdBy || 'teacher',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return ref.id;
+  },
+  async getByStudent(studentId) {
+    const snap = await db.collection('studyRoutes').where('studentId', '==', studentId).orderBy('createdAt', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getActive(studentId) {
+    const all = await this.getByStudent(studentId);
+    return all.filter(r => r.status === 'active');
+  },
+  async update(id, data) {
+    data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    await db.collection('studyRoutes').doc(id).update(data);
+  },
+  async delete(id) {
+    const tasks = await RouteTasksDB.getByRoute(id);
+    for (const t of tasks) await db.collection('routeTasks').doc(t.id).delete();
+    await db.collection('studyRoutes').doc(id).delete();
+  }
+};
+
+const RouteTasksDB = {
+  async add(data) {
+    const ref = await db.collection('routeTasks').add({
+      routeId: data.routeId, studentId: data.studentId, order: data.order || 0,
+      materialId: data.materialId || null, materialName: data.materialName || '',
+      taskName: data.taskName || '', startDate: data.startDate || null, endDate: data.endDate || null,
+      dailyAmount: data.dailyAmount || '', dependsOn: data.dependsOn || null,
+      status: 'pending', actualStartDate: null, actualEndDate: null, progress: 0,
+      memo: data.memo || '',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return ref.id;
+  },
+  async getByRoute(routeId) {
+    const snap = await db.collection('routeTasks').where('routeId', '==', routeId).orderBy('order', 'asc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getByStudent(studentId) {
+    const snap = await db.collection('routeTasks').where('studentId', '==', studentId).orderBy('endDate', 'asc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async update(id, data) {
+    data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    await db.collection('routeTasks').doc(id).update(data);
+  },
+  async updateProgress(id, progress) {
+    const doc = await db.collection('routeTasks').doc(id).get();
+    const updates = { progress, updatedAt: firebase.firestore.FieldValue.serverTimestamp() };
+    if (progress > 0 && !doc.data().actualStartDate) { updates.actualStartDate = getToday(); updates.status = 'in_progress'; }
+    if (progress >= 100) { updates.status = 'completed'; updates.actualEndDate = getToday(); }
+    await db.collection('routeTasks').doc(id).update(updates);
+  },
+  async delete(id) { await db.collection('routeTasks').doc(id).delete(); },
+  async getOverdue(studentId) {
+    const today = getToday();
+    const all = await this.getByStudent(studentId);
+    return all.filter(t => t.endDate && t.endDate < today && t.status !== 'completed');
+  }
+};
