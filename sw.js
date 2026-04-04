@@ -4,7 +4,7 @@
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js');
 
-const CACHE_NAME = 'academy-points-v2';
+const CACHE_NAME = 'academy-points-v3';
 const urlsToCache = [
   '/index.html',
   '/student.html',
@@ -31,11 +31,16 @@ self.addEventListener('activate', event => {
 });
 
 self.addEventListener('fetch', event => {
+  const url = event.request.url;
+
+  // httpスキーム以外（chrome-extension://等）はスキップ
+  if (!url.startsWith('http')) return;
+
   // Firebase / CDNへのリクエストはキャッシュしない
-  if (event.request.url.includes('firebaseio.com') ||
-      event.request.url.includes('googleapis.com') ||
-      event.request.url.includes('gstatic.com') ||
-      event.request.url.includes('jsdelivr.net')) {
+  if (url.includes('firebaseio.com') ||
+      url.includes('googleapis.com') ||
+      url.includes('gstatic.com') ||
+      url.includes('jsdelivr.net')) {
     return;
   }
   event.respondWith(
