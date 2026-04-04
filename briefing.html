@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>MISSION CONTROL - HERO'S</title>
+<title>ミッションコントロール - HERO'S</title>
 <style>
 * { margin: 0; padding: 0; box-sizing: border-box; }
 @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;700;900&family=Noto+Sans+JP:wght@400;700&display=swap');
@@ -677,18 +677,18 @@ body {
 
 <div id="loading" class="loading">
   <div class="loading-spinner"></div>
-  <div style="font-family:'Orbitron',monospace;color:var(--accent-blue)">INITIALIZING MISSION CONTROL...</div>
+  <div style="font-family:'Orbitron',monospace;color:var(--accent-blue)">ミッションコントロール起動中...</div>
 </div>
 
 <div id="app" style="display:none">
   <!-- ヘッダー -->
   <div class="header">
     <div class="header-left">
-      <div class="logo">MISSION CONTROL</div>
-      <div class="status-badge">ONLINE</div>
+      <div class="logo">ミッションコントロール</div>
+      <div class="status-badge">稼働中</div>
     </div>
     <div class="header-right">
-      <div class="crew-count">CREW: <span id="crewCount">--</span></div>
+      <div class="crew-count">クルー: <span id="crewCount">--</span>名</div>
       <div class="clock" id="clock">--:--:--</div>
     </div>
   </div>
@@ -697,7 +697,7 @@ body {
   <div class="main">
     <!-- ミッション進捗（左上・中上） -->
     <div class="panel mission-panel">
-      <div class="panel-title"><span class="icon">🎯</span> CURRENT MISSION</div>
+      <div class="panel-title"><span class="icon">🎯</span> 今月のミッション</div>
       <div class="mission-name" id="missionName">ミッション読込中...</div>
       <div class="mission-metric" id="missionMetric"></div>
       <div class="progress-container">
@@ -713,25 +713,25 @@ body {
 
     <!-- 宇宙マップ（中上） -->
     <div class="panel spacemap-panel">
-      <div class="panel-title"><span class="icon">🌌</span> SPACE MAP</div>
+      <div class="panel-title"><span class="icon">🌌</span> 宇宙マップ</div>
       <div class="spacemap-list" id="spacemapList"></div>
     </div>
 
     <!-- ランキング（右上） -->
     <div class="panel ranking-panel">
-      <div class="panel-title"><span class="icon">🏆</span> MONTHLY RANKING</div>
+      <div class="panel-title"><span class="icon">🏆</span> 月間ランキング</div>
       <div class="ranking-list" id="rankingList"></div>
     </div>
 
     <!-- ライブフィード（左下） -->
     <div class="panel feed-panel">
-      <div class="panel-title"><span class="icon">📡</span> LIVE FEED</div>
+      <div class="panel-title"><span class="icon">📡</span> リアルタイム通信</div>
       <div class="feed-list" id="feedList"></div>
     </div>
 
     <!-- ストーリー＋イベント（中下左） -->
     <div class="panel story-panel">
-      <div class="panel-title"><span class="icon">📖</span> STORY</div>
+      <div class="panel-title"><span class="icon">📖</span> ストーリー</div>
       <div id="storyDisplay">
         <div style="color:var(--text-secondary);font-size:12px">読込中...</div>
       </div>
@@ -752,13 +752,13 @@ body {
 
     <!-- レイドボス（中下右） -->
     <div class="panel boss-panel">
-      <div class="panel-title"><span class="icon">👹</span> RAID BOSS</div>
+      <div class="panel-title"><span class="icon">👹</span> レイドボス</div>
       <div id="bossDisplay"></div>
     </div>
 
     <!-- 統計（右下） -->
     <div class="panel stats-panel">
-      <div class="panel-title"><span class="icon">📊</span> TODAY'S STATS</div>
+      <div class="panel-title"><span class="icon">📊</span> 今日の記録</div>
       <div class="stats-grid">
         <div class="stat-card">
           <div class="stat-value" id="statStudyHours">0</div>
@@ -793,7 +793,7 @@ body {
 
   <!-- ミッション達成オーバーレイ -->
   <div class="mission-complete-overlay" id="missionCompleteOverlay">
-    <div class="mission-complete-text">MISSION<br>COMPLETE</div>
+    <div class="mission-complete-text">ミッション<br>達成！</div>
     <div class="mission-complete-sub" id="missionCompleteSub"></div>
   </div>
 </div>
