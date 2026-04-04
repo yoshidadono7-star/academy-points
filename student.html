@@ -926,6 +926,12 @@ body.theme-space {
     <div class="home-level-text" id="homeLevelText"></div>
   </div>
 
+  <!-- ナレーション -->
+  <div id="homeNarration" style="background:rgba(255,255,255,0.08);border:1px solid rgba(255,255,255,0.12);border-radius:14px;padding:14px 16px;margin:0 16px 12px;font-size:13px;line-height:1.7;color:rgba(255,255,255,0.85);min-height:60px;">
+    <span style="font-size:16px;margin-right:4px;">📖</span>
+    <span id="homeNarrationText">状況を読み込んでいます...</span>
+  </div>
+
   <!-- Space Map -->
   <div id="homeSpaceMap" class="space-map">
     <div class="space-map-stars">. * . . * . * . .</div>
@@ -1417,6 +1423,62 @@ async function tryAutoLogin() {
 // ============================================
 // Home
 // ============================================
+function generateStudentNarration(student, station, boss, streak, level, logs) {
+  const name = student.callsign || student.nickname || '冒険者';
+  const pts = student.totalPoints || 0;
+  const parts = [];
+
+  // 時間帯による導入
+  const hour = new Date().getHours();
+  if (hour < 10) parts.push(`新しい朝が${name}の宇宙船を照らしている。`);
+  else if (hour < 15) parts.push(`${name}の冒険は今日も続いている。`);
+  else if (hour < 18) parts.push(`午後の宇宙は静かだが、${name}の探求心は衰えない。`);
+  else parts.push(`星々が瞬く時間。${name}は今日の航海を振り返る。`);
+
+  // ステーション状況
+  if (station) {
+    parts.push(`現在地は${station.icon}「${station.name}」。`);
+  }
+
+  // ストリーク状況
+  if (streak >= 7) {
+    parts.push(`${streak}日連続の学習記録は、まさに伝説の軌跡だ！`);
+  } else if (streak >= 3) {
+    parts.push(`${streak}日連続で学習を続けている。この調子だ！`);
+  } else if (streak >= 1) {
+    parts.push(`連続${streak}日目。小さな一歩が大きな旅路を作る。`);
+  } else {
+    parts.push(`今日はまだ学習の記録がない。新たな一歩を踏み出そう。`);
+  }
+
+  // ボス状況
+  if (boss && !boss.defeated) {
+    const hpPct = Math.round((boss.currentHp / boss.maxHp) * 100);
+    if (hpPct > 75) {
+      parts.push(`前方に${boss.icon}${boss.name}が待ち構えている。HP${hpPct}%、まだまだ手強い。`);
+    } else if (hpPct > 25) {
+      parts.push(`${boss.icon}${boss.name}のHPは${hpPct}%まで削れている。あと少しだ！`);
+    } else {
+      parts.push(`${boss.icon}${boss.name}は瀕死だ！ 全クルーの力で今こそ倒す時！`);
+    }
+  }
+
+  // レベル・ポイント
+  if (level >= 8) {
+    parts.push(`Lv.${level}の実力は宇宙でも屈指。銀河の果てが見えてきた。`);
+  } else if (level >= 5) {
+    parts.push(`Lv.${level}へと成長した${name}。その力は確実に増している。`);
+  }
+
+  // 最近の学習
+  if (logs && logs.length > 0) {
+    const latestSubject = logs[0].subject;
+    parts.push(`直近の探索は「${latestSubject}」領域だった。`);
+  }
+
+  return parts.join('');
+}
+
 async function loadHome() {
   if (!currentStudent) return;
   // Refresh student data
@@ -1527,6 +1589,16 @@ async function loadHome() {
       badge.style.display = 'none';
     }
   } catch(e) {}
+
+  // ナレーション生成
+  try {
+    const station = SpaceMapDB.getStation(s.totalPoints || 0);
+    const bosses = await RaidBossDB.getActive();
+    const boss = bosses.length > 0 ? bosses[0] : null;
+    const logs = await StudyLogsDB.getByStudent(s.id, 5);
+    const narration = generateStudentNarration(s, station, boss, s.streak || 0, calcLevel(s.totalPoints || 0), logs);
+    document.getElementById('homeNarrationText').textContent = narration;
+  } catch(e) { console.error('Narration error:', e); }
 }
 
 // ============================================

@@ -693,6 +693,12 @@ body {
     </div>
   </div>
 
+  <!-- ナレーション -->
+  <div id="briefingNarration" style="background:rgba(0,212,255,0.08);border-bottom:1px solid rgba(0,212,255,0.2);padding:8px 24px;font-size:13px;line-height:1.6;color:var(--text-secondary);">
+    <span style="color:var(--accent-blue);margin-right:6px;">📖</span>
+    <span id="briefingNarrationText">航海日誌を読み込んでいます...</span>
+  </div>
+
   <!-- メインパネル -->
   <div class="main">
     <!-- ミッション進捗（左上・中上） -->
@@ -1277,6 +1283,52 @@ function showCommanderBuff() {
 }
 
 // 初期化
+async function generateBriefingNarration() {
+  try {
+    const students = await StudentsDB.getAll();
+    const today = new Date().toISOString().split('T')[0];
+    const todayLogs = await StudyLogsDB.getByDate(today);
+    const bosses = await RaidBossDB.getActive();
+    const boss = bosses.length > 0 ? bosses[0] : null;
+    const story = await StoryDB.getActive();
+
+    const totalCrew = students.length;
+    const activeCrew = new Set(todayLogs.map(l => l.studentId)).size;
+    const todayMinutes = todayLogs.reduce((s, l) => s + (l.duration || 0), 0);
+
+    const parts = [];
+    const hour = new Date().getHours();
+
+    // 宇宙艦隊の状況報告
+    if (hour < 12) parts.push('航海日誌 — 本日の航海が始動。');
+    else if (hour < 17) parts.push('航海日誌 — 午後の探索フェーズ。');
+    else parts.push('航海日誌 — 本日の航海は終盤を迎えている。');
+
+    parts.push(`全${totalCrew}名のクルーのうち${activeCrew}名が任務中。`);
+
+    if (todayMinutes > 0) {
+      parts.push(`艦隊の総学習時間は${Math.floor(todayMinutes / 60)}時間${todayMinutes % 60}分。`);
+    } else {
+      parts.push('まだ本日の学習記録はない。');
+    }
+
+    if (boss) {
+      const hpPct = Math.round((boss.currentHp / boss.maxHp) * 100);
+      if (hpPct <= 25) parts.push(`${boss.icon || '👹'}${boss.name}は瀕死！ 討伐の好機だ。`);
+      else if (hpPct <= 50) parts.push(`${boss.icon || '👹'}${boss.name}のHP${hpPct}%。攻勢を維持せよ。`);
+      else parts.push(`前方に${boss.icon || '👹'}${boss.name}を確認。HP${hpPct}%。`);
+    }
+
+    if (story) {
+      const weekNum = Math.min(4, Math.ceil(new Date().getDate() / 7));
+      const weekText = story.weeklyTexts && story.weeklyTexts[weekNum - 1];
+      if (weekText) parts.push(weekText);
+    }
+
+    document.getElementById('briefingNarrationText').textContent = parts.join(' ');
+  } catch(e) { console.error('Briefing narration error:', e); }
+}
+
 async function init() {
   try {
     await Promise.all([
@@ -1295,6 +1347,9 @@ async function init() {
 
     // コマンダーバフチェック
     checkCommanderBuff();
+
+    // ナレーション生成
+    generateBriefingNarration();
 
     document.getElementById('loading').style.display = 'none';
     document.getElementById('app').style.display = 'block';

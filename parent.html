@@ -199,6 +199,14 @@
         </div>
       </div>
 
+      <!-- ナレーション -->
+      <div id="parentNarration" class="card" style="background:#f8fafc;border-left:3px solid #667eea;">
+        <div style="font-size:13px;line-height:1.7;color:#4a5568;">
+          <span style="font-size:16px;margin-right:4px;">📖</span>
+          <span id="parentNarrationText">お子さんの状況を読み込んでいます...</span>
+        </div>
+      </div>
+
       <!-- タブ切替 -->
       <div class="tabs">
         <button class="tab-btn active" onclick="switchTab('summary')">📊 サマリー</button>
@@ -387,8 +395,51 @@ async function showPortal() {
     console.error('showPortal error:', e);
   }
 
+  // ナレーション生成
+  generateParentNarration();
+
   document.getElementById('loadingMsg').style.display = 'none';
   document.getElementById('portalContent').style.display = 'block';
+}
+
+// ===== ナレーション =====
+async function generateParentNarration() {
+  try {
+    const s = currentStudent;
+    const name = s.nickname || 'お子さん';
+    const level = Math.floor((s.totalPoints || 0) / 500) + 1;
+    const streak = s.streak || 0;
+    const pts = s.totalPoints || 0;
+
+    const parts = [];
+
+    // 導入
+    parts.push(`${name}さんの宇宙での冒険の記録です。`);
+
+    // レベル
+    parts.push(`現在レベル${level}、累計${pts}ポイントを獲得しています。`);
+
+    // ストリーク
+    if (streak >= 7) {
+      parts.push(`${streak}日間連続で通塾しており、とても良いリズムが続いています。`);
+    } else if (streak >= 3) {
+      parts.push(`${streak}日連続で学習を続けています。がんばっています！`);
+    } else if (streak >= 1) {
+      parts.push(`連続${streak}日目の学習です。この調子で続けましょう。`);
+    } else {
+      parts.push(`最近の通塾が途切れています。声かけが効果的かもしれません。`);
+    }
+
+    // バッジ
+    const badgeSnap = await db.collection('badges')
+      .where('studentId', '==', s.id).get();
+    const badgeCount = badgeSnap.size;
+    if (badgeCount > 0) {
+      parts.push(`これまでに${badgeCount}個のバッジを獲得しました。`);
+    }
+
+    document.getElementById('parentNarrationText').textContent = parts.join('');
+  } catch(e) { console.error('Parent narration error:', e); }
 }
 
 // ===== タブ切替 =====

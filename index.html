@@ -410,7 +410,7 @@
 <header class="header">
   <div class="header-left">
     <span style="font-size:24px">&#127775;</span>
-    <h1>HERO'S MISSION CONTROL</h1>
+    <h1>HERO'S 管理画面</h1>
   </div>
   <div class="header-right" style="display:flex;align-items:center;gap:8px;">
     <span id="adminEmailLabel" style="font-size:11px;color:rgba(255,255,255,0.7);display:none;"></span>
@@ -433,6 +433,12 @@
     </button>
   </div>
 </header>
+
+<!-- ナレーション -->
+<div id="adminNarration" style="background:linear-gradient(135deg,#f0f4ff,#e8ecff);border-bottom:1px solid #e2e8f0;padding:12px 20px;font-size:13px;line-height:1.7;color:#4a5568;display:none;">
+  <span style="font-size:16px;margin-right:4px;">📖</span>
+  <span id="adminNarrationText"></span>
+</div>
 
 <!-- Tab Navigation -->
 <nav class="tab-nav" id="tabNav">
@@ -2851,9 +2857,67 @@ async function initApp() {
       loadNotifications();
     }, 300000);
 
+    // ナレーション生成
+    generateAdminNarration();
+
   } catch (e) {
     console.error('初期化エラー:', e);
   }
+}
+
+async function generateAdminNarration() {
+  try {
+    const students = await StudentsDB.getAll();
+    const today = getToday();
+    const todayLogs = await StudyLogsDB.getByDate(today);
+    const bosses = await RaidBossDB.getActive();
+    const boss = bosses.length > 0 ? bosses[0] : null;
+    const story = await StoryDB.getActive();
+
+    const totalStudents = students.length;
+    const todayActive = new Set(todayLogs.map(l => l.studentId)).size;
+    const todayMinutes = todayLogs.reduce((s, l) => s + (l.duration || 0), 0);
+    const avgStreak = totalStudents > 0 ? Math.round(students.reduce((s, st) => s + (st.streak || 0), 0) / totalStudents) : 0;
+
+    const parts = [];
+    const hour = new Date().getHours();
+
+    // 導入
+    if (hour < 12) parts.push('本日の航海が始まりました。');
+    else if (hour < 17) parts.push('午後の作戦が進行中です。');
+    else parts.push('本日の航海が終盤に差し掛かっています。');
+
+    // 出席状況
+    parts.push(`全${totalStudents}名のクルーのうち、${todayActive}名が本日の任務に就いています。`);
+
+    // 学習時間
+    if (todayMinutes > 0) {
+      const hours = Math.floor(todayMinutes / 60);
+      const mins = todayMinutes % 60;
+      parts.push(`艦隊全体の本日の学習時間は${hours > 0 ? hours + '時間' : ''}${mins}分。`);
+    }
+
+    // ストリーク
+    if (avgStreak >= 3) {
+      parts.push(`クルーの平均連続学習日数は${avgStreak}日。士気は高い状態です。`);
+    }
+
+    // ボス状況
+    if (boss) {
+      const hpPct = Math.round((boss.currentHp / boss.maxHp) * 100);
+      parts.push(`${boss.icon || '👹'}${boss.name}のHP残量${hpPct}%。`);
+      if (hpPct <= 25) parts.push('討伐まであと一押しです！');
+    }
+
+    // ストーリー
+    if (story) {
+      parts.push(`今月のストーリー「${story.title}」が進行中。`);
+    }
+
+    const el = document.getElementById('adminNarration');
+    document.getElementById('adminNarrationText').textContent = parts.join('');
+    el.style.display = 'block';
+  } catch(e) { console.error('Admin narration error:', e); }
 }
 
 // ============================================
