@@ -554,7 +554,7 @@ async function loadTodayFeed() {
   const sid = currentStudent.id;
   const today = new Date().toISOString().split('T')[0];
   const feed = document.getElementById('todayFeed');
-  const name = currentStudent.nickname || currentStudent.name || 'お子さん';
+  const name = currentStudent.callsign || currentStudent.nickname || 'お子さん';
 
   // 既存リスナーをクリーンアップ
   todayUnsubscribers.forEach(fn => fn());

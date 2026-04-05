@@ -1376,7 +1376,7 @@ function highlightNav(idx) {
 function showProfileMenu() {
   highlightNav(3);
   // Show a simple profile submenu via modal
-  showModal('👤', 'マイページ', currentStudent ? currentStudent.name : '', `
+  showModal('👤', 'マイページ', currentStudent ? (currentStudent.callsign || currentStudent.nickname || '') : '', `
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('history')" style="margin-bottom:8px">📊 学習履歴</button>
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('badges')" style="margin-bottom:8px">🏅 バッジ</button>
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('combo')" style="margin-bottom:8px">🔥 コンボ図鑑</button>
@@ -1999,7 +1999,7 @@ async function submitCondition() {
   try {
     await ConditionsDB.add({
       studentId: currentStudent.id,
-      studentName: currentStudent.name,
+      studentName: currentStudent.callsign || currentStudent.nickname || currentStudent.name,
       mood: conditionValues.mood,
       energy: conditionValues.energy,
       motivation: conditionValues.motivation,
@@ -2061,7 +2061,7 @@ async function completeTask(taskId, title, points) {
 async function doCompleteTask(taskId, points) {
   showLoading();
   try {
-    await TasksDB.complete(taskId, currentStudent.id, currentStudent.name);
+    await TasksDB.complete(taskId, currentStudent.id, currentStudent.callsign || currentStudent.nickname || currentStudent.name);
     await StudentsDB.addPoints(currentStudent.id, points);
 
     // Guild points
@@ -2256,7 +2256,7 @@ async function stopStudy(save) {
     // Save study log
     await StudyLogsDB.add({
       studentId: currentStudent.id,
-      studentName: currentStudent.name,
+      studentName: currentStudent.callsign || currentStudent.nickname || currentStudent.name,
       subject: studySession.subject,
       duration: duration,
       points: points,
@@ -2323,7 +2323,7 @@ async function stopStudy(save) {
       };
       for (const boss of activeBosses) {
         const damage = calculateBossDamage(session, boss, comboResults);
-        const result = await RaidBossDB.damage(boss.id, currentStudent.id, currentStudent.name, damage);
+        const result = await RaidBossDB.damage(boss.id, currentStudent.id, currentStudent.callsign || currentStudent.nickname || currentStudent.name, damage);
         if (result) {
           raidResults.push({
             ...result,
@@ -2588,7 +2588,7 @@ function renderRanking(sortBy) {
     return `
       <div class="ranking-item ${isSelf ? 'self' : ''}">
         <div class="ranking-rank ${rankClass}">${rank <= 3 ? ['🥇','🥈','🥉'][rank-1] : rank}</div>
-        <div class="ranking-name">${s.name}${isSelf ? ' (あなた)' : ''}</div>
+        <div class="ranking-name">${s.callsign || s.nickname || '???'}${isSelf ? ' (あなた)' : ''}</div>
         <div class="ranking-pts">${value}</div>
       </div>
     `;
@@ -2853,8 +2853,8 @@ async function loadGuild() {
       const isSelf = m.id === currentStudent.id;
       return `
         <div class="guild-member" style="${isSelf ? 'background:var(--gradient-light)' : ''}">
-          <div class="guild-member-avatar">${m.name ? m.name.charAt(0) : '?'}</div>
-          <div class="guild-member-name">${m.name}${isSelf ? ' (あなた)' : ''}<span style="color:#94a3b8;font-size:11px;margin-left:4px;">${m.grade || ''}</span></div>
+          <div class="guild-member-avatar">${(m.callsign || m.nickname || m.name || '?').charAt(0)}</div>
+          <div class="guild-member-name">${m.callsign || m.nickname || '???'}${isSelf ? ' (あなた)' : ''}<span style="color:#94a3b8;font-size:11px;margin-left:4px;">${m.grade || ''}</span></div>
           <div class="guild-member-pts">${(m.totalPoints || 0).toLocaleString()}</div>
         </div>
       `;
@@ -2875,7 +2875,7 @@ async function loadGuild() {
         return `
           <div class="ranking-item ${isSelf ? 'self' : ''}">
             <div class="ranking-rank ${i < 3 ? 'rank-' + (i+1) : 'rank-other'}">${i < 3 ? ['🥇','🥈','🥉'][i] : i+1}</div>
-            <div class="ranking-name">${s.name}${isSelf ? ' (あなた)' : ''} <span style="color:#94a3b8;font-size:11px;">${s.grade || ''}</span></div>
+            <div class="ranking-name">${s.callsign || s.nickname || '???'}${isSelf ? ' (あなた)' : ''} <span style="color:#94a3b8;font-size:11px;">${s.grade || ''}</span></div>
             <div class="ranking-pts">${(s.totalPoints || 0).toLocaleString()}</div>
           </div>
         `;

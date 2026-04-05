@@ -1980,7 +1980,7 @@ async function loadStudents() {
           const roleTag = s.role === 'supporter' ? '<span style="background:#fbbf24;color:#78350f;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:4px">&#128588;サポーター</span>' : '';
           const matIcons = (s.materials || []).map(mid => { const m = getMaterialById(mid); return m ? m.icon : ''; }).join('');
           return `<tr>
-          <td><strong>${escapeHtml(s.name)}</strong>${roleTag}</td>
+          <td><strong>${escapeHtml(s.name)}</strong> <span style="color:#6366f1;font-size:11px;">${escapeHtml(s.callsign || s.nickname || '')}</span>${roleTag}</td>
           <td>${escapeHtml(s.callsign || s.nickname || '-')}</td>
           <td>${escapeHtml(s.grade || '-')}</td>
           <td style="font-size:11px;">${(() => {
@@ -2578,7 +2578,7 @@ async function loadGuilds() {
               <div style="background:rgba(255,255,255,0.8);border-radius:8px;height:8px;width:${pct}%;transition:width 0.3s;"></div>
             </div>
             <div style="font-size:10px;opacity:0.8">${nextMs ? '次: ' + nextMs.icon + nextMs.name + ' (' + nextMs.threshold.toLocaleString() + 'pt)' : '全マイルストーン達成!'}</div>
-            <div class="guild-members">メンバー: ${members.length > 0 ? members.map(m => escapeHtml(m.name) + '<span style="opacity:0.6;font-size:10px;">(' + (m.grade||'') + ')</span>').join(', ') : 'なし'}</div>
+            <div class="guild-members">メンバー: ${members.length > 0 ? members.map(m => escapeHtml(m.name) + '<span style="opacity:0.5;font-size:9px;color:#c4b5fd;"> [' + escapeHtml(m.callsign || m.nickname || '') + '](' + (m.grade||'') + ')</span>').join(', ') : 'なし'}</div>
             <div style="margin-top:10px">
               <button class="btn btn-sm" style="background:rgba(255,255,255,0.2);color:white" onclick="openGuildMemberModal('${g.id}')">メンバー管理</button>
             </div>
@@ -2622,7 +2622,7 @@ async function loadLeagueRanking(league) {
       ? '<tr><td colspan="4" style="text-align:center;color:var(--text-light)">' + leagueInfo.icon + ' ' + leagueInfo.name + 'にメンバーがいません</td></tr>'
       : students.map((s, i) => `<tr>
         <td><span class="rank-num ${i < 3 ? 'rank-' + (i + 1) : ''}">${i < 3 ? ['&#129351;','&#129352;','&#129353;'][i] : i + 1}</span></td>
-        <td>${escapeHtml(s.name)}</td>
+        <td>${escapeHtml(s.name)} <span style="color:#6366f1;font-size:11px;">${escapeHtml(s.callsign || s.nickname || '')}</span></td>
         <td>${escapeHtml(s.grade || '-')}</td>
         <td><strong>${(s.totalPoints || 0).toLocaleString()}</strong> pt</td>
       </tr>`).join('');
@@ -2672,14 +2672,14 @@ function openGuildMemberModal(guildId) {
       members.map(id => {
         const s = allStudents.find(st => st.id === id);
         return s ? `<div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid var(--border)">
-          <span>${escapeHtml(s.name)}</span>
+          <span>${escapeHtml(s.name)} <span style="color:#6366f1;font-size:11px;">${escapeHtml(s.callsign || s.nickname || '')}</span></span>
           <button class="btn btn-danger btn-sm" onclick="removeGuildMember('${guildId}','${id}')">除外</button>
         </div>` : '';
       }).join('')}
     <h4 style="margin:16px 0 8px">メンバー追加</h4>
     ${nonMembers.length === 0 ? '<p style="color:var(--text-light)">追加可能な生徒がいません</p>' :
       `<select class="form-control" id="guildAddStudent">
-        ${nonMembers.map(s => `<option value="${s.id}">${escapeHtml(s.name)}</option>`).join('')}
+        ${nonMembers.map(s => `<option value="${s.id}">${escapeHtml(s.name)} [${escapeHtml(s.callsign || s.nickname || '')}]</option>`).join('')}
       </select>
       <button class="btn btn-primary btn-sm" style="margin-top:8px" onclick="addGuildMember('${guildId}')">追加</button>`}
   `, `<button class="btn btn-secondary" onclick="closeModal()">閉じる</button>`);
@@ -3118,7 +3118,7 @@ async function loadCoachingStudentList() {
   const sel = document.getElementById('coachingStudent');
   const currentVal = sel.value;
   sel.innerHTML = '<option value="">選択してください</option>' +
-    allStudents.map(s => `<option value="${s.id}" ${s.id === currentVal ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('');
+    allStudents.map(s => `<option value="${s.id}" ${s.id === currentVal ? 'selected' : ''}>${escapeHtml(s.name)} [${escapeHtml(s.callsign || s.nickname || '')}]</option>`).join('');
   if (currentVal) loadCoaching();
 }
 
@@ -3257,7 +3257,7 @@ async function loadExams() {
     const sel = document.getElementById('examTrendStudent');
     const currentVal = sel.value;
     sel.innerHTML = '<option value="">選択してください</option>' +
-      allStudents.map(s => `<option value="${s.id}" ${s.id === currentVal ? 'selected' : ''}>${escapeHtml(s.name)}</option>`).join('');
+      allStudents.map(s => `<option value="${s.id}" ${s.id === currentVal ? 'selected' : ''}>${escapeHtml(s.name)} [${escapeHtml(s.callsign || s.nickname || '')}]</option>`).join('');
     if (currentVal) loadExamTrend();
   } catch (e) {
     console.error('テスト結果読み込みエラー:', e);
@@ -3266,7 +3266,7 @@ async function loadExams() {
 
 function openExamModal() {
   const studentOptions = allStudents.map(s =>
-    `<option value="${s.id}">${escapeHtml(s.name)}</option>`
+    `<option value="${s.id}">${escapeHtml(s.name)} [${escapeHtml(s.callsign || s.nickname || '')}]</option>`
   ).join('');
 
   openModal('テスト結果入力', `
@@ -4118,7 +4118,7 @@ async function loadPlanStatus() {
         }
         return `<tr style="border-bottom:1px solid #f1f5f9;">
           <td style="padding:8px;"><input type="checkbox" class="plan-student-check" value="${s.id}"></td>
-          <td style="padding:8px;font-weight:600;">${s.nickname || s.name}</td>
+          <td style="padding:8px;font-weight:600;">${escapeHtml(s.name)} <span style="color:#6366f1;font-size:11px;">${escapeHtml(s.callsign || s.nickname || '')}</span></td>
           <td style="padding:8px;">${attStatus}</td>
           <td style="padding:8px;font-size:12px;">${planStatus}</td>
           <td style="padding:8px;font-size:12px;">${progress}</td>
@@ -4537,7 +4537,7 @@ async function loadEconomy() {
     const students = await StudentsDB.getAll();
     const sel = document.getElementById('coinStudent');
     sel.innerHTML = '<option value="">選択してください</option>' +
-      students.map(s => `<option value="${s.id}">${escapeHtml(s.nickname || s.name)}</option>`).join('');
+      students.map(s => `<option value="${s.id}">${escapeHtml(s.name)} [${escapeHtml(s.callsign || s.nickname || '')}]</option>`).join('');
 
     // カテゴリ変更で手動金額フィールド表示切替
     document.getElementById('coinCategory').onchange = function() {
