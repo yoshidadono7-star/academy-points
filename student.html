@@ -1190,6 +1190,7 @@ body.theme-space {
         <div class="complete-stat-lbl">累計ポイント</div>
       </div>
     </div>
+    <div id="completeEventBonus" style="display:none;"></div>
     <div id="completeCombos"></div>
     <div id="completeBadges"></div>
     <div id="completeRaid"></div>
@@ -2252,7 +2253,7 @@ async function selectLocationZoom(btn) {
 function startStudy() {
   if (!studySession.subject || !studySession.location || !studySession.method) return;
 
-  timerState = { running: false, elapsed: 0, interval: null, pomodoroCount: 0, pomodoroPhase: 'work', pomodoroTime: 25 * 60, startHour: new Date().getHours() };
+  timerState = { running: false, elapsed: 0, interval: null, pomodoroCount: 0, pomodoroPhase: 'work', pomodoroTime: 25 * 60, startHour: new Date().getHours(), startTime: new Date() };
 
   const badge = document.getElementById('timerSubjectBadge');
   const zoomTag = studySession.location === 'Zoom' ? ' <span style="background:#2D8CFF;color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:4px;">🎥 Zoom授業中</span>' : '';
@@ -2364,11 +2365,39 @@ async function stopStudy(save) {
 
   showLoading();
   const duration = Math.floor(timerState.elapsed / 60);
+  const sessionStartTime = timerState.startTime || new Date(Date.now() - timerState.elapsed * 1000);
+  const sessionEndTime = new Date();
+
   // Points: 1pt per minute base, pomodoro bonus
-  let points = duration;
+  let basePoints = duration;
   if (studySession.method === 'pomodoro' && timerState.pomodoroCount > 0) {
-    points += timerState.pomodoroCount * 5; // 5pt bonus per pomodoro
+    basePoints += timerState.pomodoroCount * 5; // 5pt bonus per pomodoro
   }
+
+  // イベント重複判定: セッション期間とイベント期間が1秒でも��なっていれば倍率適用
+  let eventMultiplier = 1;
+  let eventBonusPoints = 0;
+  let appliedEvent = null;
+  try {
+    const activeEvents = await EventsDB.getActive();
+    for (const ev of activeEvents) {
+      const evStart = ev.activatedAt ? (ev.activatedAt.toDate ? ev.activatedAt.toDate() : new Date(ev.activatedAt)) : null;
+      if (!evStart) continue;
+      const evEnd = new Date(evStart.getTime() + (ev.durationMinutes || 30) * 60000);
+      // 重複判定: sessionStart < evEnd AND sessionEnd > evStart
+      if (sessionStartTime < evEnd && sessionEndTime > evStart) {
+        appliedEvent = ev;
+        if (ev.type === 'multiplier' && ev.multiplier > 1) {
+          eventMultiplier = ev.multiplier;
+        } else if (ev.type === 'bonus' && ev.bonusCoins > 0) {
+          eventBonusPoints = ev.bonusCoins;
+        }
+        break; // 最初のアクティブイベントのみ適用
+      }
+    }
+  } catch(e) { console.error('Event check error:', e); }
+
+  let points = Math.round(basePoints * eventMultiplier) + eventBonusPoints;
 
   try {
     // Save study log
@@ -2528,7 +2557,7 @@ async function stopStudy(save) {
     }
 
     // Show complete screen
-    showCompleteScreen(duration, points, newBadges, raidResults, comboResults, missionResult);
+    showCompleteScreen(duration, points, newBadges, raidResults, comboResults, missionResult, appliedEvent, basePoints, eventMultiplier, eventBonusPoints);
   } catch(e) {
     console.error(e);
     showToast('記録に失敗しました');
@@ -2564,7 +2593,7 @@ async function updateStreak() {
   } catch(e) { console.error(e); }
 }
 
-function showCompleteScreen(duration, points, newBadges, raidResults, comboResults, missionResult) {
+function showCompleteScreen(duration, points, newBadges, raidResults, comboResults, missionResult, appliedEvent, basePoints, eventMultiplier, eventBonusPoints) {
   comboResults = comboResults || [];
   document.getElementById('completePoints').textContent = `+${points}`;
   document.getElementById('completeDuration').textContent = `${duration}分`;
@@ -2580,6 +2609,29 @@ function showCompleteScreen(duration, points, newBadges, raidResults, comboResul
   } else {
     pomoEl.style.display = 'none';
     pomoLabel.style.display = 'none';
+  }
+
+  // イベント適用表示
+  const eventEl = document.getElementById('completeEventBonus');
+  if (eventEl) {
+    if (appliedEvent && (eventMultiplier > 1 || eventBonusPoints > 0)) {
+      const EICONS = { multiplier: '🚀', bonus: '🎁', challenge: '⚔️', surprise: '🎉' };
+      const ECOLORS = { multiplier: '#ff8800', bonus: '#10b981', challenge: '#ef4444', surprise: '#8b5cf6' };
+      const icon = EICONS[appliedEvent.type] || '⚡';
+      const color = ECOLORS[appliedEvent.type] || '#ff8800';
+      let detail = '';
+      if (eventMultiplier > 1) detail = `基本 ${basePoints}pt × ${eventMultiplier} = ${Math.round(basePoints * eventMultiplier)}pt`;
+      if (eventBonusPoints > 0) detail += (detail ? ' + ' : '') + `ボーナス +${eventBonusPoints}pt`;
+      eventEl.innerHTML = `
+        <div style="background:linear-gradient(135deg,${color}30,${color}10);border:2px solid ${color};border-radius:12px;padding:14px;text-align:center;margin:12px 0;animation:eventPulse 2s infinite;">
+          <div style="font-size:16px;font-weight:900;color:${color};">${icon} イベント適用！ ${icon}</div>
+          <div style="font-size:13px;color:#e2e8f0;margin-top:4px;">${appliedEvent.name || 'ブースター'}</div>
+          <div style="font-size:20px;font-weight:900;color:${color};margin-top:6px;">${detail}</div>
+        </div>`;
+      eventEl.style.display = 'block';
+    } else {
+      eventEl.style.display = 'none';
+    }
   }
 
   // Combos
