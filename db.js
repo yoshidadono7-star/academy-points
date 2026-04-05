@@ -40,7 +40,12 @@ const StudentsDB = {
       testType: data.testType || 'midterm',    // 'midterm'(中間テストあり) | 'no_midterm'(なし)
       weakSubject: data.weakSubject || null,    // 苦手科目（コンボ・ミッション判定用）
       school: data.school || null,               // 在籍中学校（JUNIOR_HIGH_SCHOOLS キー）
-      targetStation: data.targetStation || null, // 志望校（マップ終着点、本人のみ表示）
+      targetStation: data.targetStation || null, // 志望高校（中学生用、TARGET_STATIONS キー）
+      // --- 小学生受験用 ---
+      examCandidate: data.examCandidate || false,         // 受験組かどうか
+      targetJuniorHighs: data.targetJuniorHighs || [],    // [{id, faculty, memo}] 志望中学校（最大3件）
+      // --- 高校生用 ---
+      targetUniversities: data.targetUniversities || [],  // [{id, faculty, memo}] 志望大学（第1〜第3志望）
       role: data.role || 'student',             // 'student' | 'supporter'(私立合格後)
       missionStreak: data.missionStreak || 0,   // デイリーミッション連続達成数
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -1829,13 +1834,22 @@ const StoryDB = {
 // ===== 志望校ステーション（マップ終着点） =====
 // ※ student.html の本人画面にのみ表示。monitor.htmlには非公開（匿名性の原則）
 const TARGET_STATIONS = {
-  nobeoka_h:     { name: '延岡高校',   icon: '🌟', code: 'プラネット・アルファ' },
-  nobeoka_seiun: { name: '延岡星雲高校', icon: '🌀', code: 'ノースクラウド星雲' },
-  nobeoka_sho:   { name: '延岡商業',   icon: '📊', code: 'セクター・コマース' },
-  nobeoka_ko:    { name: '延岡工業',   icon: '⚙️', code: 'インダストリアル・プラント' },
-  gakuen:        { name: '延岡学園',   icon: '🏛️', code: 'ステーション・アカデミア' },
-  ursula:        { name: '聖心ウルスラ', icon: '✝️', code: 'サンクチュアリ・ウルスラ' },
-  other:         { name: 'その他',     icon: '🚀', code: 'カスタム・ステーション' },
+  nobeoka_h:     { name: '延岡高校',     icon: '🌟', code: 'プラネット・アルファ',
+                   hensachi: 58, bairitsu: 1.15, teiin: 280, subjects: ['国語','数学','英語','理科','社会'], memo: '普通科・MS科' },
+  nobeoka_seiun: { name: '延岡星雲高校', icon: '🌀', code: 'ノースクラウド星雲',
+                   hensachi: 50, bairitsu: 1.05, teiin: 240, subjects: ['国語','数学','英語','理科','社会'], memo: 'フロンティア科・普通科' },
+  nobeoka_sho:   { name: '延岡商業',     icon: '📊', code: 'セクター・コマース',
+                   hensachi: 44, bairitsu: 1.02, teiin: 160, subjects: ['国語','数学','英語','理科','社会'], memo: '商業科・情報ビジネス科' },
+  nobeoka_ko:    { name: '延岡工業',     icon: '⚙️', code: 'インダストリアル・プラント',
+                   hensachi: 44, bairitsu: 1.03, teiin: 200, subjects: ['国語','数学','英語','理科','社会'], memo: '機械科・電気電子科・土木科・情報技術科' },
+  gakuen:        { name: '延岡学園',     icon: '🏛️', code: 'ステーション・アカデミア',
+                   hensachi: 42, bairitsu: 1.1, teiin: 200, subjects: ['国語','数学','英語'], memo: '普通科・調理科（私立）' },
+  ursula:        { name: '聖心ウルスラ', icon: '✝️', code: 'サンクチュアリ・ウルスラ',
+                   hensachi: 52, bairitsu: 1.2, teiin: 120, subjects: ['国語','数学','英語'], memo: '特進・普通科（私立）' },
+  other_hs:      { name: 'その他',       icon: '🚀', code: 'カスタム・ステーション',
+                   hensachi: null, bairitsu: null, teiin: null, subjects: [], memo: '' },
+  other:         { name: 'その他',       icon: '🚀', code: 'カスタム・ステーション',
+                   hensachi: null, bairitsu: null, teiin: null, subjects: [], memo: '' }, // 後方互換
 };
 
 function getTargetStationDisplay(targetStationId) {
@@ -1857,6 +1871,55 @@ const JUNIOR_HIGH_SCHOOLS = {
   kitagata:   { name: '北方学園' },
   asahi:      { name: '旭中' },
   other_jh:   { name: 'その他中学校' }
+};
+
+// ===== 志望中学校マスタ（小学生受験用） =====
+const TARGET_JUNIOR_HIGHS = {
+  miyazaki_nichidai_jh: { name: '宮崎日大中',     hensachi: 52, bairitsu: 1.8, teiin: 120, subjects: ['国語','算数','理科','社会'], memo: '奨学生制度あり' },
+  ursula_jh:            { name: '聖心ウルスラ中', hensachi: 48, bairitsu: 1.5, teiin: 80,  subjects: ['国語','算数','面接'], memo: '' },
+  miyazaki_gakuen_jh:   { name: '宮崎学園中',     hensachi: 50, bairitsu: 1.6, teiin: 100, subjects: ['国語','算数','理科','社会'], memo: '' },
+  houou_jh:             { name: '鵬翔中',         hensachi: 45, bairitsu: 1.3, teiin: 80,  subjects: ['国語','算数'], memo: '' },
+  nobeoka_gakuen_jh:    { name: '延岡学園中',     hensachi: 44, bairitsu: 1.2, teiin: 60,  subjects: ['国語','算数','面接'], memo: '' },
+  miyazaki_nishi_jh:    { name: '宮崎西高附属中', hensachi: 58, bairitsu: 3.5, teiin: 80,  subjects: ['適性検査','作文','面接'], memo: '県立中高一貫' },
+  miyazaki_fuzoku_jh:   { name: '宮大附属中',     hensachi: 55, bairitsu: 2.8, teiin: 120, subjects: ['国語','算数','理科','社会'], memo: '国立' },
+  other_jh_exam:        { name: 'その他',         hensachi: null, bairitsu: null, teiin: null, subjects: [], memo: '' }
+};
+
+// ===== 大学マスタ（高校生用） =====
+const TARGET_UNIVERSITIES = {
+  // --- 国公立（九州） ---
+  miyazaki_u:     { name: '宮崎大学',       area: '宮崎', type: 'national', hensachi: 50, bairitsu: 2.5, subjects: ['共通テスト','二次(学部別)'], memo: '' },
+  miyazaki_korit: { name: '宮崎公立大学',   area: '宮崎', type: 'public',   hensachi: 48, bairitsu: 2.2, subjects: ['共通テスト','小論文'], memo: '' },
+  kyushu_u:       { name: '九州大学',       area: '福岡', type: 'national', hensachi: 65, bairitsu: 3.2, subjects: ['共通テスト','二次(学部別)'], memo: '旧帝大' },
+  kumamoto_u:     { name: '熊本大学',       area: '熊本', type: 'national', hensachi: 55, bairitsu: 2.8, subjects: ['共通テスト','二次(学部別)'], memo: '' },
+  kagoshima_u:    { name: '鹿児島大学',     area: '鹿児島', type: 'national', hensachi: 52, bairitsu: 2.3, subjects: ['共通テスト','二次(学部別)'], memo: '' },
+  oita_u:         { name: '大分大学',       area: '大分', type: 'national', hensachi: 50, bairitsu: 2.1, subjects: ['共通テスト','二次(学部別)'], memo: '' },
+  nagasaki_u:     { name: '長崎大学',       area: '長崎', type: 'national', hensachi: 53, bairitsu: 2.6, subjects: ['共通テスト','二次(学部別)'], memo: '' },
+  saga_u:         { name: '佐賀大学',       area: '佐賀', type: 'national', hensachi: 48, bairitsu: 2.0, subjects: ['共通テスト','二次(学部別)'], memo: '' },
+  fukuoka_kyo:    { name: '福岡教育大学',   area: '福岡', type: 'national', hensachi: 50, bairitsu: 2.4, subjects: ['共通テスト','二次(学部別)'], memo: '' },
+  kitakyushu_u:   { name: '北九州市立大学', area: '福岡', type: 'public',   hensachi: 50, bairitsu: 2.5, subjects: ['共通テスト','二次(学部別)'], memo: '' },
+  hiroshima_u:    { name: '広島大学',       area: '広島', type: 'national', hensachi: 57, bairitsu: 2.7, subjects: ['共通テスト','二次(学部別)'], memo: '' },
+  // --- 国公立（全国主要） ---
+  tokyo_u:        { name: '東京大学',       area: '東京', type: 'national', hensachi: 72, bairitsu: 3.5, subjects: ['共通テスト','二次(学部別)'], memo: '' },
+  kyoto_u:        { name: '京都大学',       area: '京都', type: 'national', hensachi: 70, bairitsu: 3.3, subjects: ['共通テスト','二次(学部別)'], memo: '' },
+  osaka_u:        { name: '大阪大学',       area: '大阪', type: 'national', hensachi: 65, bairitsu: 3.0, subjects: ['共通テスト','二次(学部別)'], memo: '' },
+  nagoya_u:       { name: '名古屋大学',     area: '愛知', type: 'national', hensachi: 63, bairitsu: 2.9, subjects: ['共通テスト','二次(学部別)'], memo: '' },
+  tohoku_u:       { name: '東北大学',       area: '宮城', type: 'national', hensachi: 63, bairitsu: 3.0, subjects: ['共通テスト','二次(学部別)'], memo: '' },
+  hokkaido_u:     { name: '北海道大学',     area: '北海道', type: 'national', hensachi: 62, bairitsu: 2.8, subjects: ['共通テスト','二次(学部別)'], memo: '' },
+  kobe_u:         { name: '神戸大学',       area: '兵庫', type: 'national', hensachi: 62, bairitsu: 3.1, subjects: ['共通テスト','二次(学部別)'], memo: '' },
+  // --- 私立（九州） ---
+  fukuoka_u:      { name: '福岡大学',       area: '福岡', type: 'private',  hensachi: 50, bairitsu: 3.5, subjects: ['個別試験(学部別)'], memo: '' },
+  seinan_u:       { name: '西南学院大学',   area: '福岡', type: 'private',  hensachi: 55, bairitsu: 3.8, subjects: ['個別試験(学部別)'], memo: '' },
+  kurume_u:       { name: '久留米大学',     area: '福岡', type: 'private',  hensachi: 48, bairitsu: 2.5, subjects: ['個別試験(学部別)'], memo: '医学部あり' },
+  miyazaki_sangyo:  { name: '宮崎産業経営大学', area: '宮崎', type: 'private', hensachi: 40, bairitsu: 1.2, subjects: ['個別試験'], memo: '' },
+  miyazaki_kokusai: { name: '宮崎国際大学', area: '宮崎', type: 'private',  hensachi: 42, bairitsu: 1.3, subjects: ['個別試験','面接'], memo: '' },
+  // --- 私立（全国主要） ---
+  waseda_u:       { name: '早稲田大学',     area: '東京', type: 'private',  hensachi: 67, bairitsu: 5.0, subjects: ['個別試験(学部別)'], memo: '' },
+  keio_u:         { name: '慶應義塾大学',   area: '東京', type: 'private',  hensachi: 68, bairitsu: 4.5, subjects: ['個別試験(学部別)'], memo: '' },
+  meiji_u:        { name: '明治大学',       area: '東京', type: 'private',  hensachi: 62, bairitsu: 4.0, subjects: ['個別試験(学部別)'], memo: '' },
+  ritsumeikan_u:  { name: '立命館大学',     area: '京都', type: 'private',  hensachi: 58, bairitsu: 3.5, subjects: ['個別試験(学部別)'], memo: '' },
+  // --- その他 ---
+  other_u:        { name: 'その他',         area: '', type: 'other', hensachi: null, bairitsu: null, subjects: [], memo: '' }
 };
 
 // ===== サポート艦隊（私立合格者のクラスチェンジ） =====
