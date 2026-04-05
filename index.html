@@ -724,7 +724,7 @@
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>名前</th><th>コールサイン</th><th>学年</th><th>志望校</th><th>教材</th><th>ランク</th><th>残高</th><th>レベル</th><th>操作</th></tr>
+            <tr><th>名前</th><th>コールサイン</th><th>学年</th><th>コース</th><th>志望校</th><th>教材</th><th>ランク</th><th>残高</th><th>レベル</th><th>操作</th></tr>
           </thead>
           <tbody id="studentsTable"></tbody>
         </table>
@@ -1958,7 +1958,7 @@ async function loadStudents() {
   try {
     allStudents = await StudentsDB.getAll();
     document.getElementById('studentsTable').innerHTML = allStudents.length === 0
-      ? '<tr><td colspan="9" style="text-align:center;color:var(--text-light)">生徒がいません</td></tr>'
+      ? '<tr><td colspan="10" style="text-align:center;color:var(--text-light)">生徒がいません</td></tr>'
       : allStudents.map(s => {
           const ri = getRankInfo(s.rank || 'rookie');
           const roleTag = s.role === 'supporter' ? '<span style="background:#fbbf24;color:#78350f;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:4px">&#128588;サポーター</span>' : '';
@@ -1967,6 +1967,17 @@ async function loadStudents() {
           <td><strong>${escapeHtml(s.name)}</strong>${roleTag}</td>
           <td>${escapeHtml(s.callsign || s.nickname || '-')}</td>
           <td>${escapeHtml(s.grade || '-')}</td>
+          <td style="font-size:11px;">${(() => {
+            if (!s.courseType) return '<span style="color:#cbd5e1">未設定</span>';
+            const ct = COURSE_TYPES[s.courseType];
+            if (!ct) return '-';
+            let label = ct.icon + ' ' + ct.name.replace(/^[①-⑧]/,'');
+            if (s.courseType === 'standard' && s.courseKoma) label += ' ' + s.courseKoma + 'コマ';
+            const gg = getGradeGroup(s.grade, s.examCandidate);
+            const m = calcMonthly(gg, s.courseType, s.courseKoma);
+            if (m != null) label += '<br><span style="color:#059669;font-weight:700;">¥' + m.toLocaleString() + '/月</span>';
+            return label;
+          })()}</td>
           <td style="font-size:11px;max-width:180px;">${(() => {
             const g = s.grade || '';
             if (g.startsWith('小') && s.examCandidate && s.targetJuniorHighs && s.targetJuniorHighs.length) {
@@ -2141,14 +2152,51 @@ function renderGradeSection(grade, student) {
   const cat = grade.startsWith('小') ? 'elem' : grade.startsWith('中') ? 'jhs' : grade.startsWith('高') ? 'hs' : '';
   if (!cat) { container.innerHTML = ''; return; }
 
-  let html = '<div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">';
+  let html = '';
+
+  // ========== コース選択セクション（全学年共通） ==========
+  const isExam = student && student.examCandidate;
+  const gg = getGradeGroup(grade, isExam);
+  const pricing = gg ? COURSE_PRICING[gg] : null;
+  const curCourse = student && student.courseType || '';
+  const curKoma = student && student.courseKoma || 2;
+
+  html += '<div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">';
+  html += '<div style="font-size:13px;font-weight:700;color:#059669;margin-bottom:8px">&#128176; コース設定' + (pricing ? ' <span style="font-weight:400;color:#94a3b8;font-size:11px;">(' + pricing.label + ')</span>' : '') + '</div>';
+
+  if (pricing) {
+    html += '<div class="form-group"><label>コース</label>';
+    html += '<select class="form-control" id="studentCourseType" onchange="updateCourseInfo()">';
+    html += '<option value="">未設定</option>';
+    pricing.available.forEach(ct => {
+      const c = COURSE_TYPES[ct];
+      if (c) html += '<option value="' + ct + '"' + (curCourse === ct ? ' selected' : '') + '>' + c.icon + ' ' + c.name + '</option>';
+    });
+    html += '</select></div>';
+
+    // 標準コースのコマ数選択
+    html += '<div id="courseKomaGroup" style="' + (curCourse === 'standard' ? '' : 'display:none') + '">';
+    html += '<div class="form-group"><label>週コマ数</label>';
+    html += '<select class="form-control" id="studentCourseKoma" onchange="updateCourseInfo()">';
+    for (let k = 1; k <= 8; k++) {
+      html += '<option value="' + k + '"' + (curKoma == k ? ' selected' : '') + '>' + k + 'コマ/週</option>';
+    }
+    html += '</select></div></div>';
+
+    // 料金・サービス情報表示エリア
+    html += '<div id="courseInfoDisplay"></div>';
+  } else {
+    html += '<div style="color:#94a3b8;font-size:12px;">学年を選択するとコースが表示されます</div>';
+  }
+  html += '</div>';
+
+  // ========== 学年別設定セクション ==========
+  html += '<div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">';
 
   if (cat === 'elem') {
-    // ===== 小学生 =====
-    const isExam = student && student.examCandidate;
     html += '<div style="font-size:13px;font-weight:700;color:#f59e0b;margin-bottom:8px">&#127891; 小学生 受験設定</div>';
     html += '<div class="form-group"><label>受験/非受験</label>';
-    html += '<select class="form-control" id="studentExamCandidate" onchange="document.getElementById(\'elemExamTargets\').style.display=this.value===\'true\'?\'\':\'none\'">';
+    html += '<select class="form-control" id="studentExamCandidate" onchange="document.getElementById(\'elemExamTargets\').style.display=this.value===\'true\'?\'\':\'none\'; updateCourseForExamChange();">';
     html += '<option value="false"' + (!isExam ? ' selected' : '') + '>非受験</option>';
     html += '<option value="true"' + (isExam ? ' selected' : '') + '>受験組</option></select></div>';
     html += '<div id="elemExamTargets" style="' + (isExam ? '' : 'display:none') + '">';
@@ -2170,9 +2218,7 @@ function renderGradeSection(grade, student) {
     html += '</div>';
 
   } else if (cat === 'jhs') {
-    // ===== 中学生 =====
     html += '<div style="font-size:13px;font-weight:700;color:#3b82f6;margin-bottom:8px">&#127963; 中学生 設定</div>';
-    // 在籍中学校
     html += '<div class="form-group"><label>在籍中学校</label>';
     html += '<select class="form-control" id="studentSchool">';
     html += '<option value="">未設定</option>';
@@ -2180,11 +2226,11 @@ function renderGradeSection(grade, student) {
       html += '<option value="' + k + '"' + (student && student.school === k ? ' selected' : '') + '>' + v.name + '</option>';
     });
     html += '</select></div>';
-    // 志望高校
     html += '<div class="form-group"><label>志望高校</label>';
     html += '<select class="form-control" id="studentTargetStation">';
     html += '<option value="">未設定</option>';
     Object.entries(TARGET_STATIONS).forEach(([k,v]) => {
+      if (k === 'other') return; // 後方互換キーをスキップ
       html += '<option value="' + k + '"' + (student && student.targetStation === k ? ' selected' : '') + '>' + v.icon + ' ' + v.name + '</option>';
     });
     html += '</select>';
@@ -2192,16 +2238,13 @@ function renderGradeSection(grade, student) {
     html += '</div>';
 
   } else if (cat === 'hs') {
-    // ===== 高校生 =====
     html += '<div style="font-size:13px;font-weight:700;color:#7c3aed;margin-bottom:8px">&#127979; 高校生 志望大学</div>';
     const tu = (student && student.targetUniversities) || [];
-    // 大学をtype別にoptgroup
     const uniOptgroups = () => {
-      const groups = { national: '国公立', public: '公立', private: '私立', other: 'その他' };
       let opts = '<option value="">未設定</option>';
       const byType = {};
       Object.entries(TARGET_UNIVERSITIES).forEach(([k,v]) => {
-        const t = v.type === 'public' ? 'national' : v.type; // 国公立は一緒に
+        const t = v.type === 'public' ? 'national' : v.type;
         if (!byType[t]) byType[t] = [];
         byType[t].push([k,v]);
       });
@@ -2240,6 +2283,82 @@ function renderGradeSection(grade, student) {
   } else if (cat === 'hs') {
     for (let i = 0; i < 3; i++) onTargetSelectChange('targetUni' + i, 'targetUniInfo' + i, TARGET_UNIVERSITIES);
   }
+
+  // コース情報初期表示
+  updateCourseInfo();
+}
+
+// 小学生の受験/非受験切替時にコース選択肢を更新
+function updateCourseForExamChange() {
+  const grade = document.getElementById('studentGrade')?.value;
+  if (!grade || !grade.startsWith('小')) return;
+  const isExam = document.getElementById('studentExamCandidate')?.value === 'true';
+  const gg = getGradeGroup(grade, isExam);
+  const pricing = COURSE_PRICING[gg];
+  if (!pricing) return;
+  const sel = document.getElementById('studentCourseType');
+  if (!sel) return;
+  const curVal = sel.value;
+  sel.innerHTML = '<option value="">未設定</option>';
+  pricing.available.forEach(ct => {
+    const c = COURSE_TYPES[ct];
+    if (c) sel.innerHTML += '<option value="' + ct + '"' + (curVal === ct ? ' selected' : '') + '>' + c.icon + ' ' + c.name + '</option>';
+  });
+  updateCourseInfo();
+}
+
+// コース選択変更時に料金・サービス情報を更新
+function updateCourseInfo() {
+  const courseType = document.getElementById('studentCourseType')?.value;
+  const komaGroup = document.getElementById('courseKomaGroup');
+  const infoDiv = document.getElementById('courseInfoDisplay');
+  if (!infoDiv) return;
+
+  // 標準コース時のみコマ数表示
+  if (komaGroup) komaGroup.style.display = courseType === 'standard' ? '' : 'none';
+
+  if (!courseType) { infoDiv.innerHTML = ''; return; }
+
+  const grade = document.getElementById('studentGrade')?.value;
+  const isExam = document.getElementById('studentExamCandidate')?.value === 'true';
+  const gg = getGradeGroup(grade, isExam);
+  const koma = parseInt(document.getElementById('studentCourseKoma')?.value) || 2;
+  const monthly = calcMonthly(gg, courseType, koma);
+  const initial = calcInitial(monthly);
+  const ct = COURSE_TYPES[courseType];
+  const services = COURSE_SERVICES[courseType];
+
+  let html = '<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px;margin-top:8px;">';
+
+  // 料金表示
+  if (monthly != null) {
+    html += '<div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">';
+    html += '<span style="background:#059669;color:#fff;padding:3px 10px;border-radius:12px;font-size:13px;font-weight:700;">月額 ¥' + monthly.toLocaleString() + '</span>';
+    html += '<span style="background:#d1d5db;color:#374151;padding:3px 10px;border-radius:12px;font-size:11px;">初月 ¥' + initial.toLocaleString() + '</span>';
+    html += '<span style="color:#6b7280;font-size:10px;">（入塾金¥22,000 + 諸経費6ヶ月¥17,160 + 授業料）</span>';
+    html += '</div>';
+  }
+
+  // コース説明
+  if (ct) html += '<div style="font-size:11px;color:#475569;margin-bottom:6px;">' + ct.desc + '</div>';
+
+  // 付属サービス
+  if (services) {
+    html += '<div style="font-size:11px;margin-top:4px;">';
+    html += '<div style="font-weight:600;color:#059669;margin-bottom:2px;">付属サービス:</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:3px;">';
+    Object.entries(services).forEach(([svcKey, status]) => {
+      const label = SERVICE_LABELS[svcKey] || svcKey;
+      const isIncluded = status.startsWith('◎');
+      html += '<span style="padding:2px 6px;border-radius:4px;font-size:10px;'
+        + (isIncluded ? 'background:#dcfce7;color:#166534;font-weight:600;' : 'background:#f1f5f9;color:#94a3b8;')
+        + '">' + status + ' ' + label + '</span>';
+    });
+    html += '</div></div>';
+  }
+
+  html += '</div>';
+  infoDiv.innerHTML = html;
 }
 
 async function saveStudent(id) {
@@ -2279,10 +2398,14 @@ async function saveStudent(id) {
     }
   }
 
+  // コース設定
+  const courseType = document.getElementById('studentCourseType')?.value || null;
+  const courseKoma = courseType === 'standard' ? parseInt(document.getElementById('studentCourseKoma')?.value) || 2 : null;
+
   if (!name) { showToast('名前を入力してください', 'error'); return; }
 
   try {
-    const data = { name, nickname, callsign, pin, parentPin, grade, rank, school, testType, weakSubject, targetStation, role, materials, examCandidate, targetJuniorHighs, targetUniversities };
+    const data = { name, nickname, callsign, pin, parentPin, grade, rank, school, testType, weakSubject, targetStation, role, materials, examCandidate, targetJuniorHighs, targetUniversities, courseType, courseKoma };
     if (id) {
       await StudentsDB.update(id, data);
       showToast('生徒情報を更新しました');

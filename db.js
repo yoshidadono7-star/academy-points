@@ -46,6 +46,9 @@ const StudentsDB = {
       targetJuniorHighs: data.targetJuniorHighs || [],    // [{id, faculty, memo}] 志望中学校（最大3件）
       // --- 高校生用 ---
       targetUniversities: data.targetUniversities || [],  // [{id, faculty, memo}] 志望大学（第1〜第3志望）
+      // --- コース設定 ---
+      courseType: data.courseType || null,        // COURSE_TYPES キー
+      courseKoma: data.courseKoma || null,         // 標準コースのコマ数（1-8）
       role: data.role || 'student',             // 'student' | 'supporter'(私立合格後)
       missionStreak: data.missionStreak || 0,   // デイリーミッション連続達成数
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -1856,6 +1859,98 @@ function getTargetStationDisplay(targetStationId) {
   const ts = TARGET_STATIONS[targetStationId];
   if (!ts) return null;
   return { ...ts, id: targetStationId };
+}
+
+// ===== コース・料金マスタ =====
+const COURSE_TYPES = {
+  all_free:     { name: '①週6日オールフリー', icon: '🌟', desc: '毎日通える最上位コース。受験生や本気で成績を上げたい方に。夏期・冬期講習含む（中学生）' },
+  '2day_free':  { name: '②週2日フリー',       icon: '⭐', desc: '週2日通い放題。SRJ速読＋Monoxer込み。部活との両立に最適' },
+  daytime_free: { name: '②昼間フリー',        icon: '☀️', desc: '昼間通い放題（小学生向け）' },
+  study_room:   { name: '③自習室使用',        icon: '📖', desc: '自習室のみのリーズナブルなプラン（高校生向け）' },
+  standard:     { name: '④標準コース',        icon: '📝', desc: '週1〜8コマから選べるコマ制' }
+};
+
+// 各コース付属サービス（◎=基本料金に含む, △=オプション/別途）
+const COURSE_SERVICES = {
+  all_free:  { srj: '◎（小〜中3）', monoxer: '◎', jishuushitsu: '◎', manabieido: '◎（高校生）', kaki_touki: '◎（中学生）', coaching: '◎（高校生）' },
+  '2day_free': { srj: '◎（小〜中3）', monoxer: '◎', jishuushitsu: '△/◎', manabieido: '◎（高校生）', kaki_touki: '△', coaching: '◎（高校生）' },
+  daytime_free: { srj: '◎（小〜中3）', monoxer: '◎', jishuushitsu: '△', manabieido: '△', kaki_touki: '△', coaching: '△' },
+  study_room: { srj: '△', monoxer: '△', jishuushitsu: '◎', manabieido: '△', kaki_touki: '△', coaching: '△/◎' },
+  standard:   { srj: '△', monoxer: '△', jishuushitsu: '△', manabieido: '△', kaki_touki: '△', coaching: '△' }
+};
+
+const SERVICE_LABELS = {
+  srj: 'SRJ速読速解力講座', monoxer: 'Monoxer', jishuushitsu: '自習室使い放題',
+  manabieido: '学びエイド（高校生）', kaki_touki: '夏期・冬期講習（中学生）', coaching: 'コーチング（高校生）'
+};
+
+// 学年グループ別の料金テーブル
+// monthly = 基本授業料 + 諸経費2,860  /  initial = 36,300 + monthly
+const COURSE_PRICING = {
+  elem_low: {
+    label: '小学生（低学年・非受験）',
+    available: ['2day_free', 'daytime_free', 'standard'],
+    monthly: { '2day_free': 18260, daytime_free: 22660 },
+    standard: { base: 5060, perKoma: 2200 }  // monthly = base + perKoma * koma
+  },
+  elem_exam: {
+    label: '小学生（受験）',
+    available: ['all_free', '2day_free', 'daytime_free', 'standard'],
+    monthly: { all_free: 31460, '2day_free': 18260, daytime_free: 22660 },
+    standard: { base: 5060, perKoma: 2200 }
+  },
+  jh1: {
+    label: '中学1年生',
+    available: ['2day_free', 'all_free', 'standard'],
+    monthly: { '2day_free': 23760, all_free: 28160 },
+    standard: { base: 6160, perKoma: 4400 }
+  },
+  jh2: {
+    label: '中学2年生',
+    available: ['2day_free', 'all_free', 'standard'],
+    monthly: { '2day_free': 27280, all_free: 32560 },
+    standard: { base: 6160, perKoma: 5280 }
+  },
+  jh3: {
+    label: '中学3年生',
+    available: ['2day_free', 'all_free', 'standard'],
+    monthly: { '2day_free': 33660, all_free: 40260 },
+    standard: { base: 7260, perKoma: 6600 }
+  },
+  hs12: {
+    label: '高校1・2年生',
+    available: ['2day_free', 'all_free', 'study_room', 'standard'],
+    monthly: { '2day_free': 34760, all_free: 41360, study_room: 21560 },
+    standard: { base: 7260, perKoma: 6875 }
+  },
+  hs3: {
+    label: '高校3年生',
+    available: ['2day_free', 'all_free', 'study_room', 'standard'],
+    monthly: { '2day_free': 43560, all_free: 52360, study_room: 25960 },
+    standard: { base: 7260, perKoma: 9075 }
+  }
+};
+
+function getGradeGroup(grade, examCandidate) {
+  if (['小1','小2','小3'].includes(grade)) return 'elem_low';
+  if (['小4','小5','小6'].includes(grade)) return examCandidate ? 'elem_exam' : 'elem_low';
+  if (grade === '中1') return 'jh1';
+  if (grade === '中2') return 'jh2';
+  if (grade === '中3') return 'jh3';
+  if (['高1','高2'].includes(grade)) return 'hs12';
+  if (grade === '高3') return 'hs3';
+  return null;
+}
+
+function calcMonthly(gradeGroup, courseType, koma) {
+  const p = COURSE_PRICING[gradeGroup];
+  if (!p) return null;
+  if (courseType === 'standard' && p.standard) return p.standard.base + p.standard.perKoma * (koma || 1);
+  return p.monthly[courseType] || null;
+}
+
+function calcInitial(monthly) {
+  return monthly != null ? 36300 + monthly : null;
 }
 
 // ===== 中学校マスタ =====
