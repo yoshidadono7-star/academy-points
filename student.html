@@ -933,6 +933,17 @@ body.theme-space {
   </div>
 
   <!-- テストカウントダウン -->
+  <!-- 現在出撃中の仲間（リアルタイム） -->
+  <div id="liveCrewSection" style="display:none;margin:0 16px 12px;">
+    <div style="background:linear-gradient(135deg,#1e293b,#0f172a);border:1px solid rgba(0,212,255,0.3);border-radius:12px;padding:12px 14px;">
+      <div style="font-size:12px;font-weight:700;color:#00d4ff;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
+        <span style="display:inline-block;width:8px;height:8px;background:#00ff88;border-radius:50%;animation:pulse 1.5s infinite;"></span>
+        📡 現在出撃中 <span id="liveCrewCount" style="color:#00ff88;"></span>
+      </div>
+      <div id="liveCrewList" style="display:flex;flex-direction:column;gap:4px;"></div>
+    </div>
+  </div>
+
   <div id="examCountdown" style="margin:0 16px 12px;display:none;"></div>
 
   <!-- 学習ルート進捗 -->
@@ -1645,6 +1656,48 @@ async function loadHome() {
 
   // 教材進捗カード
   try { await loadMaterialProgressCards(s); } catch(e) {}
+
+  // リアルタイム: 現在出撃中の仲間
+  setupLiveCrewListener();
+}
+
+let liveCrewUnsubscribe = null;
+function setupLiveCrewListener() {
+  if (liveCrewUnsubscribe) liveCrewUnsubscribe();
+  const section = document.getElementById('liveCrewSection');
+  const list = document.getElementById('liveCrewList');
+  const countEl = document.getElementById('liveCrewCount');
+  if (!section || !list) return;
+
+  liveCrewUnsubscribe = db.collection('activeSessions').where('active', '==', true)
+    .onSnapshot(async snap => {
+      const sessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      // 自分以外をフィルタ
+      const others = sessions.filter(s => s.id !== currentStudent.id);
+      if (others.length === 0) { section.style.display = 'none'; return; }
+
+      section.style.display = 'block';
+      countEl.textContent = others.length + '人';
+
+      // 生徒情報を取得してコールサイン表示
+      const students = await StudentsDB.getAll();
+      const sMap = {};
+      students.forEach(st => { sMap[st.id] = st; });
+
+      const SICONS = { '国語': '📕', '数学': '📐', '英語': '🔤', '理科': '🔬', '社会': '🌍', 'その他': '📝' };
+      list.innerHTML = others.map(sess => {
+        const st = sMap[sess.id];
+        const display = st ? (st.callsign || st.nickname || '???') : '???';
+        const icon = SICONS[sess.subject] || '📖';
+        const elapsed = sess.startedAt ? Math.floor((Date.now() - (sess.startedAt.toDate ? sess.startedAt.toDate() : new Date(sess.startedAt)).getTime()) / 60000) : 0;
+        return '<div style="display:flex;align-items:center;gap:8px;padding:4px 8px;background:rgba(0,212,255,0.08);border-radius:6px;font-size:12px;">' +
+          '<span style="font-size:14px;">' + icon + '</span>' +
+          '<span style="flex:1;font-weight:600;color:#e8ecff;">' + display + '</span>' +
+          '<span style="color:#00ff88;font-size:11px;">' + sess.subject + '</span>' +
+          '<span style="color:#7a82b0;font-size:10px;">' + (elapsed > 0 ? elapsed + '分経過' : '開始') + '</span>' +
+          '</div>';
+      }).join('');
+    }, err => { section.style.display = 'none'; });
 }
 
 async function loadExamCountdown(student) {
@@ -2160,6 +2213,10 @@ function startStudy() {
   }
 
   document.getElementById('timerStartBtn').innerHTML = '▶';
+
+  // アクティブセッション開始（リアルタイム共有）
+  try { ActiveSessionsDB.start(currentStudent.id, studySession.subject, studySession.material || null); } catch(e) {}
+
   navigate('timer');
 }
 
@@ -2238,6 +2295,9 @@ function confirmStopStudy() {
 async function stopStudy(save) {
   pauseTimer();
   clearInterval(timerState.interval);
+
+  // アクティブセッション終了
+  try { await ActiveSessionsDB.end(currentStudent.id); } catch(e) {}
 
   if (!save || timerState.elapsed < 60) {
     navigate('home');

@@ -199,6 +199,9 @@
         </div>
       </div>
 
+      <!-- リアルタイム学習状態 -->
+      <div id="childStatusBadge" style="display:none;margin-bottom:12px;"></div>
+
       <!-- ナレーション -->
       <div id="parentNarration" class="card" style="background:#f8fafc;border-left:3px solid #667eea;">
         <div style="font-size:13px;line-height:1.7;color:#4a5568;">
@@ -432,6 +435,49 @@ async function showPortal() {
 
   document.getElementById('loadingMsg').style.display = 'none';
   document.getElementById('portalContent').style.display = 'block';
+
+  // リアルタイム: 子供���学習状態監視
+  setupChildStatusListener();
+}
+
+let childStatusUnsub = null;
+function setupChildStatusListener() {
+  if (childStatusUnsub) childStatusUnsub();
+  const badge = document.getElementById('childStatusBadge');
+  if (!badge || !currentStudent) return;
+  const sid = currentStudent.id;
+
+  childStatusUnsub = db.collection('activeSessions').doc(sid)
+    .onSnapshot(doc => {
+      if (doc.exists && doc.data().active) {
+        const sess = doc.data();
+        const SICONS = { '国語': '📕', '数学': '📐', '英語': '🔤', '理科': '🔬', '社会': '🌍' };
+        const icon = SICONS[sess.subject] || '📖';
+        badge.style.display = 'block';
+        badge.innerHTML = '<div style="background:linear-gradient(135deg,#059669,#10b981);color:#fff;border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:10px;">' +
+          '<span style="font-size:24px;animation:pulse 1.5s infinite;">' + icon + '</span>' +
+          '<div><div style="font-size:14px;font-weight:700;">🟢 学習中！</div>' +
+          '<div style="font-size:12px;opacity:0.9;">' + (sess.subject || '') + ' に取り組んでいます</div></div></div>';
+      } else {
+        // 出席チェック
+        checkChildPresence(badge, sid);
+      }
+    }, () => { checkChildPresence(badge, sid); });
+}
+
+async function checkChildPresence(badge, sid) {
+  try {
+    const isHere = await AttendanceDB.isCheckedIn(sid);
+    if (isHere) {
+      badge.style.display = 'block';
+      badge.innerHTML = '<div style="background:#eff6ff;border:1px solid #93c5fd;border-radius:12px;padding:10px 16px;display:flex;align-items:center;gap:8px;">' +
+        '<span style="font-size:18px;">🔵</span><span style="font-size:13px;color:#1d4ed8;font-weight:600;">教室にいます</span></div>';
+    } else {
+      badge.style.display = 'block';
+      badge.innerHTML = '<div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:10px 16px;display:flex;align-items:center;gap:8px;">' +
+        '<span style="font-size:18px;">⚪</span><span style="font-size:13px;color:#94a3b8;">本日未到着</span></div>';
+    }
+  } catch(e) { badge.style.display = 'none'; }
 }
 
 // ===== ナレーション =====

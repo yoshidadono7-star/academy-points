@@ -2452,6 +2452,26 @@ async function changeWorld(studentId, newWorldId) {
   return { success: true, world: WORLD_THEMES[newWorldId] };
 }
 
+// ===== アクティブセッション（現在学習中トラッキング） =====
+const ActiveSessionsDB = {
+  async start(studentId, subject, material) {
+    await db.collection('activeSessions').doc(studentId).set({
+      studentId,
+      subject: subject || '',
+      material: material || null,
+      startedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      active: true
+    });
+  },
+  async end(studentId) {
+    try { await db.collection('activeSessions').doc(studentId).delete(); } catch(e) {}
+  },
+  async getAll() {
+    const snap = await db.collection('activeSessions').where('active', '==', true).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }
+};
+
 // ===== 出席管理 (Attendance) =====
 const AttendanceDB = {
   async checkIn(studentId) {

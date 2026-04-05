@@ -476,6 +476,17 @@
       <h3>🚀 今日のプラン管理</h3>
       <p style="font-size:13px;color:#718096;margin-bottom:16px;">各生徒の本日の学習プランを設定します。プランがある生徒は、生徒画面でワンタップで学習を開始できます。</p>
 
+      <!-- リアルタイム教室状況 -->
+      <div id="adminLivePanel" style="background:linear-gradient(135deg,#0f172a,#1e293b);border-radius:12px;padding:16px;margin-bottom:20px;color:#e2e8f0;">
+        <div style="font-size:14px;font-weight:700;color:#00d4ff;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+          <span style="display:inline-block;width:8px;height:8px;background:#00ff88;border-radius:50%;animation:pulse 1.5s infinite;"></span>
+          📡 現在の教室
+          <span id="adminLiveSummary" style="font-size:12px;color:#94a3b8;font-weight:400;margin-left:auto;"></span>
+        </div>
+        <div id="adminActiveList" style="display:flex;flex-wrap:wrap;gap:6px;"></div>
+      </div>
+      <style>@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}</style>
+
       <!-- 一括設定 -->
       <div style="background:#f0f4ff;border-radius:12px;padding:16px;margin-bottom:20px;">
         <div style="font-size:14px;font-weight:700;color:#2d3748;margin-bottom:12px;">📋 一括プラン設定</div>
@@ -4073,6 +4084,44 @@ async function applyPlanToSelected() {
   } catch(e) { alert('エラー: ' + e.message); }
 }
 
+function setupAdminLiveListener() {
+  const SICONS = { '国語': '📕', '数学': '📐', '英語': '🔤', '理科': '🔬', '社会': '🌍', 'その他': '📝' };
+
+  db.collection('activeSessions').where('active', '==', true)
+    .onSnapshot(async snap => {
+      const sessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const students = allStudents.length > 0 ? allStudents : await StudentsDB.getAll();
+      const sMap = {};
+      students.forEach(s => { sMap[s.id] = s; });
+
+      const summary = document.getElementById('adminLiveSummary');
+      const list = document.getElementById('adminActiveList');
+      if (!summary || !list) return;
+
+      summary.textContent = sessions.length > 0 ? '学習中: ' + sessions.length + '名' : '学習中の生徒なし';
+
+      if (sessions.length === 0) {
+        list.innerHTML = '<div style="color:#64748b;font-size:12px;">待機中...</div>';
+        return;
+      }
+
+      list.innerHTML = sessions.map(sess => {
+        const st = sMap[sess.id];
+        const name = st ? escapeHtml(st.name) : '???';
+        const cs = st ? escapeHtml(st.callsign || st.nickname || '') : '';
+        const icon = SICONS[sess.subject] || '📖';
+        const elapsed = sess.startedAt ? Math.floor((Date.now() - (sess.startedAt.toDate ? sess.startedAt.toDate() : new Date(sess.startedAt)).getTime()) / 60000) : 0;
+        return '<div style="background:rgba(0,255,136,0.1);border:1px solid rgba(0,255,136,0.3);border-radius:8px;padding:6px 10px;display:flex;align-items:center;gap:6px;font-size:12px;">' +
+          '<span style="font-size:16px;">' + icon + '</span>' +
+          '<span style="font-weight:700;color:#e2e8f0;">' + name + '</span>' +
+          '<span style="color:#6366f1;font-size:10px;">' + cs + '</span>' +
+          '<span style="color:#00ff88;font-size:11px;margin-left:auto;">' + sess.subject + '</span>' +
+          '<span style="color:#7a82b0;font-size:10px;">' + (elapsed > 0 ? elapsed + '分' : '開始') + '</span>' +
+          '</div>';
+      }).join('');
+    }, () => {});
+}
+
 async function loadPlanStatus() {
   try {
     const [students, plans, attendance] = await Promise.all([
@@ -4179,6 +4228,9 @@ async function initApp() {
 
     // ナレーション生成
     generateAdminNarration();
+
+    // リアルタイム: 教室状況リスナー
+    setupAdminLiveListener();
 
   } catch (e) {
     console.error('初期化エラー:', e);

@@ -1125,6 +1125,42 @@ function setupListeners() {
       });
       renderStats();
     });
+
+  // アクティブセッション（現在出撃中）の監視
+  let prevActiveIds = new Set();
+  db.collection('activeSessions').where('active', '==', true)
+    .onSnapshot(async snap => {
+      const sessions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const currentIds = new Set(sessions.map(s => s.id));
+      // 新しく出撃した生徒をフィードに追加
+      const students = await StudentsDB.getAll();
+      const sMap = {};
+      students.forEach(s => { sMap[s.id] = s; });
+
+      sessions.forEach(sess => {
+        if (!prevActiveIds.has(sess.id)) {
+          const st = sMap[sess.id];
+          const display = st ? (st.callsign || st.nickname || st.name) : 'クルー';
+          addFeed('🚀', `${display} が ${sess.subject} に出撃！`);
+        }
+      });
+      // 帰還した生徒
+      prevActiveIds.forEach(id => {
+        if (!currentIds.has(id)) {
+          const st = sMap[id];
+          const display = st ? (st.callsign || st.nickname || st.name) : 'クルー';
+          addFeed('✅', `${display} が帰還！`, 'milestone-feed');
+        }
+      });
+      prevActiveIds = currentIds;
+
+      // 統計パネル横に出撃中人数を表示
+      const crewCount = document.getElementById('crewCount');
+      if (crewCount) {
+        const total = students.length;
+        crewCount.textContent = sessions.length > 0 ? `${total} (${sessions.length}名出撃中)` : total;
+      }
+    }, () => {});
 }
 
 // イベントタイマー定期更新
