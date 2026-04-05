@@ -1,0 +1,134 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HERO'S ACADEMY - 教室ディスプレイ</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;600;700;900&display=swap" rel="stylesheet">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<style>
+* { margin:0; padding:0; box-sizing:border-box; }
+body { font-family:'Noto Sans JP',sans-serif; background:#0f172a; color:#e2e8f0; min-height:100vh; overflow:hidden; }
+.header { background:linear-gradient(135deg,#667eea,#764ba2); padding:20px 32px; display:flex; justify-content:space-between; align-items:center; }
+.header-title { font-size:24px; font-weight:900; color:#fff; }
+.header-time { font-size:18px; color:rgba(255,255,255,0.8); font-weight:600; }
+.container { display:grid; grid-template-columns:1fr 1fr; gap:20px; padding:20px 32px; height:calc(100vh - 80px); }
+.panel { background:#1e293b; border-radius:16px; padding:20px; overflow:hidden; display:flex; flex-direction:column; }
+.panel-title { font-size:16px; font-weight:700; margin-bottom:12px; display:flex; align-items:center; gap:8px; }
+.ranking-row { display:flex; align-items:center; gap:12px; padding:8px 12px; border-radius:10px; margin-bottom:4px; transition:background 0.2s; }
+.ranking-row:nth-child(-n+3) { background:rgba(255,255,255,0.05); }
+.rank-badge { width:32px; height:32px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-weight:900; font-size:14px; flex-shrink:0; }
+.rank-1 { background:linear-gradient(135deg,#fbbf24,#f59e0b); color:#78350f; }
+.rank-2 { background:linear-gradient(135deg,#d1d5db,#9ca3af); color:#374151; }
+.rank-3 { background:linear-gradient(135deg,#f59e0b,#d97706); color:#78350f; }
+.rank-other { background:#334155; color:#94a3b8; }
+.ranking-name { flex:1; font-size:15px; font-weight:600; }
+.ranking-pts { font-size:14px; color:#94a3b8; font-weight:600; }
+.guild-card { border-radius:12px; padding:16px; color:white; margin-bottom:8px; display:flex; align-items:center; gap:12px; }
+.guild-icon { font-size:28px; }
+.guild-name { font-size:14px; font-weight:700; }
+.guild-pts { font-size:12px; opacity:0.8; }
+.guild-ms { font-size:14px; margin-top:2px; }
+.league-section { margin-bottom:16px; }
+.league-title { font-size:13px; font-weight:700; padding:6px 10px; border-radius:8px; display:inline-block; margin-bottom:6px; }
+.league-row { display:flex; align-items:center; gap:8px; padding:4px 8px; font-size:13px; }
+.league-row .rank { width:24px; text-align:center; font-weight:700; }
+.league-row .name { flex:1; }
+.league-row .pts { color:#94a3b8; }
+.scroll { flex:1; overflow-y:auto; }
+.scroll::-webkit-scrollbar { width:4px; } .scroll::-webkit-scrollbar-thumb { background:#475569; border-radius:4px; }
+</style>
+</head>
+<body>
+<div class="header">
+  <div class="header-title">⚔️ HERO'S ACADEMY - ミッションコントロール</div>
+  <div class="header-time" id="clockDisplay"></div>
+</div>
+<div class="container">
+  <!-- 左パネル: 総合ランキング -->
+  <div class="panel">
+    <div class="panel-title">🏆 総合ランキング</div>
+    <div class="scroll" id="rankingList"></div>
+  </div>
+  <!-- 右パネル: ギルド進捗 + リーグ -->
+  <div class="panel">
+    <div class="panel-title">⚔️ ギルド協力進捗</div>
+    <div id="guildList" style="margin-bottom:16px;"></div>
+    <div class="panel-title">🏅 リーグランキング</div>
+    <div class="scroll" id="leagueList"></div>
+  </div>
+</div>
+
+<script src="db.js"></script>
+<script>
+// 時計
+function updateClock() {
+  const now = new Date();
+  document.getElementById('clockDisplay').textContent =
+    now.toLocaleDateString('ja-JP', {month:'long',day:'numeric',weekday:'short'}) + ' ' +
+    now.toLocaleTimeString('ja-JP', {hour:'2-digit',minute:'2-digit'});
+}
+setInterval(updateClock, 1000);
+updateClock();
+
+// データ読み込み（匿名：コールサインのみ）
+async function loadClassroomData() {
+  try {
+    const students = await StudentsDB.getAll();
+    const guilds = await GuildsDB.getProgress();
+
+    // 総合ランキング（コールサインのみ、本名は非表示）
+    const sorted = [...students].sort((a,b) => (b.totalPoints||0) - (a.totalPoints||0));
+    document.getElementById('rankingList').innerHTML = sorted.slice(0, 20).map((s, i) => {
+      const rankClass = i < 3 ? 'rank-' + (i+1) : 'rank-other';
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1);
+      const ri = getRankInfo(s.rank || 'rookie');
+      const display = s.callsign || s.nickname || '???';
+      return '<div class="ranking-row">' +
+        '<div class="rank-badge ' + rankClass + '">' + medal + '</div>' +
+        '<div class="ranking-name">' + display + ' <span style="font-size:11px;color:#64748b;">' + ri.icon + '</span></div>' +
+        '<div class="ranking-pts">' + (s.totalPoints||0).toLocaleString() + ' pt</div>' +
+      '</div>';
+    }).join('');
+
+    // ギルド進捗
+    document.getElementById('guildList').innerHTML = guilds.map(g => {
+      const ms = (g.milestones || []).map(m =>
+        '<span style="opacity:' + (m.unlocked ? '1' : '0.3') + '">' + m.icon + '</span>'
+      ).join(' ');
+      return '<div class="guild-card" style="background:linear-gradient(135deg,' + (g.color||'#667eea') + ',' + (g.color||'#667eea') + 'cc)">' +
+        '<div class="guild-icon">' + (g.icon||'⚔️') + '</div>' +
+        '<div><div class="guild-name">' + g.name + '</div>' +
+        '<div class="guild-pts">' + (g.totalPoints||0).toLocaleString() + ' pt</div>' +
+        '<div class="guild-ms">' + ms + '</div></div>' +
+      '</div>';
+    }).join('');
+
+    // リーグランキング（コールサインのみ）
+    let leagueHtml = '';
+    for (const [id, league] of Object.entries(LEAGUES)) {
+      const leagueStudents = students
+        .filter(s => getLeague(s.grade) === id)
+        .sort((a,b) => (b.totalPoints||0) - (a.totalPoints||0));
+      if (leagueStudents.length === 0) continue;
+      leagueHtml += '<div class="league-section">';
+      leagueHtml += '<div class="league-title" style="background:' + league.color + ';color:#fff;">' + league.icon + ' ' + league.name + '</div>';
+      leagueStudents.slice(0, 5).forEach((s, i) => {
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i+1);
+        const display = s.callsign || s.nickname || '???';
+        leagueHtml += '<div class="league-row"><div class="rank">' + medal + '</div><div class="name">' + display + '</div><div class="pts">' + (s.totalPoints||0).toLocaleString() + '</div></div>';
+      });
+      leagueHtml += '</div>';
+    }
+    document.getElementById('leagueList').innerHTML = leagueHtml;
+
+  } catch(e) { console.error('Classroom load error:', e); }
+}
+
+// 初回読み込み + 30秒ごとに自動更新
+loadClassroomData();
+setInterval(loadClassroomData, 30000);
+</script>
+</body>
+</html>
