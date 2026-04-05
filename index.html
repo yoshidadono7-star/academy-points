@@ -1978,17 +1978,26 @@ async function loadStudents() {
             if (m != null) label += '<br><span style="color:#059669;font-weight:700;">¥' + m.toLocaleString() + '/月</span>';
             return label;
           })()}</td>
-          <td style="font-size:11px;max-width:180px;">${(() => {
+          <td style="font-size:11px;max-width:200px;">${(() => {
             const g = s.grade || '';
+            let target = '';
             if (g.startsWith('小') && s.examCandidate && s.targetJuniorHighs && s.targetJuniorHighs.length) {
-              return s.targetJuniorHighs.map((t,i) => { const d = TARGET_JUNIOR_HIGHS[t.id]; return d ? '<span style="color:' + (i===0?'#f59e0b':'#94a3b8') + ';font-weight:' + (i===0?'700':'400') + '">' + d.name + (t.faculty?' '+t.faculty:'') + '</span>' : ''; }).filter(Boolean).join('<br>');
-            } else if (g.startsWith('小') && s.examCandidate) { return '<span style="color:#f59e0b">受験組</span>'; }
-            else if (g.startsWith('小')) { return '<span style="color:#cbd5e1">非受験</span>'; }
-            else if (g.startsWith('中') && s.targetStation) { const ts = TARGET_STATIONS[s.targetStation]; return ts ? '<span style="font-weight:700">' + ts.icon + ' ' + ts.name + '</span>' : '-'; }
-            else if (g.startsWith('高') && s.targetUniversities && s.targetUniversities.length) {
-              return s.targetUniversities.map((t,i) => { const d = TARGET_UNIVERSITIES[t.id]; return d ? '<span style="color:' + (i===0?'#7c3aed':'#94a3b8') + ';font-weight:' + (i===0?'700':'400') + '">' + d.name + (t.faculty?' '+t.faculty:'') + '</span>' : ''; }).filter(Boolean).join('<br>');
+              target = s.targetJuniorHighs.map((t,i) => { const d = TARGET_JUNIOR_HIGHS[t.id]; return d ? '<span style="color:' + (i===0?'#f59e0b':'#94a3b8') + ';font-weight:' + (i===0?'700':'400') + '">' + d.name + (t.faculty?' '+t.faculty:'') + '</span>' : ''; }).filter(Boolean).join('<br>');
+            } else if (g.startsWith('小') && s.examCandidate) { target = '<span style="color:#f59e0b">受験組</span>'; }
+            else if (g.startsWith('小')) { target = '<span style="color:#cbd5e1">非受験</span>'; }
+            else if (g.startsWith('中') && s.targetStation) { const ts = TARGET_STATIONS[s.targetStation]; target = ts ? '<span style="font-weight:700">' + ts.icon + ' ' + ts.name + '</span>' : ''; }
+            else if ((g.startsWith('高') || g === '既卒生') && s.targetUniversities && s.targetUniversities.length) {
+              target = s.targetUniversities.map((t,i) => { const d = TARGET_UNIVERSITIES[t.id]; return d ? '<span style="color:' + (i===0?'#7c3aed':'#94a3b8') + ';font-weight:' + (i===0?'700':'400') + '">' + d.name + (t.faculty?' '+t.faculty:'') + '</span>' : ''; }).filter(Boolean).join('<br>');
+            } else if (g === '社会人' && s.targetQualifications && s.targetQualifications.length) {
+              target = s.targetQualifications.map((q,i) => '<span style="color:' + (i===0?'#0891b2':'#94a3b8') + ';font-weight:' + (i===0?'700':'400') + '">' + q.name + '</span>').join('<br>');
             }
-            return '<span style="color:#cbd5e1">未設定</span>';
+            // 検定バッジ（全学年共通）
+            const certBadges = (s.certGoals || []).map(c => {
+              const ex = CERTIFICATION_EXAMS[c.examId];
+              return ex ? '<span style="background:#ede9fe;color:#6d28d9;padding:1px 5px;border-radius:4px;font-size:9px;white-space:nowrap;">' + ex.icon + c.targetLevel + '</span>' : '';
+            }).filter(Boolean).join(' ');
+            const parts = [target, certBadges].filter(Boolean);
+            return parts.length ? parts.join('<br>') : '<span style="color:#cbd5e1">未設定</span>';
           })()}</td>
           <td style="font-size:11px;" title="${(s.materials||[]).map(mid=>{const m=getMaterialById(mid);return m?m.name:'';}).join(', ')}">${matIcons || '<span style="color:#cbd5e1">未設定</span>'}</td>
           <td>${ri.icon} ${ri.name}</td>
@@ -2059,6 +2068,8 @@ function openStudentModal(student) {
         <option value="高1" ${isEdit && student.grade === '高1' ? 'selected' : ''}>高1</option>
         <option value="高2" ${isEdit && student.grade === '高2' ? 'selected' : ''}>高2</option>
         <option value="高3" ${isEdit && student.grade === '高3' ? 'selected' : ''}>高3</option>
+        <option value="既卒生" ${isEdit && student.grade === '既卒生' ? 'selected' : ''}>既卒生</option>
+        <option value="社会人" ${isEdit && student.grade === '社会人' ? 'selected' : ''}>社会人</option>
       </select>
     </div>
 
@@ -2149,7 +2160,7 @@ function onTargetSelectChange(selectId, infoId, masterObj) {
 function renderGradeSection(grade, student) {
   const container = document.getElementById('gradeSections');
   if (!container) return;
-  const cat = grade.startsWith('小') ? 'elem' : grade.startsWith('中') ? 'jhs' : grade.startsWith('高') ? 'hs' : '';
+  const cat = grade.startsWith('小') ? 'elem' : grade.startsWith('中') ? 'jhs' : grade.startsWith('高') ? 'hs' : grade === '既卒生' ? 'kisotsu' : grade === '社会人' ? 'shakaijin' : '';
   if (!cat) { container.innerHTML = ''; return; }
 
   let html = '';
@@ -2270,9 +2281,80 @@ function renderGradeSection(grade, student) {
       html += '<input type="text" class="form-control target-uni-faculty" id="targetUniFaculty' + i + '" value="' + (t.faculty || '') + '" placeholder="学部・学科（例: 工学部 情報工学科）" style="margin-top:4px;font-size:12px;">';
       html += '</div>';
     }
+
+  } else if (cat === 'kisotsu') {
+    // ===== 既卒生（高校生と同じ志望大学UI） =====
+    html += '<div style="font-size:13px;font-weight:700;color:#dc2626;margin-bottom:8px">&#127891; 既卒生 志望大学</div>';
+    const tu = (student && student.targetUniversities) || [];
+    const uniOptgroups = () => {
+      let opts = '<option value="">未設定</option>';
+      const byType = {};
+      Object.entries(TARGET_UNIVERSITIES).forEach(([k,v]) => {
+        const t = v.type === 'public' ? 'national' : v.type;
+        if (!byType[t]) byType[t] = [];
+        byType[t].push([k,v]);
+      });
+      Object.entries(byType).forEach(([type, entries]) => {
+        const label = type === 'national' ? '国公立大学' : type === 'private' ? '私立大学' : 'その他';
+        opts += '<optgroup label="' + label + '">';
+        entries.forEach(([k,v]) => {
+          const area = v.area ? '(' + v.area + ')' : '';
+          opts += '<option value="' + k + '">' + v.name + area + '</option>';
+        });
+        opts += '</optgroup>';
+      });
+      return opts;
+    };
+    const uniOpts = uniOptgroups();
+    for (let i = 0; i < 3; i++) {
+      const t = tu[i] || {};
+      const label = i === 0 ? '第1志望' : i === 1 ? '第2志望' : '第3志望';
+      const star = i === 0 ? '&#11088;' : i === 1 ? '&#9733;' : '&#9734;';
+      html += '<div class="form-group"><label>' + star + ' ' + label + '</label>';
+      html += '<select class="form-control target-uni-select" id="targetUni' + i + '">' + uniOpts.replace('value="' + (t.id || '___') + '"', 'value="' + (t.id || '___') + '" selected') + '</select>';
+      html += '<div id="targetUniInfo' + i + '">' + examInfoBadges(TARGET_UNIVERSITIES[t.id]) + '</div>';
+      html += '<input type="text" class="form-control target-uni-faculty" id="targetUniFaculty' + i + '" value="' + (t.faculty || '') + '" placeholder="学部・学科（例: 工学部 情報工学科）" style="margin-top:4px;font-size:12px;">';
+      html += '</div>';
+    }
+
+  } else if (cat === 'shakaijin') {
+    // ===== 社会人（目標資格） =====
+    html += '<div style="font-size:13px;font-weight:700;color:#0891b2;margin-bottom:8px">&#128188; 社会人 目標資格</div>';
+    const tq = (student && student.targetQualifications) || [];
+    for (let i = 0; i < 3; i++) {
+      const q = tq[i] || {};
+      const label = i === 0 ? '第1目標' : i === 1 ? '第2目標' : '第3目標';
+      html += '<div class="form-row" style="margin-bottom:6px;">';
+      html += '<div class="form-group" style="flex:2"><label>' + label + ' 資格名</label>';
+      html += '<input type="text" class="form-control target-qual-name" id="targetQual' + i + '" value="' + (q.name || '') + '" placeholder="例: 簿記2級、宅建、ITパスポート"></div>';
+      html += '<div class="form-group" style="flex:1"><label>メモ</label>';
+      html += '<input type="text" class="form-control target-qual-memo" id="targetQualMemo' + i + '" value="' + (q.memo || '') + '" placeholder="受験予定日等"></div>';
+      html += '</div>';
+    }
   }
 
   html += '</div>';
+
+  // ========== 検定試験セクション（全学年共通） ==========
+  html += '<div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">';
+  html += '<div style="font-size:13px;font-weight:700;color:#7c3aed;margin-bottom:8px">&#128221; 検定試験 目標</div>';
+  const cg = (student && student.certGoals) || [];
+  const cgMap = {};
+  cg.forEach(c => { cgMap[c.examId] = c.targetLevel; });
+  html += '<div style="display:flex;flex-wrap:wrap;gap:8px;">';
+  Object.entries(CERTIFICATION_EXAMS).forEach(([examId, exam]) => {
+    const cur = cgMap[examId] || '';
+    html += '<div style="flex:1;min-width:140px;">';
+    html += '<label style="font-size:11px;font-weight:600;">' + exam.icon + ' ' + exam.name + '</label>';
+    html += '<select class="form-control cert-goal-select" id="cert_' + examId + '" style="font-size:12px;">';
+    html += '<option value="">目標なし</option>';
+    exam.levels.forEach(lv => {
+      html += '<option value="' + lv + '"' + (cur === lv ? ' selected' : '') + '>' + lv + '</option>';
+    });
+    html += '</select></div>';
+  });
+  html += '</div></div>';
+
   container.innerHTML = html;
 
   // バッジ更新イベント登録
@@ -2280,7 +2362,7 @@ function renderGradeSection(grade, student) {
     for (let i = 0; i < 3; i++) onTargetSelectChange('targetJH' + i, 'targetJHInfo' + i, TARGET_JUNIOR_HIGHS);
   } else if (cat === 'jhs') {
     onTargetSelectChange('studentTargetStation', 'targetStationInfo', TARGET_STATIONS);
-  } else if (cat === 'hs') {
+  } else if (cat === 'hs' || cat === 'kisotsu') {
     for (let i = 0; i < 3; i++) onTargetSelectChange('targetUni' + i, 'targetUniInfo' + i, TARGET_UNIVERSITIES);
   }
 
@@ -2375,8 +2457,8 @@ async function saveStudent(id) {
   const materials = [...document.querySelectorAll('.student-material-check:checked')].map(c => c.value);
 
   // 学年別データ
-  const cat = grade.startsWith('小') ? 'elem' : grade.startsWith('中') ? 'jhs' : grade.startsWith('高') ? 'hs' : '';
-  let school = null, targetStation = null, examCandidate = false, targetJuniorHighs = [], targetUniversities = [];
+  const cat = grade.startsWith('小') ? 'elem' : grade.startsWith('中') ? 'jhs' : grade.startsWith('高') ? 'hs' : grade === '既卒生' ? 'kisotsu' : grade === '社会人' ? 'shakaijin' : '';
+  let school = null, targetStation = null, examCandidate = false, targetJuniorHighs = [], targetUniversities = [], targetQualifications = [];
 
   if (cat === 'elem') {
     examCandidate = document.getElementById('studentExamCandidate')?.value === 'true';
@@ -2390,13 +2472,26 @@ async function saveStudent(id) {
   } else if (cat === 'jhs') {
     school = document.getElementById('studentSchool')?.value || null;
     targetStation = document.getElementById('studentTargetStation')?.value || null;
-  } else if (cat === 'hs') {
+  } else if (cat === 'hs' || cat === 'kisotsu') {
     for (let i = 0; i < 3; i++) {
       const id = document.getElementById('targetUni' + i)?.value;
       const faculty = document.getElementById('targetUniFaculty' + i)?.value?.trim() || '';
       if (id) targetUniversities.push({ id, faculty });
     }
+  } else if (cat === 'shakaijin') {
+    for (let i = 0; i < 3; i++) {
+      const name2 = document.getElementById('targetQual' + i)?.value?.trim() || '';
+      const memo = document.getElementById('targetQualMemo' + i)?.value?.trim() || '';
+      if (name2) targetQualifications.push({ name: name2, memo });
+    }
   }
+
+  // 検定試験（全学年共通）
+  const certGoals = [];
+  Object.keys(CERTIFICATION_EXAMS).forEach(examId => {
+    const level = document.getElementById('cert_' + examId)?.value;
+    if (level) certGoals.push({ examId, targetLevel: level });
+  });
 
   // コース設定
   const courseType = document.getElementById('studentCourseType')?.value || null;
@@ -2405,7 +2500,7 @@ async function saveStudent(id) {
   if (!name) { showToast('名前を入力してください', 'error'); return; }
 
   try {
-    const data = { name, nickname, callsign, pin, parentPin, grade, rank, school, testType, weakSubject, targetStation, role, materials, examCandidate, targetJuniorHighs, targetUniversities, courseType, courseKoma };
+    const data = { name, nickname, callsign, pin, parentPin, grade, rank, school, testType, weakSubject, targetStation, role, materials, examCandidate, targetJuniorHighs, targetUniversities, targetQualifications, certGoals, courseType, courseKoma };
     if (id) {
       await StudentsDB.update(id, data);
       showToast('生徒情報を更新しました');

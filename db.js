@@ -49,6 +49,9 @@ const StudentsDB = {
       // --- コース設定 ---
       courseType: data.courseType || null,        // COURSE_TYPES キー
       courseKoma: data.courseKoma || null,         // 標準コースのコマ数（1-8）
+      // --- 検定・資格 ---
+      certGoals: data.certGoals || [],             // [{examId, targetLevel}] 検定目標（全学年共通）
+      targetQualifications: data.targetQualifications || [], // [{name, memo}] 目標資格（社会人用）
       role: data.role || 'student',             // 'student' | 'supporter'(私立合格後)
       missionStreak: data.missionStreak || 0,   // デイリーミッション連続達成数
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -1861,6 +1864,15 @@ function getTargetStationDisplay(targetStationId) {
   return { ...ts, id: targetStationId };
 }
 
+// ===== 検定試験マスタ（全学年共通） =====
+const CERTIFICATION_EXAMS = {
+  eiken:  { name: '英語検定（英検）', icon: '🇬🇧', levels: ['5級','4級','3級','準2級','2級','準1級','1級'] },
+  suken:  { name: '数学検定（数検）', icon: '🔢', levels: ['5級','4級','3級','準2級','2級','準1級','1級'] },
+  kanken: { name: '漢字検定（漢検）', icon: '✍️', levels: ['10級','9級','8級','7級','6級','5級','4級','3級','準2級','2級','準1級','1級'] },
+  toeic:  { name: 'TOEIC',           icon: '🌐', levels: ['〜400','400〜500','500〜600','600〜700','700〜800','800〜900','900〜'] },
+  toefl:  { name: 'TOEFL',           icon: '🌐', levels: ['〜60','60〜80','80〜100','100〜'] }
+};
+
 // ===== コース・料金マスタ =====
 const COURSE_TYPES = {
   all_free:     { name: '①週6日オールフリー', icon: '🌟', desc: '毎日通える最上位コース。受験生や本気で成績を上げたい方に。夏期・冬期講習含む（中学生）' },
@@ -1928,6 +1940,18 @@ const COURSE_PRICING = {
     available: ['2day_free', 'all_free', 'study_room', 'standard'],
     monthly: { '2day_free': 43560, all_free: 52360, study_room: 25960 },
     standard: { base: 7260, perKoma: 9075 }
+  },
+  kisotsu: {
+    label: '既卒生',
+    available: ['2day_free', 'all_free', 'study_room', 'standard'],
+    monthly: { '2day_free': 43560, all_free: 52360, study_room: 25960 },
+    standard: { base: 7260, perKoma: 9075 }
+  },
+  shakaijin: {
+    label: '社会人',
+    available: ['2day_free', 'all_free', 'study_room', 'standard'],
+    monthly: { '2day_free': 43560, all_free: 52360, study_room: 25960 },
+    standard: { base: 7260, perKoma: 9075 }
   }
 };
 
@@ -1939,6 +1963,8 @@ function getGradeGroup(grade, examCandidate) {
   if (grade === '中3') return 'jh3';
   if (['高1','高2'].includes(grade)) return 'hs12';
   if (grade === '高3') return 'hs3';
+  if (grade === '既卒生') return 'kisotsu';
+  if (grade === '社会人') return 'shakaijin';
   return null;
 }
 
