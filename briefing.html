@@ -671,6 +671,10 @@ body {
   }
   .mission-panel { grid-column: 1 / -1; }
 }
+@keyframes eventGlow {
+  0%, 100% { box-shadow: 0 0 10px rgba(255,136,0,0.3); }
+  50% { box-shadow: 0 0 30px rgba(255,136,0,0.7), 0 0 60px rgba(255,136,0,0.3); }
+}
 </style>
 </head>
 <body>
@@ -745,11 +749,11 @@ body {
           <div style="font-size:24px;opacity:0.3">🛸</div>
           <div style="font-size:11px;color:var(--text-secondary)">イベント待機中</div>
         </div>
-        <div class="event-active" id="eventActive" style="height:auto">
-          <div class="event-name" id="eventName" style="font-size:14px"></div>
-          <div class="event-multiplier" id="eventMultiplier" style="font-size:28px"></div>
-          <div class="event-timer" id="eventTimer" style="font-size:16px">--:--</div>
-          <div class="event-description" id="eventDescription" style="font-size:11px"></div>
+        <div class="event-active" id="eventActive" style="height:auto;background:rgba(255,136,0,0.1);border:2px solid rgba(255,136,0,0.5);border-radius:10px;padding:12px;text-align:center;animation:eventGlow 2s infinite;">
+          <div class="event-name" id="eventName" style="font-size:18px;font-weight:900;letter-spacing:2px;"></div>
+          <div class="event-multiplier" id="eventMultiplier" style="font-size:48px;text-shadow:0 0 30px rgba(255,136,0,0.8);"></div>
+          <div class="event-timer" id="eventTimer" style="font-size:24px;font-weight:700;">--:--</div>
+          <div class="event-description" id="eventDescription" style="font-size:12px;margin-top:4px;"></div>
         </div>
       </div>
     </div>

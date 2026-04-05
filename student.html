@@ -835,6 +835,8 @@ body.theme-space {
   margin-top: 12px; font-size: 11px; color: rgba(255,255,255,0.4);
   line-height: 1.5;
 }
+@keyframes eventPulse { 0%,100%{box-shadow:0 4px 20px rgba(255,136,0,0.3)} 50%{box-shadow:0 4px 40px rgba(255,136,0,0.6)} }
+@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
 </style>
 </head>
 <body>
@@ -933,6 +935,9 @@ body.theme-space {
   </div>
 
   <!-- テストカウントダウン -->
+  <!-- イベント発動中バナー（リアルタイム） -->
+  <div id="homeEventBanner" style="display:none;margin:0 16px 12px;"></div>
+
   <!-- 現在出撃中の仲間（リアルタイム） -->
   <div id="liveCrewSection" style="display:none;margin:0 16px 12px;">
     <div style="background:linear-gradient(135deg,#1e293b,#0f172a);border:1px solid rgba(0,212,255,0.3);border-radius:12px;padding:12px 14px;">
@@ -1659,6 +1664,9 @@ async function loadHome() {
 
   // リアルタイム: 現在出撃中の仲間
   setupLiveCrewListener();
+
+  // リアルタイム: イベント発動バナー
+  setupEventBannerListener();
 }
 
 let liveCrewUnsubscribe = null;
@@ -1698,6 +1706,56 @@ function setupLiveCrewListener() {
           '</div>';
       }).join('');
     }, err => { section.style.display = 'none'; });
+}
+
+// リアルタイム: イベント発動バナー
+let eventBannerUnsub = null;
+let eventTimerInterval = null;
+function setupEventBannerListener() {
+  if (eventBannerUnsub) eventBannerUnsub();
+  if (eventTimerInterval) clearInterval(eventTimerInterval);
+  const banner = document.getElementById('homeEventBanner');
+  if (!banner) return;
+
+  const EVENT_STYLES = {
+    multiplier: { bg: 'linear-gradient(135deg,#ff8800,#ff4400)', icon: '🚀', label: 'ブースター発動中！' },
+    bonus:      { bg: 'linear-gradient(135deg,#10b981,#059669)', icon: '🎁', label: 'ボーナスイベント！' },
+    challenge:  { bg: 'linear-gradient(135deg,#ef4444,#dc2626)', icon: '⚔️', label: 'チャレンジ発動！' },
+    surprise:   { bg: 'linear-gradient(135deg,#8b5cf6,#7c3aed)', icon: '🎉', label: 'サプライズ！' }
+  };
+
+  eventBannerUnsub = db.collection('events').where('active', '==', true)
+    .onSnapshot(snap => {
+      if (snap.empty) { banner.style.display = 'none'; if (eventTimerInterval) clearInterval(eventTimerInterval); return; }
+      const ev = { id: snap.docs[0].id, ...snap.docs[0].data() };
+      const st = EVENT_STYLES[ev.type] || EVENT_STYLES.multiplier;
+      const valueText = ev.type === 'multiplier' ? '全ポイント ×' + ev.multiplier :
+                        ev.type === 'bonus' ? '+' + ev.bonusCoins + 'ポイント' : '特別ボーナス';
+
+      banner.style.display = 'block';
+      banner.innerHTML = '<div style="background:' + st.bg + ';border-radius:14px;padding:16px;color:#fff;text-align:center;animation:eventPulse 2s infinite;box-shadow:0 4px 20px rgba(255,136,0,0.4);">' +
+        '<div style="font-size:20px;font-weight:900;margin-bottom:4px;">' + st.icon + ' ' + st.label + ' ' + st.icon + '</div>' +
+        '<div style="font-size:28px;font-weight:900;margin-bottom:4px;">' + valueText + '</div>' +
+        '<div style="font-size:16px;font-weight:700;" id="eventBannerTimer"></div>' +
+        '<div style="font-size:12px;opacity:0.9;margin-top:4px;">' + (ev.description || '今こそ学習を始めよう！') + '</div>' +
+        '</div>';
+
+      // カウントダウン
+      if (eventTimerInterval) clearInterval(eventTimerInterval);
+      const updateTimer = () => {
+        if (!ev.activatedAt) return;
+        const activated = ev.activatedAt.toDate ? ev.activatedAt.toDate() : new Date(ev.activatedAt);
+        const endTime = new Date(activated.getTime() + (ev.durationMinutes || 30) * 60000);
+        const remaining = Math.max(0, endTime - Date.now());
+        const min = Math.floor(remaining / 60000);
+        const sec = Math.floor((remaining % 60000) / 1000);
+        const el = document.getElementById('eventBannerTimer');
+        if (el) el.textContent = remaining > 0 ? '残り ' + min + ':' + String(sec).padStart(2,'0') : '終了！';
+        if (remaining <= 0 && eventTimerInterval) clearInterval(eventTimerInterval);
+      };
+      updateTimer();
+      eventTimerInterval = setInterval(updateTimer, 1000);
+    }, () => { banner.style.display = 'none'; });
 }
 
 async function loadExamCountdown(student) {

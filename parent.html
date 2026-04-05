@@ -202,6 +202,9 @@
       <!-- リアルタイム学習状態 -->
       <div id="childStatusBadge" style="display:none;margin-bottom:12px;"></div>
 
+      <!-- イベント発動中バナー -->
+      <div id="parentEventBanner" style="display:none;margin-bottom:12px;"></div>
+
       <!-- ナレーション -->
       <div id="parentNarration" class="card" style="background:#f8fafc;border-left:3px solid #667eea;">
         <div style="font-size:13px;line-height:1.7;color:#4a5568;">
@@ -438,6 +441,9 @@ async function showPortal() {
 
   // リアルタイム: 子供���学習状態監視
   setupChildStatusListener();
+
+  // リアルタイム: イベント発動バナー
+  setupParentEventListener();
 }
 
 let childStatusUnsub = null;
@@ -478,6 +484,43 @@ async function checkChildPresence(badge, sid) {
         '<span style="font-size:18px;">⚪</span><span style="font-size:13px;color:#94a3b8;">本日未到着</span></div>';
     }
   } catch(e) { badge.style.display = 'none'; }
+}
+
+// リアルタイム: イベント発動バナー（保護者向け）
+let parentEventUnsub = null;
+function setupParentEventListener() {
+  if (parentEventUnsub) parentEventUnsub();
+  const banner = document.getElementById('parentEventBanner');
+  if (!banner) return;
+
+  const DESCS = {
+    multiplier: '獲得ポイントが{v}倍になっています！',
+    bonus: '+{v}ポイントのボーナスチャンスです！',
+    challenge: 'チーム対抗チャレンジ開催中！',
+    surprise: 'サプライズイベント開催中！'
+  };
+  const ICONS = { multiplier: '🚀', bonus: '🎁', challenge: '⚔️', surprise: '🎉' };
+  const COLORS = { multiplier: '#ff8800', bonus: '#10b981', challenge: '#ef4444', surprise: '#8b5cf6' };
+
+  parentEventUnsub = db.collection('events').where('active', '==', true)
+    .onSnapshot(snap => {
+      if (snap.empty) { banner.style.display = 'none'; return; }
+      const ev = { id: snap.docs[0].id, ...snap.docs[0].data() };
+      const icon = ICONS[ev.type] || '⚡';
+      const color = COLORS[ev.type] || '#ff8800';
+      const desc = (DESCS[ev.type] || '特別イベント開催中！')
+        .replace('{v}', ev.type === 'multiplier' ? ev.multiplier : ev.bonusCoins);
+      const remaining = ev.activatedAt ?
+        Math.max(0, Math.floor(((ev.activatedAt.toDate ? ev.activatedAt.toDate() : new Date(ev.activatedAt)).getTime() + (ev.durationMinutes||30)*60000 - Date.now()) / 60000)) : 0;
+
+      banner.style.display = 'block';
+      banner.innerHTML = '<div style="background:linear-gradient(135deg,' + color + '20,' + color + '10);border:2px solid ' + color + ';border-radius:12px;padding:12px 16px;display:flex;align-items:center;gap:10px;">' +
+        '<span style="font-size:28px;">' + icon + '</span>' +
+        '<div><div style="font-size:14px;font-weight:700;color:' + color + ';">イベント発動中！</div>' +
+        '<div style="font-size:12px;color:#475569;">' + desc + '</div>' +
+        (remaining > 0 ? '<div style="font-size:11px;color:#94a3b8;margin-top:2px;">残り約' + remaining + '分</div>' : '') +
+        '</div></div>';
+    }, () => { banner.style.display = 'none'; });
 }
 
 // ===== ナレーション =====
