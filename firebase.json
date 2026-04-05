@@ -37,7 +37,7 @@
       },
       {
         "source": "/classroom",
-        "destination": "/classroom.html"
+        "destination": "/briefing.html"
       },
       {
         "source": "**",

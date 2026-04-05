@@ -87,7 +87,7 @@ body {
 /* メインレイアウト */
 .main {
   display: grid;
-  grid-template-columns: 2fr 1fr 1fr 1fr;
+  grid-template-columns: 2fr 1fr 1fr 1fr 1fr;
   grid-template-rows: 1fr 1fr;
   gap: 12px;
   padding: 12px;
@@ -735,13 +735,11 @@ body {
       <div class="feed-list" id="feedList"></div>
     </div>
 
-    <!-- ストーリー＋イベント（中下左） -->
-    <div class="panel story-panel">
-      <div class="panel-title"><span class="icon">📖</span> ストーリー</div>
-      <div id="storyDisplay">
-        <div style="color:var(--text-secondary);font-size:12px">読込中...</div>
-      </div>
-      <!-- イベント（ストーリー下部に統合） -->
+    <!-- ストーリー＋ギルド進捗（中下左） -->
+    <div class="panel story-panel" style="text-align:left;">
+      <div class="panel-title"><span class="icon">⚔️</span> ギルド協力進捗</div>
+      <div id="guildProgressDisplay"></div>
+      <!-- イベント（下部に統合） -->
       <div id="eventSection" style="margin-top:8px;border-top:1px solid rgba(0,212,255,0.15);padding-top:8px">
         <div class="event-inactive" id="eventInactive" style="height:auto;padding:8px 0">
           <div style="font-size:24px;opacity:0.3">🛸</div>
@@ -760,6 +758,12 @@ body {
     <div class="panel boss-panel">
       <div class="panel-title"><span class="icon">👹</span> レイドボス</div>
       <div id="bossDisplay"></div>
+    </div>
+
+    <!-- リ��グランキング（右下左） -->
+    <div class="panel" style="overflow-y:auto;">
+      <div class="panel-title"><span class="icon">🏅</span> リーグランキング</div>
+      <div id="leagueRankDisplay"></div>
     </div>
 
     <!-- 統計（右下） -->
@@ -1329,6 +1333,57 @@ async function generateBriefingNarration() {
   } catch(e) { console.error('Briefing narration error:', e); }
 }
 
+// ギルド進捗表示
+async function renderGuildProgress() {
+  const container = document.getElementById('guildProgressDisplay');
+  try {
+    const guilds = await GuildsDB.getProgress();
+    if (guilds.length === 0) { container.innerHTML = '<div style="color:var(--text-secondary);font-size:11px">ギルドなし</div>'; return; }
+    container.innerHTML = guilds.map(g => {
+      const ms = g.milestones || (typeof GUILD_MILESTONES !== 'undefined' ? GUILD_MILESTONES.map(m => ({...m, unlocked: false})) : []);
+      const nextMs = ms.find(m => !m.unlocked);
+      const pct = nextMs ? Math.min(100, Math.round((g.totalPoints || 0) / nextMs.threshold * 100)) : 100;
+      const msIcons = ms.map(m => '<span style="opacity:' + (m.unlocked ? '1' : '0.3') + ';font-size:12px">' + m.icon + '</span>').join(' ');
+      return '<div style="background:linear-gradient(135deg,' + (g.color||'#667eea') + '40,' + (g.color||'#667eea') + '15);border:1px solid ' + (g.color||'#667eea') + '60;border-radius:8px;padding:8px 10px;margin-bottom:4px;">' +
+        '<div style="display:flex;align-items:center;gap:6px;margin-bottom:3px;">' +
+        '<span style="font-size:16px">' + (g.icon||'⚔️') + '</span>' +
+        '<span style="font-size:12px;font-weight:700;flex:1;color:#e8ecff">' + g.name + '</span>' +
+        '<span style="font-size:10px;color:' + (g.color||'#00d4ff') + ';font-family:Orbitron,monospace">' + (g.totalPoints||0).toLocaleString() + '</span>' +
+        '</div>' +
+        '<div style="background:rgba(0,0,0,0.3);border-radius:4px;height:5px;margin-bottom:3px"><div style="background:' + (g.color||'#00d4ff') + ';height:5px;border-radius:4px;width:' + pct + '%;transition:width 1s"></div></div>' +
+        '<div style="display:flex;justify-content:space-between;align-items:center"><div>' + msIcons + '</div><div style="font-size:9px;color:var(--text-secondary)">' + (nextMs ? '次: ' + nextMs.icon + nextMs.name : '全達成!') + '</div></div>' +
+        '</div>';
+    }).join('');
+  } catch(e) { console.error('Guild progress error:', e); container.innerHTML = ''; }
+}
+
+// リーグランキング表示
+async function renderLeagueRanking() {
+  const container = document.getElementById('leagueRankDisplay');
+  try {
+    if (typeof LEAGUES === 'undefined') { container.innerHTML = ''; return; }
+    const students = await StudentsDB.getAll();
+    let html = '';
+    for (const [id, league] of Object.entries(LEAGUES)) {
+      const ls = students.filter(s => getLeague(s.grade) === id).sort((a,b) => (b.totalPoints||0) - (a.totalPoints||0)).slice(0, 3);
+      if (ls.length === 0) continue;
+      html += '<div style="margin-bottom:8px">';
+      html += '<div style="font-size:10px;font-family:Orbitron,monospace;color:' + league.color + ';margin-bottom:4px;letter-spacing:1px">' + league.icon + ' ' + league.name + '</div>';
+      ls.forEach((s, i) => {
+        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉';
+        const display = s.callsign || s.nickname || '???';
+        html += '<div style="display:flex;align-items:center;gap:6px;padding:3px 6px;background:var(--bg-card);border-radius:4px;margin-bottom:2px;font-size:11px">' +
+          '<span>' + medal + '</span>' +
+          '<span style="flex:1;font-weight:600">' + display + '</span>' +
+          '<span style="color:var(--accent-orange);font-family:Orbitron,monospace;font-size:10px">' + (s.totalPoints||0).toLocaleString() + '</span>' +
+          '</div>';
+      });
+      html += '</div>';
+    }
+    container.innerHTML = html || '<div style="color:var(--text-secondary);font-size:11px">データなし</div>';
+  } catch(e) { console.error('League ranking error:', e); }
+}
+
 async function init() {
   try {
     await Promise.all([
@@ -1336,8 +1391,9 @@ async function init() {
       renderStats(),
       renderEvent(),
       renderSpaceMap(),
-      renderStoryPanel(),
-      renderBossPanel()
+      renderBossPanel(),
+      renderGuildProgress(),
+      renderLeagueRanking()
     ]);
 
     // 初期フィードメッセージ
@@ -1366,8 +1422,9 @@ setInterval(async () => {
   await renderRanking();
   await renderStats();
   await renderSpaceMap();
-  await renderStoryPanel();
   await renderBossPanel();
+  await renderGuildProgress();
+  await renderLeagueRanking();
   checkCommanderBuff();
 }, 300000);
 
