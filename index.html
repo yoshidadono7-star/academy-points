@@ -852,12 +852,28 @@
       <button class="btn btn-primary" onclick="openGuildModal()">&#10133; ギルド作成</button>
     </div>
     <div class="guild-grid" id="guildGrid"></div>
+
     <div class="card" style="margin-top:16px">
-      <div class="card-title"><span class="icon">&#9876;&#65039;</span> ギルドランキング</div>
+      <div class="card-title"><span class="icon">&#9876;&#65039;</span> ギルド協力進捗</div>
       <div class="table-wrap">
         <table>
-          <thead><tr><th>順位</th><th>ギルド</th><th>メンバー数</th><th>合計pt</th></tr></thead>
+          <thead><tr><th>ギルド</th><th>メンバー数</th><th>協力pt</th><th>マイルストーン</th></tr></thead>
           <tbody id="guildRankingTable"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px">
+      <div class="card-title"><span class="icon">&#127942;</span> リーグ別ランキング（個人競争）</div>
+      <div style="display:flex;gap:8px;margin-bottom:12px;">
+        <button class="btn btn-sm" id="leagueBtnE" style="background:#f59e0b;color:white" onclick="switchLeagueTab('E')">&#127793; エレメンタリー</button>
+        <button class="btn btn-sm" id="leagueBtnM" style="background:#e2e8f0" onclick="switchLeagueTab('M')">&#9876;&#65039; ミドル</button>
+        <button class="btn btn-sm" id="leagueBtnH" style="background:#e2e8f0" onclick="switchLeagueTab('H')">&#128293; ハイ</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>順位</th><th>名前</th><th>学年</th><th>累計pt</th></tr></thead>
+          <tbody id="leagueRankingTable"></tbody>
         </table>
       </div>
     </div>
@@ -2532,39 +2548,85 @@ async function deleteStudent(id) {
 // ============================================
 // 8. ギルド
 // ============================================
+let currentLeagueTab = 'E';
+
 async function loadGuilds() {
   try {
     allStudents = await StudentsDB.getAll();
     allGuilds = await GuildsDB.getAll();
-    const ranking = await GuildsDB.getRanking();
+    const progress = await GuildsDB.getProgress();
 
     const studentMap = {};
     allStudents.forEach(s => { studentMap[s.id] = s; });
 
+    // ギルドカード（マイルストーン進捗バー付き）
     document.getElementById('guildGrid').innerHTML = allGuilds.length === 0
       ? '<div class="card"><p style="text-align:center;color:var(--text-light)">ギルドがありません</p></div>'
       : allGuilds.map(g => {
           const members = (g.members || []).map(id => studentMap[id]).filter(Boolean);
+          const ms = g.milestones || GUILD_MILESTONES.map(m => ({ ...m, unlocked: false }));
+          const nextMs = ms.find(m => !m.unlocked);
+          const lastMs = [...ms].reverse().find(m => m.unlocked);
+          const pct = nextMs ? Math.min(100, Math.round((g.totalPoints || 0) / nextMs.threshold * 100)) : 100;
+          const msIcons = ms.map(m => '<span style="opacity:' + (m.unlocked ? '1' : '0.3') + ';font-size:16px;" title="' + m.name + ' (' + m.threshold.toLocaleString() + 'pt)">' + m.icon + '</span>').join(' ');
           return `<div class="guild-card" style="background:linear-gradient(135deg, ${g.color || '#667eea'}, ${g.color || '#667eea'}cc)">
             <div class="guild-icon">${g.icon || '&#9876;&#65039;'}</div>
             <div class="guild-name">${escapeHtml(g.name)}</div>
             <div class="guild-points">${(g.totalPoints || 0).toLocaleString()} pt</div>
-            <div class="guild-members">メンバー: ${members.length > 0 ? members.map(m => escapeHtml(m.name)).join(', ') : 'なし'}</div>
+            <div style="margin:6px 0">${msIcons}</div>
+            <div style="background:rgba(255,255,255,0.2);border-radius:8px;height:8px;margin-bottom:4px;">
+              <div style="background:rgba(255,255,255,0.8);border-radius:8px;height:8px;width:${pct}%;transition:width 0.3s;"></div>
+            </div>
+            <div style="font-size:10px;opacity:0.8">${nextMs ? '次: ' + nextMs.icon + nextMs.name + ' (' + nextMs.threshold.toLocaleString() + 'pt)' : '全マイルストーン達成!'}</div>
+            <div class="guild-members">メンバー: ${members.length > 0 ? members.map(m => escapeHtml(m.name) + '<span style="opacity:0.6;font-size:10px;">(' + (m.grade||'') + ')</span>').join(', ') : 'なし'}</div>
             <div style="margin-top:10px">
               <button class="btn btn-sm" style="background:rgba(255,255,255,0.2);color:white" onclick="openGuildMemberModal('${g.id}')">メンバー管理</button>
             </div>
           </div>`;
         }).join('');
 
-    document.getElementById('guildRankingTable').innerHTML = ranking.map((g, i) => `<tr>
-      <td><span class="rank-num ${i < 3 ? 'rank-' + (i + 1) : ''}">${i + 1}</span></td>
-      <td>${g.icon || ''} ${escapeHtml(g.name)}</td>
-      <td>${(g.members || []).length}人</td>
-      <td><strong>${(g.totalPoints || 0).toLocaleString()}</strong> pt</td>
-    </tr>`).join('');
+    // ギルド協力進捗テーブル
+    document.getElementById('guildRankingTable').innerHTML = progress.map(g => {
+      const ms = g.milestones || [];
+      const unlocked = ms.filter(m => m.unlocked).map(m => m.icon).join(' ') || '-';
+      return `<tr>
+        <td>${g.icon || ''} ${escapeHtml(g.name)}</td>
+        <td>${(g.members || []).length}人</td>
+        <td><strong>${(g.totalPoints || 0).toLocaleString()}</strong> pt</td>
+        <td>${unlocked}</td>
+      </tr>`;
+    }).join('');
+
+    // リーグランキング初期表示
+    await loadLeagueRanking(currentLeagueTab);
   } catch (e) {
     console.error('ギルド読み込みエラー:', e);
   }
+}
+
+async function switchLeagueTab(league) {
+  currentLeagueTab = league;
+  ['E','M','H'].forEach(l => {
+    const btn = document.getElementById('leagueBtn' + l);
+    if (btn) btn.style.background = l === league ? LEAGUES[l].color : '#e2e8f0';
+    if (btn) btn.style.color = l === league ? 'white' : 'var(--text)';
+  });
+  await loadLeagueRanking(league);
+}
+
+async function loadLeagueRanking(league) {
+  try {
+    const students = await GuildsDB.getLeagueRanking(league);
+    const leagueInfo = LEAGUES[league];
+    document.getElementById('leagueRankingTable').innerHTML = students.length === 0
+      ? '<tr><td colspan="4" style="text-align:center;color:var(--text-light)">' + leagueInfo.icon + ' ' + leagueInfo.name + 'にメンバーがいません</td></tr>'
+      : students.map((s, i) => `<tr>
+        <td><span class="rank-num ${i < 3 ? 'rank-' + (i + 1) : ''}">${i < 3 ? ['&#129351;','&#129352;','&#129353;'][i] : i + 1}</span></td>
+        <td>${escapeHtml(s.name)}</td>
+        <td>${escapeHtml(s.grade || '-')}</td>
+        <td><strong>${(s.totalPoints || 0).toLocaleString()}</strong> pt</td>
+      </tr>`).join('');
+  } catch(e) { console.error('League ranking error:', e); }
 }
 
 function openGuildModal() {

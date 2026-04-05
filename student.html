@@ -2819,40 +2819,64 @@ async function loadGuild() {
     const members = allStudents.filter(s => guild.members && guild.members.includes(s.id));
     members.sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0));
 
-    // Get guild ranking
-    const allGuilds = await GuildsDB.getRanking();
-    const guildRank = allGuilds.findIndex(g => g.id === guild.id) + 1;
+    // マイルストーン
+    const ms = guild.milestones || (typeof GUILD_MILESTONES !== 'undefined' ? GUILD_MILESTONES.map(m => ({ ...m, unlocked: false })) : []);
+    const nextMs = ms.find(m => !m.unlocked);
+    const pct = nextMs ? Math.min(100, Math.round((guild.totalPoints || 0) / nextMs.threshold * 100)) : 100;
+    const msIcons = ms.map(m => '<span style="font-size:20px;opacity:' + (m.unlocked ? '1' : '0.3') + ';" title="' + m.name + '">' + m.icon + '</span>').join(' ');
 
     let html = `
       <div class="card card-gradient guild-header-card" style="background:linear-gradient(135deg,${guild.color || '#667eea'},${guild.color || '#764ba2'}cc)">
         <div class="guild-icon">${guild.icon || '⚔️'}</div>
         <div class="guild-name">${guild.name}</div>
-        <div class="guild-points">${(guild.totalPoints || 0).toLocaleString()} / ギルドランク ${guildRank}位</div>
+        <div class="guild-points">協力ポイント: ${(guild.totalPoints || 0).toLocaleString()}</div>
+        <div style="margin:8px 0">${msIcons}</div>
+        <div style="background:rgba(255,255,255,0.2);border-radius:8px;height:10px;margin:4px 20px;">
+          <div style="background:rgba(255,255,255,0.9);border-radius:8px;height:10px;width:${pct}%;transition:width 0.3s;"></div>
+        </div>
+        <div style="font-size:11px;opacity:0.85;margin-top:4px;">${nextMs ? '次の目標: ' + nextMs.icon + ' ' + nextMs.name + ' (' + nextMs.threshold.toLocaleString() + 'pt)' : '🎉 全マイルストーン達成!'}</div>
       </div>
-      <div class="guild-members-title">メンバー (${members.length}人)</div>
     `;
 
+    // ��蓮托生ボーナスチェック
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const allStudied = await GuildsDB.checkAllStudiedBonus(currentStudent.guildId, today);
+      if (allStudied && members.length > 1) {
+        html += '<div style="background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:10px;margin:8px 16px;text-align:center;font-size:13px;font-weight:700;color:#166534;">🤝 一蓮托生! 今日はギルド全員が学習しました!</div>';
+      }
+    } catch(e) {}
+
+    // メンバーリスト（学年表示付き）
+    html += '<div class="guild-members-title">メンバー (' + members.length + '人)</div>';
     html += members.map(m => {
       const isSelf = m.id === currentStudent.id;
       return `
         <div class="guild-member" style="${isSelf ? 'background:var(--gradient-light)' : ''}">
           <div class="guild-member-avatar">${m.name ? m.name.charAt(0) : '?'}</div>
-          <div class="guild-member-name">${m.name}${isSelf ? ' (あなた)' : ''}</div>
+          <div class="guild-member-name">${m.name}${isSelf ? ' (あなた)' : ''}<span style="color:#94a3b8;font-size:11px;margin-left:4px;">${m.grade || ''}</span></div>
           <div class="guild-member-pts">${(m.totalPoints || 0).toLocaleString()}</div>
         </div>
       `;
     }).join('');
 
-    // Guild ranking
-    if (allGuilds.length > 1) {
-      html += '<div class="home-section-title">ギルドランキング</div>';
-      html += allGuilds.map((g, i) => {
-        const isMy = g.id === guild.id;
+    // リーグランキング
+    const myLeague = typeof getLeague === 'function' ? getLeague(currentStudent.grade) : null;
+    if (myLeague && typeof LEAGUES !== 'undefined') {
+      const leagueInfo = LEAGUES[myLeague];
+      const leagueStudents = allStudents
+        .filter(s => getLeague(s.grade) === myLeague)
+        .sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0));
+      const myRank = leagueStudents.findIndex(s => s.id === currentStudent.id) + 1;
+
+      html += '<div class="home-section-title">' + leagueInfo.icon + ' ' + leagueInfo.name + ' <span style="font-size:12px;font-weight:400;color:#94a3b8;">あなたは' + myRank + '位/' + leagueStudents.length + '人</span></div>';
+      html += leagueStudents.slice(0, 10).map((s, i) => {
+        const isSelf = s.id === currentStudent.id;
         return `
-          <div class="ranking-item ${isMy ? 'self' : ''}">
+          <div class="ranking-item ${isSelf ? 'self' : ''}">
             <div class="ranking-rank ${i < 3 ? 'rank-' + (i+1) : 'rank-other'}">${i < 3 ? ['🥇','🥈','🥉'][i] : i+1}</div>
-            <div class="ranking-name">${g.icon || ''} ${g.name}${isMy ? ' (所属)' : ''}</div>
-            <div class="ranking-pts">${(g.totalPoints || 0).toLocaleString()}</div>
+            <div class="ranking-name">${s.name}${isSelf ? ' (あなた)' : ''} <span style="color:#94a3b8;font-size:11px;">${s.grade || ''}</span></div>
+            <div class="ranking-pts">${(s.totalPoints || 0).toLocaleString()}</div>
           </div>
         `;
       }).join('');

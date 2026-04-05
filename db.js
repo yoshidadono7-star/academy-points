@@ -367,6 +367,29 @@ const GUILD_THEMES = [
   { id: 'dark', name: '闇のギルド', icon: '🌙', color: '#6366f1' }
 ];
 
+// ===== リーグ（年齢別競争単位） =====
+const LEAGUES = {
+  E: { name: 'エレメンタリー・リー���', icon: '🌱', color: '#f59e0b', grades: ['小1','小2','��3','小4','小5','小6'] },
+  M: { name: 'ミドル・リー��',         icon: '⚔️', color: '#3b82f6', grades: ['中1','中2','中3'] },
+  H: { name: 'ハイ・リーグ',           icon: '🔥', color: '#7c3aed', grades: ['高1','高2','高3','既卒生','社会人'] }
+};
+
+function getLeague(grade) {
+  if (!grade) return null;
+  for (const [id, league] of Object.entries(LEAGUES)) {
+    if (league.grades.includes(grade)) return id;
+  }
+  return null;
+}
+
+// ギルドマイルストーン定義
+const GUILD_MILESTONES = [
+  { threshold: 5000,   name: '始動の証', icon: '🏁' },
+  { threshold: 20000,  name: '結束の証', icon: '🤝' },
+  { threshold: 50000,  name: '覚醒の証', icon: '⚡' },
+  { threshold: 100000, name: '伝説の証', icon: '👑' }
+];
+
 const GuildsDB = {
   async getAll() {
     const snap = await db.collection('guilds').get();
@@ -385,6 +408,7 @@ const GuildsDB = {
       color: theme.color,
       members: data.members || [],
       totalPoints: 0,
+      milestones: GUILD_MILESTONES.map(m => ({ ...m, unlocked: false })),
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     return ref.id;
@@ -408,10 +432,32 @@ const GuildsDB = {
     await db.collection('guilds').doc(guildId).update({
       totalPoints: firebase.firestore.FieldValue.increment(points)
     });
+    // マイルストーン到達チェック
+    try {
+      const guild = await this.getById(guildId);
+      if (guild && guild.milestones) {
+        let updated = false;
+        const ms = guild.milestones.map(m => {
+          if (!m.unlocked && guild.totalPoints >= m.threshold) { updated = true; return { ...m, unlocked: true }; }
+          return m;
+        });
+        if (updated) await this.update(guildId, { milestones: ms });
+      }
+    } catch(e) { console.error('Milestone check error:', e); }
   },
-  async getRanking() {
+  async getProgress() {
     const snap = await db.collection('guilds').orderBy('totalPoints', 'desc').get();
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getRanking() {
+    return this.getProgress(); // 後方互換
+  },
+  // リーグ別個人ランキング
+  async getLeagueRanking(league) {
+    const students = await StudentsDB.getAll();
+    return students
+      .filter(s => getLeague(s.grade) === league)
+      .sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0));
   },
   // 一蓮托生ボーナス: ギルド全員が学習した日はボーナスポイント
   async checkAllStudiedBonus(guildId, date) {
