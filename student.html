@@ -4159,7 +4159,6 @@ const GuideSystem = (() => {
   let steps = [];
   let active = false;
 
-  // ガイドのステップ定義
   const HOME_GUIDE = [
     {
       target: () => document.querySelector('.quick-action[onclick*="condition"]'),
@@ -4167,7 +4166,7 @@ const GuideSystem = (() => {
       text: 'まずはコンディションを記録しよう！',
       sub: '今日の気分と体調を教えてね',
       position: 'below',
-      waitFor: 'condition_done' // コンディション記録完了を待つ
+      waitFor: 'condition_done'
     },
     {
       target: () => document.getElementById('homeMissionSection'),
@@ -4187,35 +4186,53 @@ const GuideSystem = (() => {
     }
   ];
 
-  function shouldShowGuide() {
-    if (!currentStudent) return false;
-    // 今日すでにコンディション記録済みかどうかで判断
-    // シンプルに: ガイドを見たことがなければ表示
-    const guideKey = `guide_seen_${currentStudent.id}_${new Date().toISOString().split('T')[0]}`;
-    return !localStorage.getItem(guideKey);
+  function getGuideKey() {
+    if (!currentStudent) return null;
+    return `guide_step_${currentStudent.id}_${new Date().toISOString().split('T')[0]}`;
   }
 
-  function markGuideSeen() {
-    if (!currentStudent) return;
-    const guideKey = `guide_seen_${currentStudent.id}_${new Date().toISOString().split('T')[0]}`;
-    localStorage.setItem(guideKey, '1');
+  function getSavedStep() {
+    const key = getGuideKey();
+    if (!key) return 0;
+    const val = localStorage.getItem(key);
+    return val !== null ? parseInt(val) : 0;
+  }
+
+  function saveStep(step) {
+    const key = getGuideKey();
+    if (key) localStorage.setItem(key, String(step));
+  }
+
+  function isAllDone() {
+    return getSavedStep() >= HOME_GUIDE.length;
   }
 
   function start() {
-    if (!shouldShowGuide()) return;
+    if (!currentStudent) return;
+    if (isAllDone()) return;
+
     steps = HOME_GUIDE;
-    currentStep = -1;
+    currentStep = getSavedStep() - 1; // nextで+1されるので
     active = true;
     next();
   }
 
   function next() {
     currentStep++;
+    saveStep(currentStep);
     if (currentStep >= steps.length) {
       finish();
       return;
     }
-    showStep(steps[currentStep]);
+    // ホーム画面にいる時だけ表示
+    const homeScreen = document.getElementById('screenHome');
+    if (!homeScreen || !homeScreen.classList.contains('active')) {
+      // ホーム画面でないなら、戻ってきた時にloadHomeから再開される
+      hide();
+      return;
+    }
+    // 少し待ってから表示（DOMの更新を待つ）
+    setTimeout(() => showStep(steps[currentStep]), 500);
   }
 
   function showStep(step) {
@@ -4226,18 +4243,16 @@ const GuideSystem = (() => {
     const arrow = document.getElementById('guideArrow');
 
     const targetEl = step.target();
-    if (!targetEl) { next(); return; } // ターゲットが見つからなければスキップ
+    if (!targetEl) { next(); return; }
 
-    // ターゲットをハイライト
     targetEl.classList.add('guide-target-highlight');
-    // スクロールして表示
     targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
     setTimeout(() => {
       const rect = targetEl.getBoundingClientRect();
       const pad = 8;
 
-      // スポットライト位置
+      // スポットライト（viewport固定）
       spotlight.style.left = (rect.left - pad) + 'px';
       spotlight.style.top = (rect.top - pad) + 'px';
       spotlight.style.width = (rect.width + pad * 2) + 'px';
@@ -4249,7 +4264,7 @@ const GuideSystem = (() => {
       pulse.style.width = (rect.width + pad * 2) + 'px';
       pulse.style.height = (rect.height + pad * 2) + 'px';
 
-      // ツールチップ位置
+      // ツールチップ
       const tooltipWidth = 280;
       let tooltipLeft = Math.max(10, rect.left + rect.width / 2 - tooltipWidth / 2);
       tooltipLeft = Math.min(tooltipLeft, window.innerWidth - tooltipWidth - 10);
@@ -4260,62 +4275,53 @@ const GuideSystem = (() => {
         tooltip.style.top = (rect.bottom + 20) + 'px';
         tooltip.style.bottom = 'auto';
         arrow.className = 'guide-tooltip-arrow top';
-        arrow.style.left = Math.max(20, (rect.left + rect.width / 2 - tooltipLeft - 8)) + 'px';
       } else {
         tooltip.style.top = 'auto';
         tooltip.style.bottom = (window.innerHeight - rect.top + 20) + 'px';
         arrow.className = 'guide-tooltip-arrow bottom';
-        arrow.style.left = Math.max(20, (rect.left + rect.width / 2 - tooltipLeft - 8)) + 'px';
       }
+      arrow.style.left = Math.max(20, Math.min(tooltipWidth - 30, rect.left + rect.width / 2 - tooltipLeft - 8)) + 'px';
 
-      // テキスト
       document.getElementById('guideStep').textContent = step.step;
       document.getElementById('guideText').textContent = step.text;
       document.getElementById('guideSub').textContent = step.sub;
 
       overlay.classList.add('active');
       SESystem.tap();
-    }, 300);
+    }, 400);
+  }
+
+  function hide() {
+    document.getElementById('guideOverlay').classList.remove('active');
+    document.querySelectorAll('.guide-target-highlight').forEach(el =>
+      el.classList.remove('guide-target-highlight'));
   }
 
   function advanceGuide() {
-    // 背景タップでスキップ
-    dismiss();
+    // 背景タップでこのステップをスキップして次へ
+    hide();
+    next();
   }
 
-  function dismiss() {
-    const overlay = document.getElementById('guideOverlay');
-    overlay.classList.remove('active');
-    // ハイライト解除
-    document.querySelectorAll('.guide-target-highlight').forEach(el =>
-      el.classList.remove('guide-target-highlight'));
-    active = false;
-    markGuideSeen();
-  }
-
-  // 外部から呼ぶ: 特定のアクション完了時に次のステップへ
   function onAction(actionId) {
-    if (!active || currentStep < 0 || currentStep >= steps.length) return;
-    if (steps[currentStep].waitFor === actionId) {
-      // ハイライト解除
-      document.querySelectorAll('.guide-target-highlight').forEach(el =>
-        el.classList.remove('guide-target-highlight'));
+    if (!active) return;
+    const stepIdx = getSavedStep();
+    if (stepIdx >= steps.length) return;
+    if (steps[stepIdx].waitFor === actionId) {
+      hide();
       next();
     }
   }
 
   function finish() {
-    const overlay = document.getElementById('guideOverlay');
-    overlay.classList.remove('active');
-    document.querySelectorAll('.guide-target-highlight').forEach(el =>
-      el.classList.remove('guide-target-highlight'));
+    hide();
     active = false;
-    markGuideSeen();
+    saveStep(steps.length); // 全ステップ完了
   }
 
   function isActive() { return active; }
 
-  return { start, next, onAction, dismiss, isActive, advanceGuide };
+  return { start, next, onAction, dismiss: hide, isActive, advanceGuide };
 })();
 
 function advanceGuide() { GuideSystem.advanceGuide(); }
