@@ -2775,6 +2775,7 @@ const AcademyConfigDB = {
 const TeachersDB = {
   async create(data) {
     data.active = true;
+    data.maxStudents = data.maxStudents || 3; // 同時担当人数上限
     data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
     const ref = await db.collection('teachers').add(data);
@@ -3191,5 +3192,208 @@ const InterviewRecordsDB = {
   },
   async delete(id) {
     await db.collection('interviewRecords').doc(id).delete();
+  }
+};
+
+// ============================================
+// スケジュール自動生成エンジン
+// ============================================
+const ScheduleEngine = {
+  /**
+   * 月次スケジュール自動生成
+   * @param {string} yearMonth - 'YYYY-MM'
+   * @param {Object} options - { dryRun: false }
+   * @returns {Object} { slots: [], conflicts: [], unmatched: [] }
+   */
+  async generate(yearMonth, options = {}) {
+    const config = await AcademyConfigDB.get();
+    const slotMin = config.slotMinutes || 30;
+    const teachers = await TeachersDB.getAll();
+    const students = await StudentsDB.getAll();
+    const activeStudents = students.filter(s => s.role !== 'supporter');
+    const templates = await ScheduleTemplatesDB.getAll();
+    const availabilities = await AvailabilityDB.getByMonth(yearMonth);
+    const availMap = {};
+    availabilities.forEach(a => { availMap[a.studentId] = a.dates || {}; });
+
+    // 講師シフトを取得
+    const [year, month] = yearMonth.split('-').map(Number);
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const startDate = `${yearMonth}-01`;
+    const endDate = `${yearMonth}-${String(daysInMonth).padStart(2,'0')}`;
+    const shiftsByTeacher = {};
+    for (const t of teachers) {
+      const shifts = await ShiftsDB.getByTeacher(t.id, startDate, endDate);
+      shiftsByTeacher[t.id] = {};
+      shifts.forEach(s => { shiftsByTeacher[t.id][s.date] = s; });
+    }
+
+    // 既存スロットを取得（重複回避）
+    const existingSnap = await db.collection('scheduleSlots')
+      .where('date', '>=', startDate).where('date', '<=', endDate).get();
+    const existing = existingSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const existingKey = new Set(existing.filter(s => s.status !== 'cancelled')
+      .map(s => `${s.studentId}_${s.date}_${s.startTime}`));
+
+    const result = { slots: [], conflicts: [], unmatched: [], stats: { total: 0, created: 0, skipped: 0 } };
+    const days = ['sun','mon','tue','wed','thu','fri','sat'];
+
+    // 日ごとに処理
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = `${yearMonth}-${String(d).padStart(2,'0')}`;
+      const dateObj = new Date(dateStr + 'T00:00:00');
+      const dayOfWeek = dateObj.getDay();
+
+      // 営業日チェック
+      if (!AcademyConfigDB.isOpenOn(dateStr, config)) continue;
+
+      // この曜日のテンプレートを取得
+      const dayTemplates = templates.filter(t => t.dayOfWeek === dayOfWeek);
+
+      for (const tmpl of dayTemplates) {
+        const studentId = tmpl.studentId;
+        const student = activeStudents.find(s => s.id === studentId);
+        if (!student) continue;
+
+        result.stats.total++;
+
+        // 重複チェック
+        if (existingKey.has(`${studentId}_${dateStr}_${tmpl.startSlot}`)) {
+          result.stats.skipped++;
+          continue;
+        }
+
+        // 保護者出欠可否チェック
+        const studentAvail = availMap[studentId];
+        if (studentAvail && studentAvail[dateStr]) {
+          const dateAvail = studentAvail[dateStr];
+          if (dateAvail[tmpl.startSlot] === 'ng') {
+            result.unmatched.push({
+              studentId, studentName: student.name, date: dateStr,
+              startTime: tmpl.startSlot, reason: '保護者が×を付けた時間帯'
+            });
+            continue;
+          }
+        }
+
+        // 講師を割り当て（テンプレートの指定講師 or 自動マッチング）
+        const assignedTeacherId = tmpl.teacherId || this._findAvailableTeacher(
+          teachers, shiftsByTeacher, dateStr, tmpl.startSlot, tmpl.komas, slotMin, result.slots, existing
+        );
+
+        if (!assignedTeacherId) {
+          result.unmatched.push({
+            studentId, studentName: student.name, date: dateStr,
+            startTime: tmpl.startSlot, reason: '空き講師なし'
+          });
+          continue;
+        }
+
+        // 衝突チェック
+        const conflict = this._checkConflict(
+          assignedTeacherId, teachers, dateStr, tmpl.startSlot, tmpl.komas, slotMin, result.slots, existing
+        );
+        if (conflict) {
+          result.conflicts.push({
+            studentId, studentName: student.name, date: dateStr,
+            startTime: tmpl.startSlot, teacherId: assignedTeacherId,
+            reason: conflict
+          });
+          continue;
+        }
+
+        // endTime計算
+        const [sh, sm] = tmpl.startSlot.split(':').map(Number);
+        const endMin = sh * 60 + sm + tmpl.komas * slotMin;
+        const endTime = `${String(Math.floor(endMin/60)).padStart(2,'0')}:${String(endMin%60).padStart(2,'0')}`;
+
+        const slot = {
+          studentId, teacherId: assignedTeacherId, date: dateStr,
+          startTime: tmpl.startSlot, endTime, komas: tmpl.komas,
+          subjects: tmpl.subjects || [], status: 'scheduled',
+          approval: 'approved', submittedBy: 'system',
+          note: '自動生成'
+        };
+        result.slots.push(slot);
+        result.stats.created++;
+      }
+    }
+
+    // ドライランでなければDBに保存
+    if (!options.dryRun && result.slots.length > 0) {
+      // Firestoreのバッチは500件まで
+      for (let i = 0; i < result.slots.length; i += 450) {
+        const batch = db.batch();
+        const chunk = result.slots.slice(i, i + 450);
+        for (const slot of chunk) {
+          const ref = db.collection('scheduleSlots').doc();
+          batch.set(ref, {
+            ...slot,
+            createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }
+        await batch.commit();
+      }
+    }
+
+    return result;
+  },
+
+  /**
+   * 空き講師を自動で見つける
+   */
+  _findAvailableTeacher(teachers, shiftsByTeacher, date, startTime, komas, slotMin, pendingSlots, existingSlots) {
+    const [sh, sm] = startTime.split(':').map(Number);
+    const startMin = sh * 60 + sm;
+    const endMin = startMin + komas * slotMin;
+
+    for (const t of teachers) {
+      // シフトチェック: この日に出勤しているか
+      const shift = shiftsByTeacher[t.id] && shiftsByTeacher[t.id][date];
+      if (!shift) continue;
+      const [ssh, ssm] = shift.start.split(':').map(Number);
+      const [seh, sem] = shift.end.split(':').map(Number);
+      if (startMin < ssh * 60 + ssm || endMin > seh * 60 + sem) continue;
+
+      // キャパシティチェック
+      if (!this._checkConflict(t.id, teachers, date, startTime, komas, slotMin, pendingSlots, existingSlots)) {
+        return t.id;
+      }
+    }
+    return null;
+  },
+
+  /**
+   * 衝突チェック: 同一時間帯にmaxStudents以上担当していないか
+   * @returns {string|null} 衝突理由 or null
+   */
+  _checkConflict(teacherId, teachers, date, startTime, komas, slotMin, pendingSlots, existingSlots) {
+    const teacher = teachers.find(t => t.id === teacherId);
+    const maxStudents = (teacher && teacher.maxStudents) || 3;
+    const [sh, sm] = startTime.split(':').map(Number);
+    const startMin = sh * 60 + sm;
+    const endMin = startMin + komas * slotMin;
+
+    // 既存スロット + 今回の生成予定分を合算
+    const allSlots = [
+      ...existingSlots.filter(s => s.teacherId === teacherId && s.date === date && s.status !== 'cancelled'),
+      ...pendingSlots.filter(s => s.teacherId === teacherId && s.date === date)
+    ];
+
+    // 各スロット分単位で重なりをカウント
+    for (let m = startMin; m < endMin; m += slotMin) {
+      let count = 0;
+      for (const s of allSlots) {
+        const [sH, sM] = s.startTime.split(':').map(Number);
+        const [eH, eM] = s.endTime.split(':').map(Number);
+        if (m >= sH * 60 + sM && m < eH * 60 + eM) count++;
+      }
+      if (count >= maxStudents) {
+        const timeStr = `${String(Math.floor(m/60)).padStart(2,'0')}:${String(m%60).padStart(2,'0')}`;
+        return `${teacher.name}は${timeStr}に${maxStudents}人以上担当中`;
+      }
+    }
+    return null;
   }
 };

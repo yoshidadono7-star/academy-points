@@ -96,6 +96,12 @@
   <div class="main">
     <!-- 今日のスケジュール -->
     <div class="tab-panel active" id="panel-schedule">
+      <div id="pendingApprovalSection" style="display:none;">
+        <div class="card" style="border-left:3px solid #f59e0b;">
+          <div class="card-title">🔶 承認待ちスケジュール <span id="pendingCount" style="background:#f59e0b;color:white;font-size:11px;padding:2px 8px;border-radius:10px;margin-left:6px;">0</span></div>
+          <div id="pendingList"></div>
+        </div>
+      </div>
       <div class="card">
         <div class="card-title">📅 今日の担当スケジュール</div>
         <div id="teacherSchedule">読み込み中...</div>
@@ -308,9 +314,102 @@ async function showPortal() {
   }
 })();
 
+// ===== 承認待ちスケジュール =====
+async function loadPendingApprovals() {
+  if (!currentTeacher) return;
+  try {
+    const pending = await ScheduleSlotsDB.getPending();
+    const section = document.getElementById('pendingApprovalSection');
+    const list = document.getElementById('pendingList');
+    const countBadge = document.getElementById('pendingCount');
+
+    if (pending.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
+    section.style.display = 'block';
+    countBadge.textContent = pending.length;
+
+    const days = ['日','月','火','水','木','金','土'];
+    let html = '';
+    for (const s of pending) {
+      const student = await StudentsDB.getById(s.studentId);
+      const d = new Date(s.date + 'T00:00:00');
+      const submitter = s.submittedBy === 'student' ? '生徒' : s.submittedBy === 'parent' ? '保護者' : '先生';
+      html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f1f5f9;">
+        <div>
+          <div style="font-weight:700;font-size:14px;">${student ? student.name : '不明'}</div>
+          <div style="font-size:12px;color:var(--text-light);">${s.date}(${days[d.getDay()]}) ${s.startTime}〜${s.endTime} (${s.komas || 1}コマ)</div>
+          <div style="font-size:11px;color:#94a3b8;">提出: ${submitter}</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <select id="assignTeacher_${s.id}" style="font-size:12px;padding:4px 6px;border:1px solid var(--border);border-radius:6px;">
+            <option value="${currentTeacher.id}">${currentTeacher.name}(自分)</option>
+          </select>
+          <button style="background:var(--success);color:white;border:none;padding:8px 14px;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer;" onclick="approveSlot('${s.id}')">承認</button>
+          <button style="background:var(--danger);color:white;border:none;padding:8px 14px;border-radius:8px;font-weight:600;font-size:12px;cursor:pointer;" onclick="rejectSlot('${s.id}')">差戻</button>
+        </div>
+      </div>`;
+    }
+    list.innerHTML = html;
+
+    // 講師リストを非同期で読み込んで各セレクトに設定
+    const teachers = await TeachersDB.getAll();
+    for (const s of pending) {
+      const sel = document.getElementById('assignTeacher_' + s.id);
+      if (sel) {
+        sel.innerHTML = teachers.map(t =>
+          `<option value="${t.id}" ${t.id === currentTeacher.id ? 'selected' : ''}>${t.name}${t.id === currentTeacher.id ? '(自分)' : ''}</option>`
+        ).join('');
+      }
+    }
+  } catch(e) { console.warn('Pending load error:', e); }
+}
+
+async function approveSlot(id) {
+  try {
+    const sel = document.getElementById('assignTeacher_' + id);
+    const teacherId = sel ? sel.value : currentTeacher.id;
+    // 講師割り当て + 承認
+    await ScheduleSlotsDB.update(id, { teacherId });
+    await ScheduleSlotsDB.approve(id, teacherId);
+    // 保護者通知メッセージ
+    const doc = await db.collection('scheduleSlots').doc(id).get();
+    if (doc.exists) {
+      const slot = doc.data();
+      await MessagesDB.send({
+        toStudentId: slot.studentId,
+        content: `スケジュールが承認されました: ${slot.date} ${slot.startTime}〜${slot.endTime}`,
+        fromType: 'teacher'
+      });
+      await ScheduleSlotsDB.markParentNotified(id);
+    }
+    loadPendingApprovals();
+    loadTeacherSchedule();
+  } catch(e) { console.warn('Approve error:', e); alert('承認に失敗しました'); }
+}
+
+async function rejectSlot(id) {
+  const reason = prompt('差戻し理由（任意）:') || '';
+  try {
+    await ScheduleSlotsDB.reject(id, reason);
+    const doc = await db.collection('scheduleSlots').doc(id).get();
+    if (doc.exists) {
+      const slot = doc.data();
+      await MessagesDB.send({
+        toStudentId: slot.studentId,
+        content: `スケジュールが差し戻されました: ${slot.date} ${slot.startTime}〜${slot.endTime}${reason ? ' 理由: ' + reason : ''}`,
+        fromType: 'teacher'
+      });
+    }
+    loadPendingApprovals();
+  } catch(e) { console.warn('Reject error:', e); alert('差戻しに失敗しました'); }
+}
+
 // ===== 今日のスケジュール =====
 async function loadTeacherSchedule() {
   if (!currentTeacher) return;
+  loadPendingApprovals(); // 承認待ちも同時にロード
   const container = document.getElementById('teacherSchedule');
   try {
     const today = new Date().toISOString().slice(0, 10);
