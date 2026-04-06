@@ -220,8 +220,54 @@ service cloud.firestore {
       allow write: if isAdmin();
     }
 
-    // ルートタス��
+    // ルートタスク
     match /routeTasks/{taskId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isAdmin();
+    }
+
+    // 塾設定
+    match /academyConfig/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 講師管理
+    match /teachers/{teacherId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // シフト管理
+    match /shifts/{shiftId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isAdmin();
+    }
+
+    // スケジュールテンプレート
+    match /scheduleTemplates/{templateId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // スケジュールスロット
+    match /scheduleSlots/{slotId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isAdmin();
+    }
+
+    // 出欠可否（保護者）
+    match /availability/{availId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isAdmin();
+    }
+
+    // 業務タスク
+    match /operationTasks/{taskId} {
       allow read: if true;
       allow create, update: if true;
       allow delete: if isAdmin();
