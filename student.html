@@ -50,8 +50,8 @@ body {
 .screen-login { padding-bottom: 0; }
 
 /* ===== Phase 14: バディキャラクター（常駐パネル） ===== */
-body.buddy-on { padding-top: var(--buddy-h); }
-body.buddy-on .header { top: var(--buddy-h); }
+body.buddy-on { padding-top: calc(var(--buddy-h) + 50px); }
+body.buddy-on .header { top: calc(var(--buddy-h) + 50px); }
 
 .buddy-panel {
   display: none;
@@ -226,6 +226,176 @@ body.buddy-on .buddy-panel { display: flex; }
   .buddy-avatar { font-size: 75px; }
   .buddy-bubble { font-size: 13px; padding: 12px 14px; }
 }
+
+/* チャット入力バー */
+.buddy-chatbar {
+  display: none;
+  position: fixed;
+  top: var(--buddy-h);
+  left: 0; right: 0;
+  height: 50px;
+  background: linear-gradient(180deg, #16213e 0%, #1e2a4a 100%);
+  border-bottom: 1px solid rgba(255,215,0,0.2);
+  z-index: 89;
+  align-items: center;
+  padding: 0 12px;
+  gap: 8px;
+}
+body.buddy-on .buddy-chatbar { display: flex; }
+.buddy-chat-input {
+  flex: 1;
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 20px;
+  padding: 8px 16px;
+  color: #fff;
+  font-size: 14px;
+  outline: none;
+  font-family: inherit;
+}
+.buddy-chat-input::placeholder { color: rgba(255,255,255,0.5); }
+.buddy-chat-input:focus { border-color: rgba(255,215,0,0.5); }
+.buddy-chat-btn {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  border: none;
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition: all 0.2s;
+}
+.buddy-chat-btn:active { transform: scale(0.92); }
+.buddy-chat-btn.recording {
+  background: linear-gradient(135deg, #fc8181, #e53e3e);
+  animation: recordPulse 1.2s ease-in-out infinite;
+}
+@keyframes recordPulse {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(252, 129, 129, 0.6); }
+  50% { box-shadow: 0 0 0 8px rgba(252, 129, 129, 0); }
+}
+.buddy-chat-history-btn {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  width: 36px; height: 36px;
+  border-radius: 50%;
+  color: #fff;
+  font-size: 16px;
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  position: relative;
+}
+.buddy-chat-history-btn .badge {
+  position: absolute; top: -3px; right: -3px;
+  background: #fc8181; color: white; font-size: 10px;
+  width: 16px; height: 16px; border-radius: 50%;
+  display: none; align-items: center; justify-content: center;
+  font-weight: 700;
+}
+.buddy-chat-history-btn .badge.show { display: flex; }
+
+/* チャット履歴モーダル */
+.chat-modal {
+  display: none;
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  z-index: 9000;
+  align-items: flex-end;
+  justify-content: center;
+}
+.chat-modal.active { display: flex; }
+.chat-modal-content {
+  width: 100%; max-width: 600px;
+  height: 80vh;
+  background: #fff;
+  border-radius: 24px 24px 0 0;
+  display: flex; flex-direction: column;
+  overflow: hidden;
+  animation: chatSlideUp 0.3s ease-out;
+}
+@keyframes chatSlideUp {
+  from { transform: translateY(100%); }
+  to { transform: translateY(0); }
+}
+.chat-modal-header {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  padding: 16px 20px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.chat-modal-title { font-size: 16px; font-weight: 700; }
+.chat-modal-close {
+  background: rgba(255,255,255,0.2);
+  border: none; color: #fff;
+  width: 32px; height: 32px;
+  border-radius: 50%;
+  font-size: 18px; cursor: pointer;
+}
+.chat-modal-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px;
+  background: #f0f4f8;
+}
+.chat-message {
+  display: flex; margin-bottom: 12px;
+}
+.chat-message.student { justify-content: flex-end; }
+.chat-message.buddy, .chat-message.teacher { justify-content: flex-start; }
+.chat-message-bubble {
+  max-width: 75%;
+  padding: 10px 14px;
+  border-radius: 18px;
+  font-size: 14px;
+  line-height: 1.5;
+  word-break: break-word;
+}
+.chat-message.student .chat-message-bubble {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff;
+  border-bottom-right-radius: 4px;
+}
+.chat-message.buddy .chat-message-bubble {
+  background: #fff;
+  color: #2d3748;
+  border-bottom-left-radius: 4px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
+}
+.chat-message.teacher .chat-message-bubble {
+  background: linear-gradient(135deg, #ffd700, #f6ad55);
+  color: #2d3748;
+  border-bottom-left-radius: 4px;
+  font-weight: 600;
+}
+.chat-message-meta {
+  font-size: 10px; color: #718096; margin-top: 4px;
+  padding: 0 4px;
+}
+.chat-message-sender {
+  font-size: 11px; font-weight: 700; margin-bottom: 3px;
+}
+.chat-message.buddy .chat-message-sender { color: #667eea; }
+.chat-message.teacher .chat-message-sender { color: #d69e2e; }
+.chat-modal-footer {
+  padding: 12px;
+  background: #fff;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  gap: 8px;
+}
+.chat-modal-input {
+  flex: 1;
+  border: 2px solid #e2e8f0;
+  border-radius: 24px;
+  padding: 10px 16px;
+  font-size: 14px;
+  outline: none;
+  font-family: inherit;
+}
+.chat-modal-input:focus { border-color: #667eea; }
 
 /* ===== Header ===== */
 .header {
@@ -1042,6 +1212,37 @@ body.theme-space {
   </div>
 </div>
 
+<!-- Phase 14: チャット入力バー -->
+<div id="buddyChatbar" class="buddy-chatbar">
+  <button class="buddy-chat-history-btn" onclick="ChatUI.openModal()" title="チャット履歴">
+    💬
+    <span class="badge" id="chatTeacherBadge">!</span>
+  </button>
+  <input type="text" class="buddy-chat-input" id="buddyChatInput"
+    placeholder="ルカに話しかけてみよう..." onkeydown="if(event.key==='Enter') ChatUI.sendFromBar()">
+  <button class="buddy-chat-btn" id="buddyMicBtn" onclick="ChatUI.toggleVoiceInput()" title="音声入力">🎤</button>
+  <button class="buddy-chat-btn" onclick="ChatUI.sendFromBar()" title="送信">➤</button>
+</div>
+
+<!-- Phase 14: チャット履歴モーダル -->
+<div class="chat-modal" id="chatModal">
+  <div class="chat-modal-content">
+    <div class="chat-modal-header">
+      <div class="chat-modal-title">💬 ルカとのお話</div>
+      <button class="chat-modal-close" onclick="ChatUI.closeModal()">✕</button>
+    </div>
+    <div class="chat-modal-body" id="chatModalBody">
+      <div style="text-align:center;color:#a0aec0;padding:20px;">読み込み中...</div>
+    </div>
+    <div class="chat-modal-footer">
+      <input type="text" class="chat-modal-input" id="chatModalInput"
+        placeholder="メッセージを入力..." onkeydown="if(event.key==='Enter') ChatUI.sendFromModal()">
+      <button class="buddy-chat-btn" id="chatModalMicBtn" onclick="ChatUI.toggleVoiceInput('modal')">🎤</button>
+      <button class="buddy-chat-btn" onclick="ChatUI.sendFromModal()">➤</button>
+    </div>
+  </div>
+</div>
+
 <!-- Loading Overlay -->
 <div id="loadingOverlay" class="loading-overlay">
   <div class="spinner"></div>
@@ -1650,6 +1851,7 @@ async function handleLogin() {
     // Phase 14: バディシステム起動
     BuddySystem.init();
     BuddySystem.updateStatus(student);
+    ChatUI.startSubscription();
     const isFirstLogin = !student.seenBuddy;
     const studentName = student.callsign || student.nickname || student.name;
     setTimeout(() => {
@@ -1683,9 +1885,10 @@ function logout() {
   localStorage.removeItem('heroAcademy_student');
   document.getElementById('loginNickname').value = '';
   document.getElementById('loginPin').value = '';
-  // Phase 14: バディを隠す
+  // Phase 14: バディを隠す + チャット購読停止
   BuddySystem.hide();
   BuddySystem.stopIdleChatter();
+  ChatUI.stopSubscription();
   navigate('login');
 }
 
@@ -1701,6 +1904,7 @@ async function tryAutoLogin() {
       // Phase 14: バディシステム起動
       BuddySystem.init();
       BuddySystem.updateStatus(student);
+      ChatUI.startSubscription();
       const studentName = student.callsign || student.nickname || student.name;
       setTimeout(() => {
         const hour = new Date().getHours();
@@ -4110,6 +4314,274 @@ function toggleBuddyVoice() {
     BuddySystem.say('音声ONにしたよ！これからお話しするね', { emotion: 'happy', duration: 4000 });
   }
 }
+
+// ============================================
+// Phase 14: チャットUI + 音声認識
+// ============================================
+const ChatUI = (() => {
+  let recognition = null;
+  let isRecording = false;
+  let activeInputId = 'buddyChatInput';
+  let chatUnsubscribe = null;
+  let lastTeacherMessageId = null;
+
+  // Web Speech API SpeechRecognition セットアップ
+  function initRecognition() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SR) return null;
+    const r = new SR();
+    r.lang = 'ja-JP';
+    r.continuous = false;
+    r.interimResults = false;
+    r.maxAlternatives = 1;
+
+    r.onresult = (e) => {
+      const text = e.results[0][0].transcript;
+      const input = document.getElementById(activeInputId);
+      if (input) input.value = text;
+      stopRecording();
+      // 自動送信
+      setTimeout(() => {
+        if (activeInputId === 'chatModalInput') sendFromModal();
+        else sendFromBar();
+      }, 200);
+    };
+    r.onend = () => stopRecording();
+    r.onerror = (e) => {
+      console.error('SpeechRecognition error:', e.error);
+      stopRecording();
+    };
+    return r;
+  }
+
+  function startRecording(targetInput) {
+    if (!recognition) recognition = initRecognition();
+    if (!recognition) {
+      alert('お使いのブラウザは音声認識に対応していません。Chrome/Safariをお試しください。');
+      return;
+    }
+    activeInputId = targetInput || 'buddyChatInput';
+    try {
+      recognition.start();
+      isRecording = true;
+      updateMicButtons(true);
+    } catch(e) { console.error(e); }
+  }
+
+  function stopRecording() {
+    if (recognition && isRecording) {
+      try { recognition.stop(); } catch(e) {}
+    }
+    isRecording = false;
+    updateMicButtons(false);
+  }
+
+  function updateMicButtons(recording) {
+    const btn1 = document.getElementById('buddyMicBtn');
+    const btn2 = document.getElementById('chatModalMicBtn');
+    if (btn1) btn1.classList.toggle('recording', recording);
+    if (btn2) btn2.classList.toggle('recording', recording);
+  }
+
+  function toggleVoiceInput(target) {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording(target === 'modal' ? 'chatModalInput' : 'buddyChatInput');
+    }
+  }
+
+  // 送信 - バー版
+  async function sendFromBar() {
+    const input = document.getElementById('buddyChatInput');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    await sendMessage(text);
+  }
+
+  // 送信 - モーダル版
+  async function sendFromModal() {
+    const input = document.getElementById('chatModalInput');
+    const text = input.value.trim();
+    if (!text) return;
+    input.value = '';
+    await sendMessage(text);
+  }
+
+  async function sendMessage(text) {
+    if (!currentStudent) return;
+    const studentName = currentStudent.callsign || currentStudent.nickname || currentStudent.name;
+    try {
+      // 生徒メッセージを保存
+      await ChatDB.sendMessage(currentStudent.id, studentName, 'student', studentName, text);
+      // 即時バブル表示
+      BuddySystem.say('えーっと...', { emotion: 'thinking', duration: 1500 });
+      // パターンマッチで返答
+      const reply = generateReply(text, currentStudent);
+      setTimeout(async () => {
+        await ChatDB.sendMessage(currentStudent.id, studentName, 'buddy', 'ルカ', reply);
+        BuddySystem.say(reply, { emotion: 'happy', duration: 5000 });
+      }, 1200);
+    } catch(e) {
+      console.error('Chat send error:', e);
+      BuddySystem.say('うーん、うまく聞こえなかった...もう一度言ってくれる？', { emotion: 'sad' });
+    }
+  }
+
+  // パターンマッチ返答ロジック
+  function generateReply(text, student) {
+    const t = text.toLowerCase();
+    const name = student.callsign || student.nickname || student.name;
+
+    // 挨拶
+    if (/おはよ|good morning/i.test(t)) return `おはよう、${name}！今日も最高の1日にしよう！☀️`;
+    if (/こんにちは|こんにちわ|hello/i.test(t)) return `こんにちは、${name}！何かお手伝いできることある？`;
+    if (/こんばんは|こんばんわ/i.test(t)) return `こんばんは！夜の学習も応援してるよ✨`;
+    if (/おやすみ|good night/i.test(t)) return `おやすみ、${name}。良い夢を！明日も一緒にがんばろう🌙`;
+    if (/ありがとう|thank/i.test(t)) return `どういたしまして！${name}のためなら、いつでも！`;
+
+    // 感情
+    if (/疲れた|つかれた|しんどい|だるい/i.test(t)) return `お疲れさま、${name}。少し休もうか？深呼吸してリラックス☕`;
+    if (/眠い|ねむい|sleepy/i.test(t)) return `眠いときは無理しないで。15分だけ仮眠するのもアリだよ😴`;
+    if (/楽しい|たのしい|うれしい|嬉しい/i.test(t)) return `わぁ、いいね！${name}が楽しそうだと僕も嬉しい！😊`;
+    if (/つらい|辛い|悲しい|かなしい|やる気ない/i.test(t)) return `辛いんだね...少し休んでも大丈夫だよ。先生にも話してみる？いつでも僕に話して`;
+    if (/やる気|やるき/i.test(t)) return `やる気スイッチ、ポチッ！押したよ💪 さあ、一緒にやろう！`;
+
+    // 質問・分からない
+    if (/わからない|分からない|難しい|むずかしい/i.test(t)) return `分からないところ、先生に聞いてみよう！僕からも先生に伝えておくね`;
+    if (/教えて|おしえて/i.test(t)) return `何を教えてほしい？先生を呼ぼうか？`;
+    if (/勉強|べんきょう/i.test(t)) return `勉強の話だね！「学習スタート」から始められるよ📚`;
+
+    // 学習
+    if (/数学|算数/i.test(t)) return `数学いいね！コツコツ問題を解いていこう。分からなかったら聞いてね`;
+    if (/英語|english/i.test(t)) return `英語か！毎日少しずつが大事だよ。単語帳もアプリにあるよ📖`;
+    if (/国語/i.test(t)) return `国語は読解が大事だね。文章をゆっくり読んで`;
+    if (/理科|科学/i.test(t)) return `理科は実験とつなげて考えると面白いよ🔬`;
+    if (/社会|歴史|地理/i.test(t)) return `社会は流れで覚えるのがコツ！物語みたいに覚えてみよう`;
+
+    // バディ自身について
+    if (/きみ|君|お前|あなた|name|名前/i.test(t)) return `僕の名前はルカ！${name}のバディだよ。よろしくね🤖`;
+    if (/好き|すき/i.test(t)) return `えへへ、僕も${name}のこと大好きだよ❤️`;
+
+    // ポイント・レベル
+    if (/ポイント|point|pt/i.test(t)) return `今のポイントは ${student.currentPoints || 0}pt だよ！もっと貯めようね💎`;
+    if (/レベル|level|lv/i.test(t)) return `現在のレベルは Lv.${student.level || 1}！レベルアップ目指してがんばろう⭐`;
+
+    // 先生
+    if (/先生|せんせい|teacher/i.test(t)) return `先生にお願いしたいことがあるんだね。「先生を呼ぶ」ボタンで呼べるよ。今すぐ呼ぼうか？`;
+
+    // クエスト
+    if (/クエスト|くえすと|ミッション/i.test(t)) return `クエスト掲示板を見てみよう！今日のクエストが3つ並んでるよ📜`;
+
+    // ラン残り・愚痴
+    if (/.+\?|.+？/i.test(t)) return `うーん、いい質問だね。先生に聞いてみる？それとも僕がもう少し考えてみる？`;
+
+    // デフォルト
+    const fallbacks = [
+      `${name}のお話、ちゃんと聞いてるよ！もっと詳しく教えて？`,
+      `なるほど〜。それでそれで？`,
+      `うんうん。${name}の気持ち、伝わってきたよ`,
+      `面白いね！もっと話して`,
+      `そうなんだ。${name}が話してくれて嬉しい！`,
+    ];
+    return fallbacks[Math.floor(Math.random() * fallbacks.length)];
+  }
+
+  // モーダル
+  function openModal() {
+    const modal = document.getElementById('chatModal');
+    modal.classList.add('active');
+    loadHistory();
+    // バッジクリア
+    const badge = document.getElementById('chatTeacherBadge');
+    if (badge) badge.classList.remove('show');
+  }
+
+  function closeModal() {
+    document.getElementById('chatModal').classList.remove('active');
+  }
+
+  async function loadHistory() {
+    if (!currentStudent) return;
+    const body = document.getElementById('chatModalBody');
+    try {
+      const messages = await ChatDB.getMessages(currentStudent.id, 100);
+      renderMessages(messages);
+    } catch(e) {
+      console.error(e);
+      body.innerHTML = '<div style="text-align:center;color:#fc8181;padding:20px;">読み込みに失敗しました</div>';
+    }
+  }
+
+  function renderMessages(messages) {
+    const body = document.getElementById('chatModalBody');
+    if (!messages || messages.length === 0) {
+      body.innerHTML = '<div style="text-align:center;color:#a0aec0;padding:40px;">まだお話してないね。<br>下の入力欄から話しかけてみよう！</div>';
+      return;
+    }
+    body.innerHTML = messages.map(m => {
+      const time = m.createdAt && m.createdAt.toDate ? m.createdAt.toDate() : null;
+      const timeStr = time ? `${time.getHours()}:${String(time.getMinutes()).padStart(2,'0')}` : '';
+      const senderName = m.sender === 'student' ? '' :
+        m.sender === 'teacher' ? `<div class="chat-message-sender">👨‍🏫 ${m.senderName || '先生'}</div>` :
+        '<div class="chat-message-sender">🤖 ルカ</div>';
+      return `
+        <div class="chat-message ${m.sender}">
+          <div>
+            ${senderName}
+            <div class="chat-message-bubble">${escapeChatHtml(m.text)}</div>
+            <div class="chat-message-meta">${timeStr}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+    body.scrollTop = body.scrollHeight;
+  }
+
+  function escapeChatHtml(s) {
+    return String(s || '').replace(/[&<>"']/g, c => ({
+      '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'
+    }[c]));
+  }
+
+  // リアルタイム購読開始
+  function startSubscription() {
+    if (!currentStudent || chatUnsubscribe) return;
+    chatUnsubscribe = ChatDB.subscribeMessages(currentStudent.id, (messages) => {
+      // モーダルが開いていれば再描画
+      if (document.getElementById('chatModal').classList.contains('active')) {
+        renderMessages(messages);
+      }
+      // 新しい先生メッセージを検出
+      const teacherMessages = messages.filter(m => m.sender === 'teacher');
+      if (teacherMessages.length > 0) {
+        const latest = teacherMessages[teacherMessages.length - 1];
+        if (latest.id !== lastTeacherMessageId) {
+          lastTeacherMessageId = latest.id;
+          // モーダルが閉じていればバッジ表示 + バディが告知
+          if (!document.getElementById('chatModal').classList.contains('active')) {
+            const badge = document.getElementById('chatTeacherBadge');
+            if (badge) badge.classList.add('show');
+            BuddySystem.say(`${latest.senderName || '先生'}からお返事が来たよ！💬`, { emotion: 'excited', duration: 6000 });
+          } else {
+            BuddySystem.say(latest.text, { emotion: 'idle', duration: 5000 });
+          }
+        }
+      }
+    });
+  }
+
+  function stopSubscription() {
+    if (chatUnsubscribe) { chatUnsubscribe(); chatUnsubscribe = null; }
+    lastTeacherMessageId = null;
+  }
+
+  return {
+    sendFromBar, sendFromModal, sendMessage, openModal, closeModal,
+    toggleVoiceInput, startSubscription, stopSubscription
+  };
+})();
 
 // ============================================
 // Init

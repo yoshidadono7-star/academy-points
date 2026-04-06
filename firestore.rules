@@ -282,5 +282,14 @@ service cloud.firestore {
       allow create: if true;
       allow update, delete: if isAdmin();
     }
+
+    // === Phase 14: バディチャット ===
+    match /chats/{studentId} {
+      allow read, write: if true;
+      match /messages/{messageId} {
+        allow read, create: if true;
+        allow update, delete: if isAdmin();
+      }
+    }
   }
 }

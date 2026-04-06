@@ -3122,3 +3122,85 @@ const ReportLogsDB = {
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   }
 };
+
+// ============================================
+// Phase 14: バディチャットシステム
+// ============================================
+// データモデル:
+// chats/{studentId}: { studentId, studentName, lastMessage, lastSender, updatedAt, unreadByTeacher }
+// chats/{studentId}/messages/{messageId}: { sender, senderName, text, type, createdAt }
+//   sender: 'student' | 'buddy' | 'teacher'
+//   type: 'text' | 'voice'
+const ChatDB = {
+  async sendMessage(studentId, studentName, sender, senderName, text, type) {
+    if (!studentId || !text) return;
+    type = type || 'text';
+    const messageRef = await db.collection('chats').doc(studentId)
+      .collection('messages').add({
+        sender,
+        senderName: senderName || '',
+        text,
+        type,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    // 親ドキュメント更新
+    const update = {
+      studentId,
+      studentName: studentName || '',
+      lastMessage: text,
+      lastSender: sender,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    if (sender === 'student') {
+      update.unreadByTeacher = firebase.firestore.FieldValue.increment(1);
+    } else if (sender === 'teacher') {
+      update.unreadByTeacher = 0;
+    }
+    await db.collection('chats').doc(studentId).set(update, { merge: true });
+    return messageRef.id;
+  },
+
+  async getMessages(studentId, limit) {
+    limit = limit || 50;
+    const snap = await db.collection('chats').doc(studentId)
+      .collection('messages')
+      .orderBy('createdAt', 'desc')
+      .limit(limit).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() })).reverse();
+  },
+
+  // 全アクティブチャット一覧（講師用）
+  async getAllChats() {
+    const snap = await db.collection('chats')
+      .orderBy('updatedAt', 'desc').limit(50).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+
+  // リアルタイム購読（生徒側）
+  subscribeMessages(studentId, callback) {
+    return db.collection('chats').doc(studentId)
+      .collection('messages')
+      .orderBy('createdAt', 'desc').limit(50)
+      .onSnapshot(snap => {
+        const messages = snap.docs.map(d => ({ id: d.id, ...d.data() })).reverse();
+        callback(messages);
+      });
+  },
+
+  // リアルタイム購読（講師側 - 全チャット一覧）
+  subscribeAllChats(callback) {
+    return db.collection('chats')
+      .orderBy('updatedAt', 'desc').limit(50)
+      .onSnapshot(snap => {
+        const chats = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        callback(chats);
+      });
+  },
+
+  // 既読化
+  async markReadByTeacher(studentId) {
+    await db.collection('chats').doc(studentId).update({
+      unreadByTeacher: 0
+    });
+  }
+};
