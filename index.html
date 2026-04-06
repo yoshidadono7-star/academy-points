@@ -393,7 +393,7 @@
 <body>
 
 <!-- ===== 管理者ログイン画面 ===== -->
-<div id="adminLoginScreen" style="display:none; position:fixed; inset:0; background:linear-gradient(135deg,#667eea,#764ba2); z-index:99999; display:flex; align-items:center; justify-content:center;">
+<div id="adminLoginScreen" style="position:fixed; inset:0; background:linear-gradient(135deg,#667eea,#764ba2); z-index:99999; display:none; align-items:center; justify-content:center;">
   <div style="background:#fff; border-radius:20px; padding:40px 32px; width:90%; max-width:380px; box-shadow:0 20px 60px rgba(0,0,0,0.3); text-align:center;">
     <div style="font-size:48px; margin-bottom:8px;">🚀</div>
     <h2 style="font-size:22px; font-weight:800; color:#2d3748; margin-bottom:4px;">HERO'S 管理画面</h2>
@@ -5632,6 +5632,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ページロード直後は全コンテンツを非表示
   document.querySelector('.risk-banner') && (document.querySelector('.risk-banner').style.display = 'none');
   document.querySelector('.header') && (document.querySelector('.header').style.display = 'none');
+  document.querySelector('.category-nav') && (document.querySelector('.category-nav').style.display = 'none');
   document.querySelector('.tab-nav') && (document.querySelector('.tab-nav').style.display = 'none');
   document.querySelector('.main') && (document.querySelector('.main').style.display = 'none');
 
@@ -5639,6 +5640,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginScreen = document.getElementById('adminLoginScreen');
     const riskBanner = document.querySelector('.risk-banner');
     const header = document.querySelector('.header');
+    const categoryNav = document.querySelector('.category-nav');
     const tabNav = document.querySelector('.tab-nav');
     const main = document.querySelector('.main');
 
@@ -5647,6 +5649,7 @@ document.addEventListener('DOMContentLoaded', () => {
       loginScreen.style.display = 'none';
       if (riskBanner) riskBanner.style.display = '';
       if (header) header.style.display = '';
+      if (categoryNav) categoryNav.style.display = '';
       if (tabNav) tabNav.style.display = '';
       if (main) main.style.display = '';
 
@@ -5662,6 +5665,7 @@ document.addEventListener('DOMContentLoaded', () => {
       loginScreen.style.display = 'flex';
       if (riskBanner) riskBanner.style.display = 'none';
       if (header) header.style.display = 'none';
+      if (categoryNav) categoryNav.style.display = 'none';
       if (tabNav) tabNav.style.display = 'none';
       if (main) main.style.display = 'none';
     }
@@ -5850,7 +5854,7 @@ async function loadSchedule() {
       label.textContent = `${year}年`;
       const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
       // 受験日を取得
-      const exams = await ExamSchedulesDB.getActive();
+      const exams = await ExamSchedulesDB.getUpcoming(50);
       let html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">';
       for (let m = 0; m < 12; m++) {
         const ym = `${year}-${String(m+1).padStart(2,'0')}`;
@@ -5943,7 +5947,7 @@ async function showPendingSlots() {
 async function loadSchedExamCountdown() {
   const container = document.getElementById('schedExamCountdown');
   try {
-    const exams = await ExamSchedulesDB.getActive();
+    const exams = await ExamSchedulesDB.getUpcoming(50);
     if (exams.length === 0) { container.style.display = 'none'; return; }
     const now = new Date();
     const upcoming = exams.filter(e => new Date(e.date) > now).sort((a,b) => a.date.localeCompare(b.date)).slice(0, 5);
