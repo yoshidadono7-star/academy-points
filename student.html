@@ -265,6 +265,96 @@ body.buddy-on .buddy-panel { display: flex; align-items: center; }
   .conv-bubble { font-size: 13px; padding: 9px 13px; }
 }
 
+/* ===== Phase 14a: バディ選択画面 ===== */
+.buddy-select-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: linear-gradient(180deg, #0a0a2e 0%, #1a1a4e 50%, #0f172a 100%);
+  z-index: 9500;
+  overflow-y: auto;
+  padding: 40px 16px;
+}
+.buddy-select-overlay.active { display: block; }
+.buddy-select-content {
+  max-width: 720px; margin: 0 auto;
+  text-align: center;
+  color: #e2e8f0;
+}
+.buddy-select-title {
+  font-size: 26px; font-weight: 900; color: #ffd700;
+  text-shadow: 0 0 30px rgba(255,215,0,0.4);
+  margin-bottom: 6px;
+}
+.buddy-select-sub {
+  font-size: 14px; color: rgba(255,255,255,0.7);
+  margin-bottom: 30px;
+}
+.buddy-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 14px;
+  margin-bottom: 20px;
+}
+.buddy-card {
+  background: rgba(255,255,255,0.06);
+  border: 2px solid rgba(255,255,255,0.15);
+  border-radius: 18px;
+  padding: 18px 12px;
+  cursor: pointer;
+  transition: all 0.3s;
+  text-align: center;
+  position: relative;
+}
+.buddy-card:hover {
+  border-color: rgba(255,215,0,0.5);
+  background: rgba(255,255,255,0.1);
+  transform: translateY(-3px);
+}
+.buddy-card.selected {
+  border-color: #ffd700;
+  background: rgba(255,215,0,0.15);
+  box-shadow: 0 0 25px rgba(255,215,0,0.4);
+}
+.buddy-card-avatar {
+  font-size: 60px;
+  margin-bottom: 8px;
+  display: block;
+  filter: drop-shadow(0 0 12px rgba(102,126,234,0.5));
+}
+.buddy-card-name {
+  font-size: 16px; font-weight: 800; color: #fff;
+  margin-bottom: 2px;
+}
+.buddy-card-title {
+  font-size: 11px; color: #a78bfa;
+  margin-bottom: 6px;
+}
+.buddy-card-desc {
+  font-size: 11px; color: rgba(255,255,255,0.6);
+  line-height: 1.4;
+}
+.buddy-card.selected::after {
+  content: '✓'; position: absolute;
+  top: 8px; right: 12px;
+  background: #ffd700; color: #1a1a2e;
+  width: 24px; height: 24px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-weight: 900; font-size: 14px;
+}
+.buddy-select-confirm {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none;
+  padding: 14px 50px;
+  border-radius: 30px;
+  font-size: 16px; font-weight: 700;
+  cursor: pointer;
+  box-shadow: 0 8px 24px rgba(102,126,234,0.5);
+}
+.buddy-select-confirm:disabled {
+  opacity: 0.5; cursor: not-allowed;
+}
+
 /* チャット入力バー */
 .buddy-chatbar {
   display: none;
@@ -1228,6 +1318,17 @@ body.theme-space {
 </head>
 <body>
 
+<!-- Phase 14a: バディ選択画面 -->
+<div id="buddySelectOverlay" class="buddy-select-overlay">
+  <div class="buddy-select-content">
+    <div style="font-size:60px;margin-bottom:8px;">🌌</div>
+    <div class="buddy-select-title" id="buddySelectTitle">バディを選ぼう</div>
+    <div class="buddy-select-sub" id="buddySelectSub">君の冒険を一緒に旅するパートナーを選んでね！</div>
+    <div class="buddy-grid" id="buddyGrid"></div>
+    <button class="buddy-select-confirm" id="buddySelectConfirm" onclick="confirmBuddySelection()" disabled>このバディに決めた！</button>
+  </div>
+</div>
+
 <!-- Phase 14: バディキャラクター（常駐パネル） -->
 <div id="buddyPanel" class="buddy-panel">
   <div class="buddy-status">
@@ -1240,6 +1341,8 @@ body.theme-space {
   <div class="buddy-character">
     <div class="buddy-glow"></div>
     <span class="buddy-avatar idle" id="buddyAvatar" onclick="BuddySystem.tap()">🤖</span>
+    <button onclick="openBuddySelect(false)" title="バディ変更"
+      style="position:absolute;bottom:8px;right:8px;background:rgba(255,255,255,0.15);border:1px solid rgba(255,255,255,0.3);color:#fff;width:26px;height:26px;border-radius:50%;font-size:12px;cursor:pointer;backdrop-filter:blur(8px);">↻</button>
   </div>
   <!-- 中央: 会話エリア（バディ発言と生徒発言が両方残る） -->
   <div class="buddy-conversation" id="buddyConversation">
@@ -1894,22 +1997,26 @@ async function handleLogin() {
 
     // Phase 14: バディシステム起動 + AI設定読み込み
     BuddySystem.init();
+    if (student.buddyId) BuddySystem.setBuddy(student.buddyId);
     BuddySystem.updateStatus(student);
     ChatUI.startSubscription();
     AIBuddy.loadConfig();
     const isFirstLogin = !student.seenBuddy;
+    const hasNoBuddy = !student.buddyId;
     const studentName = student.callsign || student.nickname || student.name;
-    setTimeout(() => {
-      if (isFirstLogin) {
-        BuddySystem.react('welcome_first', { name: studentName });
-        StudentsDB.update(student.id, { seenBuddy: true }).catch(() => {});
-      } else {
+
+    // バディ未選択なら選択画面を表示
+    if (hasNoBuddy) {
+      setTimeout(() => openBuddySelect(true), 800);
+      StudentsDB.update(student.id, { seenBuddy: true }).catch(() => {});
+    } else {
+      setTimeout(() => {
         const hour = new Date().getHours();
         if (hour < 11) BuddySystem.react('morning', { name: studentName });
         else if (hour >= 18) BuddySystem.react('evening', { name: studentName });
         else BuddySystem.react('welcome', { name: studentName });
-      }
-    }, 1500);
+      }, 1500);
+    }
 
     if (checkWorldSelectNeeded()) {
       renderWorldSelect(true);
@@ -1948,6 +2055,7 @@ async function tryAutoLogin() {
       currentStudent = student;
       // Phase 14: バディシステム起動
       BuddySystem.init();
+      if (student.buddyId) BuddySystem.setBuddy(student.buddyId);
       BuddySystem.updateStatus(student);
       ChatUI.startSubscription();
       AIBuddy.loadConfig();
@@ -2793,6 +2901,19 @@ function resumeTimer() {
   timerState.interval = setInterval(() => {
     timerState.elapsed++;
 
+    // Phase E: バディが学習中に応援する
+    const elapsedMin = Math.floor(timerState.elapsed / 60);
+    const elapsedSec = timerState.elapsed % 60;
+    if (elapsedSec === 0 && elapsedMin > 0) {
+      try {
+        if (elapsedMin === 5) BuddySystem.react('studyCheering5');
+        else if (elapsedMin === 10) BuddySystem.react('studyCheering10');
+        else if (elapsedMin === 15) BuddySystem.react('studyCheering15');
+        else if (elapsedMin === 25) BuddySystem.react('studyCheering25');
+        else if (elapsedMin > 25 && elapsedMin % 15 === 0) BuddySystem.react('encourage');
+      } catch(e) {}
+    }
+
     if (studySession.method === 'pomodoro') {
       timerState.pomodoroTime--;
       updateTimerDisplay(Math.max(0, timerState.pomodoroTime));
@@ -2806,12 +2927,14 @@ function resumeTimer() {
           pomoInfo.textContent = `🍅 ${timerState.pomodoroCount}回完了！ 休憩 5:00`;
           showToast('ポモドーロ完了！5分休憩です');
           try { navigator.vibrate && navigator.vibrate(500); } catch(e) {}
+          try { BuddySystem.react('pomodoroComplete'); } catch(e) {}
         } else {
           timerState.pomodoroPhase = 'work';
           timerState.pomodoroTime = 25 * 60;
           pomoInfo.textContent = `🍅 ポモドーロ ${timerState.pomodoroCount + 1}回目 - 作業時間 25:00`;
           showToast('休憩終了！次のポモドーロ開始');
           try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch(e) {}
+          try { BuddySystem.react('pomodoroBreak'); } catch(e) {}
         }
       } else {
         const phase = timerState.pomodoroPhase === 'work' ? '作業時間' : '休憩';
@@ -4069,6 +4192,13 @@ const VoiceSystem = (() => {
   let enabled = localStorage.getItem('buddy_voice_enabled') === '1';
   let voice = null;
   let voicesLoaded = false;
+  let voicePitch = 1.35;
+  let voiceRate = 1.15;
+
+  function setVoiceConfig(pitch, rate) {
+    if (typeof pitch === 'number') voicePitch = pitch;
+    if (typeof rate === 'number') voiceRate = rate;
+  }
 
   function loadVoices() {
     if (!('speechSynthesis' in window)) return;
@@ -4106,8 +4236,8 @@ const VoiceSystem = (() => {
     const u = new SpeechSynthesisUtterance(clean);
     u.lang = 'ja-JP';
     if (voice) u.voice = voice;
-    u.rate = 1.15;   // 少し速め（元気な印象）
-    u.pitch = 1.35;  // 少し高め（可愛い印象）
+    u.rate = voiceRate;
+    u.pitch = voicePitch;
     u.volume = 0.9;
     speechSynthesis.speak(u);
   }
@@ -4125,18 +4255,178 @@ const VoiceSystem = (() => {
     return enabled;
   }
 
-  return { speak, setEnabled, isEnabled, toggle };
+  return { speak, setEnabled, isEnabled, toggle, setVoiceConfig };
 })();
+
+// ============================================
+// Phase 14a: バディキャラクターカタログ
+// ============================================
+const BUDDY_CATALOG = [
+  {
+    id: 'luca',
+    name: 'ルカ',
+    avatar: '🤖',
+    title: '宇宙AI型ロボット',
+    personality: 'cheerful',
+    desc: '元気でお調子者。何でも前向きに励ましてくれる相棒',
+    voicePitch: 1.35, voiceRate: 1.15,
+    speechStyle: { suffix: '', endings: ['だよ！', 'だね！', 'しよう！'] },
+    intro: 'はじめまして！僕はルカ。一緒に宇宙の冒険を始めようね！'
+  },
+  {
+    id: 'mimi',
+    name: 'ミミ',
+    avatar: '🐱',
+    title: '癒しの猫スピリット',
+    personality: 'gentle',
+    desc: 'おっとり優しい性格。疲れた時に寄り添ってくれる',
+    voicePitch: 1.5, voiceRate: 1.0,
+    speechStyle: { suffix: '〜', endings: ['だにゃ〜', 'にゃん♪', 'なのにゃ'] },
+    intro: 'にゃ〜ん。私はミミにゃ。よろしくにゃん♪ 一緒にがんばろうにゃ〜'
+  },
+  {
+    id: 'rex',
+    name: 'レックス',
+    avatar: '🐉',
+    title: '伝説の知恵竜',
+    personality: 'cool',
+    desc: 'クールで知的。鋭いアドバイスをくれる頼れる存在',
+    voicePitch: 0.85, voiceRate: 1.0,
+    speechStyle: { suffix: '', endings: ['だ。', 'だろう。', 'がいい。'] },
+    intro: '我が名はレックス。古き知恵の番人だ。共に高みを目指そう。'
+  },
+  {
+    id: 'piyo',
+    name: 'ピヨ',
+    avatar: '🐤',
+    title: 'ふわふわひよこ',
+    personality: 'cute',
+    desc: '甘えん坊で愛らしい。一緒にいるだけで癒される',
+    voicePitch: 1.7, voiceRate: 1.2,
+    speechStyle: { suffix: 'ピヨ♪', endings: ['ピヨ！', 'なの！', 'ピヨピヨ♪'] },
+    intro: 'ピヨ〜♪ 僕、ピヨだよ！よろしくね、ピヨ！'
+  },
+  {
+    id: 'nyanta',
+    name: 'ニャン太',
+    avatar: '😺',
+    title: '関西出身のねこ侍',
+    personality: 'energetic',
+    desc: '元気いっぱいでツッコミ上手。関西弁で笑わせてくれる',
+    voicePitch: 1.2, voiceRate: 1.25,
+    speechStyle: { suffix: 'やで！', endings: ['やで！', 'ちゃうか？', 'やん！'] },
+    intro: 'まいど！ワイはニャン太や！一緒にバリバリ勉強しよか！'
+  },
+  {
+    id: 'zorg',
+    name: 'ゾルク',
+    avatar: '👽',
+    title: '謎の宇宙人',
+    personality: 'mysterious',
+    desc: 'ミステリアスで賢い。深い洞察を与えてくれる',
+    voicePitch: 0.9, voiceRate: 0.95,
+    speechStyle: { suffix: '...', endings: ['...だ。', 'ということだ...', 'らしい...'] },
+    intro: '我は遠き星から来た...名はゾルク...君の旅を見守ろう...'
+  },
+  {
+    id: 'mochi',
+    name: 'モチ',
+    avatar: '🐰',
+    title: 'マイペースうさぎ',
+    personality: 'relaxed',
+    desc: 'のんびりマイペース。焦らず一緒に進んでくれる',
+    voicePitch: 1.45, voiceRate: 0.95,
+    speechStyle: { suffix: '〜', endings: ['だよ〜', 'かな〜', 'よね〜'] },
+    intro: 'やぁ〜、僕はモチだよ〜。のんびり一緒にやろうね〜'
+  },
+  {
+    id: 'alice',
+    name: 'アリス',
+    avatar: '🦊',
+    title: 'お姉さんきつね',
+    personality: 'mature',
+    desc: 'しっかり者のお姉さん。優しく道を示してくれる',
+    voicePitch: 1.25, voiceRate: 1.1,
+    speechStyle: { suffix: '', endings: ['ですよ', 'ましょう', 'ですね'] },
+    intro: 'こんにちは、私はアリス。あなたの学習をしっかりサポートしますね'
+  }
+];
+
+function getBuddyById(id) {
+  return BUDDY_CATALOG.find(b => b.id === id) || BUDDY_CATALOG[0];
+}
+
+// Phase 14a: バディ選択UI
+let pendingBuddySelection = null;
+
+function openBuddySelect(isFirst) {
+  const overlay = document.getElementById('buddySelectOverlay');
+  const title = document.getElementById('buddySelectTitle');
+  const sub = document.getElementById('buddySelectSub');
+  if (isFirst) {
+    title.textContent = 'バディを選ぼう';
+    sub.textContent = '君の冒険を一緒に旅するパートナーを選んでね！';
+  } else {
+    title.textContent = 'バディを変更';
+    sub.textContent = 'いつでも別のバディに変えられるよ！';
+  }
+  pendingBuddySelection = currentStudent && currentStudent.buddyId
+    ? currentStudent.buddyId : null;
+  renderBuddyGrid();
+  overlay.classList.add('active');
+}
+
+function renderBuddyGrid() {
+  const grid = document.getElementById('buddyGrid');
+  if (!grid) return;
+  grid.innerHTML = BUDDY_CATALOG.map(b => `
+    <div class="buddy-card ${pendingBuddySelection === b.id ? 'selected' : ''}"
+      onclick="selectBuddyCard('${b.id}')">
+      <div class="buddy-card-avatar">${b.avatar}</div>
+      <div class="buddy-card-name">${b.name}</div>
+      <div class="buddy-card-title">${b.title}</div>
+      <div class="buddy-card-desc">${b.desc}</div>
+    </div>
+  `).join('');
+  document.getElementById('buddySelectConfirm').disabled = !pendingBuddySelection;
+}
+
+function selectBuddyCard(buddyId) {
+  pendingBuddySelection = buddyId;
+  renderBuddyGrid();
+  // 選択時にプレビュー（タップ音的な演出）
+  try {
+    const buddy = getBuddyById(buddyId);
+    if (VoiceSystem.isEnabled() && buddy.intro) {
+      VoiceSystem.setVoiceConfig(buddy.voicePitch, buddy.voiceRate);
+      VoiceSystem.speak(buddy.intro);
+    }
+  } catch(e) {}
+}
+
+async function confirmBuddySelection() {
+  if (!pendingBuddySelection || !currentStudent) return;
+  try {
+    await StudentsDB.update(currentStudent.id, { buddyId: pendingBuddySelection });
+    currentStudent.buddyId = pendingBuddySelection;
+    BuddySystem.setBuddy(pendingBuddySelection);
+    document.getElementById('buddySelectOverlay').classList.remove('active');
+    // 自己紹介
+    const buddy = getBuddyById(pendingBuddySelection);
+    setTimeout(() => {
+      BuddySystem.say(buddy.intro, { emotion: 'happy', duration: 6000 });
+    }, 300);
+  } catch(e) {
+    console.error(e);
+    alert('保存に失敗しました');
+  }
+}
 
 // ============================================
 // Phase 14: バディシステム（常駐キャラクター）
 // ============================================
 const BuddySystem = (() => {
-  let currentBuddy = {
-    name: 'ルカ',
-    avatar: '🤖',
-    personality: 'cheerful', // cheerful, calm, energetic
-  };
+  let currentBuddy = BUDDY_CATALOG[0]; // デフォルト: ルカ
   let messageQueue = [];
   let isShowing = false;
   let idleTimer = null;
@@ -4195,6 +4485,38 @@ const BuddySystem = (() => {
       '完璧じゃなくていい。やってみることが大事',
       '深呼吸して、リラックス。また明日も来るからね',
     ],
+    studyCheering5: [
+      'いいぞ！その調子！',
+      '集中してる！すごい！',
+      '5分突破！順調だよ',
+      'ナイス集中！',
+    ],
+    studyCheering10: [
+      '10分達成！君は本気だね',
+      '素晴らしい集中力！',
+      '10分継続中、最高だよ！',
+      'リズム来てるね',
+    ],
+    studyCheering15: [
+      '15分突破！君すごすぎ',
+      'もう15分も集中できてる！',
+      'ここまでやれば後は流れだ',
+    ],
+    studyCheering25: [
+      '25分達成！1ポモドーロ完走相当！',
+      '25分突破！プロ級の集中力',
+      'すごい！25分の壁を超えた',
+    ],
+    pomodoroComplete: [
+      'ポモドーロ完了！素晴らしい！',
+      '1セットお疲れさま！短い休憩を',
+      'ナイスポモドーロ！この調子！',
+    ],
+    pomodoroBreak: [
+      '休憩中も水分補給忘れずに！',
+      'ちょっと立ち上がって伸びをしよう',
+      '目を休ませてね',
+    ],
     idle: [
       '今日は何を勉強する？',
       '何か質問ある？',
@@ -4219,6 +4541,23 @@ const BuddySystem = (() => {
 
   function format(template, vars) {
     return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] || '');
+  }
+
+  // バディの話し方に変換
+  function applyStyle(text) {
+    if (!currentBuddy.speechStyle) return text;
+    const style = currentBuddy.speechStyle;
+    // 文末に suffix を追加（既に同じ文字で終わっていなければ）
+    let result = text;
+    if (style.suffix && !result.endsWith(style.suffix)) {
+      // 「！」「？」「。」で終わっている場合はその前に挿入
+      if (/[！？。]$/.test(result)) {
+        result = result.slice(0, -1) + style.suffix + result.slice(-1);
+      } else {
+        result += style.suffix;
+      }
+    }
+    return result;
   }
 
   function show() {
@@ -4329,10 +4668,11 @@ const BuddySystem = (() => {
   }
 
   // イベント別ヘルパー
-  function react(eventKey, vars = {}) {
+  function react(eventKey, vars) {
+    vars = vars || {};
     const lines = DIALOGUES[eventKey];
     if (!lines) return;
-    const line = format(rand(lines), vars);
+    const line = applyStyle(format(rand(lines), vars));
 
     const emotionMap = {
       welcome: 'happy',
@@ -4349,6 +4689,12 @@ const BuddySystem = (() => {
       idle: 'idle',
       questAccept: 'happy',
       appLaunch: 'thinking',
+      studyCheering5: 'happy',
+      studyCheering10: 'happy',
+      studyCheering15: 'excited',
+      studyCheering25: 'excited',
+      pomodoroComplete: 'excited',
+      pomodoroBreak: 'idle',
     };
     const duration = (eventKey === 'levelUp' || eventKey === 'bossDefeat') ? 8000 : 5000;
     say(line, { emotion: emotionMap[eventKey] || 'idle', duration });
@@ -4387,6 +4733,22 @@ const BuddySystem = (() => {
     if (idleTimer) { clearInterval(idleTimer); idleTimer = null; }
   }
 
+  function setBuddy(buddyId) {
+    const found = getBuddyById(buddyId);
+    if (found) currentBuddy = found;
+    // アバター更新
+    const av = document.getElementById('buddyAvatar');
+    if (av) av.textContent = currentBuddy.avatar;
+    // 音声設定も更新
+    if (typeof VoiceSystem !== 'undefined' && VoiceSystem.setVoiceConfig) {
+      VoiceSystem.setVoiceConfig(currentBuddy.voicePitch, currentBuddy.voiceRate);
+    }
+  }
+
+  function getCurrentBuddy() {
+    return currentBuddy;
+  }
+
   function init() {
     show();
     updateVoiceButton();
@@ -4409,7 +4771,8 @@ const BuddySystem = (() => {
   return {
     init, show, hide, say, sayStudent, react, tap,
     setEmotion, updateStatus, startIdleChatter, stopIdleChatter,
-    updateVoiceButton, pushConvLine, updateStudentAvatar
+    updateVoiceButton, pushConvLine, updateStudentAvatar,
+    setBuddy, getCurrentBuddy
   };
 })();
 
