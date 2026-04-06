@@ -342,6 +342,17 @@
             <button onclick="availCalNext()" style="border:none;background:none;font-size:18px;cursor:pointer;">▶</button>
           </div>
           <div id="availCalendar" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;"></div>
+          <div id="availTimeDetail" style="display:none;margin-top:12px;background:#f8fafc;border:1px solid #e2e8f0;border-radius:10px;padding:12px;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;">
+              <span id="availTimeTitle" style="font-weight:700;font-size:14px;"></span>
+              <div style="display:flex;gap:6px;">
+                <button onclick="setAllTimeSlots('ok')" style="font-size:11px;padding:4px 10px;border:1px solid #10b981;background:#dcfce7;color:#166534;border-radius:6px;cursor:pointer;">全て○</button>
+                <button onclick="setAllTimeSlots('ng')" style="font-size:11px;padding:4px 10px;border:1px solid #ef4444;background:#fef2f2;color:#991b1b;border-radius:6px;cursor:pointer;">全て×</button>
+                <button onclick="setAllTimeSlots('')" style="font-size:11px;padding:4px 10px;border:1px solid #94a3b8;background:#f1f5f9;color:#64748b;border-radius:6px;cursor:pointer;">クリア</button>
+              </div>
+            </div>
+            <div id="availTimeSlots" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:4px;"></div>
+          </div>
           <div class="form-group" style="margin-top:12px;">
             <label style="font-size:12px;font-weight:600;">備考（任意）</label>
             <textarea id="availNote" class="form-control" rows="2" placeholder="例: 4/15は家族旅行のためお休みします" style="font-size:12px;"></textarea>
@@ -604,8 +615,10 @@ function switchTab(tabId) {
 
 // ===== 保���者スケジュール =====
 let availCalDate = new Date();
-let availData = {};
+let availData = {};  // { '2026-04-06': { '15:00': 'ok', '16:00': 'ng', ... } or 'closed' }
 let availLoadedMonth = '';
+let availSelectedDate = null;
+let availConfig = null;
 
 async function loadParentSchedule() {
   if (!currentStudent) return;
@@ -647,17 +660,20 @@ async function loadParentSchedule() {
   renderAvailCalendar();
 }
 
-function availCalPrev() { availCalDate.setMonth(availCalDate.getMonth() - 1); availLoadedMonth = ''; renderAvailCalendar(); }
-function availCalNext() { availCalDate.setMonth(availCalDate.getMonth() + 1); availLoadedMonth = ''; renderAvailCalendar(); }
+function availCalPrev() { availCalDate.setMonth(availCalDate.getMonth() - 1); availLoadedMonth = ''; availSelectedDate = null; renderAvailCalendar(); }
+function availCalNext() { availCalDate.setMonth(availCalDate.getMonth() + 1); availLoadedMonth = ''; availSelectedDate = null; renderAvailCalendar(); }
 
 async function renderAvailCalendar() {
   if (!currentStudent) return;
+  // 塾設定を取得（営業時間・休校日）
+  if (!availConfig) {
+    try { availConfig = await AcademyConfigDB.get(); } catch(e) { availConfig = AcademyConfigDB.DEFAULTS; }
+  }
   const year = availCalDate.getFullYear();
   const month = availCalDate.getMonth();
   const ym = year + '-' + String(month + 1).padStart(2, '0');
   document.getElementById('availCalMonth').textContent = year + '年' + (month + 1) + '月';
 
-  // 既存データ読み込み（初回のみ、またはキャッシュされた月が違う場合）
   if (availLoadedMonth !== ym) {
     try {
       const saved = await AvailabilityDB.get(currentStudent.id, ym);
@@ -671,6 +687,27 @@ async function renderAvailCalendar() {
   drawAvailCalendar(year, month, ym);
 }
 
+function isClosedDate(dateStr) {
+  if (!availConfig) return false;
+  if (!AcademyConfigDB.isOpenOn(dateStr, availConfig)) return true;
+  return false;
+}
+
+function getDateSummary(dateStr) {
+  const data = availData[dateStr];
+  if (!data || typeof data !== 'object') return { symbol: '', bg: '#f8fafc', color: '#94a3b8' };
+  const vals = Object.values(data);
+  if (vals.length === 0) return { symbol: '', bg: '#f8fafc', color: '#94a3b8' };
+  const okCount = vals.filter(v => v === 'ok').length;
+  const ngCount = vals.filter(v => v === 'ng').length;
+  const total = vals.length;
+  if (okCount === total) return { symbol: '○', bg: '#dcfce7', color: '#166534' };
+  if (ngCount === total) return { symbol: '×', bg: '#fef2f2', color: '#991b1b' };
+  if (okCount > 0 && ngCount > 0) return { symbol: '△', bg: '#fefce8', color: '#854d0e' };
+  if (okCount > 0) return { symbol: '○', bg: '#dcfce7', color: '#166534' };
+  return { symbol: '', bg: '#f8fafc', color: '#94a3b8' };
+}
+
 function drawAvailCalendar(year, month, ym) {
   const cal = document.getElementById('availCalendar');
   const days = ['日','月','火','水','木','金','土'];
@@ -682,23 +719,90 @@ function drawAvailCalendar(year, month, ym) {
   for (let i = 0; i < firstDay; i++) html += '<div></div>';
   for (let d = 1; d <= lastDate; d++) {
     const dateStr = ym + '-' + String(d).padStart(2, '0');
-    const val = availData[dateStr] || '';
-    const symbol = val === 'ok' ? '○' : val === 'ng' ? '×' : val === 'maybe' ? '△' : '';
-    const bg = val === 'ok' ? '#dcfce7' : val === 'ng' ? '#fef2f2' : val === 'maybe' ? '#fefce8' : '#f8fafc';
-    const color = val === 'ok' ? '#166534' : val === 'ng' ? '#991b1b' : val === 'maybe' ? '#854d0e' : '#94a3b8';
-    html += '<div onclick="toggleAvail(\'' + dateStr + '\')" style="cursor:pointer;padding:6px 2px;border-radius:8px;background:' + bg + ';border:1px solid #e2e8f0;min-height:40px;">'
-      + '<div style="font-size:11px;color:#64748b;">' + d + '</div>'
-      + '<div style="font-size:16px;font-weight:700;color:' + color + ';">' + symbol + '</div>'
-      + '</div>';
+    const closed = isClosedDate(dateStr);
+    const isSelected = availSelectedDate === dateStr;
+
+    if (closed) {
+      html += '<div style="padding:6px 2px;border-radius:8px;background:#e5e7eb;border:1px solid #d1d5db;min-height:40px;opacity:0.5;">'
+        + '<div style="font-size:11px;color:#9ca3af;">' + d + '</div>'
+        + '<div style="font-size:12px;color:#9ca3af;">休</div>'
+        + '</div>';
+    } else {
+      const summary = getDateSummary(dateStr);
+      const border = isSelected ? '2px solid #667eea' : '1px solid #e2e8f0';
+      html += '<div onclick="selectAvailDate(\'' + dateStr + '\')" style="cursor:pointer;padding:6px 2px;border-radius:8px;background:' + summary.bg + ';border:' + border + ';min-height:40px;">'
+        + '<div style="font-size:11px;color:#64748b;">' + d + '</div>'
+        + '<div style="font-size:16px;font-weight:700;color:' + summary.color + ';">' + summary.symbol + '</div>'
+        + '</div>';
+    }
   }
   cal.innerHTML = html;
 }
 
-function toggleAvail(dateStr) {
-  const current = availData[dateStr] || '';
+function selectAvailDate(dateStr) {
+  availSelectedDate = dateStr;
+  const year = availCalDate.getFullYear();
+  const month = availCalDate.getMonth();
+  const ym = year + '-' + String(month + 1).padStart(2, '0');
+  drawAvailCalendar(year, month, ym);
+  showTimeSlots(dateStr);
+}
+
+function showTimeSlots(dateStr) {
+  const detail = document.getElementById('availTimeDetail');
+  const titleEl = document.getElementById('availTimeTitle');
+  const slotsEl = document.getElementById('availTimeSlots');
+  detail.style.display = 'block';
+
+  const d = new Date(dateStr + 'T00:00:00');
+  const days = ['日','月','火','水','木','金','土'];
+  titleEl.textContent = dateStr.slice(5) + '(' + days[d.getDay()] + ') の時間帯';
+
+  const timeSlots = AcademyConfigDB.getTimeSlots(d.getDay(), availConfig);
+  if (!availData[dateStr] || typeof availData[dateStr] !== 'object') {
+    availData[dateStr] = {};
+  }
+  const dateData = availData[dateStr];
+
+  let html = '';
+  for (const ts of timeSlots) {
+    const val = dateData[ts.start] || '';
+    const symbol = val === 'ok' ? '○' : val === 'ng' ? '×' : val === 'maybe' ? '△' : '−';
+    const bg = val === 'ok' ? '#dcfce7' : val === 'ng' ? '#fef2f2' : val === 'maybe' ? '#fefce8' : '#f1f5f9';
+    const color = val === 'ok' ? '#166534' : val === 'ng' ? '#991b1b' : val === 'maybe' ? '#854d0e' : '#94a3b8';
+    html += '<div onclick="toggleTimeSlot(\'' + dateStr + '\',\'' + ts.start + '\')" style="cursor:pointer;padding:6px 4px;border-radius:8px;background:' + bg + ';border:1px solid #e2e8f0;text-align:center;">'
+      + '<div style="font-size:11px;color:#64748b;">' + ts.start + '</div>'
+      + '<div style="font-size:18px;font-weight:700;color:' + color + ';">' + symbol + '</div>'
+      + '</div>';
+  }
+  slotsEl.innerHTML = html;
+}
+
+function toggleTimeSlot(dateStr, time) {
+  if (!availData[dateStr] || typeof availData[dateStr] !== 'object') availData[dateStr] = {};
+  const current = availData[dateStr][time] || '';
   const cycle = { '': 'ok', 'ok': 'maybe', 'maybe': 'ng', 'ng': '' };
   const next = cycle[current];
-  if (next) { availData[dateStr] = next; } else { delete availData[dateStr]; }
+  if (next) { availData[dateStr][time] = next; } else { delete availData[dateStr][time]; }
+  showTimeSlots(dateStr);
+  // カレンダーのサマリーも更新
+  const year = availCalDate.getFullYear();
+  const month = availCalDate.getMonth();
+  const ym = year + '-' + String(month + 1).padStart(2, '0');
+  drawAvailCalendar(year, month, ym);
+}
+
+function setAllTimeSlots(value) {
+  if (!availSelectedDate) return;
+  const d = new Date(availSelectedDate + 'T00:00:00');
+  const timeSlots = AcademyConfigDB.getTimeSlots(d.getDay(), availConfig);
+  if (!availData[availSelectedDate] || typeof availData[availSelectedDate] !== 'object') availData[availSelectedDate] = {};
+  for (const ts of timeSlots) {
+    if (value) { availData[availSelectedDate][ts.start] = value; }
+    else { delete availData[availSelectedDate][ts.start]; }
+  }
+  if (!value || Object.keys(availData[availSelectedDate]).length === 0) delete availData[availSelectedDate];
+  showTimeSlots(availSelectedDate);
   const year = availCalDate.getFullYear();
   const month = availCalDate.getMonth();
   const ym = year + '-' + String(month + 1).padStart(2, '0');
