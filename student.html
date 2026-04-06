@@ -4038,6 +4038,19 @@ const SESystem = (() => {
     error() {
       playTone(200, 0.3, 'sawtooth', 0.15);
     },
+    // ガイド表示（注目！という音）
+    guideAppear() {
+      playTone(880, 0.12, 'sine', 0.2);
+      setTimeout(() => playTone(1108, 0.12, 'sine', 0.25), 100);
+      setTimeout(() => playTone(1318, 0.08, 'sine', 0.15), 200);
+    },
+    // ガイドステップ完了（達成感のある音）
+    guideComplete() {
+      playTone(523, 0.12, 'sine', 0.2);
+      setTimeout(() => playTone(659, 0.12, 'sine', 0.2), 100);
+      setTimeout(() => playTone(784, 0.12, 'sine', 0.2), 200);
+      setTimeout(() => playTone(1047, 0.25, 'triangle', 0.25), 300);
+    },
     // オープニング
     opening() {
       const melody = [262, 330, 392, 523, 392, 523, 659];
@@ -4267,7 +4280,8 @@ const GuideSystem = (() => {
       document.getElementById('guideSub').textContent = step.sub;
 
       overlay.classList.add('active');
-      SESystem.tap();
+      // ステップ表示時: 注意を引くSE
+      SESystem.guideAppear();
 
       // 3秒後にツールチップだけ消す（glowは残す）→ 要素を確実に操作可能に
       setTimeout(() => {
@@ -4293,6 +4307,7 @@ const GuideSystem = (() => {
     const stepIdx = getSavedStep();
     if (stepIdx >= steps.length) return;
     if (steps[stepIdx].waitFor === actionId) {
+      SESystem.guideComplete();
       hide();
       next();
     }
