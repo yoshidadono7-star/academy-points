@@ -1190,6 +1190,10 @@ body.theme-space {
         <div class="complete-stat-lbl">累計ポイント</div>
       </div>
     </div>
+    <div id="completePendingNotice" style="display:none;background:#fffff0;border:2px solid #f6ad55;border-radius:12px;padding:16px;margin:12px 16px;text-align:center;">
+      <div style="font-size:16px;margin-bottom:4px;">&#9203; 承認待ち</div>
+      <div style="font-size:13px;color:#718096;">自宅学習のため、講師の承認後にポイントが付与されます</div>
+    </div>
     <div id="completeEventBonus" style="display:none;"></div>
     <div id="completeCombos"></div>
     <div id="completeBadges"></div>
@@ -1339,7 +1343,8 @@ let currentMissionDraw = null; // Daily mission draw cache
 const SUBJECT_ICONS = { '国語': '📕', '数学': '📐', '英語': '🔤', '理科': '🔬', '社会': '🌍', 'その他': '📝' };
 
 // Level thresholds for progress bar
-const LEVEL_THRESHOLDS = [0, 50, 200, 400, 700, 1000, 1500, 2000, 3000, 5000, 99999];
+// Phase 10: レベル閾値改定
+const LEVEL_THRESHOLDS = [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4500, 7000, 99999];
 
 // ============================================
 // Navigation
@@ -2368,10 +2373,10 @@ async function stopStudy(save) {
   const sessionStartTime = timerState.startTime || new Date(Date.now() - timerState.elapsed * 1000);
   const sessionEndTime = new Date();
 
-  // Points: 1pt per minute base, pomodoro bonus
+  // Points: 1pt per minute base, pomodoro bonus (Phase 10: 5→7pt)
   let basePoints = duration;
   if (studySession.method === 'pomodoro' && timerState.pomodoroCount > 0) {
-    basePoints += timerState.pomodoroCount * 5; // 5pt bonus per pomodoro
+    basePoints += timerState.pomodoroCount * 7; // 7pt bonus per pomodoro
   }
 
   // イベント重複判定: セッション期間とイベント期間が1秒でも��なっていれば倍率適用
@@ -2400,6 +2405,9 @@ async function stopStudy(save) {
   let points = Math.round(basePoints * eventMultiplier) + eventBonusPoints;
 
   try {
+    // 場所判定: 塾/Zoom = 即時付与, 自宅 = pending（講師承認待ち）
+    const isImmediate = (studySession.location === '塾' || studySession.location === 'Zoom');
+
     // Save study log
     await StudyLogsDB.add({
       studentId: currentStudent.id,
@@ -2411,11 +2419,15 @@ async function stopStudy(save) {
       method: studySession.method,
       pomodoroCount: timerState.pomodoroCount,
       material: studySession.material || null,
-      materialName: studySession.materialNote || null
+      materialName: studySession.materialNote || null,
+      pauseCount: timerState.pauseCount || 0,
+      pauseLog: timerState.pauseLog || []
     });
 
-    // Add points to student
-    await StudentsDB.addPoints(currentStudent.id, points);
+    // 塾/Zoom: 即時ポイント付与, 自宅: 承認後に付与
+    if (isImmediate) {
+      await StudentsDB.addPoints(currentStudent.id, points);
+    }
 
     // Update streak
     await updateStreak();
@@ -2423,8 +2435,8 @@ async function stopStudy(save) {
     // Refresh student
     currentStudent = await StudentsDB.getById(currentStudent.id);
 
-    // Guild points
-    if (currentStudent.guildId) {
+    // Guild points (塾/Zoomのみ即時)
+    if (isImmediate && currentStudent.guildId) {
       try {
         await GuildsDB.addPoints(currentStudent.guildId, points);
       } catch(e) {}
@@ -2595,7 +2607,12 @@ async function updateStreak() {
 
 function showCompleteScreen(duration, points, newBadges, raidResults, comboResults, missionResult, appliedEvent, basePoints, eventMultiplier, eventBonusPoints) {
   comboResults = comboResults || [];
-  document.getElementById('completePoints').textContent = `+${points}`;
+  const isImmediate = (studySession.location === '塾' || studySession.location === 'Zoom');
+  const pendingNotice = document.getElementById('completePendingNotice');
+  if (pendingNotice) {
+    pendingNotice.style.display = isImmediate ? 'none' : 'block';
+  }
+  document.getElementById('completePoints').textContent = isImmediate ? `+${points}` : `(${points}pt 承認待ち)`;
   document.getElementById('completeDuration').textContent = `${duration}分`;
   document.getElementById('completeSubject').textContent = studySession.subject;
   document.getElementById('completeTotalPts').textContent = (currentStudent.totalPoints || 0).toLocaleString();

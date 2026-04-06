@@ -80,18 +80,29 @@ const StudentsDB = {
 // --- 学習ログ ---
 const StudyLogsDB = {
   async add(data) {
+    const location = data.location || '塾';
+    // 塾/Zoom = confirmed(即時付与), 自宅 = pending(講師承認待ち)
+    const approvalStatus = (location === '塾' || location === 'Zoom') ? 'confirmed' : 'pending';
     const ref = await db.collection('studyLogs').add({
       studentId: data.studentId,
       studentName: data.studentName || '',
       subject: data.subject,
       duration: data.duration, // 分
       points: data.points,
-      location: data.location || '塾', // 塾/自宅/Zoom
+      location: location,
       method: data.method || 'normal', // normal/pomodoro
       pomodoroCount: data.pomodoroCount || 0,
       material: data.material || null,
       materialName: data.materialName || null,
       materialNote: data.materialNote || null,
+      // --- 家庭学習検証 ---
+      approvalStatus: data.approvalStatus || approvalStatus, // pending/confirmed/rejected
+      pauseCount: data.pauseCount || 0,
+      pauseLog: data.pauseLog || [],
+      photoUrl: data.photoUrl || null,        // 写真提出URL
+      parentConfirmed: data.parentConfirmed || false, // 保護者確認済み
+      approvedBy: data.approvedBy || null,    // 承認者
+      approvedAt: data.approvedAt || null,    // 承認日時
       date: data.date || new Date().toISOString().split('T')[0],
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -124,6 +135,30 @@ const StudyLogsDB = {
       .where('date', '>=', startStr)
       .orderBy('date', 'desc').get();
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async update(id, data) {
+    await db.collection('studyLogs').doc(id).update(data);
+  },
+  async getPending() {
+    const snap = await db.collection('studyLogs')
+      .where('approvalStatus', '==', 'pending')
+      .orderBy('createdAt', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async approve(id, approvedBy) {
+    await db.collection('studyLogs').doc(id).update({
+      approvalStatus: 'confirmed',
+      approvedBy: approvedBy,
+      approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  },
+  async reject(id, approvedBy, reason) {
+    await db.collection('studyLogs').doc(id).update({
+      approvalStatus: 'rejected',
+      approvedBy: approvedBy,
+      approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      rejectionReason: reason || ''
+    });
   }
 };
 
@@ -975,7 +1010,7 @@ const RewardsDB = {
   async create(data) {
     const ref = await db.collection('rewards').add({
       name: data.name,
-      category: data.category || 'goods', // goods, experience, privilege, regional
+      category: data.category || 'privilege', // privilege(特権), title(称号), study(学習体験), goods(物品)
       cost: data.cost,
       stock: data.stock !== undefined ? data.stock : -1, // -1 = 無制限
       level: data.level || 1, // 1-4
@@ -1094,12 +1129,12 @@ const StreakManager = {
     });
     await batch.commit();
   },
-  // ストリークボーナス計算
+  // Phase 10: ストリークボーナス改定
   getStreakBonus(streakDays) {
-    if (streakDays >= 20) return 50;
-    if (streakDays >= 10) return 30;
-    if (streakDays >= 5) return 15;
-    if (streakDays >= 3) return 5;
+    if (streakDays >= 20) return 60;
+    if (streakDays >= 10) return 40;
+    if (streakDays >= 5) return 20;
+    if (streakDays >= 3) return 10;
     return 0;
   },
   // ストリーク更新（bestStreak保存）
@@ -1206,7 +1241,7 @@ const COIN_PARAMS = {
   missionComplete: 50,    // ミッション達成
   // 経済制御
   coinExpiry: 180,        // 有効期限（日）= 6ヶ月
-  balanceCap: 2000,       // 残高上限
+  balanceCap: 3500,       // Phase 10: 残高上限 2000→3500
   giftDailyMax: 20,       // ギフト1日上限
   giftPerMax: 10,         // ギフト1回上限
   // オンボーディング
@@ -1236,16 +1271,17 @@ function getToday() {
   return new Date().toISOString().split('T')[0];
 }
 
+// Phase 10: レベル閾値改定
 function calcLevel(totalPoints) {
-  if (totalPoints >= 5000) return 10;
-  if (totalPoints >= 3000) return 9;
-  if (totalPoints >= 2000) return 8;
-  if (totalPoints >= 1500) return 7;
-  if (totalPoints >= 1000) return 6;
-  if (totalPoints >= 700) return 5;
-  if (totalPoints >= 400) return 4;
-  if (totalPoints >= 200) return 3;
-  if (totalPoints >= 50) return 2;
+  if (totalPoints >= 7000) return 10;
+  if (totalPoints >= 4500) return 9;
+  if (totalPoints >= 3000) return 8;
+  if (totalPoints >= 2200) return 7;
+  if (totalPoints >= 1500) return 6;
+  if (totalPoints >= 1000) return 5;
+  if (totalPoints >= 600) return 4;
+  if (totalPoints >= 300) return 3;
+  if (totalPoints >= 100) return 2;
   return 1;
 }
 
@@ -2710,5 +2746,379 @@ const RouteTasksDB = {
     const today = getToday();
     const all = await this.getByStudent(studentId);
     return all.filter(t => t.endDate && t.endDate < today && t.status !== 'completed');
+  }
+};
+
+// ============================================
+// Phase 8: スケジュール管理 + 講師管理
+// ============================================
+
+// --- 塾設定 ---
+const AcademyConfigDB = {
+  async get() {
+    const doc = await db.collection('academyConfig').doc('main').get();
+    return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  },
+  async set(data) {
+    await db.collection('academyConfig').doc('main').set({
+      academyName: data.academyName || '個別指導学院ヒーローズ延岡校',
+      rent: data.rent || 0,           // 家賃
+      utilities: data.utilities || 0,  // 光熱費
+      otherFixed: data.otherFixed || 0, // その他固定費
+      fixedCostMemo: data.fixedCostMemo || '',
+      rewardBudgetPercent: data.rewardBudgetPercent || 2, // 月謝に対する報酬予算%
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  }
+};
+
+// --- 講師管理 ---
+const TeachersDB = {
+  async getAll() {
+    const snap = await db.collection('teachers').orderBy('name').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getById(id) {
+    const doc = await db.collection('teachers').doc(id).get();
+    return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  },
+  async getActive() {
+    const snap = await db.collection('teachers').where('active', '==', true).orderBy('name').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async add(data) {
+    const ref = await db.collection('teachers').add({
+      name: data.name,
+      email: data.email || '',
+      phone: data.phone || '',
+      subjects: data.subjects || [],    // 担当科目
+      hourlyRate: data.hourlyRate || 0, // 時給
+      role: data.role || 'teacher',     // 'director'(教室長) / 'teacher'(講師)
+      maxStudents: data.maxStudents || 3, // 最大同時担当数
+      currentStudents: data.currentStudents || 0,
+      pin: data.pin || String(Math.floor(1000 + Math.random() * 9000)),
+      active: true,
+      memo: data.memo || '',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return ref.id;
+  },
+  async update(id, data) {
+    data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    await db.collection('teachers').doc(id).update(data);
+  },
+  async delete(id) {
+    await db.collection('teachers').doc(id).update({ active: false });
+  },
+  async getByPin(pin) {
+    const snap = await db.collection('teachers')
+      .where('pin', '==', pin).where('active', '==', true).limit(1).get();
+    return snap.empty ? null : { id: snap.docs[0].id, ...snap.docs[0].data() };
+  }
+};
+
+// --- 講師シフト ---
+const ShiftsDB = {
+  async getByDate(date) {
+    const snap = await db.collection('shifts').where('date', '==', date).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getByTeacher(teacherId, startDate, endDate) {
+    let q = db.collection('shifts').where('teacherId', '==', teacherId);
+    if (startDate) q = q.where('date', '>=', startDate);
+    if (endDate) q = q.where('date', '<=', endDate);
+    const snap = await q.get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getByDateRange(startDate, endDate) {
+    const snap = await db.collection('shifts')
+      .where('date', '>=', startDate)
+      .where('date', '<=', endDate).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async add(data) {
+    const ref = await db.collection('shifts').add({
+      teacherId: data.teacherId,
+      teacherName: data.teacherName || '',
+      date: data.date,
+      startTime: data.startTime,  // "16:00"
+      endTime: data.endTime,      // "21:00"
+      memo: data.memo || '',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return ref.id;
+  },
+  async update(id, data) {
+    await db.collection('shifts').doc(id).update(data);
+  },
+  async delete(id) {
+    await db.collection('shifts').doc(id).delete();
+  }
+};
+
+// --- 講師出勤可能時間 ---
+const AvailabilityDB = {
+  async getByTeacher(teacherId) {
+    const snap = await db.collection('availability')
+      .where('teacherId', '==', teacherId).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async set(teacherId, dayOfWeek, slots) {
+    // slots: [{startTime, endTime}]
+    const docId = `${teacherId}_${dayOfWeek}`;
+    await db.collection('availability').doc(docId).set({
+      teacherId, dayOfWeek, slots,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  },
+  async getAll() {
+    const snap = await db.collection('availability').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }
+};
+
+// --- スケジュールテンプレート（週固定パターン） ---
+const ScheduleTemplatesDB = {
+  async getAll() {
+    const snap = await db.collection('scheduleTemplates').orderBy('createdAt', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getActive() {
+    const snap = await db.collection('scheduleTemplates').where('active', '==', true).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async add(data) {
+    const ref = await db.collection('scheduleTemplates').add({
+      name: data.name || '',
+      dayOfWeek: data.dayOfWeek,   // 0=日, 1=月, ..., 6=土
+      timeSlot: data.timeSlot,     // "16:00-17:00"
+      studentId: data.studentId || null,
+      studentName: data.studentName || '',
+      teacherId: data.teacherId || null,
+      teacherName: data.teacherName || '',
+      subject: data.subject || '',
+      active: true,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return ref.id;
+  },
+  async update(id, data) {
+    await db.collection('scheduleTemplates').doc(id).update(data);
+  },
+  async delete(id) {
+    await db.collection('scheduleTemplates').doc(id).update({ active: false });
+  },
+  async getByDay(dayOfWeek) {
+    const snap = await db.collection('scheduleTemplates')
+      .where('dayOfWeek', '==', dayOfWeek)
+      .where('active', '==', true).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }
+};
+
+// --- 授業スロット（日別の実際のスケジュール） ---
+const ScheduleSlotsDB = {
+  async getByDate(date) {
+    const snap = await db.collection('scheduleSlots').where('date', '==', date).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getByDateRange(startDate, endDate) {
+    const snap = await db.collection('scheduleSlots')
+      .where('date', '>=', startDate)
+      .where('date', '<=', endDate).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getByStudent(studentId, startDate, endDate) {
+    let q = db.collection('scheduleSlots').where('studentId', '==', studentId);
+    if (startDate) q = q.where('date', '>=', startDate);
+    if (endDate) q = q.where('date', '<=', endDate);
+    const snap = await q.get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async add(data) {
+    const ref = await db.collection('scheduleSlots').add({
+      date: data.date,
+      timeSlot: data.timeSlot,         // "16:00-17:00"
+      studentId: data.studentId || null,
+      studentName: data.studentName || '',
+      teacherId: data.teacherId || null,
+      teacherName: data.teacherName || '',
+      subject: data.subject || '',
+      status: data.status || 'scheduled', // scheduled/completed/cancelled/absent
+      templateId: data.templateId || null,
+      memo: data.memo || '',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return ref.id;
+  },
+  async update(id, data) {
+    await db.collection('scheduleSlots').doc(id).update(data);
+  },
+  async delete(id) {
+    await db.collection('scheduleSlots').doc(id).delete();
+  },
+  async generateFromTemplates(startDate, endDate) {
+    // テンプレートから指定期間のスロットを自動生成
+    const templates = await ScheduleTemplatesDB.getActive();
+    const generated = [];
+    const current = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T00:00:00');
+    while (current <= end) {
+      const dow = current.getDay();
+      const dateStr = current.toISOString().split('T')[0];
+      const dayTemplates = templates.filter(t => t.dayOfWeek === dow);
+      // 既存スロットと重複チェック
+      const existing = await this.getByDate(dateStr);
+      for (const tmpl of dayTemplates) {
+        const dup = existing.find(e =>
+          e.timeSlot === tmpl.timeSlot && e.studentId === tmpl.studentId);
+        if (!dup) {
+          const id = await this.add({
+            date: dateStr,
+            timeSlot: tmpl.timeSlot,
+            studentId: tmpl.studentId,
+            studentName: tmpl.studentName,
+            teacherId: tmpl.teacherId,
+            teacherName: tmpl.teacherName,
+            subject: tmpl.subject,
+            templateId: tmpl.id
+          });
+          generated.push(id);
+        }
+      }
+      current.setDate(current.getDate() + 1);
+    }
+    return generated;
+  }
+};
+
+// --- 面談記録 ---
+const InterviewRecordsDB = {
+  async getAll() {
+    const snap = await db.collection('interviewRecords').orderBy('date', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getByStudent(studentId) {
+    const snap = await db.collection('interviewRecords')
+      .where('studentId', '==', studentId)
+      .orderBy('date', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async add(data) {
+    const ref = await db.collection('interviewRecords').add({
+      studentId: data.studentId,
+      studentName: data.studentName || '',
+      type: data.type || 'regular',  // regular/emergency/tripartite/phone/online
+      date: data.date || new Date().toISOString().split('T')[0],
+      attendees: data.attendees || '',
+      content: data.content || '',
+      nextAction: data.nextAction || '',
+      followUpDate: data.followUpDate || null,
+      conductedBy: data.conductedBy || '',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return ref.id;
+  },
+  async update(id, data) {
+    await db.collection('interviewRecords').doc(id).update(data);
+  },
+  async delete(id) {
+    await db.collection('interviewRecords').doc(id).delete();
+  }
+};
+
+// --- 講師コメント（レポート用） ---
+const TeacherCommentsDB = {
+  async getByStudent(studentId, limit = 20) {
+    const snap = await db.collection('teacherComments')
+      .where('studentId', '==', studentId)
+      .orderBy('createdAt', 'desc')
+      .limit(limit).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getByDate(date) {
+    const snap = await db.collection('teacherComments')
+      .where('date', '==', date).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async add(data) {
+    const ref = await db.collection('teacherComments').add({
+      studentId: data.studentId,
+      studentName: data.studentName || '',
+      teacherId: data.teacherId || '',
+      teacherName: data.teacherName || '',
+      date: data.date || new Date().toISOString().split('T')[0],
+      attitude: data.attitude || '',       // 学習態度
+      understanding: data.understanding || '', // 理解度
+      note: data.note || '',               // 特記事項
+      subjects: data.subjects || [],
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return ref.id;
+  },
+  async update(id, data) {
+    await db.collection('teacherComments').doc(id).update(data);
+  },
+  async delete(id) {
+    await db.collection('teacherComments').doc(id).delete();
+  }
+};
+
+// --- 業務タスク ---
+const OperationTasksDB = {
+  async getAll() {
+    const snap = await db.collection('operationTasks').orderBy('dueDate', 'asc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getActive() {
+    const snap = await db.collection('operationTasks')
+      .where('status', '!=', 'completed').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async add(data) {
+    const ref = await db.collection('operationTasks').add({
+      title: data.title,
+      description: data.description || '',
+      assigneeId: data.assigneeId || null,
+      assigneeName: data.assigneeName || '',
+      dueDate: data.dueDate || null,
+      priority: data.priority || 'normal', // low/normal/high/urgent
+      status: 'pending', // pending/in_progress/completed
+      category: data.category || 'general',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return ref.id;
+  },
+  async update(id, data) {
+    await db.collection('operationTasks').doc(id).update(data);
+  },
+  async delete(id) {
+    await db.collection('operationTasks').doc(id).delete();
+  }
+};
+
+// --- レポートログ ---
+const ReportLogsDB = {
+  async add(data) {
+    const ref = await db.collection('reportLogs').add({
+      studentId: data.studentId,
+      studentName: data.studentName || '',
+      type: data.type || 'daily',   // daily/weekly/monthly
+      period: data.period || '',
+      sentTo: data.sentTo || '',
+      sentAt: firebase.firestore.FieldValue.serverTimestamp(),
+      content: data.content || ''
+    });
+    return ref.id;
+  },
+  async getByStudent(studentId) {
+    const snap = await db.collection('reportLogs')
+      .where('studentId', '==', studentId)
+      .orderBy('sentAt', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getAll() {
+    const snap = await db.collection('reportLogs').orderBy('sentAt', 'desc').limit(50).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   }
 };

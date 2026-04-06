@@ -3,6 +3,9 @@
     "rules": "firestore.rules",
     "indexes": "firestore.indexes.json"
   },
+  "storage": {
+    "rules": "storage.rules"
+  },
   "hosting": {
     "public": ".",
     "ignore": [
@@ -34,6 +37,10 @@
       {
         "source": "/parent",
         "destination": "/parent.html"
+      },
+      {
+        "source": "/teacher",
+        "destination": "/teacher.html"
       },
       {
         "source": "/classroom",

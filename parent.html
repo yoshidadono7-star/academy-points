@@ -222,6 +222,9 @@
         <button class="tab-btn" onclick="switchTab('exams')">📝 テスト</button>
         <button class="tab-btn" onclick="switchTab('badges')">🏅 バッジ</button>
         <button class="tab-btn" onclick="switchTab('messages')">💬 メッセージ</button>
+        <button class="tab-btn" onclick="switchTab('schedule')">📅 スケジュール</button>
+        <button class="tab-btn" onclick="switchTab('homestudy')">🏠 学習確認</button>
+        <button class="tab-btn" onclick="switchTab('interviews')">💬 面談</button>
       </div>
 
       <!-- 今日のようすタブ -->
@@ -321,6 +324,31 @@
           <div class="card-title">💬 先生からのメッセージ</div>
           <p style="font-size:11px;color:#94a3b8;margin-bottom:12px;">※ メッセージの内容は閲覧のみです</p>
           <div id="messagesList"></div>
+        </div>
+      </div>
+
+      <!-- スケジュール -->
+      <div class="tab-panel" id="panel-schedule">
+        <div class="card">
+          <div class="card-title">&#128197; 今週のスケジュール</div>
+          <div id="parentScheduleList" style="font-size:13px;"></div>
+        </div>
+      </div>
+
+      <!-- 家庭学習確認 -->
+      <div class="tab-panel" id="panel-homestudy">
+        <div class="card">
+          <div class="card-title">&#127968; 家庭学習の確認</div>
+          <p style="font-size:11px;color:#94a3b8;margin-bottom:12px;">お子さんの自宅学習を確認すると、+3ptのボーナスが付与されます。</p>
+          <div id="parentHomeStudyList"></div>
+        </div>
+      </div>
+
+      <!-- 面談記録 -->
+      <div class="tab-panel" id="panel-interviews">
+        <div class="card">
+          <div class="card-title">&#128172; 面談記録</div>
+          <div id="parentInterviewList"></div>
         </div>
       </div>
 
@@ -428,6 +456,9 @@ async function showPortal() {
       loadExams(),
       loadBadges(),
       loadMessages(),
+      loadParentSchedule(),
+      loadParentHomeStudy(),
+      loadParentInterviews(),
     ]);
   } catch(e) {
     console.error('showPortal error:', e);
@@ -1004,6 +1035,81 @@ async function loadMessages() {
     </div>`;
   }).join('');
   } catch(e) { console.error('loadMessages error:', e); }
+}
+
+// ===== スケジュール =====
+async function loadParentSchedule() {
+  const container = document.getElementById('parentScheduleList');
+  if (!container || !currentStudent) return;
+  try {
+    const today = new Date();
+    const startOfWeek = new Date(today); startOfWeek.setDate(today.getDate() - today.getDay() + 1);
+    const endOfWeek = new Date(startOfWeek); endOfWeek.setDate(startOfWeek.getDate() + 6);
+    const slots = await ScheduleSlotsDB.getByStudent(currentStudent.id,
+      startOfWeek.toISOString().split('T')[0], endOfWeek.toISOString().split('T')[0]);
+    if (slots.length === 0) { container.innerHTML = '<p style="color:#94a3b8;">今週のスケジュールはありません</p>'; return; }
+    slots.sort((a, b) => (a.date + a.timeSlot).localeCompare(b.date + b.timeSlot));
+    const dayNames = ['日','月','火','水','木','金','土'];
+    container.innerHTML = slots.map(s => {
+      const d = new Date(s.date + 'T00:00:00');
+      const statusLabel = { scheduled: '予定', completed: '完了', cancelled: '取消', absent: '欠席' };
+      return `<div style="padding:8px;border-bottom:1px solid #edf2f7;display:flex;justify-content:space-between;">
+        <span><strong>${s.date.slice(5)} (${dayNames[d.getDay()]})</strong> ${s.timeSlot || ''}</span>
+        <span>${s.subject || ''} - ${s.teacherName || ''}</span>
+        <span style="font-size:11px;color:${s.status==='completed'?'#38a169':'#3182ce'}">${statusLabel[s.status]||s.status}</span>
+      </div>`;
+    }).join('');
+  } catch(e) { console.error(e); }
+}
+
+// ===== 家庭学習確認 =====
+async function loadParentHomeStudy() {
+  const container = document.getElementById('parentHomeStudyList');
+  if (!container || !currentStudent) return;
+  try {
+    const logs = await StudyLogsDB.getByStudent(currentStudent.id, 20);
+    const homeLogs = logs.filter(l => l.location === '自宅' && l.approvalStatus === 'pending' && !l.parentConfirmed);
+    if (homeLogs.length === 0) {
+      container.innerHTML = '<p style="color:#94a3b8;">確認待ちの学習はありません</p>';
+      return;
+    }
+    container.innerHTML = homeLogs.map(l => `
+      <div style="padding:10px;border-bottom:1px solid #edf2f7;" id="ph-${l.id}">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div><strong>${l.date || ''}</strong> ${l.subject || ''} / ${l.duration || 0}分</div>
+          <button onclick="confirmHomeStudy('${l.id}')" style="background:#48bb78;color:white;border:none;padding:6px 14px;border-radius:8px;font-size:12px;font-weight:600;cursor:pointer;">
+            確認する (+3pt)
+          </button>
+        </div>
+      </div>
+    `).join('');
+  } catch(e) { console.error(e); }
+}
+
+async function confirmHomeStudy(logId) {
+  try {
+    await StudyLogsDB.update(logId, { parentConfirmed: true });
+    const el = document.getElementById('ph-' + logId);
+    if (el) el.innerHTML = '<div style="padding:10px;color:#38a169;font-weight:600;">確認しました</div>';
+  } catch(e) { console.error(e); alert('確認に失敗しました'); }
+}
+
+// ===== 面談記録 =====
+async function loadParentInterviews() {
+  const container = document.getElementById('parentInterviewList');
+  if (!container || !currentStudent) return;
+  try {
+    const records = await InterviewRecordsDB.getByStudent(currentStudent.id);
+    if (records.length === 0) { container.innerHTML = '<p style="color:#94a3b8;">面談記録はありません</p>'; return; }
+    const typeLabels = { regular:'定期面談', emergency:'臨時', tripartite:'三者面談', phone:'電話', online:'オンライン' };
+    container.innerHTML = records.slice(0, 10).map(r => `
+      <div style="padding:10px;border-bottom:1px solid #edf2f7;">
+        <div style="display:flex;justify-content:space-between;"><strong>${r.date || ''}</strong><span style="font-size:11px;color:#94a3b8;">${typeLabels[r.type] || r.type}</span></div>
+        <div style="font-size:13px;margin-top:4px;">${r.content || ''}</div>
+        ${r.nextAction ? '<div style="font-size:12px;color:#667eea;margin-top:4px;">次回アクション: ' + r.nextAction + '</div>' : ''}
+      </div>
+    `).join('');
+  } catch(e) { console.error(e); }
 }
 
 // ===== 起動 =====

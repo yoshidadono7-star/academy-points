@@ -1,0 +1,574 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HERO'S ACADEMY - 講師ポータル</title>
+<link rel="manifest" href="manifest.json">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<style>
+:root {
+  --primary: #667eea;
+  --primary-dark: #764ba2;
+  --gradient: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  --bg: #f0f2f8;
+  --card: #ffffff;
+  --text: #2d3748;
+  --text-light: #718096;
+  --success: #48bb78;
+  --warning: #f6ad55;
+  --danger: #fc8181;
+  --border: #e2e8f0;
+  --radius: 12px;
+  --shadow: 0 4px 15px rgba(102,126,234,0.15);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh;
+}
+.header {
+  background: var(--gradient); color: white; padding: 0 20px; height: 60px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+}
+.header h1 { font-size: 18px; font-weight: 700; }
+.header-right { display: flex; align-items: center; gap: 12px; }
+.header-right button {
+  background: rgba(255,255,255,0.2); border: none; color: white;
+  padding: 6px 14px; border-radius: 20px; font-size: 13px; cursor: pointer;
+}
+
+/* Login */
+.login-screen {
+  display: flex; align-items: center; justify-content: center; min-height: 100vh;
+  background: var(--gradient);
+}
+.login-card {
+  background: white; border-radius: 16px; padding: 40px; width: 90%; max-width: 380px;
+  box-shadow: 0 20px 60px rgba(0,0,0,0.3); text-align: center;
+}
+.login-card h2 { margin-bottom: 8px; color: var(--primary); }
+.login-card p { color: var(--text-light); margin-bottom: 24px; font-size: 14px; }
+.login-card input {
+  width: 100%; padding: 12px 16px; border: 2px solid var(--border); border-radius: 8px;
+  font-size: 18px; text-align: center; letter-spacing: 8px; margin-bottom: 16px;
+}
+.login-card input:focus { outline: none; border-color: var(--primary); }
+.login-card button {
+  width: 100%; padding: 12px; background: var(--gradient); color: white;
+  border: none; border-radius: 8px; font-size: 16px; font-weight: 600; cursor: pointer;
+}
+
+/* Main content */
+.main-content { display: none; }
+.tabs {
+  display: flex; overflow-x: auto; background: white; border-bottom: 1px solid var(--border);
+  padding: 0 12px;
+}
+.tab-btn {
+  padding: 12px 16px; border: none; background: none; color: var(--text-light);
+  font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
+  border-bottom: 3px solid transparent;
+}
+.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+.tab-content { display: none; padding: 16px; }
+.tab-content.active { display: block; }
+
+.card {
+  background: var(--card); border-radius: var(--radius); padding: 20px;
+  margin-bottom: 16px; box-shadow: var(--shadow);
+}
+.card h3 { font-size: 16px; margin-bottom: 12px; }
+
+/* Schedule grid */
+.schedule-grid { display: grid; gap: 8px; }
+.schedule-slot {
+  display: flex; justify-content: space-between; align-items: center;
+  padding: 12px 16px; background: #f7fafc; border-radius: 8px; border-left: 4px solid var(--primary);
+}
+.schedule-slot .time { font-weight: 700; color: var(--primary); min-width: 100px; }
+.schedule-slot .info { flex: 1; margin-left: 12px; }
+.schedule-slot .student-name { font-weight: 600; }
+.schedule-slot .subject { font-size: 13px; color: var(--text-light); }
+.slot-status {
+  font-size: 11px; padding: 3px 8px; border-radius: 12px; font-weight: 600;
+}
+.slot-status.scheduled { background: #ebf8ff; color: #3182ce; }
+.slot-status.completed { background: #f0fff4; color: #38a169; }
+.slot-status.absent { background: #fff5f5; color: #e53e3e; }
+
+/* Pending approvals */
+.approval-item {
+  padding: 16px; background: #fffff0; border-radius: 8px; margin-bottom: 10px;
+  border-left: 4px solid var(--warning);
+}
+.approval-item .student-info { font-weight: 600; margin-bottom: 4px; }
+.approval-item .detail { font-size: 13px; color: var(--text-light); }
+.approval-actions { display: flex; gap: 8px; margin-top: 10px; }
+.approval-actions button {
+  padding: 6px 16px; border: none; border-radius: 6px; font-size: 13px;
+  font-weight: 600; cursor: pointer;
+}
+.btn-approve { background: var(--success); color: white; }
+.btn-reject { background: var(--danger); color: white; }
+
+/* Comment form */
+.comment-form { display: grid; gap: 12px; }
+.comment-form label { font-size: 13px; font-weight: 600; color: var(--text-light); }
+.comment-form select, .comment-form textarea, .comment-form input {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 8px;
+  font-size: 14px;
+}
+.comment-form textarea { resize: vertical; min-height: 80px; }
+.btn-primary {
+  background: var(--gradient); color: white; border: none; padding: 10px 20px;
+  border-radius: 8px; font-size: 14px; font-weight: 600; cursor: pointer;
+}
+.btn-primary:disabled { opacity: 0.5; }
+
+/* Stats */
+.stat-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+.stat-item { text-align: center; padding: 16px; background: #f7fafc; border-radius: 8px; }
+.stat-item .value { font-size: 28px; font-weight: 700; color: var(--primary); }
+.stat-item .label { font-size: 12px; color: var(--text-light); margin-top: 4px; }
+
+.empty-state { text-align: center; padding: 40px; color: var(--text-light); }
+
+@media (max-width: 600px) {
+  .stat-grid { grid-template-columns: repeat(2, 1fr); }
+  .tab-btn { padding: 10px 12px; font-size: 12px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <h2>HERO'S ACADEMY</h2>
+    <p>講師ポータル - PINを入力してください</p>
+    <input type="password" id="teacherPin" maxlength="4" placeholder="****"
+           onkeydown="if(event.key==='Enter')teacherLogin()">
+    <button onclick="teacherLogin()">ログイン</button>
+    <p id="loginError" style="color:var(--danger);margin-top:12px;font-size:13px;display:none;"></p>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="main-content" id="mainContent">
+  <div class="header">
+    <h1>HERO'S ACADEMY 講師ポータル</h1>
+    <div class="header-right">
+      <span id="teacherNameDisplay"></span>
+      <button onclick="teacherLogout()">ログアウト</button>
+    </div>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="today">今日のスケジュール</button>
+    <button class="tab-btn" data-tab="approval">家庭学習承認</button>
+    <button class="tab-btn" data-tab="comment">生徒コメント</button>
+    <button class="tab-btn" data-tab="shifts">シフト確認</button>
+    <button class="tab-btn" data-tab="stats">統計</button>
+  </div>
+
+  <!-- 今日のスケジュール -->
+  <div class="tab-content active" id="tab-today">
+    <div class="card">
+      <h3 id="todayDateTitle">今日のスケジュール</h3>
+      <div id="todayScheduleList" class="schedule-grid">
+        <div class="empty-state">読み込み中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 家庭学習承認 -->
+  <div class="tab-content" id="tab-approval">
+    <div class="card">
+      <h3>承認待ちの家庭学習 <span id="pendingCount" style="color:var(--warning);"></span></h3>
+      <div id="pendingList">
+        <div class="empty-state">読み込み中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 生徒コメント -->
+  <div class="tab-content" id="tab-comment">
+    <div class="card">
+      <h3>生徒コメント記入</h3>
+      <div class="comment-form">
+        <div>
+          <label>生徒</label>
+          <select id="commentStudent"></select>
+        </div>
+        <div>
+          <label>科目</label>
+          <select id="commentSubject">
+            <option value="数学">数学</option>
+            <option value="英語">英語</option>
+            <option value="国語">国語</option>
+            <option value="理科">理科</option>
+            <option value="社会">社会</option>
+            <option value="その他">その他</option>
+          </select>
+        </div>
+        <div>
+          <label>学習態度</label>
+          <select id="commentAttitude">
+            <option value="excellent">とても良い</option>
+            <option value="good" selected>良い</option>
+            <option value="normal">普通</option>
+            <option value="needs_improvement">要改善</option>
+          </select>
+        </div>
+        <div>
+          <label>理解度</label>
+          <select id="commentUnderstanding">
+            <option value="excellent">よく理解している</option>
+            <option value="good" selected>理解している</option>
+            <option value="normal">概ね理解</option>
+            <option value="needs_review">復習が必要</option>
+          </select>
+        </div>
+        <div>
+          <label>特記事項</label>
+          <textarea id="commentNote" placeholder="今日の学習で気づいたこと、保護者に伝えたいことなど"></textarea>
+        </div>
+        <button class="btn-primary" onclick="submitComment()">コメントを保存</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>最近のコメント</h3>
+      <div id="recentComments">
+        <div class="empty-state">コメントはまだありません</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- シフト確認 -->
+  <div class="tab-content" id="tab-shifts">
+    <div class="card">
+      <h3>今週のシフト</h3>
+      <div id="weekShiftsList" class="schedule-grid">
+        <div class="empty-state">読み込み中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 統計 -->
+  <div class="tab-content" id="tab-stats">
+    <div class="card">
+      <h3>今月の統計</h3>
+      <div class="stat-grid" id="teacherStats">
+        <div class="stat-item"><div class="value" id="statLessons">-</div><div class="label">授業数</div></div>
+        <div class="stat-item"><div class="value" id="statStudents">-</div><div class="label">担当生徒数</div></div>
+        <div class="stat-item"><div class="value" id="statApprovals">-</div><div class="label">承認済み</div></div>
+        <div class="stat-item"><div class="value" id="statComments">-</div><div class="label">コメント数</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="firebase-config.js"></script>
+<script>
+const db = firebase.firestore();
+</script>
+<script src="db.js"></script>
+<script>
+let currentTeacher = null;
+
+// --- Login ---
+async function teacherLogin() {
+  const pin = document.getElementById('teacherPin').value;
+  if (!pin || pin.length !== 4) {
+    showLoginError('4桁のPINを入力してください');
+    return;
+  }
+  try {
+    const teacher = await TeachersDB.getByPin(pin);
+    if (!teacher) {
+      showLoginError('PINが正しくありません');
+      return;
+    }
+    currentTeacher = teacher;
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'block';
+    document.getElementById('teacherNameDisplay').textContent = teacher.name;
+    loadTodaySchedule();
+    loadStudentList();
+  } catch (e) {
+    console.error(e);
+    showLoginError('ログインに失敗しました');
+  }
+}
+
+function showLoginError(msg) {
+  const el = document.getElementById('loginError');
+  el.textContent = msg;
+  el.style.display = 'block';
+}
+
+function teacherLogout() {
+  currentTeacher = null;
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('mainContent').style.display = 'none';
+  document.getElementById('teacherPin').value = '';
+}
+
+// --- Tab Navigation ---
+document.querySelectorAll('.tab-btn').forEach(btn => {
+  btn.addEventListener('click', () => {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    btn.classList.add('active');
+    const tab = btn.dataset.tab;
+    document.getElementById(`tab-${tab}`).classList.add('active');
+    const loaders = {
+      today: loadTodaySchedule,
+      approval: loadPendingApprovals,
+      comment: () => {},
+      shifts: loadWeekShifts,
+      stats: loadTeacherStats
+    };
+    if (loaders[tab]) loaders[tab]();
+  });
+});
+
+// --- Today's Schedule ---
+async function loadTodaySchedule() {
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('todayDateTitle').textContent =
+    `${today} のスケジュール`;
+  const container = document.getElementById('todayScheduleList');
+  try {
+    const slots = await ScheduleSlotsDB.getByDate(today);
+    const mySlots = currentTeacher ?
+      slots.filter(s => s.teacherId === currentTeacher.id) : slots;
+    if (mySlots.length === 0) {
+      container.innerHTML = '<div class="empty-state">今日の授業はありません</div>';
+      return;
+    }
+    mySlots.sort((a, b) => (a.timeSlot || '').localeCompare(b.timeSlot || ''));
+    container.innerHTML = mySlots.map(s => `
+      <div class="schedule-slot">
+        <div class="time">${s.timeSlot || '--:--'}</div>
+        <div class="info">
+          <div class="student-name">${s.studentName || '未割当'}</div>
+          <div class="subject">${s.subject || ''}</div>
+        </div>
+        <span class="slot-status ${s.status || 'scheduled'}">${
+          s.status === 'completed' ? '完了' :
+          s.status === 'absent' ? '欠席' :
+          s.status === 'cancelled' ? '取消' : '予定'
+        }</span>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error(e);
+    container.innerHTML = '<div class="empty-state">読み込みに失敗しました</div>';
+  }
+}
+
+// --- Pending Approvals ---
+async function loadPendingApprovals() {
+  const container = document.getElementById('pendingList');
+  try {
+    const pending = await StudyLogsDB.getPending();
+    document.getElementById('pendingCount').textContent =
+      pending.length > 0 ? `(${pending.length}件)` : '';
+    if (pending.length === 0) {
+      container.innerHTML = '<div class="empty-state">承認待ちの学習はありません</div>';
+      return;
+    }
+    container.innerHTML = pending.map(log => `
+      <div class="approval-item" id="approval-${log.id}">
+        <div class="student-info">${log.studentName || '不明'}</div>
+        <div class="detail">
+          ${log.subject || ''} / ${log.duration || 0}分 / ${log.date || ''}
+          ${log.pomodoroCount ? ' / ポモドーロ' + log.pomodoroCount + '回' : ''}
+          ${log.pauseCount > 0 ? ' / 一時停止' + log.pauseCount + '回' : ''}
+        </div>
+        ${log.photoUrl ? '<div class="detail" style="margin-top:4px;">写真提出あり</div>' : ''}
+        ${log.parentConfirmed ? '<div class="detail" style="color:var(--success);">保護者確認済み</div>' : ''}
+        <div class="approval-actions">
+          <button class="btn-approve" onclick="approveLog('${log.id}', ${log.points || 0}, '${log.studentId}', ${log.photoUrl ? 'true' : 'false'}, ${log.parentConfirmed ? 'true' : 'false'})">承認 (+${log.points || 0}pt)</button>
+          <button class="btn-reject" onclick="rejectLog('${log.id}')">却下</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error(e);
+    container.innerHTML = '<div class="empty-state">読み込みに失敗しました</div>';
+  }
+}
+
+async function approveLog(logId, basePoints, studentId, hasPhoto, parentConfirmed) {
+  try {
+    await StudyLogsDB.approve(logId, currentTeacher ? currentTeacher.name : '講師');
+    // ポイント付与: ベースポイント + 写真ボーナス(5pt) + 保護者確認ボーナス(3pt)
+    let totalBonus = basePoints;
+    if (hasPhoto) totalBonus += 5;
+    if (parentConfirmed) totalBonus += 3;
+    await StudentsDB.addPoints(studentId, totalBonus);
+    document.getElementById(`approval-${logId}`).remove();
+    const remaining = document.querySelectorAll('.approval-item').length;
+    document.getElementById('pendingCount').textContent =
+      remaining > 0 ? `(${remaining}件)` : '';
+    if (remaining === 0) {
+      document.getElementById('pendingList').innerHTML =
+        '<div class="empty-state">全て承認しました</div>';
+    }
+  } catch (e) {
+    console.error(e);
+    alert('承認に失敗しました');
+  }
+}
+
+async function rejectLog(logId) {
+  const reason = prompt('却下理由（任意）:');
+  try {
+    await StudyLogsDB.reject(logId, currentTeacher ? currentTeacher.name : '講師', reason || '');
+    document.getElementById(`approval-${logId}`).remove();
+    const remaining = document.querySelectorAll('.approval-item').length;
+    document.getElementById('pendingCount').textContent =
+      remaining > 0 ? `(${remaining}件)` : '';
+    if (remaining === 0) {
+      document.getElementById('pendingList').innerHTML =
+        '<div class="empty-state">全て処理しました</div>';
+    }
+  } catch (e) {
+    console.error(e);
+    alert('却下に失敗しました');
+  }
+}
+
+// --- Student List for Comments ---
+async function loadStudentList() {
+  try {
+    const students = await StudentsDB.getAll();
+    const sel = document.getElementById('commentStudent');
+    sel.innerHTML = '<option value="">-- 選択 --</option>' +
+      students.map(s => `<option value="${s.id}" data-name="${s.name}">${s.callsign || s.name}</option>`).join('');
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// --- Submit Comment ---
+async function submitComment() {
+  const studentSel = document.getElementById('commentStudent');
+  const studentId = studentSel.value;
+  if (!studentId) { alert('生徒を選択してください'); return; }
+  const studentName = studentSel.options[studentSel.selectedIndex].dataset.name || '';
+  try {
+    await TeacherCommentsDB.add({
+      studentId,
+      studentName,
+      teacherId: currentTeacher ? currentTeacher.id : '',
+      teacherName: currentTeacher ? currentTeacher.name : '',
+      subjects: [document.getElementById('commentSubject').value],
+      attitude: document.getElementById('commentAttitude').value,
+      understanding: document.getElementById('commentUnderstanding').value,
+      note: document.getElementById('commentNote').value
+    });
+    alert('コメントを保存しました');
+    document.getElementById('commentNote').value = '';
+    loadRecentComments();
+  } catch (e) {
+    console.error(e);
+    alert('保存に失敗しました');
+  }
+}
+
+async function loadRecentComments() {
+  if (!currentTeacher) return;
+  const container = document.getElementById('recentComments');
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const comments = await TeacherCommentsDB.getByDate(today);
+    const mine = comments.filter(c => c.teacherId === currentTeacher.id);
+    if (mine.length === 0) {
+      container.innerHTML = '<div class="empty-state">今日のコメントはまだありません</div>';
+      return;
+    }
+    container.innerHTML = mine.map(c => `
+      <div style="padding:10px;border-bottom:1px solid var(--border);">
+        <strong>${c.studentName}</strong> - ${(c.subjects||[]).join(', ')}
+        <div style="font-size:13px;color:var(--text-light);margin-top:4px;">${c.note || '(メモなし)'}</div>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+// --- Week Shifts ---
+async function loadWeekShifts() {
+  if (!currentTeacher) return;
+  const container = document.getElementById('weekShiftsList');
+  try {
+    const today = new Date();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay() + 1);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    const startStr = startOfWeek.toISOString().split('T')[0];
+    const endStr = endOfWeek.toISOString().split('T')[0];
+    const shifts = await ShiftsDB.getByTeacher(currentTeacher.id, startStr, endStr);
+    if (shifts.length === 0) {
+      container.innerHTML = '<div class="empty-state">今週のシフトは登録されていません</div>';
+      return;
+    }
+    shifts.sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
+    const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+    container.innerHTML = shifts.map(s => {
+      const d = new Date(s.date + 'T00:00:00');
+      return `
+        <div class="schedule-slot">
+          <div class="time">${s.date.slice(5)} (${dayNames[d.getDay()]})</div>
+          <div class="info">
+            <div class="student-name">${s.startTime} - ${s.endTime}</div>
+            <div class="subject">${s.memo || ''}</div>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    console.error(e);
+    container.innerHTML = '<div class="empty-state">読み込みに失敗しました</div>';
+  }
+}
+
+// --- Teacher Stats ---
+async function loadTeacherStats() {
+  if (!currentTeacher) return;
+  try {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+
+    const slots = await ScheduleSlotsDB.getByDateRange(monthStart, monthEnd);
+    const mySlots = slots.filter(s => s.teacherId === currentTeacher.id);
+    document.getElementById('statLessons').textContent = mySlots.length;
+
+    const uniqueStudents = new Set(mySlots.map(s => s.studentId).filter(Boolean));
+    document.getElementById('statStudents').textContent = uniqueStudents.size;
+
+    // 承認数は簡易的にログから
+    const logs = await StudyLogsDB.getByDateRange(monthStart, monthEnd);
+    const approved = logs.filter(l => l.approvedBy === currentTeacher.name).length;
+    document.getElementById('statApprovals').textContent = approved;
+
+    const comments = await TeacherCommentsDB.getByDate(new Date().toISOString().split('T')[0]);
+    const myComments = comments.filter(c => c.teacherId === currentTeacher.id);
+    document.getElementById('statComments').textContent = myComments.length;
+  } catch (e) {
+    console.error(e);
+  }
+}
+</script>
+</body>
+</html>

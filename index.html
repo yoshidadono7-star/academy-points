@@ -463,6 +463,11 @@
   <button class="tab-btn" data-tab="anomaly">&#128269; アノマリー</button>
   <button class="tab-btn" data-tab="risk">&#9888;&#65039; 離脱リスク</button>
   <button class="tab-btn" data-tab="exams">&#128221; テスト結果</button>
+  <button class="tab-btn" data-tab="schedule">&#128197; スケジュール</button>
+  <button class="tab-btn" data-tab="teachers">&#128104;&#8205;&#127979; 講師管理</button>
+  <button class="tab-btn" data-tab="interviews">&#128172; 面談記録</button>
+  <button class="tab-btn" data-tab="finance">&#128178; 収支管理</button>
+  <button class="tab-btn" data-tab="homestudy">&#127968; 家庭学習承認</button>
   <button class="tab-btn" data-tab="settings">&#9881;&#65039; 塾設定</button>
 </nav>
 
@@ -1398,6 +1403,131 @@
     </div>
   </div>
 
+  <!-- ===== スケジュール管理 ===== -->
+  <div class="tab-content" id="tab-schedule">
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128197;</span> スケジュール管理</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+        <select id="scheduleView" onchange="loadSchedule()" class="form-control" style="width:auto;">
+          <option value="day">日表示</option>
+          <option value="week" selected>週表示</option>
+          <option value="month">月表示</option>
+        </select>
+        <input type="date" id="scheduleDate" class="form-control" style="width:auto;" onchange="loadSchedule()">
+        <button class="btn btn-primary btn-sm" onclick="openAddSlotModal()">+ スロット追加</button>
+        <button class="btn btn-secondary btn-sm" onclick="openTemplateManager()">テンプレート管理</button>
+        <button class="btn btn-secondary btn-sm" onclick="generateFromTemplates()">自動生成</button>
+      </div>
+      <div id="scheduleGrid" style="overflow-x:auto;"></div>
+    </div>
+
+    <!-- テンプレート管理モーダル -->
+    <div id="templateModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:9998;overflow-y:auto;">
+      <div style="background:#fff;max-width:700px;margin:40px auto;border-radius:16px;padding:32px;position:relative;">
+        <button onclick="document.getElementById('templateModal').style.display='none'"
+          style="position:absolute;top:12px;right:16px;background:none;border:none;font-size:20px;cursor:pointer;">&#10005;</button>
+        <h3 style="margin-bottom:16px;">週間テンプレート管理</h3>
+        <div style="display:flex;gap:8px;margin-bottom:16px;">
+          <select id="templateDay" class="form-control" style="width:auto;">
+            <option value="1">月曜</option><option value="2">火曜</option><option value="3">水曜</option>
+            <option value="4">木曜</option><option value="5">金曜</option><option value="6">土曜</option><option value="0">日曜</option>
+          </select>
+          <input type="text" id="templateTime" class="form-control" style="width:auto;" placeholder="16:00-17:00">
+          <select id="templateStudent" class="form-control" style="width:auto;"></select>
+          <select id="templateTeacher" class="form-control" style="width:auto;"></select>
+          <input type="text" id="templateSubject" class="form-control" style="width:120px;" placeholder="科目">
+          <button class="btn btn-primary btn-sm" onclick="addTemplate()">追加</button>
+        </div>
+        <div id="templateList"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 講師管理 ===== -->
+  <div class="tab-content" id="tab-teachers">
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128104;&#8205;&#127979;</span> 講師管理</div>
+      <button class="btn btn-primary btn-sm" onclick="openAddTeacherModal()" style="margin-bottom:16px;">+ 講師追加</button>
+      <div id="teachersList"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128197;</span> シフト管理</div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <input type="date" id="shiftDate" class="form-control" style="width:auto;">
+        <select id="shiftTeacher" class="form-control" style="width:auto;"></select>
+        <input type="text" id="shiftStart" class="form-control" style="width:80px;" placeholder="16:00">
+        <input type="text" id="shiftEnd" class="form-control" style="width:80px;" placeholder="21:00">
+        <button class="btn btn-primary btn-sm" onclick="addShift()">追加</button>
+      </div>
+      <div id="shiftsList"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128176;</span> 人件費予測（今月）</div>
+      <div id="laborCostPreview"></div>
+    </div>
+  </div>
+
+  <!-- ===== 面談記録 ===== -->
+  <div class="tab-content" id="tab-interviews">
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128172;</span> 面談記録</div>
+      <button class="btn btn-primary btn-sm" onclick="openAddInterviewModal()" style="margin-bottom:16px;">+ 面談記録追加</button>
+      <div style="margin-bottom:12px;">
+        <select id="interviewStudentFilter" class="form-control" style="width:auto;display:inline-block;" onchange="loadInterviews()">
+          <option value="">全生徒</option>
+        </select>
+      </div>
+      <div id="interviewList"></div>
+    </div>
+  </div>
+
+  <!-- ===== 収支管理 ===== -->
+  <div class="tab-content" id="tab-finance">
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128178;</span> 収支管理ダッシュボード</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:12px;margin-bottom:20px;" id="financeSummary">
+        <div style="background:#f0fff4;border-radius:10px;padding:16px;text-align:center;">
+          <div style="font-size:12px;color:#718096;">月謝収入</div>
+          <div style="font-size:24px;font-weight:700;color:#38a169;" id="financeIncome">-</div>
+        </div>
+        <div style="background:#fff5f5;border-radius:10px;padding:16px;text-align:center;">
+          <div style="font-size:12px;color:#718096;">講師人件費</div>
+          <div style="font-size:24px;font-weight:700;color:#e53e3e;" id="financeLaborCost">-</div>
+        </div>
+        <div style="background:#fffff0;border-radius:10px;padding:16px;text-align:center;">
+          <div style="font-size:12px;color:#718096;">固定費</div>
+          <div style="font-size:24px;font-weight:700;color:#d69e2e;" id="financeFixedCost">-</div>
+        </div>
+        <div style="background:#ebf8ff;border-radius:10px;padding:16px;text-align:center;">
+          <div style="font-size:12px;color:#718096;">営業利益</div>
+          <div style="font-size:24px;font-weight:700;color:#3182ce;" id="financeProfit">-</div>
+        </div>
+      </div>
+      <div id="financeDetail"></div>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#9881;&#65039;</span> 固定費設定</div>
+      <div class="form-row">
+        <div class="form-group"><label>家賃</label><input type="number" class="form-control" id="configRent" placeholder="0"></div>
+        <div class="form-group"><label>光熱費</label><input type="number" class="form-control" id="configUtilities" placeholder="0"></div>
+        <div class="form-group"><label>その他固定費</label><input type="number" class="form-control" id="configOtherFixed" placeholder="0"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="saveAcademyConfig()">保存</button>
+    </div>
+  </div>
+
+  <!-- ===== 家庭学習承認 ===== -->
+  <div class="tab-content" id="tab-homestudy">
+    <div class="card">
+      <div class="card-title"><span class="icon">&#127968;</span> 家庭学習 承認管理</div>
+      <p style="font-size:13px;color:var(--text-light);margin-bottom:16px;">
+        自宅学習は「承認待ち」状態で記録されます。講師が確認後、承認するとポイントが付与されます。<br>
+        写真提出: +5pt / 保護者確認: +3pt のボーナスが加算されます。
+      </p>
+      <div id="homeStudyPendingList"></div>
+    </div>
+  </div>
+
 </main>
 
 <!-- Notification Drawer -->
@@ -1504,6 +1634,11 @@ function switchTab(tabId) {
     coaching: loadCoachingStudentList,
     risk: loadRisk,
     exams: loadExams,
+    schedule: loadSchedule,
+    teachers: loadTeachers,
+    interviews: loadInterviews,
+    finance: loadFinance,
+    homestudy: loadHomeStudy,
     settings: loadSettings,
     messages: loadMessages
   };
@@ -2034,6 +2169,7 @@ async function loadStudents() {
           <td>
             <div class="btn-group">
               <button class="btn btn-secondary btn-sm" onclick="editStudent('${s.id}')">編集</button>
+              <button class="btn btn-sm" style="background:#ebf8ff;color:#3182ce;font-size:10px" onclick="openStudentKarte('${s.id}')" title="生徒カルテ">&#128203;カルテ</button>
               <button class="btn btn-sm" style="background:${s.role === 'supporter' ? '#fbbf24' : '#e2e8f0'};color:${s.role === 'supporter' ? '#78350f' : 'var(--text)'};font-size:10px" onclick="toggleStudentRole('${s.id}','${s.role || 'student'}')" title="${s.role === 'supporter' ? '生徒に戻す' : 'サポーターに変更'}">${s.role === 'supporter' ? '&#128588;' : '&#128100;'}</button>
               <button class="btn btn-danger btn-sm" onclick="deleteStudent('${s.id}')">削除</button>
             </div>
@@ -2041,6 +2177,78 @@ async function loadStudents() {
         </tr>`;}).join('');
   } catch (e) {
     console.error('生徒読み込みエラー:', e);
+  }
+}
+
+// --- 生徒カルテ（総合ビュー） ---
+async function openStudentKarte(studentId) {
+  try {
+    const student = allStudents.find(s => s.id === studentId) || await StudentsDB.getById(studentId);
+    if (!student) { showToast('生徒が見つかりません', 'error'); return; }
+
+    const [logs, conditions, badges, interviews, comments, schedules] = await Promise.all([
+      StudyLogsDB.getByStudent(studentId, 20),
+      ConditionsDB.getByStudent(studentId),
+      BadgesDB.getByStudent(studentId),
+      InterviewRecordsDB.getByStudent(studentId),
+      TeacherCommentsDB.getByStudent(studentId, 10),
+      ScheduleSlotsDB.getByStudent(studentId, new Date().toISOString().split('T')[0], null)
+    ]);
+
+    const ri = getRankInfo(student.rank || 'rookie');
+    const lv = student.level || calcLevel(student.totalPoints || 0);
+
+    let html = `
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <h4 style="color:var(--primary);margin-bottom:8px;">基本情報</h4>
+          <table style="font-size:13px;width:100%;">
+            <tr><td style="color:var(--text-light);padding:4px;">名前</td><td style="padding:4px;font-weight:600;">${student.name} (${student.callsign || '-'})</td></tr>
+            <tr><td style="color:var(--text-light);padding:4px;">学年</td><td style="padding:4px;">${student.grade || '-'}</td></tr>
+            <tr><td style="color:var(--text-light);padding:4px;">ランク</td><td style="padding:4px;">${ri.icon} ${ri.name}</td></tr>
+            <tr><td style="color:var(--text-light);padding:4px;">レベル</td><td style="padding:4px;">${levelIcon(lv)} Lv.${lv}</td></tr>
+            <tr><td style="color:var(--text-light);padding:4px;">ポイント</td><td style="padding:4px;">${(student.currentPoints||0).toLocaleString()} / ${(student.totalEarned||0).toLocaleString()}pt</td></tr>
+            <tr><td style="color:var(--text-light);padding:4px;">ストリーク</td><td style="padding:4px;">${student.streak||0}日 (最高: ${student.bestStreak||0}日)</td></tr>
+          </table>
+        </div>
+        <div>
+          <h4 style="color:var(--primary);margin-bottom:8px;">直近コンディション</h4>
+          ${conditions.length > 0 ? conditions.slice(0, 5).map(c => `
+            <div style="font-size:12px;padding:4px;border-bottom:1px solid #edf2f7;">
+              ${c.date || ''}: ${moodEmoji(c.mood)} 気分${c.mood} / 体調${c.health || '-'} / やる気${c.motivation || '-'}
+            </div>
+          `).join('') : '<p style="font-size:13px;color:var(--text-light);">記録なし</p>'}
+        </div>
+      </div>
+
+      <h4 style="color:var(--primary);margin:16px 0 8px;">学習履歴（直近20件）</h4>
+      ${logs.length > 0 ? '<table style="width:100%;border-collapse:collapse;font-size:12px;"><tr style="background:#f7fafc;"><th style="padding:4px;">日付</th><th style="padding:4px;">科目</th><th style="padding:4px;">時間</th><th style="padding:4px;">場所</th><th style="padding:4px;">pt</th><th style="padding:4px;">状態</th></tr>' +
+        logs.map(l => `<tr style="border-bottom:1px solid #edf2f7;"><td style="padding:4px;">${l.date||''}</td><td style="padding:4px;">${l.subject||''}</td><td style="padding:4px;">${l.duration||0}分</td><td style="padding:4px;">${l.location||''}</td><td style="padding:4px;">${l.points||0}</td><td style="padding:4px;">${l.approvalStatus === 'pending' ? '<span style="color:var(--warning);">承認待ち</span>' : l.approvalStatus === 'rejected' ? '<span style="color:var(--danger);">却下</span>' : '確定'}</td></tr>`).join('') + '</table>' : '<p style="font-size:13px;color:var(--text-light);">記録なし</p>'}
+
+      <h4 style="color:var(--primary);margin:16px 0 8px;">バッジ (${badges.length}個)</h4>
+      <div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:16px;">
+        ${badges.length > 0 ? badges.map(b => `<span style="background:#ede9fe;color:#6d28d9;padding:2px 8px;border-radius:12px;font-size:11px;">${b.badgeId || b.name || ''}</span>`).join('') : '<span style="color:var(--text-light);font-size:13px;">なし</span>'}
+      </div>
+
+      <h4 style="color:var(--primary);margin:16px 0 8px;">面談記録 (${interviews.length}件)</h4>
+      ${interviews.length > 0 ? interviews.slice(0, 5).map(r => `
+        <div style="font-size:12px;padding:6px;border-bottom:1px solid #edf2f7;">
+          <strong>${r.date || ''}</strong> (${r.type || ''}) - ${(r.content || '').substring(0, 100)}${r.content && r.content.length > 100 ? '...' : ''}
+        </div>
+      `).join('') : '<p style="font-size:13px;color:var(--text-light);">記録なし</p>'}
+
+      <h4 style="color:var(--primary);margin:16px 0 8px;">講師コメント</h4>
+      ${comments.length > 0 ? comments.slice(0, 5).map(c => `
+        <div style="font-size:12px;padding:6px;border-bottom:1px solid #edf2f7;">
+          <strong>${c.date || ''}</strong> (${c.teacherName || ''}) - ${c.note || '(メモなし)'}
+        </div>
+      `).join('') : '<p style="font-size:13px;color:var(--text-light);">コメントなし</p>'}
+    `;
+
+    openModal(`&#128203; ${student.callsign || student.name} のカルテ`, html, '');
+  } catch (e) {
+    console.error(e);
+    showToast('カルテの読み込みに失敗しました', 'error');
   }
 }
 
@@ -4732,6 +4940,656 @@ async function runAnomalyScan() {
 }
 
 // ============================================
+// ============================================
+// Phase 8: スケジュール管理
+// ============================================
+async function loadSchedule() {
+  const dateInput = document.getElementById('scheduleDate');
+  if (!dateInput.value) dateInput.value = new Date().toISOString().split('T')[0];
+  const view = document.getElementById('scheduleView').value;
+  const baseDate = dateInput.value;
+  const container = document.getElementById('scheduleGrid');
+
+  try {
+    let startDate, endDate;
+    if (view === 'day') {
+      startDate = endDate = baseDate;
+    } else if (view === 'week') {
+      const d = new Date(baseDate + 'T00:00:00');
+      const dow = d.getDay();
+      const mon = new Date(d); mon.setDate(d.getDate() - ((dow + 6) % 7));
+      const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+      startDate = mon.toISOString().split('T')[0];
+      endDate = sun.toISOString().split('T')[0];
+    } else {
+      const d = new Date(baseDate + 'T00:00:00');
+      startDate = new Date(d.getFullYear(), d.getMonth(), 1).toISOString().split('T')[0];
+      endDate = new Date(d.getFullYear(), d.getMonth() + 1, 0).toISOString().split('T')[0];
+    }
+
+    const slots = await ScheduleSlotsDB.getByDateRange(startDate, endDate);
+    if (slots.length === 0) {
+      container.innerHTML = '<div style="text-align:center;padding:40px;color:var(--text-light);">スケジュールはまだありません。テンプレートから自動生成するか、スロットを追加してください。</div>';
+      return;
+    }
+
+    // 日付でグループ化
+    const byDate = {};
+    slots.forEach(s => {
+      if (!byDate[s.date]) byDate[s.date] = [];
+      byDate[s.date].push(s);
+    });
+
+    const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+    let html = '';
+    Object.keys(byDate).sort().forEach(date => {
+      const d = new Date(date + 'T00:00:00');
+      const daySlots = byDate[date].sort((a, b) => (a.timeSlot || '').localeCompare(b.timeSlot || ''));
+      html += `<div style="margin-bottom:16px;"><h4 style="font-size:14px;color:var(--primary);margin-bottom:8px;">${date} (${dayNames[d.getDay()]})</h4>`;
+      html += '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+      html += '<tr style="background:#f7fafc;"><th style="padding:8px;text-align:left;">時間</th><th style="padding:8px;text-align:left;">生徒</th><th style="padding:8px;text-align:left;">講師</th><th style="padding:8px;text-align:left;">科目</th><th style="padding:8px;text-align:left;">状態</th><th style="padding:8px;">操作</th></tr>';
+      daySlots.forEach(s => {
+        const statusLabel = { scheduled: '予定', completed: '完了', cancelled: '取消', absent: '欠席' };
+        const statusColor = { scheduled: '#3182ce', completed: '#38a169', cancelled: '#718096', absent: '#e53e3e' };
+        html += `<tr style="border-bottom:1px solid #edf2f7;">
+          <td style="padding:8px;">${s.timeSlot || '-'}</td>
+          <td style="padding:8px;">${s.studentName || '未割当'}</td>
+          <td style="padding:8px;">${s.teacherName || '未割当'}</td>
+          <td style="padding:8px;">${s.subject || '-'}</td>
+          <td style="padding:8px;"><span style="font-size:11px;padding:2px 8px;border-radius:10px;background:${statusColor[s.status] || '#edf2f7'}22;color:${statusColor[s.status] || '#718096'};font-weight:600;">${statusLabel[s.status] || s.status}</span></td>
+          <td style="padding:8px;text-align:center;">
+            <button onclick="editSlot('${s.id}')" style="background:none;border:none;cursor:pointer;font-size:14px;">&#9998;</button>
+            <button onclick="deleteSlot('${s.id}')" style="background:none;border:none;cursor:pointer;font-size:14px;color:var(--danger);">&#128465;</button>
+          </td>
+        </tr>`;
+      });
+      html += '</table></div>';
+    });
+    container.innerHTML = html;
+  } catch (e) {
+    console.error(e);
+    container.innerHTML = '<div style="color:var(--danger);padding:20px;">読み込みに失敗しました</div>';
+  }
+}
+
+function openAddSlotModal() {
+  const title = 'スロット追加';
+  document.getElementById('modalTitle').textContent = title;
+  document.getElementById('modalBody').innerHTML = `
+    <div class="form-group"><label>日付</label><input type="date" class="form-control" id="slotDate" value="${document.getElementById('scheduleDate').value}"></div>
+    <div class="form-group"><label>時間帯</label><input type="text" class="form-control" id="slotTime" placeholder="16:00-17:00"></div>
+    <div class="form-group"><label>生徒</label><select class="form-control" id="slotStudent"><option value="">未割当</option></select></div>
+    <div class="form-group"><label>講師</label><select class="form-control" id="slotTeacher"><option value="">未割当</option></select></div>
+    <div class="form-group"><label>科目</label><input type="text" class="form-control" id="slotSubject" placeholder="数学"></div>
+  `;
+  document.getElementById('modalFooter').innerHTML = '<button class="btn btn-primary" onclick="saveNewSlot()">保存</button>';
+  // 生徒・講師プルダウン
+  allStudents.forEach(s => {
+    document.getElementById('slotStudent').innerHTML += `<option value="${s.id}" data-name="${s.name}">${s.callsign || s.name}</option>`;
+  });
+  loadTeacherOptions('slotTeacher');
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+async function loadTeacherOptions(selectId) {
+  try {
+    const teachers = await TeachersDB.getActive();
+    const sel = document.getElementById(selectId);
+    teachers.forEach(t => {
+      sel.innerHTML += `<option value="${t.id}" data-name="${t.name}">${t.name}</option>`;
+    });
+  } catch (e) { console.error(e); }
+}
+
+async function saveNewSlot() {
+  const studentSel = document.getElementById('slotStudent');
+  const teacherSel = document.getElementById('slotTeacher');
+  try {
+    await ScheduleSlotsDB.add({
+      date: document.getElementById('slotDate').value,
+      timeSlot: document.getElementById('slotTime').value,
+      studentId: studentSel.value || null,
+      studentName: studentSel.value ? studentSel.options[studentSel.selectedIndex].dataset.name : '',
+      teacherId: teacherSel.value || null,
+      teacherName: teacherSel.value ? teacherSel.options[teacherSel.selectedIndex].dataset.name : '',
+      subject: document.getElementById('slotSubject').value
+    });
+    closeModal();
+    showToast('スロットを追加しました');
+    loadSchedule();
+  } catch (e) {
+    console.error(e);
+    showToast('保存に失敗しました', 'error');
+  }
+}
+
+async function deleteSlot(id) {
+  if (!confirm('このスロットを削除しますか？')) return;
+  try {
+    await ScheduleSlotsDB.delete(id);
+    showToast('削除しました');
+    loadSchedule();
+  } catch (e) { console.error(e); showToast('削除に失敗しました', 'error'); }
+}
+
+async function editSlot(id) {
+  // 簡易的にステータス変更
+  const newStatus = prompt('状態を変更 (scheduled/completed/absent/cancelled):');
+  if (!newStatus) return;
+  try {
+    await ScheduleSlotsDB.update(id, { status: newStatus });
+    showToast('更新しました');
+    loadSchedule();
+  } catch (e) { console.error(e); }
+}
+
+function openTemplateManager() {
+  document.getElementById('templateModal').style.display = 'block';
+  // populate dropdowns
+  const studentSel = document.getElementById('templateStudent');
+  studentSel.innerHTML = '<option value="">未割当</option>';
+  allStudents.forEach(s => { studentSel.innerHTML += `<option value="${s.id}" data-name="${s.name}">${s.callsign || s.name}</option>`; });
+  const teacherSel = document.getElementById('templateTeacher');
+  teacherSel.innerHTML = '<option value="">未割当</option>';
+  loadTeacherOptions('templateTeacher');
+  loadTemplateList();
+}
+
+async function loadTemplateList() {
+  try {
+    const templates = await ScheduleTemplatesDB.getActive();
+    const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+    const container = document.getElementById('templateList');
+    if (templates.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-light);text-align:center;">テンプレートはまだありません</p>';
+      return;
+    }
+    templates.sort((a, b) => a.dayOfWeek - b.dayOfWeek || (a.timeSlot || '').localeCompare(b.timeSlot || ''));
+    container.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+      '<tr style="background:#f7fafc;"><th style="padding:6px;">曜日</th><th style="padding:6px;">時間</th><th style="padding:6px;">生徒</th><th style="padding:6px;">講師</th><th style="padding:6px;">科目</th><th style="padding:6px;">削除</th></tr>' +
+      templates.map(t => `<tr style="border-bottom:1px solid #edf2f7;">
+        <td style="padding:6px;">${dayNames[t.dayOfWeek]}</td>
+        <td style="padding:6px;">${t.timeSlot}</td>
+        <td style="padding:6px;">${t.studentName || '-'}</td>
+        <td style="padding:6px;">${t.teacherName || '-'}</td>
+        <td style="padding:6px;">${t.subject || '-'}</td>
+        <td style="padding:6px;text-align:center;"><button onclick="deleteTemplate('${t.id}')" style="background:none;border:none;cursor:pointer;color:var(--danger);">&#128465;</button></td>
+      </tr>`).join('') + '</table>';
+  } catch (e) { console.error(e); }
+}
+
+async function addTemplate() {
+  const studentSel = document.getElementById('templateStudent');
+  const teacherSel = document.getElementById('templateTeacher');
+  try {
+    await ScheduleTemplatesDB.add({
+      dayOfWeek: parseInt(document.getElementById('templateDay').value),
+      timeSlot: document.getElementById('templateTime').value,
+      studentId: studentSel.value || null,
+      studentName: studentSel.value ? studentSel.options[studentSel.selectedIndex].dataset.name : '',
+      teacherId: teacherSel.value || null,
+      teacherName: teacherSel.value ? teacherSel.options[teacherSel.selectedIndex].dataset.name : '',
+      subject: document.getElementById('templateSubject').value
+    });
+    showToast('テンプレートを追加しました');
+    loadTemplateList();
+  } catch (e) { console.error(e); showToast('追加に失敗しました', 'error'); }
+}
+
+async function deleteTemplate(id) {
+  try {
+    await ScheduleTemplatesDB.delete(id);
+    showToast('削除しました');
+    loadTemplateList();
+  } catch (e) { console.error(e); }
+}
+
+async function generateFromTemplates() {
+  const baseDate = document.getElementById('scheduleDate').value || new Date().toISOString().split('T')[0];
+  const d = new Date(baseDate + 'T00:00:00');
+  const dow = d.getDay();
+  const mon = new Date(d); mon.setDate(d.getDate() - ((dow + 6) % 7));
+  const sun = new Date(mon); sun.setDate(mon.getDate() + 6);
+  const startDate = mon.toISOString().split('T')[0];
+  const endDate = sun.toISOString().split('T')[0];
+
+  if (!confirm(`${startDate} 〜 ${endDate} のスケジュールをテンプレートから自動生成しますか？`)) return;
+  try {
+    const ids = await ScheduleSlotsDB.generateFromTemplates(startDate, endDate);
+    showToast(`${ids.length}件のスロットを生成しました`);
+    loadSchedule();
+  } catch (e) { console.error(e); showToast('生成に失敗しました', 'error'); }
+}
+
+// ============================================
+// Phase 8: 講師管理
+// ============================================
+async function loadTeachers() {
+  try {
+    const teachers = await TeachersDB.getAll();
+    const container = document.getElementById('teachersList');
+    if (teachers.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-light);text-align:center;">講師はまだ登録されていません</p>';
+    } else {
+      container.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+        '<tr style="background:#f7fafc;"><th style="padding:8px;">名前</th><th style="padding:8px;">役割</th><th style="padding:8px;">科目</th><th style="padding:8px;">時給</th><th style="padding:8px;">最大担当</th><th style="padding:8px;">PIN</th><th style="padding:8px;">状態</th><th style="padding:8px;">操作</th></tr>' +
+        teachers.map(t => `<tr style="border-bottom:1px solid #edf2f7;${!t.active ? 'opacity:0.5;' : ''}">
+          <td style="padding:8px;font-weight:600;">${t.name}</td>
+          <td style="padding:8px;">${t.role === 'director' ? '教室長' : '講師'}</td>
+          <td style="padding:8px;">${(t.subjects || []).join(', ')}</td>
+          <td style="padding:8px;">&yen;${(t.hourlyRate || 0).toLocaleString()}</td>
+          <td style="padding:8px;">${t.maxStudents || 3}名</td>
+          <td style="padding:8px;font-family:monospace;">${t.pin || '-'}</td>
+          <td style="padding:8px;">${t.active ? '<span style="color:var(--success);">有効</span>' : '<span style="color:var(--text-light);">無効</span>'}</td>
+          <td style="padding:8px;">
+            <button onclick="editTeacher('${t.id}')" style="background:none;border:none;cursor:pointer;">&#9998;</button>
+            ${t.active ? `<button onclick="deactivateTeacher('${t.id}')" style="background:none;border:none;cursor:pointer;color:var(--danger);">&#128465;</button>` : ''}
+          </td>
+        </tr>`).join('') + '</table>';
+    }
+    // シフト表示
+    await loadShiftsForWeek();
+    // 人件費予測
+    await loadLaborCost(teachers);
+    // プルダウン更新
+    const shiftSel = document.getElementById('shiftTeacher');
+    shiftSel.innerHTML = '<option value="">選択</option>';
+    teachers.filter(t => t.active).forEach(t => {
+      shiftSel.innerHTML += `<option value="${t.id}" data-name="${t.name}">${t.name}</option>`;
+    });
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+function openAddTeacherModal() {
+  document.getElementById('modalTitle').textContent = '講師追加';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="form-group"><label>名前</label><input type="text" class="form-control" id="teacherName" required></div>
+    <div class="form-group"><label>メール</label><input type="email" class="form-control" id="teacherEmail"></div>
+    <div class="form-group"><label>役割</label><select class="form-control" id="teacherRole"><option value="teacher">講師</option><option value="director">教室長</option></select></div>
+    <div class="form-group"><label>担当科目（カンマ区切り）</label><input type="text" class="form-control" id="teacherSubjects" placeholder="数学, 英語"></div>
+    <div class="form-group"><label>時給</label><input type="number" class="form-control" id="teacherRate" value="1200"></div>
+    <div class="form-group"><label>最大同時担当数</label><input type="number" class="form-control" id="teacherMaxStudents" value="3"></div>
+  `;
+  document.getElementById('modalFooter').innerHTML = '<button class="btn btn-primary" onclick="saveNewTeacher()">保存</button>';
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+async function saveNewTeacher() {
+  const name = document.getElementById('teacherName').value.trim();
+  if (!name) { alert('名前を入力してください'); return; }
+  try {
+    await TeachersDB.add({
+      name,
+      email: document.getElementById('teacherEmail').value,
+      role: document.getElementById('teacherRole').value,
+      subjects: document.getElementById('teacherSubjects').value.split(',').map(s => s.trim()).filter(Boolean),
+      hourlyRate: parseInt(document.getElementById('teacherRate').value) || 0,
+      maxStudents: parseInt(document.getElementById('teacherMaxStudents').value) || 3
+    });
+    closeModal();
+    showToast('講師を追加しました');
+    loadTeachers();
+  } catch (e) { console.error(e); showToast('追加に失敗しました', 'error'); }
+}
+
+async function editTeacher(id) {
+  try {
+    const t = await TeachersDB.getById(id);
+    if (!t) return;
+    document.getElementById('modalTitle').textContent = '講師編集';
+    document.getElementById('modalBody').innerHTML = `
+      <div class="form-group"><label>名前</label><input type="text" class="form-control" id="editTeacherName" value="${t.name || ''}"></div>
+      <div class="form-group"><label>メール</label><input type="email" class="form-control" id="editTeacherEmail" value="${t.email || ''}"></div>
+      <div class="form-group"><label>役割</label><select class="form-control" id="editTeacherRole"><option value="teacher" ${t.role==='teacher'?'selected':''}>講師</option><option value="director" ${t.role==='director'?'selected':''}>教室長</option></select></div>
+      <div class="form-group"><label>担当科目</label><input type="text" class="form-control" id="editTeacherSubjects" value="${(t.subjects||[]).join(', ')}"></div>
+      <div class="form-group"><label>時給</label><input type="number" class="form-control" id="editTeacherRate" value="${t.hourlyRate || 0}"></div>
+      <div class="form-group"><label>最大同時担当</label><input type="number" class="form-control" id="editTeacherMax" value="${t.maxStudents || 3}"></div>
+    `;
+    document.getElementById('modalFooter').innerHTML = `<button class="btn btn-primary" onclick="updateTeacher('${id}')">更新</button>`;
+    document.getElementById('modalOverlay').classList.add('active');
+  } catch (e) { console.error(e); }
+}
+
+async function updateTeacher(id) {
+  try {
+    await TeachersDB.update(id, {
+      name: document.getElementById('editTeacherName').value.trim(),
+      email: document.getElementById('editTeacherEmail').value,
+      role: document.getElementById('editTeacherRole').value,
+      subjects: document.getElementById('editTeacherSubjects').value.split(',').map(s => s.trim()).filter(Boolean),
+      hourlyRate: parseInt(document.getElementById('editTeacherRate').value) || 0,
+      maxStudents: parseInt(document.getElementById('editTeacherMax').value) || 3
+    });
+    closeModal();
+    showToast('更新しました');
+    loadTeachers();
+  } catch (e) { console.error(e); showToast('更新に失敗しました', 'error'); }
+}
+
+async function deactivateTeacher(id) {
+  if (!confirm('この講師を無効にしますか？')) return;
+  try {
+    await TeachersDB.delete(id);
+    showToast('無効にしました');
+    loadTeachers();
+  } catch (e) { console.error(e); }
+}
+
+async function addShift() {
+  const sel = document.getElementById('shiftTeacher');
+  if (!sel.value) { alert('講師を選択してください'); return; }
+  try {
+    await ShiftsDB.add({
+      teacherId: sel.value,
+      teacherName: sel.options[sel.selectedIndex].dataset.name || '',
+      date: document.getElementById('shiftDate').value,
+      startTime: document.getElementById('shiftStart').value,
+      endTime: document.getElementById('shiftEnd').value
+    });
+    showToast('シフトを追加しました');
+    loadShiftsForWeek();
+  } catch (e) { console.error(e); showToast('追加に失敗しました', 'error'); }
+}
+
+async function loadShiftsForWeek() {
+  const container = document.getElementById('shiftsList');
+  try {
+    const today = new Date();
+    const startOfWeek = new Date(today);
+    startOfWeek.setDate(today.getDate() - today.getDay() + 1);
+    const endOfWeek = new Date(startOfWeek);
+    endOfWeek.setDate(startOfWeek.getDate() + 6);
+    const shifts = await ShiftsDB.getByDateRange(
+      startOfWeek.toISOString().split('T')[0],
+      endOfWeek.toISOString().split('T')[0]
+    );
+    if (shifts.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-light);text-align:center;">今週のシフトはまだ登録されていません</p>';
+      return;
+    }
+    shifts.sort((a, b) => (a.date + a.startTime).localeCompare(b.date + b.startTime));
+    const dayNames = ['日', '月', '火', '水', '木', '金', '土'];
+    container.innerHTML = '<table style="width:100%;border-collapse:collapse;font-size:13px;">' +
+      '<tr style="background:#f7fafc;"><th style="padding:6px;">日付</th><th style="padding:6px;">講師</th><th style="padding:6px;">開始</th><th style="padding:6px;">終了</th><th style="padding:6px;">削除</th></tr>' +
+      shifts.map(s => {
+        const d = new Date(s.date + 'T00:00:00');
+        return `<tr style="border-bottom:1px solid #edf2f7;">
+          <td style="padding:6px;">${s.date.slice(5)} (${dayNames[d.getDay()]})</td>
+          <td style="padding:6px;">${s.teacherName || '-'}</td>
+          <td style="padding:6px;">${s.startTime}</td>
+          <td style="padding:6px;">${s.endTime}</td>
+          <td style="padding:6px;text-align:center;"><button onclick="deleteShift('${s.id}')" style="background:none;border:none;cursor:pointer;color:var(--danger);">&#128465;</button></td>
+        </tr>`;
+      }).join('') + '</table>';
+  } catch (e) { console.error(e); }
+}
+
+async function deleteShift(id) {
+  try { await ShiftsDB.delete(id); showToast('削除しました'); loadShiftsForWeek(); } catch (e) { console.error(e); }
+}
+
+async function loadLaborCost(teachers) {
+  const container = document.getElementById('laborCostPreview');
+  try {
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    const shifts = await ShiftsDB.getByDateRange(monthStart, monthEnd);
+
+    let totalCost = 0;
+    const byTeacher = {};
+    shifts.forEach(s => {
+      if (!byTeacher[s.teacherId]) byTeacher[s.teacherId] = { name: s.teacherName, hours: 0 };
+      const startParts = (s.startTime || '0:0').split(':');
+      const endParts = (s.endTime || '0:0').split(':');
+      const hours = (parseInt(endParts[0]) + parseInt(endParts[1])/60) - (parseInt(startParts[0]) + parseInt(startParts[1])/60);
+      byTeacher[s.teacherId].hours += hours;
+    });
+
+    let html = '<table style="width:100%;border-collapse:collapse;font-size:13px;">';
+    html += '<tr style="background:#f7fafc;"><th style="padding:6px;">講師</th><th style="padding:6px;">時間</th><th style="padding:6px;">時給</th><th style="padding:6px;">予測コスト</th></tr>';
+    Object.entries(byTeacher).forEach(([tid, data]) => {
+      const teacher = teachers.find(t => t.id === tid);
+      const rate = teacher ? teacher.hourlyRate : 0;
+      const isDirector = teacher && teacher.role === 'director';
+      const cost = isDirector ? 0 : data.hours * rate; // 教室長は変動費から除外
+      totalCost += cost;
+      html += `<tr style="border-bottom:1px solid #edf2f7;">
+        <td style="padding:6px;">${data.name} ${isDirector ? '(教室長)' : ''}</td>
+        <td style="padding:6px;">${data.hours.toFixed(1)}h</td>
+        <td style="padding:6px;">&yen;${rate.toLocaleString()}</td>
+        <td style="padding:6px;font-weight:600;">${isDirector ? '(固定給)' : '&yen;' + Math.round(cost).toLocaleString()}</td>
+      </tr>`;
+    });
+    html += `<tr style="font-weight:700;background:#f0fff4;"><td colspan="3" style="padding:8px;">合計（変動費）</td><td style="padding:8px;">&yen;${Math.round(totalCost).toLocaleString()}</td></tr>`;
+    html += '</table>';
+    container.innerHTML = html;
+  } catch (e) { console.error(e); container.innerHTML = '<p style="color:var(--danger);">読み込み失敗</p>'; }
+}
+
+// ============================================
+// Phase 9: 面談記録
+// ============================================
+async function loadInterviews() {
+  const studentFilter = document.getElementById('interviewStudentFilter');
+  // populate student filter
+  if (studentFilter.options.length <= 1) {
+    allStudents.forEach(s => {
+      studentFilter.innerHTML += `<option value="${s.id}">${s.callsign || s.name}</option>`;
+    });
+  }
+  const container = document.getElementById('interviewList');
+  try {
+    let records;
+    if (studentFilter.value) {
+      records = await InterviewRecordsDB.getByStudent(studentFilter.value);
+    } else {
+      records = await InterviewRecordsDB.getAll();
+    }
+    if (records.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-light);text-align:center;">面談記録はまだありません</p>';
+      return;
+    }
+    const typeLabels = { regular: '定期面談', emergency: '臨時', tripartite: '三者面談', phone: '電話', online: 'オンライン' };
+    container.innerHTML = records.map(r => `
+      <div style="padding:16px;background:#f7fafc;border-radius:8px;margin-bottom:10px;border-left:4px solid var(--primary);">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <strong>${r.studentName || '不明'}</strong>
+          <span style="font-size:12px;color:var(--text-light);">${r.date || ''} | ${typeLabels[r.type] || r.type}</span>
+        </div>
+        <div style="font-size:13px;margin-top:8px;">${r.content || ''}</div>
+        ${r.nextAction ? `<div style="font-size:12px;color:var(--primary);margin-top:6px;">次回アクション: ${r.nextAction}</div>` : ''}
+        ${r.followUpDate ? `<div style="font-size:12px;color:var(--warning);margin-top:4px;">フォロー日: ${r.followUpDate}</div>` : ''}
+        <div style="font-size:11px;color:var(--text-light);margin-top:4px;">担当: ${r.conductedBy || '-'} | 出席: ${r.attendees || '-'}</div>
+      </div>
+    `).join('');
+  } catch (e) { console.error(e); container.innerHTML = '<p style="color:var(--danger);">読み込み失敗</p>'; }
+}
+
+function openAddInterviewModal() {
+  document.getElementById('modalTitle').textContent = '面談記録追加';
+  document.getElementById('modalBody').innerHTML = `
+    <div class="form-group"><label>生徒</label><select class="form-control" id="interviewStudent">${allStudents.map(s => `<option value="${s.id}" data-name="${s.name}">${s.callsign || s.name}</option>`).join('')}</select></div>
+    <div class="form-group"><label>面談タイプ</label><select class="form-control" id="interviewType">
+      <option value="regular">定期面談</option><option value="emergency">臨時</option>
+      <option value="tripartite">三者面談</option><option value="phone">電話</option>
+      <option value="online">オンライン</option></select></div>
+    <div class="form-group"><label>日付</label><input type="date" class="form-control" id="interviewDate" value="${new Date().toISOString().split('T')[0]}"></div>
+    <div class="form-group"><label>出席者</label><input type="text" class="form-control" id="interviewAttendees" placeholder="講師名、保護者名等"></div>
+    <div class="form-group"><label>内容</label><textarea class="form-control" id="interviewContent" rows="4"></textarea></div>
+    <div class="form-group"><label>次回アクション</label><input type="text" class="form-control" id="interviewNextAction"></div>
+    <div class="form-group"><label>フォロー日</label><input type="date" class="form-control" id="interviewFollowUp"></div>
+    <div class="form-group"><label>担当者</label><input type="text" class="form-control" id="interviewConductedBy"></div>
+  `;
+  document.getElementById('modalFooter').innerHTML = '<button class="btn btn-primary" onclick="saveInterview()">保存</button>';
+  document.getElementById('modalOverlay').classList.add('active');
+}
+
+async function saveInterview() {
+  const sel = document.getElementById('interviewStudent');
+  try {
+    await InterviewRecordsDB.add({
+      studentId: sel.value,
+      studentName: sel.options[sel.selectedIndex].dataset.name || '',
+      type: document.getElementById('interviewType').value,
+      date: document.getElementById('interviewDate').value,
+      attendees: document.getElementById('interviewAttendees').value,
+      content: document.getElementById('interviewContent').value,
+      nextAction: document.getElementById('interviewNextAction').value,
+      followUpDate: document.getElementById('interviewFollowUp').value || null,
+      conductedBy: document.getElementById('interviewConductedBy').value
+    });
+    closeModal();
+    showToast('面談記録を保存しました');
+    loadInterviews();
+  } catch (e) { console.error(e); showToast('保存に失敗しました', 'error'); }
+}
+
+// ============================================
+// Phase 9: 収支管理
+// ============================================
+async function loadFinance() {
+  try {
+    // 固定費設定の読み込み
+    const config = await AcademyConfigDB.get();
+    if (config) {
+      document.getElementById('configRent').value = config.rent || 0;
+      document.getElementById('configUtilities').value = config.utilities || 0;
+      document.getElementById('configOtherFixed').value = config.otherFixed || 0;
+    }
+
+    // 月謝収入（コース設定×生徒数で推計）
+    const COURSE_PRICES = {
+      'weekly1': 8800, 'weekly2': 13200, 'weekly3': 17600,
+      'weekly4': 22000, 'weekly5': 26400, 'weekly6': 30800,
+      'weekly7': 35200, 'weekly8': 39600
+    };
+    let totalIncome = 0;
+    allStudents.forEach(s => {
+      if (s.courseType && COURSE_PRICES[s.courseType]) {
+        totalIncome += COURSE_PRICES[s.courseType];
+      } else if (s.courseKoma) {
+        totalIncome += (s.courseKoma * 4400);
+      }
+    });
+
+    // 人件費
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0];
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0).toISOString().split('T')[0];
+    const shifts = await ShiftsDB.getByDateRange(monthStart, monthEnd);
+    const teachers = await TeachersDB.getAll();
+
+    let laborCost = 0;
+    shifts.forEach(s => {
+      const teacher = teachers.find(t => t.id === s.teacherId);
+      if (teacher && teacher.role !== 'director') {
+        const startParts = (s.startTime || '0:0').split(':');
+        const endParts = (s.endTime || '0:0').split(':');
+        const hours = (parseInt(endParts[0]) + parseInt(endParts[1])/60) - (parseInt(startParts[0]) + parseInt(startParts[1])/60);
+        laborCost += hours * (teacher.hourlyRate || 0);
+      }
+    });
+
+    const rent = config ? (config.rent || 0) : 0;
+    const utilities = config ? (config.utilities || 0) : 0;
+    const otherFixed = config ? (config.otherFixed || 0) : 0;
+    const fixedCost = rent + utilities + otherFixed;
+    const profit = totalIncome - laborCost - fixedCost;
+
+    document.getElementById('financeIncome').textContent = '¥' + Math.round(totalIncome).toLocaleString();
+    document.getElementById('financeLaborCost').textContent = '¥' + Math.round(laborCost).toLocaleString();
+    document.getElementById('financeFixedCost').textContent = '¥' + Math.round(fixedCost).toLocaleString();
+    document.getElementById('financeProfit').textContent = '¥' + Math.round(profit).toLocaleString();
+    document.getElementById('financeProfit').style.color = profit >= 0 ? '#3182ce' : '#e53e3e';
+
+    // 内訳
+    let detailHtml = '<h4 style="font-size:14px;margin-bottom:8px;">コース別売上</h4>';
+    const byCourse = {};
+    allStudents.forEach(s => {
+      const key = s.courseType || 'unknown';
+      if (!byCourse[key]) byCourse[key] = { count: 0, revenue: 0 };
+      byCourse[key].count++;
+      byCourse[key].revenue += COURSE_PRICES[key] || (s.courseKoma ? s.courseKoma * 4400 : 0);
+    });
+    detailHtml += '<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px;">';
+    Object.entries(byCourse).forEach(([key, data]) => {
+      detailHtml += `<tr style="border-bottom:1px solid #edf2f7;"><td style="padding:4px;">${key}</td><td style="padding:4px;">${data.count}名</td><td style="padding:4px;text-align:right;">¥${Math.round(data.revenue).toLocaleString()}</td></tr>`;
+    });
+    detailHtml += '</table>';
+    document.getElementById('financeDetail').innerHTML = detailHtml;
+  } catch (e) { console.error(e); }
+}
+
+async function saveAcademyConfig() {
+  try {
+    await AcademyConfigDB.set({
+      rent: parseInt(document.getElementById('configRent').value) || 0,
+      utilities: parseInt(document.getElementById('configUtilities').value) || 0,
+      otherFixed: parseInt(document.getElementById('configOtherFixed').value) || 0
+    });
+    showToast('固定費設定を保存しました');
+    loadFinance();
+  } catch (e) { console.error(e); showToast('保存に失敗しました', 'error'); }
+}
+
+// ============================================
+// Phase 10: 家庭学習承認
+// ============================================
+async function loadHomeStudy() {
+  const container = document.getElementById('homeStudyPendingList');
+  try {
+    const pending = await StudyLogsDB.getPending();
+    if (pending.length === 0) {
+      container.innerHTML = '<p style="color:var(--text-light);text-align:center;padding:20px;">承認待ちの家庭学習はありません</p>';
+      return;
+    }
+    container.innerHTML = pending.map(log => `
+      <div style="padding:16px;background:#fffff0;border-radius:8px;margin-bottom:10px;border-left:4px solid var(--warning);" id="hs-${log.id}">
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <strong>${log.studentName || '不明'}</strong>
+          <span style="font-size:12px;color:var(--text-light);">${log.date || ''}</span>
+        </div>
+        <div style="font-size:13px;color:var(--text-light);margin-top:4px;">
+          ${log.subject || ''} / ${log.duration || 0}分 / ポモドーロ${log.pomodoroCount || 0}回
+          ${log.pauseCount > 0 ? ` / 一時停止${log.pauseCount}回` : ''}
+        </div>
+        ${log.photoUrl ? '<div style="font-size:12px;color:var(--success);margin-top:4px;">写真提出あり (+5pt)</div>' : ''}
+        ${log.parentConfirmed ? '<div style="font-size:12px;color:var(--success);margin-top:2px;">保護者確認済み (+3pt)</div>' : ''}
+        <div style="display:flex;gap:8px;margin-top:10px;">
+          <button class="btn btn-primary btn-sm" onclick="adminApprove('${log.id}', ${log.points || 0}, '${log.studentId}', ${!!log.photoUrl}, ${!!log.parentConfirmed})">承認 (+${log.points || 0}pt${log.photoUrl ? '+5' : ''}${log.parentConfirmed ? '+3' : ''})</button>
+          <button class="btn btn-sm" style="background:var(--danger);color:white;" onclick="adminReject('${log.id}')">却下</button>
+        </div>
+      </div>
+    `).join('');
+  } catch (e) { console.error(e); container.innerHTML = '<p style="color:var(--danger);">読み込み失敗</p>'; }
+}
+
+async function adminApprove(logId, basePoints, studentId, hasPhoto, parentConfirmed) {
+  try {
+    await StudyLogsDB.approve(logId, '管理者');
+    let total = basePoints;
+    if (hasPhoto) total += 5;
+    if (parentConfirmed) total += 3;
+    await StudentsDB.addPoints(studentId, total);
+    const el = document.getElementById('hs-' + logId);
+    if (el) el.remove();
+    showToast(`承認しました (+${total}pt)`);
+  } catch (e) { console.error(e); showToast('承認に失敗しました', 'error'); }
+}
+
+async function adminReject(logId) {
+  const reason = prompt('却下理由（任意）:');
+  try {
+    await StudyLogsDB.reject(logId, '管理者', reason || '');
+    const el = document.getElementById('hs-' + logId);
+    if (el) el.remove();
+    showToast('却下しました');
+  } catch (e) { console.error(e); showToast('却下に失敗しました', 'error'); }
+}
+
 // 13. 塾設定（Zoom URL・お知らせ等）
 // ============================================
 const SETTINGS_KEY = 'heros_settings';

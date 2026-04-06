@@ -226,5 +226,61 @@ service cloud.firestore {
       allow create, update: if true;
       allow delete: if isAdmin();
     }
+
+    // === Phase 8: スケジュール・講師管理 ===
+
+    match /academyConfig/{configId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /teachers/{teacherId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /shifts/{shiftId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /availability/{availId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /scheduleTemplates/{templateId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /scheduleSlots/{slotId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // === Phase 9: 面談・コメント・タスク・レポート ===
+
+    match /interviewRecords/{recordId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /teacherComments/{commentId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if isAdmin();
+    }
+
+    match /operationTasks/{taskId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    match /reportLogs/{logId} {
+      allow read: if true;
+      allow create: if true;
+      allow update, delete: if isAdmin();
+    }
   }
 }
