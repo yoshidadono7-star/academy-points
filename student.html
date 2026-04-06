@@ -1880,7 +1880,16 @@ async function loadHome() {
     const draw = await DailyMissionsDB.draw(s.id);
     currentMissionDraw = draw;
     renderDailyMissions(draw);
-  } catch(e) { console.error('Mission error:', e); }
+  } catch(e) {
+    console.error('Mission error:', e);
+    // エラーでも掲示板を表示してデバッグ情報を出す
+    const section = document.getElementById('homeMissionSection');
+    if (section) {
+      section.style.display = 'block';
+      document.getElementById('homeMissionCards').innerHTML =
+        `<div style="color:#fc8181;font-size:12px;padding:10px;">ミッション読み込みエラー: ${e.message || e}</div>`;
+    }
+  }
 
   // Recent logs
   try {
