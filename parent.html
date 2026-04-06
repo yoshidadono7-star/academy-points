@@ -91,6 +91,22 @@
     }
     .badge-item.locked { background: #f1f5f9; color: #94a3b8; }
 
+    /* ===== CATEGORY NAV ===== */
+    .category-nav {
+      display: flex; gap: 6px; padding: 10px 16px; background: white;
+      border-bottom: 1px solid #e2e8f0; overflow-x: auto;
+      -webkit-overflow-scrolling: touch; scrollbar-width: none;
+    }
+    .category-nav::-webkit-scrollbar { display: none; }
+    .category-btn {
+      flex-shrink: 0; padding: 8px 16px; border: 1.5px solid #e2e8f0;
+      border-radius: 20px; background: white; font-size: 12px;
+      font-weight: 600; color: #64748b; cursor: pointer; white-space: nowrap;
+    }
+    .category-btn.active {
+      background: linear-gradient(135deg, #667eea, #764ba2); color: white; border-color: transparent;
+    }
+
     /* ===== MESSAGES ===== */
     .msg-item { padding: 12px; background: #f8fafc; border-radius: 10px; margin-bottom: 8px; border-left: 3px solid #667eea; }
     .msg-type { font-size: 10px; font-weight: 700; color: #667eea; margin-bottom: 4px; }
@@ -213,17 +229,33 @@
         </div>
       </div>
 
+      <!-- カテゴリ切替 -->
+      <nav class="category-nav" id="parentCategoryNav">
+        <button class="category-btn active" data-category="daily" onclick="switchParentCategory('daily')">📋 日常</button>
+        <button class="category-btn" data-category="learning" onclick="switchParentCategory('learning')">📊 学習</button>
+        <button class="category-btn" data-category="record" onclick="switchParentCategory('record')">📝 記録</button>
+        <button class="category-btn" data-category="game" onclick="switchParentCategory('game')">🎮 ゲーム</button>
+      </nav>
+
       <!-- タブ切替 -->
-      <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('today')">📡 今日のようす</button>
-        <button class="tab-btn" onclick="switchTab('summary')">📊 サマリー</button>
-        <button class="tab-btn" onclick="switchTab('routes')">📊 学習ルート</button>
-        <button class="tab-btn" onclick="switchTab('matprogress')">📦 教材進捗</button>
-        <button class="tab-btn" onclick="switchTab('exams')">📝 テスト</button>
-        <button class="tab-btn" onclick="switchTab('badges')">🏅 バッジ</button>
-        <button class="tab-btn" onclick="switchTab('messages')">💬 メッセージ</button>
-        <button class="tab-btn" onclick="switchTab('schedule')">📅 スケジュール</button>
-        <button class="tab-btn" onclick="switchTab('interviews')">📝 面談記録</button>
+      <div class="tabs" id="parentTabs">
+        <!-- 日常 -->
+        <button class="tab-btn active" data-category="daily" onclick="switchTab('today')">📡 今日のようす</button>
+        <button class="tab-btn" data-category="daily" onclick="switchTab('schedule')">📅 スケジュール</button>
+        <button class="tab-btn" data-category="daily" onclick="switchTab('messages')">💬 メッセージ</button>
+        <!-- 学習 -->
+        <button class="tab-btn" data-category="learning" onclick="switchTab('summary')" style="display:none;">📊 サマリー</button>
+        <button class="tab-btn" data-category="learning" onclick="switchTab('routes')" style="display:none;">📊 学習ルート</button>
+        <button class="tab-btn" data-category="learning" onclick="switchTab('matprogress')" style="display:none;">📦 教材進捗</button>
+        <button class="tab-btn" data-category="learning" onclick="switchTab('exams')" style="display:none;">📝 テスト結果</button>
+        <button class="tab-btn" data-category="learning" onclick="switchTab('badges')" style="display:none;">🏅 バッジ</button>
+        <!-- 記録 -->
+        <button class="tab-btn" data-category="record" onclick="switchTab('interviews')" style="display:none;">📝 面談記録</button>
+        <button class="tab-btn" data-category="record" onclick="switchTab('condition')" style="display:none;">💚 コンディション</button>
+        <!-- ゲーム -->
+        <button class="tab-btn" data-category="game" onclick="switchTab('gameOverview')" style="display:none;">🎮 ゲーム概要</button>
+        <button class="tab-btn" data-category="game" onclick="switchTab('guild')" style="display:none;">⚔️ ギルド</button>
+        <button class="tab-btn" data-category="game" onclick="switchTab('ranking')" style="display:none;">🏆 ランキング</button>
       </div>
 
       <!-- 今日のようすタブ -->
@@ -368,6 +400,42 @@
         <div class="card">
           <div class="card-title">📝 面談記録</div>
           <div id="parentInterviewsList" style="font-size:13px;color:#718096;">読み込み中...</div>
+        </div>
+      </div>
+
+      <!-- コンディションタブ -->
+      <div class="tab-panel" id="panel-condition">
+        <div class="card">
+          <div class="card-title">💚 コンディション推移</div>
+          <div id="parentCondition" style="font-size:13px;color:#718096;">読み込み中...</div>
+        </div>
+      </div>
+
+      <!-- ゲーム概要タブ -->
+      <div class="tab-panel" id="panel-gameOverview">
+        <div class="card">
+          <div class="card-title">🎮 ゲーム概要</div>
+          <div style="font-size:13px;color:#475569;line-height:1.8;margin-bottom:16px;">
+            HERO'S ACADEMYでは、学習をゲーム化して楽しく続けられる仕組みを取り入れています。<br>
+            お子さんの学習がポイント・レベル・バッジ・ギルド活動に反映されます。
+          </div>
+          <div id="parentGameOverview">読み込み中...</div>
+        </div>
+      </div>
+
+      <!-- ギルドタブ -->
+      <div class="tab-panel" id="panel-guild">
+        <div class="card">
+          <div class="card-title">⚔️ ギルド</div>
+          <div id="parentGuild" style="font-size:13px;color:#718096;">読み込み中...</div>
+        </div>
+      </div>
+
+      <!-- ランキングタブ -->
+      <div class="tab-panel" id="panel-ranking">
+        <div class="card">
+          <div class="card-title">🏆 ランキング</div>
+          <div id="parentRanking" style="font-size:13px;color:#718096;">読み込み中...</div>
         </div>
       </div>
 
@@ -613,16 +681,40 @@ async function generateParentNarration() {
   } catch(e) { console.error('Parent narration error:', e); }
 }
 
+// ===== カテゴリ切替 =====
+let parentCategory = 'daily';
+
+function switchParentCategory(cat) {
+  parentCategory = cat;
+  document.querySelectorAll('.category-btn').forEach(b => b.classList.toggle('active', b.dataset.category === cat));
+  // タブの表示/非表示
+  document.querySelectorAll('#parentTabs .tab-btn').forEach(b => {
+    b.style.display = b.dataset.category === cat ? '' : 'none';
+    b.classList.remove('active');
+  });
+  // カテゴリの最初のタブをアクティブに
+  const firstTab = document.querySelector('#parentTabs .tab-btn[data-category="' + cat + '"]');
+  if (firstTab) { firstTab.classList.add('active'); firstTab.click(); }
+}
+
 // ===== タブ切替 =====
 function switchTab(tabId) {
-  document.querySelectorAll('.tab-btn').forEach((b, i) => {
-    const tabs = ['today', 'summary', 'routes', 'matprogress', 'exams', 'badges', 'messages', 'schedule', 'interviews'];
-    b.classList.toggle('active', tabs[i] === tabId);
+  document.querySelectorAll('#parentTabs .tab-btn').forEach(b => {
+    if (b.dataset.category === parentCategory) b.classList.remove('active');
   });
+  // クリックされたボタンをactiveに
+  const clicked = document.querySelector('#parentTabs .tab-btn[data-category="' + parentCategory + '"][onclick*="' + tabId + '"]');
+  if (clicked) clicked.classList.add('active');
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('panel-' + tabId).classList.add('active');
+  const panel = document.getElementById('panel-' + tabId);
+  if (panel) panel.classList.add('active');
+  // データ読み込み
   if (tabId === 'schedule') loadParentSchedule();
   if (tabId === 'interviews') loadParentInterviews();
+  if (tabId === 'condition') loadParentCondition();
+  if (tabId === 'gameOverview') loadParentGameOverview();
+  if (tabId === 'guild') loadParentGuild();
+  if (tabId === 'ranking') loadParentRanking();
 }
 
 // ===== 保���者スケジュール =====
@@ -632,6 +724,132 @@ let availLoadedMonth = '';
 let availSelectedDate = null;
 let availConfig = null;
 
+// ===== コンディション =====
+async function loadParentCondition() {
+  if (!currentStudent) return;
+  const container = document.getElementById('parentCondition');
+  try {
+    const conditions = await ConditionsDB.getByStudent(currentStudent.id, 14);
+    if (conditions.length === 0) { container.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;">コンディション記録はまだありません</div>'; return; }
+    const moodEmoji = ['','😢','😟','😐','😊','🤩'];
+    container.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;">' +
+      conditions.slice(0, 14).reverse().map(c =>
+        '<div style="text-align:center;padding:6px 8px;background:#f8fafc;border-radius:10px;min-width:60px;">' +
+        '<div style="font-size:10px;color:#94a3b8;">' + (c.date || '').slice(5) + '</div>' +
+        '<div style="font-size:22px;">' + (moodEmoji[c.mood] || '😐') + '</div>' +
+        '<div style="font-size:9px;color:#64748b;">⚡' + (c.energy || '-') + ' 🔥' + (c.motivation || '-') + '</div>' +
+        '</div>'
+      ).join('') + '</div>' +
+      (conditions[0] && conditions[0].note ? '<div style="margin-top:8px;font-size:12px;color:#64748b;background:#fefce8;padding:6px 10px;border-radius:8px;">💬 ' + escapeHtml(conditions[0].note) + '</div>' : '');
+  } catch(e) { container.innerHTML = '<div style="color:#ef4444;">読み込みに失敗しました</div>'; }
+}
+
+// ===== ゲーム概要 =====
+async function loadParentGameOverview() {
+  if (!currentStudent) return;
+  const container = document.getElementById('parentGameOverview');
+  try {
+    const s = currentStudent;
+    const ri = { rookie: {icon:'🌱',name:'ルーキー'}, crew: {icon:'⚔️',name:'クルー'}, senior: {icon:'🛡',name:'シニア'}, captain: {icon:'👑',name:'キャプテン'} };
+    const rank = ri[s.rank] || ri.rookie;
+    const lv = s.level || 1;
+    const badges = await BadgesDB.getByStudent(s.id);
+    let guildInfo = 'ギルド未所属';
+    if (s.guildId) {
+      try {
+        const gDoc = await db.collection('guilds').doc(s.guildId).get();
+        if (gDoc.exists) guildInfo = (gDoc.data().name || 'ギルド') + ' に所属';
+      } catch(e) {}
+    }
+
+    container.innerHTML =
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">' +
+      '<div style="background:#f0f4ff;border-radius:12px;padding:14px;text-align:center;">' +
+        '<div style="font-size:10px;color:#667eea;font-weight:700;">ランク</div>' +
+        '<div style="font-size:24px;">' + rank.icon + '</div>' +
+        '<div style="font-size:13px;font-weight:700;">' + rank.name + '</div>' +
+      '</div>' +
+      '<div style="background:#f0f4ff;border-radius:12px;padding:14px;text-align:center;">' +
+        '<div style="font-size:10px;color:#667eea;font-weight:700;">レベル</div>' +
+        '<div style="font-size:28px;font-weight:900;color:#4c51bf;">' + lv + '</div>' +
+      '</div>' +
+      '<div style="background:#f0f4ff;border-radius:12px;padding:14px;text-align:center;">' +
+        '<div style="font-size:10px;color:#667eea;font-weight:700;">累計ポイント</div>' +
+        '<div style="font-size:20px;font-weight:800;color:#4c51bf;">' + (s.totalPoints || 0).toLocaleString() + '</div>' +
+      '</div>' +
+      '<div style="background:#f0f4ff;border-radius:12px;padding:14px;text-align:center;">' +
+        '<div style="font-size:10px;color:#667eea;font-weight:700;">連続学習</div>' +
+        '<div style="font-size:20px;font-weight:800;color:#4c51bf;">🔥 ' + (s.streak || 0) + '日</div>' +
+      '</div>' +
+      '</div>' +
+      '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-bottom:12px;">' +
+        '<div style="background:#fef3c7;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:600;color:#92400e;">🏅 バッジ ' + badges.length + '個獲得</div>' +
+        '<div style="background:#dbeafe;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:600;color:#1e40af;">⚔️ ' + guildInfo + '</div>' +
+        '<div style="background:#dcfce7;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:600;color:#166534;">🏆 最長連続 ' + (s.bestStreak || 0) + '日</div>' +
+      '</div>' +
+      '<div style="background:#f8fafc;border-radius:10px;padding:12px;font-size:12px;color:#475569;line-height:1.8;">' +
+        '<div style="font-weight:700;margin-bottom:4px;">🎮 ゲームシステムの説明</div>' +
+        '• <strong>ポイント</strong> — 学習するとポイントが貯まり、景品交換に使えます<br>' +
+        '• <strong>レベル</strong> — ポイントが一定数貯まるとレベルアップします<br>' +
+        '• <strong>ランク</strong> — ルーキー → クルー → シニア → キャプテン と昇格します<br>' +
+        '• <strong>バッジ</strong> — 特定の条件を達成すると獲得できる実績です<br>' +
+        '• <strong>ギルド</strong> — チームを組んで協力し合う仲間です<br>' +
+        '• <strong>連続学習</strong> — 毎日学習を続けるとボーナスが増えていきます' +
+      '</div>';
+  } catch(e) { container.innerHTML = '<div style="color:#ef4444;">読み込みに失敗しました</div>'; }
+}
+
+// ===== ギルド =====
+async function loadParentGuild() {
+  if (!currentStudent) return;
+  const container = document.getElementById('parentGuild');
+  try {
+    if (!currentStudent.guildId) { container.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:20px;">ギルドに所属していません</div>'; return; }
+    const gDoc = await db.collection('guilds').doc(currentStudent.guildId).get();
+    if (!gDoc.exists) { container.innerHTML = '<div style="color:#94a3b8;">ギルド情報が見つかりません</div>'; return; }
+    const guild = gDoc.data();
+    const members = guild.memberIds || [];
+    let memberHtml = '';
+    for (const mid of members.slice(0, 10)) {
+      const m = await StudentsDB.getById(mid);
+      if (m) memberHtml += '<span style="background:#f0f4ff;padding:4px 10px;border-radius:8px;font-size:12px;">' + escapeHtml(m.name) + '</span>';
+    }
+    container.innerHTML =
+      '<div style="background:linear-gradient(135deg,#667eea20,#764ba220);border-radius:12px;padding:16px;margin-bottom:12px;">' +
+      '<div style="font-size:18px;font-weight:800;">' + (guild.icon || '⚔️') + ' ' + escapeHtml(guild.name || '') + '</div>' +
+      '<div style="font-size:12px;color:#64748b;margin-top:4px;">' + escapeHtml(guild.motto || '') + '</div>' +
+      '<div style="font-size:12px;margin-top:8px;">メンバー: ' + members.length + '人 | ギルドポイント: ' + (guild.totalPoints || 0).toLocaleString() + '</div>' +
+      '</div>' +
+      '<div style="font-size:13px;font-weight:700;margin-bottom:6px;">メンバー</div>' +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;">' + memberHtml + '</div>';
+  } catch(e) { container.innerHTML = '<div style="color:#ef4444;">読み込みに失敗しました</div>'; }
+}
+
+// ===== ランキング =====
+async function loadParentRanking() {
+  if (!currentStudent) return;
+  const container = document.getElementById('parentRanking');
+  try {
+    const students = await StudentsDB.getAll();
+    const sorted = students.filter(s => s.role !== 'supporter').sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0));
+    const myRank = sorted.findIndex(s => s.id === currentStudent.id) + 1;
+    const top10 = sorted.slice(0, 10);
+    let html = '<div style="background:#fef3c7;border-radius:10px;padding:12px;margin-bottom:12px;text-align:center;font-size:14px;">';
+    html += escapeHtml(currentStudent.name) + ' は <strong style="font-size:20px;color:#f59e0b;">' + myRank + '位</strong> / ' + sorted.length + '人中</div>';
+    html += '<div style="font-size:13px;">';
+    top10.forEach((s, i) => {
+      const isMe = s.id === currentStudent.id;
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : (i + 1);
+      html += '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9;' + (isMe ? 'background:#eff6ff;margin:0 -8px;padding:8px;border-radius:6px;' : '') + '">' +
+        '<span><strong>' + medal + '</strong> ' + escapeHtml(s.name) + (isMe ? ' ← お子さん' : '') + '</span>' +
+        '<span style="font-weight:700;color:#4c51bf;">' + (s.totalPoints || 0).toLocaleString() + ' pt</span></div>';
+    });
+    html += '</div>';
+    container.innerHTML = html;
+  } catch(e) { container.innerHTML = '<div style="color:#ef4444;">読み込みに失敗しました</div>'; }
+}
+
+// ===== 面談記録 =====
 async function loadParentInterviews() {
   if (!currentStudent) return;
   const list = document.getElementById('parentInterviewsList');

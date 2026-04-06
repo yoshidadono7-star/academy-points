@@ -1476,17 +1476,27 @@ function showProfileMenu() {
   highlightNav(3);
   // Show a simple profile submenu via modal
   showModal('👤', 'マイページ', currentStudent ? (currentStudent.callsign || currentStudent.nickname || '') : '', `
-    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('history')" style="margin-bottom:8px">📊 学習履歴</button>
-    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('badges')" style="margin-bottom:8px">🏅 バッジ</button>
-    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('combo')" style="margin-bottom:8px">🔥 コンボ図鑑</button>
-    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('guild')" style="margin-bottom:8px">⚔️ ギルド</button>
-    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('condition')" style="margin-bottom:8px">😊 コンディション</button>
-    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('messages')" style="margin-bottom:8px">💬 メッセージ</button>
-    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('interviews')" style="margin-bottom:8px">📝 面談記録</button>
-    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('fullSchedule')" style="margin-bottom:8px">📅 スケジュール</button>
-    ${currentStudent && currentStudent.selfSchedule ? '<button class="btn btn-block btn-secondary" onclick="closeModal();navigate(\'mySchedule\')" style="margin-bottom:8px">📤 スケジュール提出</button>' : ''}
-    ${typeof isDimensionShiftOpen === 'function' && isDimensionShiftOpen() ? '<button class="btn btn-block btn-secondary" onclick="closeModal();openDimensionShift()" style="margin-bottom:8px">🌌 次元シフト（世界観変更）</button>' : ''}
-    <button class="btn btn-block btn-danger" onclick="closeModal();logout()">ログアウト</button>
+    <div style="font-size:11px;font-weight:700;color:#667eea;margin-bottom:6px;padding-left:4px;">📋 日常</div>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('fullSchedule')" style="margin-bottom:6px">📅 スケジュール</button>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('messages')" style="margin-bottom:6px">💬 メッセージ</button>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('condition')" style="margin-bottom:6px">💚 コンディション</button>
+    ${currentStudent && currentStudent.selfSchedule ? '<button class="btn btn-block btn-secondary" onclick="closeModal();navigate(\'mySchedule\')" style="margin-bottom:6px">📤 スケジュール提出</button>' : ''}
+
+    <div style="font-size:11px;font-weight:700;color:#667eea;margin:10px 0 6px;padding-left:4px;">📊 学習</div>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('history')" style="margin-bottom:6px">📊 学習履歴</button>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('badges')" style="margin-bottom:6px">🏅 バッジ</button>
+
+    <div style="font-size:11px;font-weight:700;color:#667eea;margin:10px 0 6px;padding-left:4px;">📝 記録</div>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('interviews')" style="margin-bottom:6px">📝 面談記録</button>
+
+    <div style="font-size:11px;font-weight:700;color:#667eea;margin:10px 0 6px;padding-left:4px;">🎮 ゲーム</div>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('guild')" style="margin-bottom:6px">⚔️ ギルド</button>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('combo')" style="margin-bottom:6px">🔥 コンボ図鑑</button>
+    ${typeof isDimensionShiftOpen === 'function' && isDimensionShiftOpen() ? '<button class="btn btn-block btn-secondary" onclick="closeModal();openDimensionShift()" style="margin-bottom:6px">🌌 次元シフト</button>' : ''}
+
+    <div style="border-top:1px solid #e2e8f0;margin-top:12px;padding-top:10px;">
+      <button class="btn btn-block btn-danger" onclick="closeModal();logout()">ログアウト</button>
+    </div>
   `, true);
 }
 

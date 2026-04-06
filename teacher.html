@@ -19,6 +19,10 @@
   .tabs { display: flex; overflow-x: auto; background: white; border-bottom: 1px solid var(--border); padding: 0 8px; gap: 2px; }
   .tab-btn { flex-shrink: 0; padding: 12px 14px; border: none; background: none; font-size: 13px; font-weight: 500; color: var(--text-light); cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; }
   .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 700; }
+  .category-nav { display: flex; gap: 6px; padding: 10px 16px; background: white; border-bottom: 1px solid var(--border); overflow-x: auto; scrollbar-width: none; }
+  .category-nav::-webkit-scrollbar { display: none; }
+  .category-btn { flex-shrink: 0; padding: 8px 16px; border: 1.5px solid var(--border); border-radius: 20px; background: white; font-size: 12px; font-weight: 600; color: var(--text-light); cursor: pointer; white-space: nowrap; }
+  .category-btn.active { background: var(--gradient); color: white; border-color: transparent; }
   .main { padding: 16px; max-width: 800px; margin: 0 auto; }
   .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; margin-bottom: 12px; }
   .card-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
@@ -63,16 +67,30 @@
     <button onclick="teacherLogout()" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:6px 14px;border-radius:8px;font-size:12px;cursor:pointer;">ログアウト</button>
   </header>
 
-  <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('schedule')">📅 スケジュール</button>
-    <button class="tab-btn" onclick="switchTab('tasks')">☑ 業務タスク</button>
-    <button class="tab-btn" onclick="switchTab('students')">👤 担当生徒</button>
-    <button class="tab-btn" onclick="switchTab('interviews')">📝 面談記録</button>
-    <button class="tab-btn" onclick="switchTab('exams')">📊 テスト結果</button>
-    <button class="tab-btn" onclick="switchTab('condition')">💚 コンディション</button>
-    <button class="tab-btn" onclick="switchTab('calendar')">📆 月次・年間</button>
-    <button class="tab-btn" onclick="switchTab('messages')">💬 メッセージ</button>
-    <button class="tab-btn" onclick="switchTab('shift')">🗓 シフト</button>
+  <nav class="category-nav" id="teacherCategoryNav">
+    <button class="category-btn active" data-category="daily" onclick="switchTeacherCategory('daily')">📋 日常</button>
+    <button class="category-btn" data-category="learning" onclick="switchTeacherCategory('learning')">📊 学習</button>
+    <button class="category-btn" data-category="record" onclick="switchTeacherCategory('record')">📝 記録</button>
+    <button class="category-btn" data-category="game" onclick="switchTeacherCategory('game')">🎮 ゲーム</button>
+  </nav>
+  <div class="tabs" id="teacherTabs">
+    <!-- 日常 -->
+    <button class="tab-btn active" data-category="daily" onclick="switchTab('schedule')">📅 スケジュール</button>
+    <button class="tab-btn" data-category="daily" onclick="switchTab('tasks')">☑ 業務タスク</button>
+    <button class="tab-btn" data-category="daily" onclick="switchTab('messages')">💬 メッセージ</button>
+    <button class="tab-btn" data-category="daily" onclick="switchTab('shift')">🗓 シフト</button>
+    <!-- 学習 -->
+    <button class="tab-btn" data-category="learning" onclick="switchTab('students')" style="display:none;">👤 担当生徒</button>
+    <button class="tab-btn" data-category="learning" onclick="switchTab('exams')" style="display:none;">📊 テスト結果</button>
+    <button class="tab-btn" data-category="learning" onclick="switchTab('condition')" style="display:none;">💚 コンディション</button>
+    <button class="tab-btn" data-category="learning" onclick="switchTab('calendar')" style="display:none;">📆 月次・年間</button>
+    <!-- 記録 -->
+    <button class="tab-btn" data-category="record" onclick="switchTab('interviews')" style="display:none;">📝 面談記録</button>
+    <!-- ゲーム -->
+    <button class="tab-btn" data-category="game" onclick="switchTab('guilds')" style="display:none;">⚔️ ギルド</button>
+    <button class="tab-btn" data-category="game" onclick="switchTab('raidboss')" style="display:none;">👹 レイドボス</button>
+    <button class="tab-btn" data-category="game" onclick="switchTab('missions')" style="display:none;">🎯 ミッション</button>
+    <button class="tab-btn" data-category="game" onclick="switchTab('economy')" style="display:none;">💰 ポイント経済</button>
   </div>
 
   <div class="main">
@@ -167,6 +185,38 @@
         <div id="teacherShift">読み込み中...</div>
       </div>
     </div>
+
+    <!-- ゲーム: ギルド -->
+    <div class="tab-panel" id="panel-guilds">
+      <div class="card">
+        <div class="card-title">⚔️ ギルド一覧</div>
+        <div id="teacherGuilds">読み込み中...</div>
+      </div>
+    </div>
+
+    <!-- ゲーム: レイドボス -->
+    <div class="tab-panel" id="panel-raidboss">
+      <div class="card">
+        <div class="card-title">👹 レイドボス</div>
+        <div id="teacherRaidBoss">読み込み中...</div>
+      </div>
+    </div>
+
+    <!-- ゲーム: ミッション -->
+    <div class="tab-panel" id="panel-missions">
+      <div class="card">
+        <div class="card-title">🎯 ミッション</div>
+        <div id="teacherMissions">読み込み中...</div>
+      </div>
+    </div>
+
+    <!-- ゲーム: ポイント経済 -->
+    <div class="tab-panel" id="panel-economy">
+      <div class="card">
+        <div class="card-title">💰 ポイント経済</div>
+        <div id="teacherEconomy">読み込み中...</div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -180,22 +230,35 @@ let currentTeacher = null;
 
 function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
 
-function switchTab(tabId) {
-  document.querySelectorAll('.tab-btn').forEach((b, i) => {
-    const tabs = ['schedule', 'tasks', 'students', 'interviews', 'exams', 'condition', 'calendar', 'messages', 'shift'];
-    b.classList.toggle('active', tabs[i] === tabId);
+let teacherCategory = 'daily';
+
+function switchTeacherCategory(cat) {
+  teacherCategory = cat;
+  document.querySelectorAll('#teacherCategoryNav .category-btn').forEach(b => b.classList.toggle('active', b.dataset.category === cat));
+  document.querySelectorAll('#teacherTabs .tab-btn').forEach(b => {
+    b.style.display = b.dataset.category === cat ? '' : 'none';
+    b.classList.remove('active');
   });
+  const firstTab = document.querySelector('#teacherTabs .tab-btn[data-category="' + cat + '"]');
+  if (firstTab) { firstTab.classList.add('active'); firstTab.click(); }
+}
+
+function switchTab(tabId) {
+  document.querySelectorAll('#teacherTabs .tab-btn').forEach(b => {
+    if (b.dataset.category === teacherCategory) b.classList.remove('active');
+  });
+  const clicked = document.querySelector('#teacherTabs .tab-btn[data-category="' + teacherCategory + '"][onclick*="' + tabId + '"]');
+  if (clicked) clicked.classList.add('active');
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
-  document.getElementById('panel-' + tabId).classList.add('active');
-  if (tabId === 'schedule') loadTeacherSchedule();
-  if (tabId === 'tasks') loadTeacherTasks();
-  if (tabId === 'students') loadTeacherStudents();
-  if (tabId === 'interviews') initInterviewTab();
-  if (tabId === 'exams') loadTeacherExams();
-  if (tabId === 'condition') loadTeacherCondition();
-  if (tabId === 'calendar') loadTeacherCalendar();
-  if (tabId === 'messages') initMessageTab();
-  if (tabId === 'shift') loadTeacherShift();
+  const panel = document.getElementById('panel-' + tabId);
+  if (panel) panel.classList.add('active');
+  const loaders = {
+    schedule: loadTeacherSchedule, tasks: loadTeacherTasks, students: loadTeacherStudents,
+    interviews: initInterviewTab, exams: loadTeacherExams, condition: loadTeacherCondition,
+    calendar: loadTeacherCalendar, messages: initMessageTab, shift: loadTeacherShift,
+    guilds: loadTeacherGuilds, raidboss: loadTeacherRaidBoss, missions: loadTeacherMissions, economy: loadTeacherEconomy
+  };
+  if (loaders[tabId]) loaders[tabId]();
 }
 
 // ===== ログイン =====
@@ -718,6 +781,107 @@ async function sendTeacherMessage() {
     document.getElementById('teacherMsgContent').value = '';
     loadTeacherMessages();
   } catch(e) { console.warn('Send error:', e); }
+}
+
+// ===== ゲーム: ギルド一覧 =====
+async function loadTeacherGuilds() {
+  const container = document.getElementById('teacherGuilds');
+  try {
+    const snap = await db.collection('guilds').get();
+    const guilds = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (guilds.length === 0) { container.innerHTML = '<div style="color:var(--text-light);text-align:center;padding:20px;">ギルドがありません</div>'; return; }
+    const students = await StudentsDB.getAll();
+    const sMap = {}; students.forEach(s => sMap[s.id] = s);
+    container.innerHTML = guilds.map(g => {
+      const members = (g.memberIds || []).map(mid => sMap[mid] ? sMap[mid].name : '').filter(Boolean);
+      return '<div style="background:#f8fafc;border-radius:10px;padding:12px;margin-bottom:10px;">' +
+        '<div style="font-size:15px;font-weight:700;">' + (g.icon || '⚔️') + ' ' + escapeHtml(g.name || '') + '</div>' +
+        '<div style="font-size:11px;color:var(--text-light);margin-top:2px;">' + escapeHtml(g.motto || '') + '</div>' +
+        '<div style="font-size:12px;margin-top:6px;">メンバー(' + members.length + '): ' + members.join(', ') + '</div>' +
+        '<div style="font-size:12px;color:var(--primary);font-weight:600;margin-top:4px;">ギルドPt: ' + (g.totalPoints || 0).toLocaleString() + '</div>' +
+        '</div>';
+    }).join('');
+  } catch(e) { container.innerHTML = '<div style="color:var(--danger);">読み込みに失敗しました</div>'; }
+}
+
+// ===== ゲーム: レイドボス =====
+async function loadTeacherRaidBoss() {
+  const container = document.getElementById('teacherRaidBoss');
+  try {
+    const snap = await db.collection('raidBosses').where('active', '==', true).get();
+    const bosses = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (bosses.length === 0) { container.innerHTML = '<div style="color:var(--text-light);text-align:center;padding:20px;">現在アクティブなレイドボスはいません</div>'; return; }
+    container.innerHTML = bosses.map(b => {
+      const hpPct = b.maxHp ? Math.round((b.currentHp || 0) / b.maxHp * 100) : 0;
+      return '<div style="background:#f8fafc;border-radius:10px;padding:12px;margin-bottom:10px;">' +
+        '<div style="font-size:15px;font-weight:700;">' + (b.icon || '👹') + ' ' + escapeHtml(b.name || '') + ' <span style="font-size:12px;color:var(--text-light);">Lv.' + (b.level || 1) + '</span></div>' +
+        '<div style="font-size:12px;color:var(--text-light);margin-top:4px;">' + escapeHtml(b.description || '') + '</div>' +
+        '<div style="margin-top:8px;background:#e2e8f0;border-radius:6px;height:12px;overflow:hidden;">' +
+        '<div style="height:100%;width:' + hpPct + '%;background:linear-gradient(90deg,#ef4444,#f59e0b);border-radius:6px;transition:width 0.5s;"></div></div>' +
+        '<div style="font-size:11px;color:var(--text-light);margin-top:2px;">HP: ' + (b.currentHp || 0).toLocaleString() + ' / ' + (b.maxHp || 0).toLocaleString() + ' (' + hpPct + '%)</div>' +
+        '</div>';
+    }).join('');
+  } catch(e) { container.innerHTML = '<div style="color:var(--danger);">読み込みに失敗しました</div>'; }
+}
+
+// ===== ゲーム: ミッション =====
+async function loadTeacherMissions() {
+  const container = document.getElementById('teacherMissions');
+  try {
+    const snap = await db.collection('missions').where('active', '==', true).get();
+    const missions = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (missions.length === 0) { container.innerHTML = '<div style="color:var(--text-light);text-align:center;padding:20px;">アクティブなミッションはありません</div>'; return; }
+    container.innerHTML = missions.map(m => {
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f1f5f9;">' +
+        '<div>' +
+        '<div style="font-weight:600;font-size:13px;">' + (m.icon || '🎯') + ' ' + escapeHtml(m.name || '') + '</div>' +
+        '<div style="font-size:11px;color:var(--text-light);">' + escapeHtml(m.description || '') + '</div>' +
+        '</div>' +
+        '<div style="text-align:right;font-size:12px;">' +
+        '<div style="color:var(--primary);font-weight:600;">' + (m.reward || 0) + ' pt</div>' +
+        '<div style="font-size:10px;color:var(--text-light);">' + (m.type || '') + '</div>' +
+        '</div></div>';
+    }).join('');
+  } catch(e) { container.innerHTML = '<div style="color:var(--danger);">読み込みに失敗しました</div>'; }
+}
+
+// ===== ゲーム: ポイント経済 =====
+async function loadTeacherEconomy() {
+  const container = document.getElementById('teacherEconomy');
+  try {
+    const students = await StudentsDB.getAll();
+    const active = students.filter(s => s.role !== 'supporter');
+    const totalPts = active.reduce((s, st) => s + (st.totalPoints || 0), 0);
+    const totalSpent = active.reduce((s, st) => s + (st.totalSpent || 0), 0);
+    const totalCurrent = active.reduce((s, st) => s + (st.currentPoints || 0), 0);
+    const avgStreak = Math.round(active.reduce((s, st) => s + (st.streak || 0), 0) / (active.length || 1));
+
+    // 景品情報
+    const prizeSnap = await db.collection('prizes').get();
+    const prizes = prizeSnap.docs.map(d => ({ id: d.id, ...d.data() })).filter(p => p.active !== false);
+
+    container.innerHTML =
+      '<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px;">' +
+      '<div style="background:#f0f4ff;border-radius:10px;padding:12px;text-align:center;">' +
+        '<div style="font-size:10px;color:var(--primary);font-weight:700;">総発行ポイント</div>' +
+        '<div style="font-size:22px;font-weight:900;color:#4c51bf;">' + totalPts.toLocaleString() + '</div></div>' +
+      '<div style="background:#dcfce7;border-radius:10px;padding:12px;text-align:center;">' +
+        '<div style="font-size:10px;color:var(--success);font-weight:700;">総消費ポイント</div>' +
+        '<div style="font-size:22px;font-weight:900;color:#166534;">' + totalSpent.toLocaleString() + '</div></div>' +
+      '<div style="background:#fef3c7;border-radius:10px;padding:12px;text-align:center;">' +
+        '<div style="font-size:10px;color:var(--warning);font-weight:700;">流通中ポイント</div>' +
+        '<div style="font-size:22px;font-weight:900;color:#92400e;">' + totalCurrent.toLocaleString() + '</div></div>' +
+      '<div style="background:#fee2e2;border-radius:10px;padding:12px;text-align:center;">' +
+        '<div style="font-size:10px;color:var(--danger);font-weight:700;">平均連続日数</div>' +
+        '<div style="font-size:22px;font-weight:900;color:#991b1b;">🔥 ' + avgStreak + '</div></div>' +
+      '</div>' +
+      '<div style="font-weight:700;font-size:14px;margin-bottom:8px;">🎁 景品ラインナップ（' + prizes.length + '件）</div>' +
+      prizes.slice(0, 10).map(p =>
+        '<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:12px;">' +
+        '<span>' + escapeHtml(p.name || '') + '</span>' +
+        '<span style="font-weight:700;color:var(--primary);">' + (p.cost || 0) + ' pt</span></div>'
+      ).join('');
+  } catch(e) { container.innerHTML = '<div style="color:var(--danger);">読み込みに失敗しました</div>'; }
 }
 
 </script>
