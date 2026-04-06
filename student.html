@@ -2805,8 +2805,8 @@ async function stopStudy(save) {
   } catch(e) { console.error('Event check error:', e); }
 
   let points = Math.round(basePoints * eventMultiplier) + eventBonusPoints;
-  const isHomeStudy = studySession.location === '自宅' || studySession.location === 'Zoom';
-  const approvalStatus = isHomeStudy ? 'pending' : 'confirmed';
+  const isHomeStudy = studySession.location === '自宅';
+  const approvalStatus = isHomeStudy ? 'pending' : 'confirmed'; // 塾・Zoomは即時、自宅のみpending
 
   try {
     // Save study log
@@ -3014,7 +3014,7 @@ let lastStudyLogId = null; // 直前のStudyLog IDを保持（写真アップロ
 
 function showCompleteScreen(duration, points, newBadges, raidResults, comboResults, missionResult, appliedEvent, basePoints, eventMultiplier, eventBonusPoints) {
   comboResults = comboResults || [];
-  const isHomeStudy = studySession.location === '自宅' || studySession.location === 'Zoom';
+  const isHomeStudy = studySession.location === '自宅'; // Zoomは塾と同等扱い
 
   // 家庭学習の場合: pending表示
   const pendingEl = document.getElementById('completePendingNotice');

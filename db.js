@@ -80,7 +80,7 @@ const StudentsDB = {
 // --- 学習ログ ---
 const StudyLogsDB = {
   async add(data) {
-    const isHome = data.location === '自宅' || data.location === 'Zoom';
+    const isHome = data.location === '自宅'; // Zoomは講師が見ているため塾と同等（即時付与）
     const ref = await db.collection('studyLogs').add({
       studentId: data.studentId,
       studentName: data.studentName || '',
