@@ -4254,8 +4254,8 @@ const GuideSystem = (() => {
         tooltip.style.bottom = 'auto';
         arrow.className = 'guide-tooltip-arrow top';
       } else {
-        tooltip.style.top = 'auto';
-        tooltip.style.bottom = (window.innerHeight - rect.top + 16) + 'px';
+        tooltip.style.top = (rect.top - 100) + 'px';
+        tooltip.style.bottom = 'auto';
         arrow.className = 'guide-tooltip-arrow bottom';
       }
       arrow.style.left = Math.max(20, Math.min(tooltipWidth - 30, rect.left + rect.width / 2 - tooltipLeft - 8)) + 'px';
@@ -4266,6 +4266,11 @@ const GuideSystem = (() => {
 
       overlay.classList.add('active');
       SESystem.tap();
+
+      // 3秒後にツールチップだけ消す（glowは残す）→ 要素を確実に操作可能に
+      setTimeout(() => {
+        overlay.classList.remove('active');
+      }, 3000);
     }, 400);
   }
 
