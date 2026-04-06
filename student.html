@@ -690,6 +690,51 @@ body {
   100% { opacity: 1; transform: scale(1); }
 }
 .quest-accept-anim { animation: questAcceptFlash 0.5s ease-out; }
+/* ===== Phase 13c: Victory Log ===== */
+.victory-log-board {
+  background: linear-gradient(180deg, #2a1a0a 0%, #1f1208 100%);
+  border-radius: 16px; padding: 16px; border: 2px solid #4a3520;
+  box-shadow: inset 0 0 30px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.2);
+}
+.victory-log-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+  padding-bottom: 10px; border-bottom: 1px solid #4a3520;
+}
+.victory-log-title {
+  font-size: 15px; font-weight: 800; color: #ffd700;
+  text-shadow: 0 0 10px rgba(255,215,0,0.3);
+}
+.victory-log-sub {
+  font-size: 11px; color: #8a7050; margin-left: auto;
+}
+.victory-log-list {
+  display: flex; flex-direction: column; gap: 8px;
+}
+.victory-log-item {
+  display: flex; align-items: center; gap: 12px;
+  background: linear-gradient(135deg, #3a1f10 0%, #2a1808 100%);
+  border: 1px solid #5a3825; border-radius: 10px; padding: 10px 14px;
+  position: relative;
+}
+.victory-log-icon {
+  font-size: 32px; opacity: 0.7;
+  filter: grayscale(0.3);
+}
+.victory-log-info { flex: 1; }
+.victory-log-name {
+  font-size: 13px; font-weight: 700; color: #f5e6d3;
+}
+.victory-log-name::after {
+  content: ' 討伐済'; font-size: 10px; color: #ff6b6b; font-weight: 600;
+}
+.victory-log-date {
+  font-size: 11px; color: #8a7050; margin-top: 2px;
+}
+.victory-log-reward {
+  font-size: 13px; font-weight: 700; color: #ffd700;
+  text-shadow: 0 0 8px rgba(255,215,0,0.4);
+}
+
 .mission-cards {
   display: flex; gap: 8px; overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -989,42 +1034,179 @@ body.theme-space {
   animation: starBurst 1.5s ease-out forwards;
 }
 
-/* ボス討伐演出 */
+/* ボス討伐演出（30秒のシネマティック） */
 .boss-defeat-overlay {
   display: none; position: fixed; inset: 0; z-index: 9999;
-  background: rgba(0,0,0,0.9); align-items: center; justify-content: center; flex-direction: column;
+  background: radial-gradient(ellipse at center, #1a0033 0%, #000 70%);
+  align-items: center; justify-content: center; flex-direction: column;
+  overflow: hidden;
 }
 .boss-defeat-overlay.active { display: flex; }
-@keyframes bossExplode {
+.boss-stage {
+  position: relative; width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+}
+/* 星空背景 */
+@keyframes starField {
+  0% { background-position: 0 0; }
+  100% { background-position: -200px -200px; }
+}
+.boss-stars {
+  position: absolute; inset: 0;
+  background-image: radial-gradient(2px 2px at 20% 30%, white, transparent),
+                    radial-gradient(2px 2px at 60% 70%, white, transparent),
+                    radial-gradient(1px 1px at 40% 40%, white, transparent),
+                    radial-gradient(1px 1px at 80% 10%, white, transparent),
+                    radial-gradient(2px 2px at 90% 60%, white, transparent),
+                    radial-gradient(1px 1px at 33% 80%, white, transparent),
+                    radial-gradient(2px 2px at 15% 90%, white, transparent);
+  background-size: 200px 200px;
+  animation: starField 8s linear infinite;
+  opacity: 0.6;
+}
+
+/* ボス出現 */
+@keyframes bossEntrance {
+  0% { transform: scale(0.3) translateY(-100vh); opacity: 0; filter: brightness(2); }
+  60% { transform: scale(1.2) translateY(20px); opacity: 1; }
+  100% { transform: scale(1) translateY(0); opacity: 1; }
+}
+@keyframes bossFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-15px); }
+}
+@keyframes bossShake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-5px); }
+  20%, 40%, 60%, 80% { transform: translateX(5px); }
+}
+@keyframes bossDamage {
+  0%, 100% { filter: brightness(1); }
+  50% { filter: brightness(3) hue-rotate(60deg); }
+}
+@keyframes bossFinalExplode {
   0% { transform: scale(1); opacity: 1; filter: brightness(1); }
-  30% { transform: scale(1.3); filter: brightness(3); }
-  60% { transform: scale(0.8); opacity: 0.5; filter: brightness(5); }
-  100% { transform: scale(0); opacity: 0; }
+  20% { transform: scale(1.5); filter: brightness(5); }
+  40% { transform: scale(2); filter: brightness(8); opacity: 0.8; }
+  60% { transform: scale(2.5); filter: brightness(15); opacity: 0.4; }
+  100% { transform: scale(0); opacity: 0; filter: brightness(20); }
 }
-@keyframes victoryFlash {
-  0% { opacity: 0; } 10% { opacity: 1; } 20% { opacity: 0; } 30% { opacity: 0.8; } 100% { opacity: 0; }
+
+.boss-icon-stage {
+  font-size: 150px;
+  animation: bossEntrance 1.5s ease-out forwards;
+  display: inline-block;
+  filter: drop-shadow(0 0 30px rgba(255,0,0,0.6));
 }
+.boss-icon-stage.floating { animation: bossFloat 2s ease-in-out infinite; }
+.boss-icon-stage.shaking { animation: bossShake 0.5s ease-in-out 3, bossDamage 0.5s ease-in-out 3; }
+.boss-icon-stage.exploding { animation: bossFinalExplode 2s ease-in forwards; }
+
+/* 攻撃エフェクト */
+@keyframes laserShot {
+  0% { transform: translateX(-100vw) scaleX(0); opacity: 0; }
+  20% { opacity: 1; transform: translateX(-50vw) scaleX(1); }
+  100% { transform: translateX(0) scaleX(2); opacity: 0; }
+}
+.boss-laser {
+  position: absolute; left: 0; top: 50%;
+  width: 100vw; height: 6px;
+  background: linear-gradient(90deg, transparent, #00ffff, #fff, #00ffff, transparent);
+  box-shadow: 0 0 20px #00ffff, 0 0 40px #00ffff;
+}
+.boss-laser.fire { animation: laserShot 0.6s ease-out forwards; }
+
+/* HPバー */
+.boss-hp-container {
+  position: absolute; top: 80px; left: 50%; transform: translateX(-50%);
+  width: 80%; max-width: 500px;
+}
+.boss-hp-label {
+  color: #fff; font-size: 14px; font-weight: 700;
+  text-align: center; margin-bottom: 6px;
+  text-shadow: 0 2px 8px rgba(0,0,0,0.8);
+}
+.boss-hp-bar {
+  width: 100%; height: 14px; background: rgba(255,255,255,0.15);
+  border: 2px solid #fff; border-radius: 8px; overflow: hidden;
+}
+.boss-hp-fill {
+  height: 100%; background: linear-gradient(90deg, #ff4444, #ff8800);
+  width: 100%; transition: width 1s ease-out;
+  box-shadow: 0 0 10px rgba(255,68,68,0.6);
+}
+
+/* ダメージ数値 */
+@keyframes damagePopup {
+  0% { transform: translateY(0) scale(0.5); opacity: 0; }
+  20% { transform: translateY(-30px) scale(1.5); opacity: 1; }
+  100% { transform: translateY(-100px) scale(1); opacity: 0; }
+}
+.damage-popup {
+  position: absolute; font-size: 48px; font-weight: 900;
+  color: #ffeb3b; text-shadow: 0 0 20px rgba(255,235,59,0.8), 0 4px 8px rgba(0,0,0,0.6);
+  animation: damagePopup 1.5s ease-out forwards;
+  pointer-events: none;
+}
+
+/* 最終爆発 */
+@keyframes megaFlash {
+  0%, 100% { opacity: 0; }
+  20% { opacity: 1; }
+}
+.mega-flash {
+  position: absolute; inset: 0; background: #fff;
+  animation: megaFlash 1.5s ease-out forwards;
+}
+@keyframes shockwave {
+  0% { transform: translate(-50%, -50%) scale(0); opacity: 1; }
+  100% { transform: translate(-50%, -50%) scale(20); opacity: 0; }
+}
+.shockwave {
+  position: absolute; left: 50%; top: 50%;
+  width: 100px; height: 100px; border-radius: 50%;
+  border: 6px solid #fff;
+  animation: shockwave 1.5s ease-out forwards;
+}
+
+/* VICTORY演出 */
 @keyframes victoryText {
   0% { transform: scale(0) rotate(-10deg); opacity: 0; }
   60% { transform: scale(1.15) rotate(2deg); }
   100% { transform: scale(1) rotate(0deg); opacity: 1; }
 }
-.boss-icon-explode {
-  font-size: 100px; animation: bossExplode 1.5s ease-in forwards;
+@keyframes victoryGlow {
+  0%, 100% { text-shadow: 0 0 40px rgba(255,215,0,0.6), 0 4px 20px rgba(0,0,0,0.5); }
+  50% { text-shadow: 0 0 80px rgba(255,215,0,1), 0 4px 30px rgba(0,0,0,0.8); }
 }
-.victory-flash {
-  position: absolute; inset: 0; background: #fff;
-  animation: victoryFlash 1s ease-out 1.2s both;
+.victory-container {
+  text-align: center;
+  display: none;
 }
+.victory-container.show { display: block; animation: victoryText 0.8s ease-out forwards; }
 .victory-text {
-  font-size: 36px; font-weight: 900; color: #ffd700;
-  text-shadow: 0 0 40px rgba(255,215,0,0.6), 0 4px 20px rgba(0,0,0,0.5);
-  animation: victoryText 0.8s ease-out 1.8s both;
+  font-size: 56px; font-weight: 900; color: #ffd700;
+  letter-spacing: 8px;
+  animation: victoryGlow 1.5s ease-in-out infinite;
+}
+.victory-boss-name {
+  font-size: 22px; color: #fff; margin-top: 12px;
+  text-shadow: 0 2px 10px rgba(0,0,0,0.8);
 }
 .victory-reward {
-  font-size: 18px; color: #48bb78; margin-top: 12px;
-  animation: levelUpText 0.8s ease-out 2.2s both;
+  font-size: 24px; color: #48bb78; margin-top: 20px;
+  font-weight: 700;
+  text-shadow: 0 0 20px rgba(72,187,120,0.6);
 }
+.victory-close-btn {
+  margin-top: 30px;
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: #fff; border: none; padding: 12px 36px;
+  border-radius: 30px; font-size: 16px; font-weight: 700;
+  cursor: pointer;
+  display: none;
+}
+.victory-close-btn.show { display: inline-block; }
 
 /* オープニング */
 @keyframes openingFadeIn {
@@ -1154,10 +1336,20 @@ body.theme-space {
 
 <!-- Phase 12: ボス討伐演出 -->
 <div id="bossDefeatOverlay" class="boss-defeat-overlay">
-  <div class="victory-flash"></div>
-  <div class="boss-icon-explode" id="bossDefeatIcon"></div>
-  <div class="victory-text" id="bossDefeatText">VICTORY!</div>
-  <div class="victory-reward" id="bossDefeatReward"></div>
+  <div class="boss-stars"></div>
+  <div class="boss-stage">
+    <div class="boss-hp-container" id="bossHpContainer">
+      <div class="boss-hp-label" id="bossHpLabel">??? HP</div>
+      <div class="boss-hp-bar"><div class="boss-hp-fill" id="bossHpFill"></div></div>
+    </div>
+    <div class="boss-icon-stage" id="bossDefeatIcon"></div>
+    <div class="victory-container" id="victoryContainer">
+      <div class="victory-text">VICTORY!</div>
+      <div class="victory-boss-name" id="victoryBossName"></div>
+      <div class="victory-reward" id="bossDefeatReward"></div>
+      <button class="victory-close-btn" id="victoryCloseBtn" onclick="closeBossDefeat()">続ける ▸</button>
+    </div>
+  </div>
 </div>
 
 <!-- Phase 12: オープニング -->
@@ -1321,6 +1513,18 @@ body.theme-space {
       </div>
       <div id="homeMissionCards" class="quest-list"></div>
       <div id="homeMissionAccepted" style="display:none"></div>
+    </div>
+  </div>
+
+  <!-- Phase 13c: 戦闘記録 (討伐済みボス履歴) -->
+  <div id="homeVictoryLog" class="mission-section" style="display:none;">
+    <div class="victory-log-board">
+      <div class="victory-log-header">
+        <span style="font-size:20px;">⚔️</span>
+        <span class="victory-log-title">戦闘記録</span>
+        <span class="victory-log-sub">直近の討伐</span>
+      </div>
+      <div id="victoryLogList" class="victory-log-list"></div>
     </div>
   </div>
 
@@ -2004,8 +2208,49 @@ async function loadHome() {
   // リアルタイム: イベント発動バナー
   setupEventBannerListener();
 
+  // Phase 13c: 戦闘記録（討伐済みボス）
+  loadVictoryLog();
+
   // Phase 13b: ガイドスポットライト開始
   setTimeout(() => GuideSystem.start(), 1000);
+}
+
+// Phase 13c: 戦闘記録ローダー
+async function loadVictoryLog() {
+  try {
+    const defeated = await RaidBossDB.getDefeated();
+    const section = document.getElementById('homeVictoryLog');
+    const list = document.getElementById('victoryLogList');
+    if (!defeated || defeated.length === 0) {
+      section.style.display = 'none';
+      return;
+    }
+    // 直近5体だけ表示、新しい順
+    const recent = defeated
+      .sort((a, b) => {
+        const ta = a.defeatedAt?.toMillis ? a.defeatedAt.toMillis() : 0;
+        const tb = b.defeatedAt?.toMillis ? b.defeatedAt.toMillis() : 0;
+        return tb - ta;
+      })
+      .slice(0, 5);
+    section.style.display = 'block';
+    list.innerHTML = recent.map(b => {
+      const d = b.defeatedAt?.toDate ? b.defeatedAt.toDate() : null;
+      const dateStr = d ? `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}` : '';
+      return `
+        <div class="victory-log-item">
+          <div class="victory-log-icon">${b.icon || '👹'}</div>
+          <div class="victory-log-info">
+            <div class="victory-log-name">${b.name || 'ボス'}</div>
+            <div class="victory-log-date">${dateStr}</div>
+          </div>
+          <div class="victory-log-reward">+${b.reward || 0}pt</div>
+        </div>
+      `;
+    }).join('');
+  } catch(e) {
+    console.error('Victory log error:', e);
+  }
 }
 
 let liveCrewUnsubscribe = null;
@@ -4126,18 +4371,120 @@ function closeLevelUp() {
 }
 
 // ============================================
-// Phase 12: ボス討伐演出
+// Phase 12: ボス討伐シネマティック演出（約20秒）
 // ============================================
 function showBossDefeatEffect(bossIcon, bossName, reward) {
   const overlay = document.getElementById('bossDefeatOverlay');
-  document.getElementById('bossDefeatIcon').textContent = bossIcon || '👹';
-  document.getElementById('bossDefeatText').textContent = `${bossName || 'ボス'} 討伐！`;
+  const bossEl = document.getElementById('bossDefeatIcon');
+  const hpFill = document.getElementById('bossHpFill');
+  const hpLabel = document.getElementById('bossHpLabel');
+  const victoryContainer = document.getElementById('victoryContainer');
+  const closeBtn = document.getElementById('victoryCloseBtn');
+
+  // リセット
+  bossEl.textContent = bossIcon || '👹';
+  bossEl.className = 'boss-icon-stage';
+  hpFill.style.width = '100%';
+  hpLabel.textContent = `${bossName || 'ボス'} HP: 100%`;
+  victoryContainer.className = 'victory-container';
+  closeBtn.className = 'victory-close-btn';
+  document.getElementById('victoryBossName').textContent = bossName || 'ボス';
   document.getElementById('bossDefeatReward').textContent = `+${reward || 0} ボーナスポイント獲得！`;
 
   overlay.classList.add('active');
-  SESystem.bossDefeat();
 
-  setTimeout(() => overlay.classList.remove('active'), 4500);
+  // === シーン1: ボス出現 (0-2秒) ===
+  SESystem.bossDefeat();
+  setTimeout(() => {
+    bossEl.className = 'boss-icon-stage floating';
+  }, 1500);
+
+  // === シーン2: 攻撃ラウンド1 (2-6秒) ===
+  setTimeout(() => fireLaserAttack(bossEl, hpFill, hpLabel, bossName, 75), 2500);
+  setTimeout(() => fireLaserAttack(bossEl, hpFill, hpLabel, bossName, 50), 4000);
+  setTimeout(() => fireLaserAttack(bossEl, hpFill, hpLabel, bossName, 25), 5500);
+
+  // === シーン3: 致命の一撃 (7-9秒) ===
+  setTimeout(() => fireLaserAttack(bossEl, hpFill, hpLabel, bossName, 5), 7000);
+  setTimeout(() => fireLaserAttack(bossEl, hpFill, hpLabel, bossName, 0, true), 8500);
+
+  // === シーン4: 大爆発 (10-12秒) ===
+  setTimeout(() => {
+    bossEl.className = 'boss-icon-stage exploding';
+    // 衝撃波
+    const sw = document.createElement('div');
+    sw.className = 'shockwave';
+    document.querySelector('.boss-stage').appendChild(sw);
+    setTimeout(() => sw.remove(), 1500);
+    // メガフラッシュ
+    const flash = document.createElement('div');
+    flash.className = 'mega-flash';
+    overlay.appendChild(flash);
+    setTimeout(() => flash.remove(), 1500);
+    SESystem.bossDefeat();
+    document.getElementById('bossHpContainer').style.display = 'none';
+  }, 10000);
+
+  // === シーン5: VICTORY演出 (13-20秒) ===
+  setTimeout(() => {
+    bossEl.style.display = 'none';
+    victoryContainer.classList.add('show');
+    // 紙吹雪
+    fireConfetti();
+    setTimeout(() => fireConfetti(), 800);
+    setTimeout(() => fireConfetti(), 1600);
+    SESystem.levelUp();
+  }, 13000);
+
+  // === シーン6: 続けるボタン表示 (15秒) ===
+  setTimeout(() => {
+    closeBtn.classList.add('show');
+  }, 15000);
+
+  // 自動クローズ (20秒)
+  setTimeout(() => {
+    if (overlay.classList.contains('active')) {
+      closeBossDefeat();
+    }
+  }, 20000);
+}
+
+function fireLaserAttack(bossEl, hpFill, hpLabel, bossName, newHpPercent, isFinal) {
+  const stage = document.querySelector('.boss-stage');
+  // レーザー
+  const laser = document.createElement('div');
+  laser.className = 'boss-laser fire';
+  stage.appendChild(laser);
+  SESystem.tap();
+  setTimeout(() => laser.remove(), 600);
+
+  // 振動・ダメージエフェクト
+  setTimeout(() => {
+    bossEl.className = 'boss-icon-stage shaking';
+    // ダメージ数値
+    const dmg = document.createElement('div');
+    dmg.className = 'damage-popup';
+    const damage = isFinal ? 'CRITICAL!!' : Math.floor(Math.random() * 50) + 10;
+    dmg.textContent = damage;
+    dmg.style.left = (50 + (Math.random() - 0.5) * 30) + '%';
+    dmg.style.top = '40%';
+    stage.appendChild(dmg);
+    setTimeout(() => dmg.remove(), 1500);
+
+    hpFill.style.width = newHpPercent + '%';
+    hpLabel.textContent = `${bossName || 'ボス'} HP: ${newHpPercent}%`;
+    setTimeout(() => {
+      bossEl.className = 'boss-icon-stage floating';
+    }, 1500);
+  }, 400);
+}
+
+function closeBossDefeat() {
+  const overlay = document.getElementById('bossDefeatOverlay');
+  overlay.classList.remove('active');
+  // リセット
+  document.getElementById('bossDefeatIcon').style.display = '';
+  document.getElementById('bossHpContainer').style.display = '';
 }
 
 // ============================================
@@ -4172,10 +4519,11 @@ const GuideSystem = (() => {
       step: 'STEP 1 / 3',
       text: 'まずはコンディションを記録しよう！',
       sub: '今日の気分と体調を教えてね',
+      completedText: 'コンディション記録済み',
+      completedSub: '今日はもう記録されているよ',
       position: 'below',
       waitFor: 'condition_done',
       skipIf: () => {
-        // 今日すでにコンディション記録済みならスキップ
         const el = document.getElementById('homeConditionDone');
         return el && el.style.display !== 'none';
       }
@@ -4185,10 +4533,11 @@ const GuideSystem = (() => {
       step: 'STEP 2 / 3',
       text: 'クエストを選ぼう！',
       sub: '今日チャレンジするミッションを1つ選んでね',
+      completedText: 'クエスト受注済み',
+      completedSub: '今日のクエストはすでに選ばれているよ',
       position: 'below',
       waitFor: 'mission_accepted',
       skipIf: () => {
-        // すでにクエストを受注済みならスキップ
         return currentMissionDraw && currentMissionDraw.accepted;
       }
     },
@@ -4241,21 +4590,18 @@ const GuideSystem = (() => {
       finish();
       return;
     }
-    // すでに完了済みのステップはスキップ
-    if (steps[currentStep].skipIf && steps[currentStep].skipIf()) {
-      next();
-      return;
-    }
     // ホーム画面にいる時だけ表示
     const homeScreen = document.getElementById('screenHome');
     if (!homeScreen || !homeScreen.classList.contains('active')) {
       hide();
       return;
     }
-    setTimeout(() => showStep(steps[currentStep]), 500);
+    // すでに完了済みのステップは「完了済み」表示で短時間だけ見せる
+    const isCompleted = steps[currentStep].skipIf && steps[currentStep].skipIf();
+    setTimeout(() => showStep(steps[currentStep], isCompleted), 500);
   }
 
-  function showStep(step) {
+  function showStep(step, isCompleted) {
     const overlay = document.getElementById('guideOverlay');
     const tooltip = document.getElementById('guideTooltip');
     const arrow = document.getElementById('guideArrow');
@@ -4289,17 +4635,29 @@ const GuideSystem = (() => {
       arrow.style.left = Math.max(20, Math.min(tooltipWidth - 30, rect.left + rect.width / 2 - tooltipLeft - 8)) + 'px';
 
       document.getElementById('guideStep').textContent = step.step;
-      document.getElementById('guideText').textContent = step.text;
-      document.getElementById('guideSub').textContent = step.sub;
+      if (isCompleted) {
+        document.getElementById('guideText').textContent = '✅ ' + (step.completedText || 'これは完了済みです！');
+        document.getElementById('guideSub').textContent = step.completedSub || 'タップして次へ';
+      } else {
+        document.getElementById('guideText').textContent = step.text;
+        document.getElementById('guideSub').textContent = step.sub;
+      }
 
       overlay.classList.add('active');
-      // ステップ表示時: 注意を引くSE
       SESystem.guideAppear();
 
-      // 3秒後にツールチップだけ消す（glowは残す）→ 要素を確実に操作可能に
-      setTimeout(() => {
-        overlay.classList.remove('active');
-      }, 3000);
+      // 完了済みなら2秒で自動進行 / 通常は3秒でツールチップだけ消す
+      if (isCompleted) {
+        setTimeout(() => {
+          overlay.classList.remove('active');
+          targetEl.classList.remove('guide-glow');
+          next();
+        }, 2000);
+      } else {
+        setTimeout(() => {
+          overlay.classList.remove('active');
+        }, 3000);
+      }
     }, 400);
   }
 
