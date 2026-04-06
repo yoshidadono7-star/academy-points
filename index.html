@@ -1883,6 +1883,258 @@ function closeModal() {
 }
 
 // ============================================
+// 生徒カルテ（総合ビュー）
+// ============================================
+async function showStudentKarte(studentId) {
+  try {
+    const [student, studyLogs, conditions, messages, badges, coins, examResults] = await Promise.all([
+      StudentsDB.getById(studentId),
+      StudyLogsDB.getByStudent(studentId, 20),
+      ConditionsDB.getByStudent(studentId, 14),
+      MessagesDB.getByStudent(studentId),
+      BadgesDB.getByStudent(studentId),
+      CoinsDB.getByStudent(studentId, 20),
+      ExamResultsDB.getByStudent(studentId)
+    ]);
+    if (!student) { showToast('生徒が見つかりません', 'error'); return; }
+
+    // スケジュール（直近2週間）
+    const today = new Date();
+    const twoWeeksAgo = new Date(); twoWeeksAgo.setDate(today.getDate() - 7);
+    const twoWeeksLater = new Date(); twoWeeksLater.setDate(today.getDate() + 14);
+    const startD = twoWeeksAgo.toISOString().slice(0,10);
+    const endD = twoWeeksLater.toISOString().slice(0,10);
+    let schedSlots = [];
+    try {
+      const snap = await db.collection('scheduleSlots')
+        .where('studentId', '==', studentId)
+        .where('date', '>=', startD)
+        .where('date', '<=', endD)
+        .orderBy('date', 'asc').get();
+      schedSlots = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch(e) { console.warn('Schedule fetch error:', e); }
+
+    // 受験情報
+    let examSchedules = [];
+    try { examSchedules = await ExamSchedulesDB.getUpcoming(10); } catch(e) {}
+
+    const ri = getRankInfo(student.rank || 'rookie');
+    const lv = student.level || calcLevel(student.totalPoints || 0);
+    const days = ['日','月','火','水','木','金','土'];
+
+    // ===== HTML構築 =====
+    let html = '<div style="max-height:80vh;overflow-y:auto;padding:4px;">';
+
+    // --- 基本情報 ---
+    html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div style="background:linear-gradient(135deg,#667eea20,#764ba220);border-radius:12px;padding:14px;">
+        <div style="font-size:20px;font-weight:800;margin-bottom:4px;">${escapeHtml(student.name)}</div>
+        <div style="font-size:12px;color:var(--text-light);">
+          ${escapeHtml(student.callsign || student.nickname || '')} | ${escapeHtml(student.grade || '-')} | ${escapeHtml(student.school || '-')}
+        </div>
+        <div style="margin-top:8px;display:flex;gap:12px;flex-wrap:wrap;">
+          <span style="font-size:13px;">${ri.icon} ${ri.name}</span>
+          <span style="font-size:13px;">${levelIcon(lv)} Lv.${lv}</span>
+          <span style="font-size:13px;font-weight:700;color:#059669;">${(student.currentPoints || 0).toLocaleString()} pt</span>
+        </div>
+        <div style="font-size:11px;color:var(--text-light);margin-top:4px;">
+          累計: ${(student.totalPoints || 0).toLocaleString()} pt | 連続: ${student.streak || 0}日 | 最長: ${student.bestStreak || 0}日
+        </div>
+      </div>
+      <div style="background:#f8fafc;border-radius:12px;padding:14px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:6px;">🎯 目標・志望校</div>
+        ${buildKarteTargetInfo(student)}
+        ${(student.certGoals || []).length > 0 ? '<div style="margin-top:6px;">' + student.certGoals.map(c => {
+          const ex = CERTIFICATION_EXAMS[c.examId];
+          return ex ? '<span style="background:#ede9fe;color:#6d28d9;padding:2px 6px;border-radius:4px;font-size:10px;margin-right:4px;">' + ex.icon + c.targetLevel + '</span>' : '';
+        }).join('') + '</div>' : ''}
+      </div>
+    </div>`;
+
+    // --- 受験カウントダウン ---
+    if (examSchedules.length > 0) {
+      html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">';
+      examSchedules.slice(0, 4).forEach(e => {
+        const daysUntil = Math.ceil((new Date(e.date) - today) / 86400000);
+        if (daysUntil > 0) {
+          const urgency = daysUntil <= 14 ? '#ef4444' : daysUntil <= 30 ? '#f59e0b' : '#3b82f6';
+          html += '<span style="background:' + urgency + ';color:white;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:600;">' + (e.examName || e.examType) + ' あと' + daysUntil + '日</span>';
+        }
+      });
+      html += '</div>';
+    }
+
+    // --- スケジュール ---
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:12px;">';
+    html += '<div style="font-size:14px;font-weight:700;margin-bottom:8px;">📅 スケジュール（過去1週〜今後2週）</div>';
+    if (schedSlots.length === 0) {
+      html += '<div style="color:#94a3b8;font-size:12px;">予定なし</div>';
+    } else {
+      const statusIcons = { scheduled: '⏰', attended: '✅', absent: '❌', cancelled: '🗑', rescheduled: '🔄' };
+      const approvalIcons = { pending: '🔶', approved: '', rejected: '❌' };
+      html += '<div style="display:grid;gap:4px;">';
+      schedSlots.filter(s => s.status !== 'cancelled').forEach(s => {
+        const d = new Date(s.date + 'T00:00:00');
+        const isPast = s.date < today.toISOString().slice(0,10);
+        const isToday = s.date === today.toISOString().slice(0,10);
+        html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;font-size:12px;' +
+          (isToday ? 'background:#dbeafe;border:1px solid #3b82f6;' : isPast ? 'opacity:0.6;' : 'background:#f8fafc;') + '">' +
+          '<span style="font-weight:700;min-width:70px;">' + s.date.slice(5) + '(' + days[d.getDay()] + ')</span>' +
+          '<span>' + s.startTime + '〜' + s.endTime + '</span>' +
+          '<span>' + (s.subjects ? s.subjects.join(',') : '') + '</span>' +
+          '<span style="margin-left:auto;">' + (statusIcons[s.status] || '') + (approvalIcons[s.approval] || '') + '</span>' +
+          '</div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+
+    // --- コンディション ---
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:12px;">';
+    html += '<div style="font-size:14px;font-weight:700;margin-bottom:8px;">💚 コンディション推移</div>';
+    if (conditions.length === 0) {
+      html += '<div style="color:#94a3b8;font-size:12px;">記録なし</div>';
+    } else {
+      const moodEmoji = ['','😢','😟','😐','😊','🤩'];
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;">';
+      conditions.slice(0, 14).reverse().forEach(c => {
+        html += '<div style="text-align:center;padding:6px;background:#f8fafc;border-radius:8px;">' +
+          '<div style="font-size:10px;color:#94a3b8;">' + (c.date || '').slice(5) + '</div>' +
+          '<div style="font-size:20px;">' + (moodEmoji[c.mood] || '😐') + '</div>' +
+          '<div style="font-size:9px;color:#64748b;">⚡' + (c.energy || '-') + ' 🔥' + (c.motivation || '-') + '</div>' +
+          '</div>';
+      });
+      html += '</div>';
+      if (conditions[0] && conditions[0].note) {
+        html += '<div style="margin-top:6px;font-size:11px;color:#64748b;background:#fefce8;padding:6px 8px;border-radius:6px;">💬 ' + escapeHtml(conditions[0].note) + '</div>';
+      }
+    }
+    html += '</div>';
+
+    // --- メッセージ ---
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:12px;">';
+    html += '<div style="font-size:14px;font-weight:700;margin-bottom:8px;">💬 最近のメッセージ</div>';
+    const recentMsgs = (messages || []).slice(0, 8);
+    if (recentMsgs.length === 0) {
+      html += '<div style="color:#94a3b8;font-size:12px;">メッセージなし</div>';
+    } else {
+      recentMsgs.forEach(m => {
+        const isFromTeacher = m.fromType === 'teacher';
+        const ts = m.createdAt && m.createdAt.toDate ? m.createdAt.toDate().toLocaleDateString('ja-JP', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+        html += '<div style="padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:12px;">' +
+          '<span style="color:' + (isFromTeacher ? '#3b82f6' : '#10b981') + ';font-weight:600;">' + (isFromTeacher ? '先生' : '生徒') + '</span> ' +
+          '<span style="color:#94a3b8;font-size:10px;">' + ts + '</span>' +
+          '<div style="margin-top:2px;">' + escapeHtml(m.content || '').slice(0, 100) + '</div>' +
+          '</div>';
+      });
+    }
+    html += '</div>';
+
+    // --- 学習履歴 ---
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">';
+    // 左: 最近の学習ログ
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;">';
+    html += '<div style="font-size:14px;font-weight:700;margin-bottom:8px;">📊 学習履歴</div>';
+    if (studyLogs.length === 0) {
+      html += '<div style="color:#94a3b8;font-size:12px;">記録なし</div>';
+    } else {
+      const totalMin = studyLogs.reduce((a, l) => a + (l.duration || 0), 0);
+      const totalPts = studyLogs.reduce((a, l) => a + (l.points || 0), 0);
+      html += '<div style="font-size:12px;color:#64748b;margin-bottom:6px;">直近' + studyLogs.length + '件: ' + Math.round(totalMin/60*10)/10 + '時間 / ' + totalPts + 'pt</div>';
+      // 科目別集計
+      const subjectMap = {};
+      studyLogs.forEach(l => { const s = l.subject || '不明'; subjectMap[s] = (subjectMap[s] || 0) + (l.duration || 0); });
+      html += '<div style="display:flex;flex-wrap:wrap;gap:4px;">';
+      Object.entries(subjectMap).sort((a,b) => b[1]-a[1]).forEach(([subj, min]) => {
+        html += '<span style="background:#f0f9ff;color:#0369a1;padding:2px 8px;border-radius:6px;font-size:10px;">' + subj + ' ' + Math.round(min/60*10)/10 + 'h</span>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+
+    // 右: テスト結果
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;">';
+    html += '<div style="font-size:14px;font-weight:700;margin-bottom:8px;">📝 テスト結果</div>';
+    if (examResults.length === 0) {
+      html += '<div style="color:#94a3b8;font-size:12px;">結果なし</div>';
+    } else {
+      examResults.slice(0, 5).forEach(e => {
+        const pct = e.maxTotalScore ? Math.round(e.totalScore / e.maxTotalScore * 100) : null;
+        html += '<div style="padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:12px;">' +
+          '<span style="font-weight:600;">' + escapeHtml(e.examName || '') + '</span> ' +
+          '<span style="color:#94a3b8;">' + (e.date || '') + '</span>' +
+          '<div style="font-weight:700;color:#7c3aed;">' + (e.totalScore || 0) + '/' + (e.maxTotalScore || '-') +
+          (pct !== null ? ' (' + pct + '%)' : '') + '</div></div>';
+      });
+    }
+    html += '</div></div>';
+
+    // --- バッジ ---
+    if (badges.length > 0) {
+      html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:12px;">';
+      html += '<div style="font-size:14px;font-weight:700;margin-bottom:8px;">🏅 獲得バッジ（' + badges.length + '個）</div>';
+      html += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+      badges.slice(0, 20).forEach(b => {
+        html += '<span style="background:#fef3c7;padding:4px 8px;border-radius:8px;font-size:11px;" title="' + escapeHtml(b.desc || '') + '">' + (b.icon || '🏅') + ' ' + escapeHtml(b.name || '') + '</span>';
+      });
+      html += '</div></div>';
+    }
+
+    // --- コーチングメモ ---
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:12px;">';
+    html += '<div style="font-size:14px;font-weight:700;margin-bottom:8px;">📝 コーチングメモ</div>';
+    html += '<textarea id="karteCoachNote" style="width:100%;min-height:80px;border:1px solid #e2e8f0;border-radius:8px;padding:8px;font-size:12px;box-sizing:border-box;resize:vertical;" placeholder="ミーティング時のメモ…"></textarea>';
+    html += '<button class="btn btn-primary btn-sm" style="margin-top:6px;" onclick="saveKarteNote(\'' + studentId + '\')">メモ保存</button>';
+    html += '</div>';
+
+    html += '</div>';
+
+    openModal('📋 ' + student.name + ' のカルテ', html,
+      '<button class="btn btn-secondary" onclick="editStudent(\'' + studentId + '\')">✏️ 生徒編集</button> <button class="btn btn-secondary" onclick="closeModal()">閉じる</button>');
+
+    // 保存済みメモを読み込み
+    try {
+      const noteDoc = await db.collection('coachingNotes').doc(studentId).get();
+      if (noteDoc.exists) document.getElementById('karteCoachNote').value = noteDoc.data().note || '';
+    } catch(e) {}
+
+  } catch(e) { console.error('Student karte error:', e); showToast('カルテの読み込みに失敗しました', 'error'); }
+}
+
+function buildKarteTargetInfo(s) {
+  const g = s.grade || '';
+  let html = '';
+  if (g.startsWith('小') && s.examCandidate && s.targetJuniorHighs && s.targetJuniorHighs.length) {
+    html = s.targetJuniorHighs.map((t, i) => {
+      const d = TARGET_JUNIOR_HIGHS[t.id];
+      return d ? '<div style="font-size:12px;color:' + (i===0 ? '#f59e0b' : '#94a3b8') + ';font-weight:' + (i===0 ? '700' : '400') + '">' + (i===0 ? '🎯 ' : '　') + d.name + (t.faculty ? ' ' + t.faculty : '') + '</div>' : '';
+    }).filter(Boolean).join('');
+  } else if (g.startsWith('中') && s.targetStation) {
+    const ts = TARGET_STATIONS[s.targetStation];
+    if (ts) html = '<div style="font-size:12px;font-weight:700;">' + ts.icon + ' ' + ts.name + '</div>';
+  } else if ((g.startsWith('高') || g === '既卒生') && s.targetUniversities && s.targetUniversities.length) {
+    html = s.targetUniversities.map((t, i) => {
+      const d = TARGET_UNIVERSITIES[t.id];
+      return d ? '<div style="font-size:12px;color:' + (i===0 ? '#7c3aed' : '#94a3b8') + ';font-weight:' + (i===0 ? '700' : '400') + '">' + (i===0 ? '🎯 ' : '　') + d.name + (t.faculty ? ' ' + t.faculty : '') + '</div>' : '';
+    }).filter(Boolean).join('');
+  } else if (g === '社会人' && s.targetQualifications && s.targetQualifications.length) {
+    html = s.targetQualifications.map((q, i) => '<div style="font-size:12px;color:' + (i===0 ? '#0891b2' : '#94a3b8') + '">' + (i===0 ? '🎯 ' : '　') + q.name + '</div>').join('');
+  }
+  return html || '<div style="font-size:12px;color:#cbd5e1;">未設定</div>';
+}
+
+async function saveKarteNote(studentId) {
+  const note = document.getElementById('karteCoachNote').value;
+  try {
+    await db.collection('coachingNotes').doc(studentId).set({
+      note,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+    showToast('メモを保存しました');
+  } catch(e) { showToast('保存に失敗しました', 'error'); }
+}
+
+// ============================================
 // 1. ランキング
 // ============================================
 async function loadRanking() {
@@ -2282,7 +2534,7 @@ async function loadStudents() {
           const roleTag = s.role === 'supporter' ? '<span style="background:#fbbf24;color:#78350f;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:4px">&#128588;サポーター</span>' : '';
           const matIcons = (s.materials || []).map(mid => { const m = getMaterialById(mid); return m ? m.icon : ''; }).join('');
           return `<tr>
-          <td><strong>${escapeHtml(s.name)}</strong> <span style="color:#6366f1;font-size:11px;">${escapeHtml(s.callsign || s.nickname || '')}</span>${roleTag}</td>
+          <td><strong style="cursor:pointer;color:#6366f1;text-decoration:underline;" onclick="event.stopPropagation();showStudentKarte('${s.id}')">${escapeHtml(s.name)}</strong> <span style="color:#6366f1;font-size:11px;">${escapeHtml(s.callsign || s.nickname || '')}</span>${roleTag}</td>
           <td>${escapeHtml(s.callsign || s.nickname || '-')}</td>
           <td>${escapeHtml(s.grade || '-')}</td>
           <td style="font-size:11px;">${(() => {
