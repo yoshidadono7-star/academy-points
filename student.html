@@ -837,6 +837,138 @@ body.theme-space {
 }
 @keyframes eventPulse { 0%,100%{box-shadow:0 4px 20px rgba(255,136,0,0.3)} 50%{box-shadow:0 4px 40px rgba(255,136,0,0.6)} }
 @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.5} }
+
+/* ===== Phase 12: カットシーン・演出システム ===== */
+.cutscene-overlay {
+  display: none; position: fixed; inset: 0; z-index: 10000;
+  background: #000; align-items: center; justify-content: center; flex-direction: column;
+}
+.cutscene-overlay.active { display: flex; }
+.cutscene-overlay video {
+  max-width: 100%; max-height: 80vh; border-radius: 8px;
+}
+.cutscene-skip {
+  position: absolute; bottom: 40px; right: 30px;
+  background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3);
+  padding: 8px 20px; border-radius: 20px; font-size: 13px; cursor: pointer;
+  backdrop-filter: blur(4px); transition: all 0.3s;
+}
+.cutscene-skip:hover { background: rgba(255,255,255,0.3); }
+
+/* レベルアップ演出 */
+.levelup-overlay {
+  display: none; position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.85); align-items: center; justify-content: center; flex-direction: column;
+}
+.levelup-overlay.active { display: flex; }
+@keyframes levelUpGlow {
+  0% { transform: scale(0.3); opacity: 0; filter: blur(20px); }
+  50% { transform: scale(1.2); opacity: 1; filter: blur(0); }
+  70% { transform: scale(0.95); }
+  100% { transform: scale(1); opacity: 1; }
+}
+@keyframes levelUpRing {
+  0% { transform: scale(0); opacity: 1; }
+  100% { transform: scale(3); opacity: 0; }
+}
+@keyframes levelUpText {
+  0% { transform: translateY(30px); opacity: 0; }
+  100% { transform: translateY(0); opacity: 1; }
+}
+@keyframes starBurst {
+  0% { transform: rotate(0deg) scale(0); opacity: 1; }
+  50% { transform: rotate(180deg) scale(1.5); opacity: 0.8; }
+  100% { transform: rotate(360deg) scale(0); opacity: 0; }
+}
+.levelup-icon {
+  font-size: 80px; animation: levelUpGlow 1.2s ease-out forwards;
+}
+.levelup-ring {
+  position: absolute; width: 120px; height: 120px; border-radius: 50%;
+  border: 3px solid #ffd700; animation: levelUpRing 1.5s ease-out forwards;
+}
+.levelup-ring:nth-child(2) { animation-delay: 0.3s; border-color: #667eea; }
+.levelup-ring:nth-child(3) { animation-delay: 0.6s; border-color: #764ba2; }
+.levelup-title {
+  font-size: 32px; font-weight: 900; color: #ffd700;
+  text-shadow: 0 0 30px rgba(255,215,0,0.5); margin-top: 20px;
+  animation: levelUpText 0.8s ease-out 0.5s both;
+}
+.levelup-detail {
+  font-size: 16px; color: #e2e8f0; margin-top: 8px;
+  animation: levelUpText 0.8s ease-out 0.7s both;
+}
+.levelup-stars {
+  position: absolute; width: 200px; height: 200px;
+}
+.levelup-star {
+  position: absolute; font-size: 20px;
+  animation: starBurst 1.5s ease-out forwards;
+}
+
+/* ボス討伐演出 */
+.boss-defeat-overlay {
+  display: none; position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,0.9); align-items: center; justify-content: center; flex-direction: column;
+}
+.boss-defeat-overlay.active { display: flex; }
+@keyframes bossExplode {
+  0% { transform: scale(1); opacity: 1; filter: brightness(1); }
+  30% { transform: scale(1.3); filter: brightness(3); }
+  60% { transform: scale(0.8); opacity: 0.5; filter: brightness(5); }
+  100% { transform: scale(0); opacity: 0; }
+}
+@keyframes victoryFlash {
+  0% { opacity: 0; } 10% { opacity: 1; } 20% { opacity: 0; } 30% { opacity: 0.8; } 100% { opacity: 0; }
+}
+@keyframes victoryText {
+  0% { transform: scale(0) rotate(-10deg); opacity: 0; }
+  60% { transform: scale(1.15) rotate(2deg); }
+  100% { transform: scale(1) rotate(0deg); opacity: 1; }
+}
+.boss-icon-explode {
+  font-size: 100px; animation: bossExplode 1.5s ease-in forwards;
+}
+.victory-flash {
+  position: absolute; inset: 0; background: #fff;
+  animation: victoryFlash 1s ease-out 1.2s both;
+}
+.victory-text {
+  font-size: 36px; font-weight: 900; color: #ffd700;
+  text-shadow: 0 0 40px rgba(255,215,0,0.6), 0 4px 20px rgba(0,0,0,0.5);
+  animation: victoryText 0.8s ease-out 1.8s both;
+}
+.victory-reward {
+  font-size: 18px; color: #48bb78; margin-top: 12px;
+  animation: levelUpText 0.8s ease-out 2.2s both;
+}
+
+/* オープニング */
+@keyframes openingFadeIn {
+  0% { opacity: 0; transform: translateY(20px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.opening-overlay {
+  display: none; position: fixed; inset: 0; z-index: 10000;
+  background: linear-gradient(180deg, #0a0a2e 0%, #1a1a4e 50%, #0f172a 100%);
+  align-items: center; justify-content: center; flex-direction: column;
+  color: #e2e8f0; text-align: center; padding: 20px;
+}
+.opening-overlay.active { display: flex; }
+.opening-text {
+  font-size: 18px; line-height: 2; max-width: 500px;
+  opacity: 0; animation: openingFadeIn 1.5s ease-out forwards;
+}
+.opening-text:nth-child(2) { animation-delay: 2s; }
+.opening-text:nth-child(3) { animation-delay: 4s; }
+.opening-title {
+  font-size: 42px; font-weight: 900; color: #ffd700;
+  text-shadow: 0 0 40px rgba(255,215,0,0.4);
+  opacity: 0; animation: openingFadeIn 1.5s ease-out 6s forwards;
+}
+.opening-proceed {
+  margin-top: 30px; opacity: 0; animation: openingFadeIn 1s ease-out 8s forwards;
+}
 </style>
 </head>
 <body>
@@ -862,6 +994,43 @@ body.theme-space {
 
 <!-- Confetti Container -->
 <div id="confettiContainer" class="confetti-container"></div>
+
+<!-- Phase 12: カットシーン用オーバーレイ -->
+<div id="cutsceneOverlay" class="cutscene-overlay">
+  <video id="cutsceneVideo" playsinline></video>
+  <button class="cutscene-skip" onclick="skipCutscene()">スキップ ▸</button>
+</div>
+
+<!-- Phase 12: レベルアップ演出 -->
+<div id="levelupOverlay" class="levelup-overlay" onclick="closeLevelUp()">
+  <div class="levelup-stars" id="levelupStars"></div>
+  <div class="levelup-ring"></div>
+  <div class="levelup-ring"></div>
+  <div class="levelup-ring"></div>
+  <div class="levelup-icon" id="levelupIcon"></div>
+  <div class="levelup-title" id="levelupTitle"></div>
+  <div class="levelup-detail" id="levelupDetail"></div>
+</div>
+
+<!-- Phase 12: ボス討伐演出 -->
+<div id="bossDefeatOverlay" class="boss-defeat-overlay">
+  <div class="victory-flash"></div>
+  <div class="boss-icon-explode" id="bossDefeatIcon"></div>
+  <div class="victory-text" id="bossDefeatText">VICTORY!</div>
+  <div class="victory-reward" id="bossDefeatReward"></div>
+</div>
+
+<!-- Phase 12: オープニング -->
+<div id="openingOverlay" class="opening-overlay">
+  <div style="font-size:60px;margin-bottom:20px;opacity:0;animation:openingFadeIn 1.5s ease-out 0.5s forwards;">🚀</div>
+  <div class="opening-text">この宇宙には、まだ見ぬ星がある——</div>
+  <div class="opening-text">知識という燃料で、君の船は飛ぶ。</div>
+  <div class="opening-text">仲間と共に、銀河の果てを目指せ。</div>
+  <div class="opening-title">HERO'S ACADEMY</div>
+  <div class="opening-proceed">
+    <button onclick="closeOpening()" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;padding:14px 40px;border-radius:30px;font-size:16px;font-weight:700;cursor:pointer;">冒険を始める</button>
+  </div>
+</div>
 
 <!-- ========== 1. ログイン画面 ========== -->
 <div id="screenLogin" class="screen screen-login active">
@@ -1438,6 +1607,12 @@ async function handleLogin() {
     localStorage.setItem('heroAcademy_student', JSON.stringify({ id: student.id, nickname, pin }));
     // プッシュ通知のセットアップ（バックグラウンドで実行）
     setupPushNotifications(student.id);
+    // Phase 12: 初回ログインオープニング
+    const isFirstLogin = !student.seenOpening;
+    if (isFirstLogin) {
+      await showOpening();
+      try { await StudentsDB.update(student.id, { seenOpening: true }); } catch(e) {}
+    }
     if (checkWorldSelectNeeded()) {
       renderWorldSelect(true);
       navigate('worldSelect');
@@ -2360,6 +2535,9 @@ async function stopStudy(save) {
   pauseTimer();
   clearInterval(timerState.interval);
 
+  // Phase 12: レベルアップ検出のため、現在のレベルを記録
+  _previousLevel = calcLevel(currentStudent.totalPoints || 0);
+
   // アクティブセッション終了
   try { await ActiveSessionsDB.end(currentStudent.id); } catch(e) {}
 
@@ -2729,6 +2907,40 @@ function showCompleteScreen(duration, points, newBadges, raidResults, comboResul
 
   navigate('complete');
   fireConfetti();
+
+  // Phase 12: 効果音
+  if (isImmediate) SESystem.pointsEarned();
+
+  // Phase 12: レベルアップ検出
+  if (_previousLevel !== null) {
+    const newLevel = calcLevel(currentStudent.totalPoints || 0);
+    if (newLevel > _previousLevel) {
+      setTimeout(() => showLevelUpEffect(newLevel), 800);
+    }
+  }
+
+  // Phase 12: バッジ獲得SE
+  if (newBadges.length > 0) {
+    setTimeout(() => SESystem.badgeUnlock(), 400);
+  }
+
+  // Phase 12: コンボ発動SE
+  if (comboResults.length > 0) {
+    setTimeout(() => SESystem.combo(), 600);
+  }
+
+  // Phase 12: ボス討伐演出
+  const bossDefeated = raidResults.find(r => r.defeated);
+  if (bossDefeated) {
+    setTimeout(() => showBossDefeatEffect(
+      bossDefeated.bossIcon, bossDefeated.bossName, bossDefeated.reward
+    ), 1200);
+  }
+
+  // Phase 12: ミッション達成SE
+  if (missionResult && missionResult.completed) {
+    setTimeout(() => SESystem.missionComplete(), 500);
+  }
 }
 
 // ============================================
@@ -3542,6 +3754,192 @@ async function loadComboEncyclopedia() {
   }
   hideLoading();
 }
+
+// ============================================
+// Phase 12: 効果音(SE)システム
+// ============================================
+const SESystem = (() => {
+  let audioCtx = null;
+
+  function getCtx() {
+    if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+    return audioCtx;
+  }
+
+  function playTone(freq, duration, type = 'sine', gain = 0.3) {
+    try {
+      const ctx = getCtx();
+      const osc = ctx.createOscillator();
+      const g = ctx.createGain();
+      osc.type = type;
+      osc.frequency.setValueAtTime(freq, ctx.currentTime);
+      g.gain.setValueAtTime(gain, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + duration);
+      osc.connect(g);
+      g.connect(ctx.destination);
+      osc.start();
+      osc.stop(ctx.currentTime + duration);
+    } catch (e) { /* silent fail */ }
+  }
+
+  return {
+    // ポイント獲得
+    pointsEarned() {
+      playTone(523, 0.1, 'sine', 0.2);
+      setTimeout(() => playTone(659, 0.1, 'sine', 0.2), 80);
+      setTimeout(() => playTone(784, 0.15, 'sine', 0.2), 160);
+    },
+    // レベルアップ
+    levelUp() {
+      const notes = [523, 659, 784, 1047];
+      notes.forEach((f, i) => setTimeout(() => playTone(f, 0.3, 'sine', 0.25), i * 150));
+      setTimeout(() => playTone(1047, 0.8, 'triangle', 0.2), 600);
+    },
+    // バッジ獲得
+    badgeUnlock() {
+      playTone(880, 0.15, 'sine', 0.2);
+      setTimeout(() => playTone(1108, 0.15, 'sine', 0.2), 120);
+      setTimeout(() => playTone(1318, 0.4, 'sine', 0.25), 240);
+    },
+    // コンボ発動
+    combo() {
+      playTone(440, 0.08, 'square', 0.15);
+      setTimeout(() => playTone(554, 0.08, 'square', 0.15), 60);
+      setTimeout(() => playTone(659, 0.12, 'square', 0.2), 120);
+    },
+    // ボス討伐
+    bossDefeat() {
+      const bass = [130, 164, 196, 262];
+      bass.forEach((f, i) => setTimeout(() => playTone(f, 0.4, 'sawtooth', 0.15), i * 200));
+      setTimeout(() => {
+        playTone(523, 0.6, 'sine', 0.3);
+        playTone(659, 0.6, 'sine', 0.25);
+        playTone(784, 0.6, 'sine', 0.2);
+      }, 800);
+    },
+    // ミッション達成
+    missionComplete() {
+      playTone(392, 0.15, 'sine', 0.2);
+      setTimeout(() => playTone(523, 0.15, 'sine', 0.2), 100);
+      setTimeout(() => playTone(659, 0.3, 'sine', 0.25), 200);
+    },
+    // ボタンタップ
+    tap() {
+      playTone(800, 0.05, 'sine', 0.1);
+    },
+    // エラー
+    error() {
+      playTone(200, 0.3, 'sawtooth', 0.15);
+    },
+    // オープニング
+    opening() {
+      const melody = [262, 330, 392, 523, 392, 523, 659];
+      melody.forEach((f, i) => setTimeout(() => playTone(f, 0.5, 'sine', 0.15), i * 400));
+    }
+  };
+})();
+
+// ============================================
+// Phase 12: カットシーンシステム
+// ============================================
+let cutsceneResolve = null;
+
+function playCutscene(videoUrl) {
+  return new Promise((resolve) => {
+    cutsceneResolve = resolve;
+    const overlay = document.getElementById('cutsceneOverlay');
+    const video = document.getElementById('cutsceneVideo');
+    video.src = videoUrl;
+    video.muted = false;
+    overlay.classList.add('active');
+    video.play().catch(() => {
+      video.muted = true;
+      video.play().catch(() => skipCutscene());
+    });
+    video.onended = () => skipCutscene();
+  });
+}
+
+function skipCutscene() {
+  const overlay = document.getElementById('cutsceneOverlay');
+  const video = document.getElementById('cutsceneVideo');
+  video.pause();
+  video.src = '';
+  overlay.classList.remove('active');
+  if (cutsceneResolve) { cutsceneResolve(); cutsceneResolve = null; }
+}
+
+// ============================================
+// Phase 12: レベルアップ演出
+// ============================================
+function showLevelUpEffect(newLevel) {
+  const icons = ['', '🌱', '🌿', '🌳', '🌸', '⭐', '💎', '👑', '🏆', '🔥', '🌟'];
+  const overlay = document.getElementById('levelupOverlay');
+  document.getElementById('levelupIcon').textContent = icons[newLevel] || '⭐';
+  document.getElementById('levelupTitle').textContent = `LEVEL ${newLevel}`;
+  document.getElementById('levelupDetail').textContent = '新たな力が目覚めた！';
+
+  // 星バースト
+  const starsContainer = document.getElementById('levelupStars');
+  starsContainer.innerHTML = '';
+  const starEmojis = ['✨', '⭐', '💫', '🌟', '✦'];
+  for (let i = 0; i < 12; i++) {
+    const star = document.createElement('div');
+    star.className = 'levelup-star';
+    star.textContent = starEmojis[i % starEmojis.length];
+    const angle = (i / 12) * 360;
+    const rad = angle * Math.PI / 180;
+    star.style.left = (100 + Math.cos(rad) * 80) + 'px';
+    star.style.top = (100 + Math.sin(rad) * 80) + 'px';
+    star.style.animationDelay = (i * 0.1) + 's';
+    starsContainer.appendChild(star);
+  }
+
+  overlay.classList.add('active');
+  SESystem.levelUp();
+
+  setTimeout(() => overlay.classList.remove('active'), 4000);
+}
+
+function closeLevelUp() {
+  document.getElementById('levelupOverlay').classList.remove('active');
+}
+
+// ============================================
+// Phase 12: ボス討伐演出
+// ============================================
+function showBossDefeatEffect(bossIcon, bossName, reward) {
+  const overlay = document.getElementById('bossDefeatOverlay');
+  document.getElementById('bossDefeatIcon').textContent = bossIcon || '👹';
+  document.getElementById('bossDefeatText').textContent = `${bossName || 'ボス'} 討伐！`;
+  document.getElementById('bossDefeatReward').textContent = `+${reward || 0} ボーナスポイント獲得！`;
+
+  overlay.classList.add('active');
+  SESystem.bossDefeat();
+
+  setTimeout(() => overlay.classList.remove('active'), 4500);
+}
+
+// ============================================
+// Phase 12: オープニング演出
+// ============================================
+function showOpening() {
+  return new Promise((resolve) => {
+    const overlay = document.getElementById('openingOverlay');
+    overlay.classList.add('active');
+    SESystem.opening();
+    window._openingResolve = resolve;
+  });
+}
+
+function closeOpening() {
+  const overlay = document.getElementById('openingOverlay');
+  overlay.classList.remove('active');
+  if (window._openingResolve) { window._openingResolve(); window._openingResolve = null; }
+}
+
+// レベル変化検出用
+let _previousLevel = null;
 
 // ============================================
 // Init
