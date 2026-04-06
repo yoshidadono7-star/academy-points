@@ -272,5 +272,17 @@ service cloud.firestore {
       allow create, update: if true;
       allow delete: if isAdmin();
     }
+
+    // 面談記録
+    match /interviewRecords/{recordId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // コーチングメモ（旧）
+    match /coachingNotes/{noteId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
   }
 }
