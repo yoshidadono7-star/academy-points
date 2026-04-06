@@ -1595,7 +1595,14 @@ const DailyMissionsDB = {
     if (!existing.empty) return { id: existing.docs[0].id, ...existing.docs[0].data() };
 
     const drawn = [];
-    for (let i = 0; i < 3; i++) {
+    // シールド防衛ミッション: 中間テスト無し月は1枠をシールドミッションに
+    const useShield = isNoMidtermShieldMonth();
+    if (useShield && SHIELD_DEFENSE_MISSIONS.length > 0) {
+      const shieldPick = SHIELD_DEFENSE_MISSIONS[Math.floor(Math.random() * SHIELD_DEFENSE_MISSIONS.length)];
+      drawn.push({ missionId: shieldPick.id, rarity: shieldPick.rarity });
+    }
+    const remaining = 3 - drawn.length;
+    for (let i = 0; i < remaining; i++) {
       const rarity = this.rollRarity();
       const pool = DAILY_MISSION_POOL.filter(
         m => m.rarity === rarity && !drawn.some(d => d.missionId === m.id)
@@ -1669,7 +1676,7 @@ const DailyMissionsDB = {
     const draw = { id: drawSnap.docs[0].id, ...drawSnap.docs[0].data() };
     if (!draw.accepted || draw.completed) return draw;
 
-    const mission = DAILY_MISSION_POOL.find(m => m.id === draw.accepted);
+    const mission = this.getMissionDef(draw.accepted);
     if (!mission || mission.checkType === 'manual') return draw;
 
     const dayStats = await this.buildDayStats(studentId);
@@ -1712,7 +1719,9 @@ const DailyMissionsDB = {
   },
 
   getMissionDef(missionId) {
-    return DAILY_MISSION_POOL.find(m => m.id === missionId) || null;
+    return DAILY_MISSION_POOL.find(m => m.id === missionId)
+      || SHIELD_DEFENSE_MISSIONS.find(m => m.id === missionId)
+      || null;
   }
 };
 

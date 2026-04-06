@@ -2035,6 +2035,7 @@ async function loadStudents() {
             <div class="btn-group">
               <button class="btn btn-secondary btn-sm" onclick="editStudent('${s.id}')">編集</button>
               <button class="btn btn-sm" style="background:${s.role === 'supporter' ? '#fbbf24' : '#e2e8f0'};color:${s.role === 'supporter' ? '#78350f' : 'var(--text)'};font-size:10px" onclick="toggleStudentRole('${s.id}','${s.role || 'student'}')" title="${s.role === 'supporter' ? '生徒に戻す' : 'サポーターに変更'}">${s.role === 'supporter' ? '&#128588;' : '&#128100;'}</button>
+              ${s.role === 'supporter' ? `<button class="btn btn-sm" style="background:#34d399;color:#064e3b;font-size:10px" onclick="logSupportAction('${s.id}','${escapeHtml(s.name)}')" title="支援行動を記録">&#129309;</button>` : ''}
               <button class="btn btn-danger btn-sm" onclick="deleteStudent('${s.id}')">削除</button>
             </div>
           </td>
@@ -3096,6 +3097,34 @@ async function toggleStudentRole(studentId, currentRole) {
     showToast(`ロールを「${newRole === 'supporter' ? 'サポーター' : '生徒'}」に変更しました`);
     loadStudents();
   } catch(e) { showToast('ロール変更に失敗しました', 'error'); }
+}
+
+// 9c-2. サポーター支援行動記録
+async function logSupportAction(supporterId, supporterName) {
+  openModal('🤝 支援行動を記録', `
+    <p style="margin-bottom:12px;color:var(--text-light);">${escapeHtml(supporterName)} の支援行動を記録してポイントを付与します。</p>
+    <div class="form-group">
+      <label>行動タイプ</label>
+      <select class="form-control" id="supportActionType">
+        <option value="quiet_study">📖 静かに自習 (+5pt)</option>
+        <option value="teaching">👨‍🏫 後輩に教える (+15pt)</option>
+        <option value="encouragement">💪 声掛け・応援 (+10pt)</option>
+      </select>
+    </div>
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" onclick="doLogSupportAction('${supporterId}')">記録</button>
+  `);
+}
+
+async function doLogSupportAction(supporterId) {
+  const actionType = document.getElementById('supportActionType').value;
+  try {
+    const pts = await SupportFleetDB.logSupportAction(supporterId, actionType);
+    showToast(`支援行動を記録しました (+${pts}pt)`);
+    closeModal();
+    loadStudents();
+  } catch(e) { showToast('記録に失敗しました', 'error'); }
 }
 
 // ============================================

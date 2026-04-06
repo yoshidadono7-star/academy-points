@@ -599,6 +599,80 @@ body {
   letter-spacing: 3px;
 }
 
+/* ===== Space Map Full Screen ===== */
+.space-map-full {
+  min-height: 100vh;
+  background: linear-gradient(180deg, #0f0c29 0%, #302b63 40%, #24243e 70%, #0f0c29 100%);
+  padding: 16px;
+  color: #fff;
+}
+.space-map-full-title {
+  text-align: center; font-size: 18px; font-weight: 900;
+  margin-bottom: 4px; letter-spacing: 2px;
+  background: linear-gradient(90deg, #667eea, #ffd700);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+.space-map-full-sub { text-align: center; font-size: 11px; opacity: 0.5; margin-bottom: 20px; }
+.space-route {
+  position: relative; display: flex; flex-direction: column; align-items: center;
+  padding: 0 8px;
+}
+.space-route::before {
+  content: ''; position: absolute; top: 0; bottom: 0; left: 50%;
+  width: 2px; background: rgba(255,255,255,0.1);
+  transform: translateX(-50%); z-index: 0;
+}
+.space-node {
+  position: relative; z-index: 1; width: 100%; max-width: 340px;
+  display: flex; align-items: center; gap: 12px;
+  padding: 12px 16px; margin-bottom: 8px;
+  border-radius: 12px; transition: all 0.3s;
+}
+.space-node.reached {
+  background: rgba(102,126,234,0.2); border: 1px solid rgba(102,126,234,0.4);
+}
+.space-node.current {
+  background: linear-gradient(135deg, rgba(102,126,234,0.3), rgba(118,75,162,0.3));
+  border: 2px solid #ffd700; box-shadow: 0 0 20px rgba(255,215,0,0.3);
+  animation: currentGlow 2s ease-in-out infinite;
+}
+.space-node.locked {
+  background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08);
+  opacity: 0.45;
+}
+.space-node-icon { font-size: 32px; flex-shrink: 0; }
+.space-node-info { flex: 1; }
+.space-node-name { font-size: 14px; font-weight: 700; }
+.space-node-desc { font-size: 11px; opacity: 0.65; margin-top: 2px; }
+.space-node-pts { font-size: 10px; opacity: 0.5; margin-top: 2px; font-family: 'Orbitron', monospace; }
+.space-node-check { font-size: 18px; flex-shrink: 0; }
+.space-hidden-node {
+  position: relative; z-index: 1; width: 100%; max-width: 300px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; margin: -4px 0 8px 32px;
+  border-radius: 10px; border: 1px dashed rgba(255,215,0,0.3);
+  background: rgba(255,215,0,0.05);
+}
+.space-hidden-node.discovered {
+  border-color: #ffd700; background: rgba(255,215,0,0.15);
+  box-shadow: 0 0 12px rgba(255,215,0,0.15);
+}
+.space-hidden-node.undiscovered { opacity: 0.3; }
+.space-hidden-icon { font-size: 22px; flex-shrink: 0; }
+.space-hidden-info { flex: 1; }
+.space-hidden-name { font-size: 12px; font-weight: 600; }
+.space-hidden-cond { font-size: 10px; opacity: 0.6; margin-top: 1px; }
+.space-hidden-reward { font-size: 10px; color: #ffd700; margin-top: 2px; }
+@keyframes currentGlow {
+  0%, 100% { box-shadow: 0 0 20px rgba(255,215,0,0.3); }
+  50% { box-shadow: 0 0 35px rgba(255,215,0,0.5); }
+}
+.space-map-back {
+  display: block; margin: 0 auto 16px; padding: 8px 24px;
+  background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);
+  border-radius: 8px; color: #fff; font-size: 13px; cursor: pointer;
+}
+
 /* ===== Daily Mission Cards ===== */
 .mission-section {
   margin: 16px 16px 0;
@@ -983,12 +1057,15 @@ body.theme-space {
     </div>
   </div>
 
+  <!-- Monthly Story Theme -->
+  <div id="homeStoryBanner" style="display:none;margin:16px 16px 0;border-radius:12px;padding:14px 16px;position:relative;overflow:hidden;"></div>
+
   <!-- Space Map -->
   <!-- 教材進捗カード -->
   <div id="materialProgressCards" style="margin:0 16px 12px;display:none;"></div>
 
-  <div id="homeSpaceMap" class="space-map">
-    <div class="space-map-stars">. * . . * . * . .</div>
+  <div id="homeSpaceMap" class="space-map" onclick="navigate('spaceMap')" style="cursor:pointer;">
+    <div class="space-map-stars">. * . . * . * . . 📍タップで全体マップ</div>
     <div class="space-map-station">
       <div class="space-map-icon" id="spaceMapIcon">🌍</div>
       <div class="space-map-info">
@@ -1229,6 +1306,18 @@ body.theme-space {
   <div id="prizeGrid" class="prize-grid"></div>
 </div>
 
+<!-- ========== Rewards Catalog ========== -->
+<div id="screenRewards" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="navigate('home')">←</button>
+    <div class="header-title">報酬カタログ</div>
+    <div></div>
+  </div>
+  <div class="current-points-banner" id="rewardPointsBanner">所持ポイント: 0 pt</div>
+  <div id="rewardRankFilter" style="display:flex;gap:6px;padding:8px 16px;overflow-x:auto;"></div>
+  <div id="rewardGrid" class="prize-grid"></div>
+</div>
+
 <!-- ========== 10. 履歴画面 ========== -->
 <div id="screenHistory" class="screen">
   <div class="header">
@@ -1293,6 +1382,16 @@ body.theme-space {
   </div>
   <div class="combo-count" id="comboCount">0 / 0 発見</div>
   <div id="comboGrid" class="combo-grid"></div>
+</div>
+
+<!-- ========== Space Map Full ========== -->
+<div id="screenSpaceMap" class="screen">
+  <div class="space-map-full">
+    <button class="space-map-back" onclick="navigate('home')">← ホームに戻る</button>
+    <div class="space-map-full-title">SPACE MAP</div>
+    <div class="space-map-full-sub" id="spaceMapFullSub">航路マップ</div>
+    <div class="space-route" id="spaceRouteContainer"></div>
+  </div>
 </div>
 
 <!-- ========== Bottom Navigation ========== -->
@@ -1375,6 +1474,8 @@ function navigate(screen) {
     case 'guild': loadGuild(); break;
     case 'raidBoss': loadRaidBoss(); break;
     case 'combo': loadComboEncyclopedia(); break;
+    case 'spaceMap': loadSpaceMapScreen(); break;
+    case 'rewards': loadRewards(); break;
   }
 }
 
@@ -1397,7 +1498,9 @@ function showProfileMenu() {
   // Show a simple profile submenu via modal
   showModal('👤', 'マイページ', currentStudent ? (currentStudent.callsign || currentStudent.nickname || '') : '', `
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('history')" style="margin-bottom:8px">📊 学習履歴</button>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('spaceMap')" style="margin-bottom:8px">🚀 宇宙マップ</button>
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('badges')" style="margin-bottom:8px">🏅 バッジ</button>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('rewards')" style="margin-bottom:8px">🎖️ 報酬カタログ</button>
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('combo')" style="margin-bottom:8px">🔥 コンボ図鑑</button>
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('guild')" style="margin-bottom:8px">⚔️ ギルド</button>
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('condition')" style="margin-bottom:8px">😊 コンディション</button>
@@ -1597,6 +1700,28 @@ async function loadHome() {
   // Apply world theme
   applyWorldTheme(s.worldId || 'space');
 
+  // Monthly Story Theme
+  try {
+    const storyTheme = getCurrentStoryTheme();
+    const storyBanner = document.getElementById('homeStoryBanner');
+    if (storyTheme && storyBanner) {
+      storyBanner.style.display = 'block';
+      storyBanner.style.background = 'linear-gradient(135deg, #1e1b4b, #312e81)';
+      storyBanner.style.color = '#fff';
+      const monthNum = new Date().getMonth() + 1;
+      storyBanner.innerHTML = `
+        <div style="font-size:10px;opacity:0.5;letter-spacing:2px;margin-bottom:4px;">CHAPTER ${monthNum} / 12</div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="font-size:28px;">${storyTheme.icon}</div>
+          <div style="flex:1;">
+            <div style="font-size:14px;font-weight:700;">${storyTheme.name}</div>
+            <div style="font-size:11px;opacity:0.7;margin-top:2px;">${storyTheme.desc}</div>
+          </div>
+        </div>
+        <div style="position:absolute;bottom:0;left:0;right:0;height:3px;background:linear-gradient(90deg,#667eea,#764ba2,#ffd700);"></div>`;
+    }
+  } catch(e) {}
+
   // Space Map
   try {
     const station = SpaceMapDB.getStation(pts);
@@ -1713,6 +1838,80 @@ function setupLiveCrewListener() {
           '</div>';
       }).join('');
     }, err => { section.style.display = 'none'; });
+}
+
+// ============================================
+// Space Map Full Screen
+// ============================================
+async function loadSpaceMapScreen() {
+  if (!currentStudent) return;
+  const pts = currentStudent.totalPoints || 0;
+  const prog = SpaceMapDB.getStationProgress(pts);
+  const container = document.getElementById('spaceRouteContainer');
+  if (!container) return;
+
+  // 隠しエリアの発見状況を取得
+  let discoveries = [];
+  try { discoveries = await SpaceMapDB.getDiscoveries(currentStudent.id); } catch(e) {}
+  const discoveredIds = discoveries.map(d => d.areaId);
+
+  // afterStation でグループ化
+  const hiddenByStation = {};
+  HIDDEN_AREAS.forEach(area => {
+    if (!hiddenByStation[area.afterStation]) hiddenByStation[area.afterStation] = [];
+    hiddenByStation[area.afterStation].push(area);
+  });
+
+  const subEl = document.getElementById('spaceMapFullSub');
+  if (subEl) subEl.textContent = `${currentStudent.callsign || currentStudent.nickname || ''} — ${pts} pt 獲得`;
+
+  let html = '';
+  for (let i = 0; i < SPACE_STATIONS.length; i++) {
+    const st = SPACE_STATIONS[i];
+    const isCurrent = prog.current.id === st.id && prog.next !== null;
+    const isReached = pts >= st.points;
+    const isFinal = prog.current.id === st.id && prog.next === null;
+    const nodeClass = (isCurrent || isFinal) ? 'current' : isReached ? 'reached' : 'locked';
+
+    let progressBar = '';
+    if (isCurrent) {
+      progressBar = `<div style="margin-top:6px;background:rgba(255,255,255,0.15);height:6px;border-radius:3px;overflow:hidden;">
+        <div style="height:100%;width:${prog.percent}%;background:linear-gradient(90deg,#667eea,#ffd700);border-radius:3px;"></div>
+      </div>
+      <div style="font-size:10px;opacity:0.5;margin-top:2px;text-align:right;">${prog.percent}% → ${prog.next.icon} ${prog.next.name}</div>`;
+    }
+
+    html += `<div class="space-node ${nodeClass}">
+      <div class="space-node-icon">${st.icon}</div>
+      <div class="space-node-info">
+        <div class="space-node-name">${st.name}</div>
+        <div class="space-node-desc">${st.desc}</div>
+        <div class="space-node-pts">${st.points > 0 ? st.points + ' pt' : 'START'}</div>
+        ${progressBar}
+      </div>
+      <div class="space-node-check">${isReached ? '✅' : '🔒'}</div>
+    </div>`;
+
+    // このステーションの後の隠しエリアを表示
+    if (hiddenByStation[st.id]) {
+      for (const area of hiddenByStation[st.id]) {
+        const isDiscovered = discoveredIds.includes(area.id);
+        html += `<div class="space-hidden-node ${isDiscovered ? 'discovered' : 'undiscovered'}">
+          <div class="space-hidden-icon">${isDiscovered ? area.icon : '❓'}</div>
+          <div class="space-hidden-info">
+            <div class="space-hidden-name">${isDiscovered ? area.name : '??? 隠しエリア ???'}</div>
+            <div class="space-hidden-cond">${isDiscovered ? '発見済み！' : area.condition.replace(/(\w+)\s*(>=?)\s*(\d+)/g, (m, key, op, val) => {
+              const labels = { comboDiscoveryCount: 'コンボ発見数', bestStreak: '最大連続日数', allTimeSubjectCount: '学習科目数', totalPomodoros: 'ポモドーロ回数', legendaryMissionCleared: '伝説ミッション', raidBossKills: 'ボス討伐数' };
+              return (labels[key] || key) + ' ' + op + ' ' + val;
+            })}</div>
+            ${isDiscovered && area.reward ? `<div class="space-hidden-reward">🏷️ 称号: ${area.reward.title}</div>` : ''}
+          </div>
+        </div>`;
+      }
+    }
+  }
+
+  container.innerHTML = html;
 }
 
 // リアルタイム: イベント発動バナー
@@ -2518,6 +2717,7 @@ async function stopStudy(save) {
           if (result.defeated) {
             await StudentsDB.addPoints(currentStudent.id, result.reward);
             await BadgesDB.award(currentStudent.id, 'raid_killer');
+            try { await NotificationsDB.add({ type: 'raid', title: '⚔️ ボス討伐！', message: `${boss.name} が討伐されました！最後の一撃: ${currentStudent.callsign || currentStudent.nickname}`, studentId: currentStudent.id }); } catch(e) {}
           }
         }
       }
@@ -2538,6 +2738,13 @@ async function stopStudy(save) {
         zoomStudyCount: allLogs.filter(l => l.location === 'Zoom').length
       };
       newBadges = await BadgesDB.checkAndAward(currentStudent.id, stats);
+      // バッジ獲得通知
+      for (const badgeId of newBadges) {
+        const badgeDef = BADGE_DEFINITIONS.find(b => b.id === badgeId);
+        if (badgeDef) {
+          try { await NotificationsDB.add({ type: 'badge', title: '🏅 新バッジ獲得', message: `${currentStudent.callsign || currentStudent.nickname} が「${badgeDef.name}」を獲得しました`, studentId: currentStudent.id }); } catch(e) {}
+        }
+      }
     } catch(e) {}
 
     // Check daily mission completion
@@ -2888,6 +3095,78 @@ async function doExchange(prizeId, name, cost) {
     await PrizesDB.exchange(prizeId, currentStudent.id, currentStudent.name, cost);
     showToast(`🎉「${name}」を交換しました！`);
     await loadPrizes();
+  } catch(e) {
+    console.error(e);
+    showToast('交換に失敗しました');
+  }
+  hideLoading();
+}
+
+// ============================================
+// Rewards Catalog
+// ============================================
+async function loadRewards() {
+  showLoading();
+  try {
+    const fresh = await StudentsDB.getById(currentStudent.id);
+    if (fresh) currentStudent = fresh;
+    const pts = currentStudent.currentPoints || 0;
+    const rank = currentStudent.rank || 'rookie';
+    document.getElementById('rewardPointsBanner').textContent = `所持ポイント: ${pts.toLocaleString()} pt`;
+
+    const rewards = await RewardsDB.getAll();
+    const activeRewards = rewards.filter(r => r.active !== false);
+    const container = document.getElementById('rewardGrid');
+
+    // ランクフィルター
+    const RANK_LABELS = { rookie: '🔰 ルーキー', crew: '🚀 クルー', senior: '⭐ シニア', captain: '👑 キャプテン' };
+    const RANK_ORDER = ['rookie', 'crew', 'senior', 'captain'];
+    const currentRankIdx = RANK_ORDER.indexOf(rank);
+    const filterEl = document.getElementById('rewardRankFilter');
+    filterEl.innerHTML = '<button style="padding:4px 12px;background:#667eea;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;" onclick="loadRewards()">全て</button>';
+
+    if (activeRewards.length === 0) {
+      container.innerHTML = '<div class="empty-state" style="grid-column:span 2"><div class="empty-icon">🎖️</div><div class="empty-text">報酬カタログはまだ登録されていません</div></div>';
+    } else {
+      container.innerHTML = activeRewards.map(r => {
+        const canAfford = pts >= r.cost;
+        const inStock = r.stock === -1 || r.stock > 0;
+        const rankOk = RANK_ORDER.indexOf(r.rankRequired || 'rookie') <= currentRankIdx;
+        const available = canAfford && inStock && rankOk;
+        const CATS = { goods: '🎁', experience: '🌟', privilege: '👑', regional: '🏮' };
+        return `
+          <div class="prize-card ${available ? '' : 'prize-unavailable'}" onclick="${available ? `exchangeReward('${r.id}','${(r.name||'').replace(/'/g,"\\'")}',${r.cost})` : ''}">
+            <div class="prize-icon">${CATS[r.category] || '🎖️'}</div>
+            <div class="prize-name">${r.name || '報酬'}</div>
+            <div class="prize-cost">${(r.cost || 0).toLocaleString()} pt</div>
+            ${r.rankRequired && r.rankRequired !== 'rookie' ? `<div style="font-size:10px;color:#667eea;">${RANK_LABELS[r.rankRequired] || r.rankRequired} 以上</div>` : ''}
+            ${r.stock >= 0 ? `<div class="prize-stock">残り${r.stock}個</div>` : ''}
+            ${!canAfford ? '<div class="prize-stock" style="color:var(--danger)">ポイント不足</div>' : ''}
+            ${!rankOk ? '<div class="prize-stock" style="color:var(--danger)">ランク不足</div>' : ''}
+          </div>
+        `;
+      }).join('');
+    }
+  } catch(e) {
+    console.error(e);
+    showToast('報酬カタログの読み込みに失敗しました');
+  }
+  hideLoading();
+}
+
+function exchangeReward(rewardId, name, cost) {
+  showModal('🎖️', '報酬交換', `「${name}」を ${cost}ポイントで交換しますか？`, `
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" onclick="closeModal();doRewardExchange('${rewardId}','${name.replace(/'/g,"\\'")}',${cost})">交換する</button>
+  `, true);
+}
+
+async function doRewardExchange(rewardId, name, cost) {
+  showLoading();
+  try {
+    await RewardsDB.exchange(rewardId, currentStudent.id, currentStudent.callsign || currentStudent.nickname || currentStudent.name, cost);
+    showToast(`🎉「${name}」を交換しました！`);
+    await loadRewards();
   } catch(e) {
     console.error(e);
     showToast('交換に失敗しました');
