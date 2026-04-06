@@ -1310,7 +1310,7 @@ async function checkCommanderBuff() {
       showCommanderBuff();
       addFeed('⚡', 'コマンダーから支援到達！全クルーにバフ適用中！', 'special');
     }
-  } catch(e) {}
+  } catch(e) { console.warn('Commander buff check error:', e); }
 }
 
 function showCommanderBuff() {

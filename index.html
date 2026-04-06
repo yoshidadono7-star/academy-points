@@ -1566,7 +1566,7 @@ async function markNotifRead(id, el) {
     await NotificationsDB.markRead(id);
     if (el) el.classList.remove('unread');
     loadNotifications();
-  } catch (e) {}
+  } catch (e) { console.warn('Notification markRead error:', e); }
 }
 
 async function markAllNotifRead() {

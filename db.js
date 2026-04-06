@@ -2464,7 +2464,7 @@ const ActiveSessionsDB = {
     });
   },
   async end(studentId) {
-    try { await db.collection('activeSessions').doc(studentId).delete(); } catch(e) {}
+    try { await db.collection('activeSessions').doc(studentId).delete(); } catch(e) { console.warn('ActiveSession end error:', e); }
   },
   async getAll() {
     const snap = await db.collection('activeSessions').where('active', '==', true).get();
