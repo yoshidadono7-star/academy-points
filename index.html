@@ -5705,35 +5705,56 @@ async function loadSchedule() {
         return;
       }
 
-      const teacherCols = [...teachers, { id: null, name: '未割当', color: '#9CA3AF' }];
-      let html = '<table class="data-table" style="font-size:12px;"><thead><tr><th style="min-width:80px;">講師</th>';
+      const teacherMap = {};
+      (await TeachersDB.getAll()).forEach(t => teacherMap[t.id] = t);
+      const activeSlots = slots.filter(s => s.status !== 'cancelled');
+      // 生徒ごとにグループ化し、開始時刻順にソート
+      const studentSlots = {};
+      activeSlots.forEach(s => {
+        if (!studentSlots[s.studentId]) studentSlots[s.studentId] = [];
+        studentSlots[s.studentId].push(s);
+      });
+      const studentOrder = Object.keys(studentSlots).sort((a, b) => {
+        const aStart = studentSlots[a].reduce((min, s) => s.startTime < min ? s.startTime : min, '99:99');
+        const bStart = studentSlots[b].reduce((min, s) => s.startTime < min ? s.startTime : min, '99:99');
+        return aStart.localeCompare(bStart);
+      });
+
+      const statusColors = { scheduled: '#DBEAFE', attended: '#D1FAE5', absent: '#FEE2E2', cancelled: '#E5E7EB', rescheduled: '#FEF3C7' };
+      const statusLabels = { scheduled: '予定', attended: '出席', absent: '欠席', cancelled: '取消', rescheduled: '振替' };
+
+      let html = '<table class="data-table" style="font-size:12px;"><thead><tr><th style="min-width:90px;">生徒</th><th style="min-width:70px;">講師</th>';
       timeSlots.forEach(ts => { html += `<th style="min-width:60px;white-space:nowrap;font-size:11px;">${ts.start}</th>`; });
       html += '</tr></thead><tbody>';
 
-      for (const t of teacherCols) {
-        html += `<tr><td style="font-weight:600;white-space:nowrap;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${t.color};margin-right:4px;"></span>${t.name}</td>`;
+      for (const sid of studentOrder) {
+        const sSlots = studentSlots[sid];
+        const student = students.find(st => st.id === sid);
+        const teacher = teacherMap[sSlots[0].teacherId];
+        const teacherColor = teacher ? teacher.color : '#9CA3AF';
+        html += `<tr><td style="font-weight:600;white-space:nowrap;">${student ? student.name : sid}</td>`;
+        html += `<td style="font-size:11px;white-space:nowrap;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${teacherColor};margin-right:3px;"></span>${teacher ? teacher.name : '未定'}</td>`;
         timeSlots.forEach(ts => {
-          const matching = slots.filter(s => s.teacherId === t.id && s.startTime <= ts.start && s.endTime > ts.start);
+          const matching = sSlots.filter(s => s.startTime <= ts.start && s.endTime > ts.start);
           if (matching.length > 0) {
-            const statusColors = { scheduled: '#DBEAFE', attended: '#D1FAE5', absent: '#FEE2E2', cancelled: '#E5E7EB', rescheduled: '#FEF3C7' };
-            const statusLabels = { scheduled: '予定', attended: '出席', absent: '欠席', cancelled: '取消', rescheduled: '振替' };
-            const cellBg = statusColors[matching[0].status] || '#fff';
-            html += `<td style="background:${cellBg};cursor:pointer;padding:4px 6px;vertical-align:top;" onclick="editScheduleSlot('${matching[0].id}')">`;
-            for (const s of matching) {
-              const student = students.find(st => st.id === s.studentId);
-              const slotIdx = Math.floor(((ts.start.split(':').map(Number).reduce((a,b)=>a*60+b)) - (s.startTime.split(':').map(Number).reduce((a,b)=>a*60+b))) / (schedConfig.slotMinutes || 30));
-              const subj = s.subjects && s.subjects[slotIdx] ? s.subjects[slotIdx] : '';
-              html += `<div style="font-weight:600;font-size:11px;">${student ? student.name : s.studentId}</div>
-              <div style="font-size:10px;color:#666;margin-bottom:4px;">${subj} <span style="font-size:9px;">${statusLabels[s.status] || ''}</span></div>`;
-            }
-            html += `</td>`;
+            const s = matching[0];
+            const slotIdx = Math.floor(((ts.start.split(':').map(Number).reduce((a,b)=>a*60+b)) - (s.startTime.split(':').map(Number).reduce((a,b)=>a*60+b))) / (schedConfig.slotMinutes || 30));
+            const subj = s.subjects && s.subjects[slotIdx] ? s.subjects[slotIdx] : '';
+            html += `<td style="background:${statusColors[s.status] || '#fff'};cursor:pointer;padding:4px 6px;text-align:center;" onclick="editScheduleSlot('${s.id}')">
+              <div style="font-weight:600;font-size:11px;">${subj || '●'}</div>
+              <div style="font-size:9px;color:#666;">${statusLabels[s.status] || ''}</div>
+            </td>`;
           } else {
-            html += `<td style="cursor:pointer;color:#ccc;text-align:center;" onclick="showScheduleSlotModal('${dateStr}','${ts.start}','${t.id || ''}')">+</td>`;
+            html += `<td></td>`;
           }
         });
         html += '</tr>';
       }
+      if (studentOrder.length === 0) {
+        html += `<tr><td colspan="${timeSlots.length + 2}" style="text-align:center;color:var(--text-light);padding:20px;">この日の予定はありません</td></tr>`;
+      }
       html += '</tbody></table>';
+      // 予定追加ボタン用の行
       container.innerHTML = html;
 
     } else if (schedView === 'week') {
