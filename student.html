@@ -1026,6 +1026,7 @@ body.theme-space {
     <div class="buddy-status-item" id="buddyStatusLevel"><span class="icon">⭐</span>Lv.1</div>
     <div class="buddy-status-item" id="buddyStatusPoints"><span class="icon">💎</span>0pt</div>
     <div class="buddy-status-item" id="buddyStatusStreak"><span class="icon">🔥</span>0</div>
+    <button id="buddyVoiceBtn" class="buddy-status-item" onclick="toggleBuddyVoice()" style="cursor:pointer;border:1px solid rgba(255,255,255,0.2);">🔇 OFF</button>
   </div>
   <div class="buddy-character">
     <div class="buddy-glow"></div>
@@ -3812,6 +3813,72 @@ async function loadComboEncyclopedia() {
 }
 
 // ============================================
+// Phase 14: 音声合成システム（Web Speech API）
+// ============================================
+const VoiceSystem = (() => {
+  let enabled = localStorage.getItem('buddy_voice_enabled') === '1';
+  let voice = null;
+  let voicesLoaded = false;
+
+  function loadVoices() {
+    if (!('speechSynthesis' in window)) return;
+    const voices = speechSynthesis.getVoices();
+    if (voices.length === 0) return;
+    // 日本語の声を優先選択（女性 > Google > その他）
+    const ja = voices.filter(v => v.lang && v.lang.startsWith('ja'));
+    voice = ja.find(v => /female|woman|Kyoko|O-ren|Otoya/i.test(v.name))
+         || ja.find(v => /Google/i.test(v.name))
+         || ja[0]
+         || voices[0];
+    voicesLoaded = true;
+  }
+
+  if ('speechSynthesis' in window) {
+    loadVoices();
+    speechSynthesis.onvoiceschanged = loadVoices;
+  }
+
+  function speak(text) {
+    if (!enabled) return;
+    if (!('speechSynthesis' in window)) return;
+    if (!voicesLoaded) loadVoices();
+
+    // 既に喋っているのを中断して新しい台詞を再生
+    speechSynthesis.cancel();
+
+    // タグや絵文字を簡略除去
+    const clean = String(text)
+      .replace(/<[^>]*>/g, '')
+      .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}]/gu, '')
+      .trim();
+    if (!clean) return;
+
+    const u = new SpeechSynthesisUtterance(clean);
+    u.lang = 'ja-JP';
+    if (voice) u.voice = voice;
+    u.rate = 1.15;   // 少し速め（元気な印象）
+    u.pitch = 1.35;  // 少し高め（可愛い印象）
+    u.volume = 0.9;
+    speechSynthesis.speak(u);
+  }
+
+  function setEnabled(v) {
+    enabled = !!v;
+    localStorage.setItem('buddy_voice_enabled', enabled ? '1' : '0');
+    if (!enabled && 'speechSynthesis' in window) speechSynthesis.cancel();
+  }
+
+  function isEnabled() { return enabled; }
+
+  function toggle() {
+    setEnabled(!enabled);
+    return enabled;
+  }
+
+  return { speak, setEnabled, isEnabled, toggle };
+})();
+
+// ============================================
 // Phase 14: バディシステム（常駐キャラクター）
 // ============================================
 const BuddySystem = (() => {
@@ -3937,6 +4004,8 @@ const BuddySystem = (() => {
         <div class="buddy-bubble-name">${currentBuddy.name}</div>
         <div>${message}</div>
       `;
+      // 音声で読み上げ
+      VoiceSystem.speak(message);
     }, 600);
 
     isShowing = true;
@@ -4009,15 +4078,38 @@ const BuddySystem = (() => {
 
   function init() {
     show();
+    updateVoiceButton();
     react('appLaunch');
     startIdleChatter();
   }
 
+  function updateVoiceButton() {
+    const btn = document.getElementById('buddyVoiceBtn');
+    if (!btn) return;
+    if (VoiceSystem.isEnabled()) {
+      btn.innerHTML = '🔊 ON';
+      btn.style.background = 'rgba(72,187,120,0.3)';
+    } else {
+      btn.innerHTML = '🔇 OFF';
+      btn.style.background = 'rgba(255,255,255,0.1)';
+    }
+  }
+
   return {
     init, show, hide, say, react, tap,
-    setEmotion, updateStatus, startIdleChatter, stopIdleChatter
+    setEmotion, updateStatus, startIdleChatter, stopIdleChatter,
+    updateVoiceButton
   };
 })();
+
+// 音声ON/OFFトグル（ボタンから呼ばれる）
+function toggleBuddyVoice() {
+  const enabled = VoiceSystem.toggle();
+  BuddySystem.updateVoiceButton();
+  if (enabled) {
+    BuddySystem.say('音声ONにしたよ！これからお話しするね', { emotion: 'happy', duration: 4000 });
+  }
+}
 
 // ============================================
 // Init
