@@ -80,6 +80,7 @@ const StudentsDB = {
 // --- 学習ログ ---
 const StudyLogsDB = {
   async add(data) {
+    const isHome = data.location === '自宅' || data.location === 'Zoom';
     const ref = await db.collection('studyLogs').add({
       studentId: data.studentId,
       studentName: data.studentName || '',
@@ -92,6 +93,13 @@ const StudyLogsDB = {
       material: data.material || null,
       materialName: data.materialName || null,
       materialNote: data.materialNote || null,
+      // 家庭学習検証フィールド
+      approvalStatus: data.approvalStatus || (isHome ? 'pending' : 'confirmed'),
+      pauseCount: data.pauseCount || 0,
+      pauseLog: data.pauseLog || [],
+      photoUrl: data.photoUrl || null,
+      parentConfirmed: data.parentConfirmed || false,
+      verificationMethod: data.verificationMethod || 'auto',
       date: data.date || new Date().toISOString().split('T')[0],
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
@@ -124,6 +132,43 @@ const StudyLogsDB = {
       .where('date', '>=', startStr)
       .orderBy('date', 'desc').get();
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  // 承認待ち一覧
+  async getPending() {
+    const snap = await db.collection('studyLogs')
+      .where('approvalStatus', '==', 'pending')
+      .orderBy('createdAt', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  // 承認 → ポイント付与
+  async approve(id) {
+    const doc = await db.collection('studyLogs').doc(id).get();
+    if (!doc.exists) return;
+    const log = doc.data();
+    await db.collection('studyLogs').doc(id).update({
+      approvalStatus: 'confirmed',
+      approvedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    // ポイント付与
+    if (log.studentId && log.points > 0) {
+      await StudentsDB.addPoints(log.studentId, log.points);
+    }
+    // 写真提出ボーナス
+    if (log.photoUrl) {
+      await StudentsDB.addPoints(log.studentId, COIN_PARAMS.homeStudyPhotoBonus);
+    }
+    // 保護者確認ボーナス
+    if (log.parentConfirmed) {
+      await StudentsDB.addPoints(log.studentId, COIN_PARAMS.homeStudyParentBonus);
+    }
+  },
+  // 拒否
+  async reject(id, reason) {
+    await db.collection('studyLogs').doc(id).update({
+      approvalStatus: 'rejected',
+      rejectReason: reason || '',
+      rejectedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
   }
 };
 
@@ -975,7 +1020,9 @@ const RewardsDB = {
   async create(data) {
     const ref = await db.collection('rewards').add({
       name: data.name,
-      category: data.category || 'goods', // goods, experience, privilege, regional
+      description: data.description || '',
+      icon: data.icon || '🎁',
+      category: data.category || 'goods', // privilege, title, learning, goods
       cost: data.cost,
       stock: data.stock !== undefined ? data.stock : -1, // -1 = 無制限
       level: data.level || 1, // 1-4
@@ -1004,6 +1051,47 @@ const RewardsDB = {
     });
   }
 };
+
+// デフォルト報酬カタログ（初回シード用）
+const DEFAULT_REWARDS_CATALOG = [
+  // 🎫 特権・権利（コスト0円）
+  { name: '好きな席選択権（1日）', icon: '💺', category: 'privilege', cost: 50, level: 1, rankRequired: 'rookie', cooldownDays: 1, description: 'その日好きな席を選べる' },
+  { name: 'BGM選曲権（1時間）', icon: '🎵', category: 'privilege', cost: 80, level: 1, rankRequired: 'rookie', cooldownDays: 3, description: '教室のBGMを自分の好きな曲に' },
+  { name: '休み時間+5分延長', icon: '⏰', category: 'privilege', cost: 100, level: 1, rankRequired: 'rookie', cooldownDays: 3, description: '次の休憩を5分延長' },
+  { name: '自習室フリーパス（1週間）', icon: '🏠', category: 'privilege', cost: 200, level: 2, rankRequired: 'crew', cooldownDays: 14, description: '営業時間外も自習室を利用可能' },
+  { name: '先生とランチ会', icon: '🍱', category: 'privilege', cost: 300, level: 2, rankRequired: 'crew', cooldownDays: 30, description: '好きな講師と昼食を共に' },
+  { name: '教室掲示板メッセージ権', icon: '📋', category: 'privilege', cost: 150, level: 2, rankRequired: 'crew', cooldownDays: 14, description: '掲示板に1週間メッセージ掲載' },
+  { name: 'イベント企画提案権', icon: '🎪', category: 'privilege', cost: 500, level: 3, rankRequired: 'senior', cooldownDays: 30, description: '次月のイベントを企画提案' },
+  { name: 'ミッションテーマ提案権', icon: '🎯', category: 'privilege', cost: 400, level: 3, rankRequired: 'senior', cooldownDays: 30, description: '次月のミッションを設計に参加' },
+  { name: '1日副塾長体験', icon: '👔', category: 'privilege', cost: 1000, level: 4, rankRequired: 'captain', cooldownDays: 90, description: '1日だけ塾長の業務を体験' },
+  { name: '後輩メンター権（1ヶ月）', icon: '🤝', category: 'privilege', cost: 800, level: 4, rankRequired: 'captain', cooldownDays: 60, description: '新入生の公式メンターに任命' },
+  // 🏆 称号・見た目（コスト0円）
+  { name: 'カスタム称号（1ヶ月）', icon: '🏷️', category: 'title', cost: 100, level: 1, rankRequired: 'rookie', cooldownDays: 0, description: 'アプリ内の称号を自由に設定' },
+  { name: 'プロフィール装飾', icon: '🎨', category: 'title', cost: 150, level: 1, rankRequired: 'rookie', cooldownDays: 0, description: '特別フレーム・背景色' },
+  { name: 'ランキングアイコン変更', icon: '⭐', category: 'title', cost: 200, level: 2, rankRequired: 'crew', cooldownDays: 0, description: 'ランキングに特別アイコン表示' },
+  { name: '殿堂入り掲示（永久）', icon: '🏛️', category: 'title', cost: 2000, level: 3, rankRequired: 'senior', cooldownDays: 0, description: '教室の殿堂ボードに名前掲載', stock: 5 },
+  // 📚 学習体験（コスト0〜低）
+  { name: '特別自習ブース（1回）', icon: '🔇', category: 'learning', cost: 100, level: 1, rankRequired: 'rookie', cooldownDays: 3, description: '集中ブースを1コマ独占' },
+  { name: '講師1on1質問タイム（15分）', icon: '💬', category: 'learning', cost: 200, level: 2, rankRequired: 'crew', cooldownDays: 7, description: '好きな講師に15分個別質問' },
+  { name: '苦手科目特別レッスン（30分）', icon: '📖', category: 'learning', cost: 500, level: 3, rankRequired: 'senior', cooldownDays: 30, description: '通常外の個別補習' },
+  { name: '進路相談スペシャル（30分）', icon: '🧭', category: 'learning', cost: 600, level: 3, rankRequired: 'senior', cooldownDays: 30, description: '塾長と進路深堀り面談' },
+  { name: '模試受験料サポート', icon: '📝', category: 'learning', cost: 1500, level: 4, rankRequired: 'captain', cooldownDays: 90, description: '模試1回分の費用補助', stock: 3 },
+  // 🎁 物品（低コスト）
+  { name: '駄菓子セット', icon: '🍬', category: 'goods', cost: 100, level: 1, rankRequired: 'rookie', cooldownDays: 7, description: '駄菓子3-4個' },
+  { name: '特別文房具（1点）', icon: '✏️', category: 'goods', cost: 200, level: 1, rankRequired: 'rookie', cooldownDays: 14, description: 'ペン・消しゴム等' },
+  { name: 'お菓子ボックス', icon: '🍪', category: 'goods', cost: 400, level: 2, rankRequired: 'crew', cooldownDays: 30, description: 'お菓子詰め合わせ' },
+  { name: 'ノート・参考書', icon: '📕', category: 'goods', cost: 800, level: 3, rankRequired: 'senior', cooldownDays: 30, description: '勉強道具' },
+  { name: '図書カード1000円分', icon: '📚', category: 'goods', cost: 1500, level: 4, rankRequired: 'captain', cooldownDays: 90, description: '図書カード', stock: 3 }
+];
+
+async function seedDefaultRewards() {
+  const existing = await RewardsDB.getAll();
+  if (existing.length > 0) return; // 既にデータがあればスキップ
+  for (const r of DEFAULT_REWARDS_CATALOG) {
+    await RewardsDB.create(r);
+  }
+  console.log('Default rewards catalog seeded:', DEFAULT_REWARDS_CATALOG.length, 'items');
+}
 
 // --- クルーランク制度 ---
 const RANK_DEFINITIONS = [
@@ -1096,10 +1184,10 @@ const StreakManager = {
   },
   // ストリークボーナス計算
   getStreakBonus(streakDays) {
-    if (streakDays >= 20) return 50;
-    if (streakDays >= 10) return 30;
-    if (streakDays >= 5) return 15;
-    if (streakDays >= 3) return 5;
+    if (streakDays >= 20) return 60;
+    if (streakDays >= 10) return 40;
+    if (streakDays >= 5) return 20;
+    if (streakDays >= 3) return 10;
     return 0;
   },
   // ストリーク更新（bestStreak保存）
@@ -1190,23 +1278,28 @@ const AnomalyDetector = {
 const COIN_PARAMS = {
   // 基本収入
   attendance: 10,         // 通塾（入室＋目標設定）
-  pomodoro: 5,            // ポモドーロ1セット
+  pomodoro: 7,            // ポモドーロ1セット ← 5→7
   pomodoroTriple: 10,     // ポモドーロ3連続ボーナス
   review: 5,              // 振り返りノート
-  reviewPlan: 3,          // 振り返り＋翌日計画
+  reviewPlan: 5,          // 振り返り＋翌日計画 ← 3→5
   aiProblems10: 3,        // AI教材10問
   // 社会的行動
   teaching: 10,           // 教え合い（双方）
   newStudentSupport: 15,  // 新入生サポート
   trialSupport: 20,       // 体験授業生サポート
   socialMonthlyMax: 200,  // 社会的ボーナス月間上限
+  // 家庭学習
+  homeStudyPhotoBonus: 5, // 写真提出ボーナス
+  homeStudyParentBonus: 3,// 保護者確認ボーナス
+  homeStudyStreakBonus: 10,// 3日連続家庭学習ボーナス
+  homeStudyDailyMax: 60,  // 1日最大60分まで承認対象
   // ストリーク: StreakManager.getStreakBonusで管理
   // ミッション連動
   milestoneBonus: 10,     // マイルストーン到達
   missionComplete: 50,    // ミッション達成
   // 経済制御
   coinExpiry: 180,        // 有効期限（日）= 6ヶ月
-  balanceCap: 2000,       // 残高上限
+  balanceCap: 3500,       // 残高上限 ← 2000→3500
   giftDailyMax: 20,       // ギフト1日上限
   giftPerMax: 10,         // ギフト1回上限
   // オンボーディング
@@ -1237,15 +1330,15 @@ function getToday() {
 }
 
 function calcLevel(totalPoints) {
-  if (totalPoints >= 5000) return 10;
-  if (totalPoints >= 3000) return 9;
-  if (totalPoints >= 2000) return 8;
-  if (totalPoints >= 1500) return 7;
-  if (totalPoints >= 1000) return 6;
-  if (totalPoints >= 700) return 5;
-  if (totalPoints >= 400) return 4;
-  if (totalPoints >= 200) return 3;
-  if (totalPoints >= 50) return 2;
+  if (totalPoints >= 7000) return 10;
+  if (totalPoints >= 4500) return 9;
+  if (totalPoints >= 3000) return 8;
+  if (totalPoints >= 2200) return 7;
+  if (totalPoints >= 1500) return 6;
+  if (totalPoints >= 1000) return 5;
+  if (totalPoints >= 600) return 4;
+  if (totalPoints >= 300) return 3;
+  if (totalPoints >= 100) return 2;
   return 1;
 }
 
@@ -1393,9 +1486,9 @@ const COMBO_DEFINITIONS = [
     conditionFn: (ctx) => ctx.missionStreak >= 5,
     reward: { type: 'bonus', points: 80 } },
   { id: 'home_hero', name: 'ホームヒーロー', icon: '🏠',
-    desc: '自宅学習 + ポモドーロ3回', hidden: true, cooldown: 'daily', category: 'location',
-    conditionFn: (ctx) => ctx.location === '自宅' && ctx.pomodoroCount >= 3,
-    reward: { type: 'bonus', points: 30 } },
+    desc: '自宅学習 + ポモドーロ3回（承認済み）', hidden: true, cooldown: 'daily', category: 'location',
+    conditionFn: (ctx) => ctx.location === '自宅' && ctx.pomodoroCount >= 3 && ctx.approvalStatus === 'confirmed',
+    reward: { type: 'bonus', points: 35 } },
   { id: 'weekly_king', name: 'ウィークリーキング', icon: '👑',
     desc: '週7日中6日以上出席', hidden: true, cooldown: 'weekly', category: 'attendance',
     conditionFn: (ctx) => ctx.weeklyAttendance >= 6,
@@ -1436,6 +1529,7 @@ const ComboDB = {
       location: session.location || '塾',
       method: session.method || 'normal',
       pomodoroCount: session.pomodoroCount || 0,
+      approvalStatus: session.approvalStatus || 'confirmed',
       sessionStartHour: session.startHour || new Date().getHours(),
       todaySubjects: [...new Set(myTodayLogs.map(l => l.subject))],
       todayPomodoros: myTodayLogs.reduce((s, l) => s + (l.pomodoroCount || 0), 0),
@@ -1533,7 +1627,7 @@ const ComboDB = {
 // ===== デイリーミッション (Daily Random Missions) =====
 const DAILY_MISSION_POOL = [
   // Common (50%)
-  { id: 'dm_pomo2', name: 'ポモドーロ2回', desc: 'ポモドーロを2回完走', rarity: 'common', points: 15, icon: '🍅',
+  { id: 'dm_pomo2', name: 'ポモドーロ2回', desc: 'ポモドーロを2回完走', rarity: 'common', points: 20, icon: '🍅',
     checkType: 'auto_daily', conditionFn: (ds) => ds.totalPomodoros >= 2 },
   { id: 'dm_30min', name: '30分学習', desc: '合計30分以上学習', rarity: 'common', points: 10, icon: '⏱️',
     checkType: 'auto_daily', conditionFn: (ds) => ds.totalMinutes >= 30 },
@@ -1548,14 +1642,14 @@ const DAILY_MISSION_POOL = [
   // Uncommon (30%)
   { id: 'dm_weak20', name: '苦手科目20分', desc: '苦手科目を20分以上', rarity: 'uncommon', points: 25, icon: '💪',
     checkType: 'auto_daily', conditionFn: (ds) => ds.weakSubjectMinutes >= 20 },
-  { id: 'dm_pomo3', name: 'ポモドーロ3連続', desc: 'ポモドーロ3回連続完走', rarity: 'uncommon', points: 30, icon: '🍅',
+  { id: 'dm_pomo3', name: 'ポモドーロ3連続', desc: 'ポモドーロ3回連続完走', rarity: 'uncommon', points: 35, icon: '🍅',
     checkType: 'auto_daily', conditionFn: (ds) => ds.totalPomodoros >= 3 },
   { id: 'dm_2subj', name: '2教科学習', desc: '2教科以上学習', rarity: 'uncommon', points: 20, icon: '📚',
     checkType: 'auto_daily', conditionFn: (ds) => ds.subjectCount >= 2 },
   { id: 'dm_60min', name: '60分マラソン', desc: '60分以上学習', rarity: 'uncommon', points: 30, icon: '⏱️',
     checkType: 'auto_daily', conditionFn: (ds) => ds.totalMinutes >= 60 },
-  { id: 'dm_home', name: '自宅学習', desc: '自宅から学習セッション完了', rarity: 'uncommon', points: 20, icon: '🏠',
-    checkType: 'auto_daily', conditionFn: (ds) => ds.homeStudied },
+  { id: 'dm_home', name: '自宅学習', desc: '自宅から学習セッション完了（承認済み）', rarity: 'uncommon', points: 25, icon: '🏠',
+    checkType: 'auto_daily', conditionFn: (ds) => ds.homeStudiedConfirmed || ds.homeStudied },
   // Rare (15%)
   { id: 'dm_3subj', name: '3教科チャレンジ', desc: '3教科以上学習', rarity: 'rare', points: 50, icon: '🌟',
     checkType: 'auto_daily', conditionFn: (ds) => ds.subjectCount >= 3 },

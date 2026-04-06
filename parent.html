@@ -233,6 +233,13 @@
       <!-- 今日タブ -->
       <div class="tab-panel active" id="panel-today">
         <div id="parentExamCountdown" style="margin-bottom:12px;"></div>
+        <div id="parentStudyConfirmSection" style="display:none;margin-bottom:12px;">
+          <div class="card" style="border-left:3px solid #10b981;">
+            <div class="card-title">✅ お子さんの家庭学習を確認</div>
+            <div style="font-size:12px;color:#718096;margin-bottom:10px;">お子さんが自宅で学習したことを確認すると、+3ptボーナスが付与されます。</div>
+            <div id="pendingHomeStudyList"></div>
+          </div>
+        </div>
         <div class="card">
           <div class="card-title">📡 今日のようす</div>
           <div id="todayFeed" style="font-size:13px;color:#718096;">読み込み中...</div>
@@ -1504,6 +1511,54 @@ async function loadMessages() {
   }).join('');
   } catch(e) { console.error('loadMessages error:', e); }
 }
+
+// ===== 家庭学習の保護者確認 =====
+async function loadPendingHomeStudy() {
+  if (!parentStudent) return;
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const snap = await db.collection('studyLogs')
+      .where('studentId', '==', parentStudent.id)
+      .where('approvalStatus', '==', 'pending')
+      .orderBy('createdAt', 'desc').get();
+    const pending = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const section = document.getElementById('parentStudyConfirmSection');
+    const list = document.getElementById('pendingHomeStudyList');
+    if (pending.length === 0) { section.style.display = 'none'; return; }
+    section.style.display = 'block';
+    list.innerHTML = pending.map(l => {
+      const confirmed = l.parentConfirmed;
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9;">' +
+        '<div style="font-size:13px;">' +
+          '<strong>' + (l.date || '') + '</strong> ' +
+          (l.subject || '') + ' ' + (l.duration || 0) + '分 ' +
+          '(' + (l.location || '') + ')' +
+        '</div>' +
+        (confirmed
+          ? '<span style="color:#10b981;font-size:12px;font-weight:700;">✅ 確認済み</span>'
+          : '<button class="btn btn-sm" style="background:#10b981;color:white;" onclick="confirmHomeStudy(\'' + l.id + '\',this)">✅ 確認する</button>'
+        ) +
+      '</div>';
+    }).join('');
+  } catch(e) { console.warn('PendingHomeStudy error:', e); }
+}
+
+async function confirmHomeStudy(logId, btn) {
+  try {
+    await db.collection('studyLogs').doc(logId).update({
+      parentConfirmed: true
+    });
+    btn.outerHTML = '<span style="color:#10b981;font-size:12px;font-weight:700;">✅ 確認済み</span>';
+    showToast('確認しました。承認後にボーナスが付与されます');
+  } catch(e) { showToast('エラー: ' + e.message, 'error'); }
+}
+
+// 今日タブ表示時に呼び出し
+const _origLoadTodayFeed = loadTodayFeed;
+loadTodayFeed = async function() {
+  await _origLoadTodayFeed();
+  loadPendingHomeStudy();
+};
 
 // ===== 起動 =====
 document.addEventListener('DOMContentLoaded', tryAutoLogin);

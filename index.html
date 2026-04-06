@@ -5563,26 +5563,63 @@ async function loadEconomy() {
 
 async function loadPendingApprovals() {
   try {
-    const pending = await CoinsDB.getPending();
+    const [coinPending, studyPending] = await Promise.all([
+      CoinsDB.getPending(),
+      StudyLogsDB.getPending()
+    ]);
     const el = document.getElementById('pendingApprovals');
-    if (pending.length === 0) {
-      el.innerHTML = '<p style="color:var(--text-light)">承認待ちの取引はありません</p>';
-      return;
+
+    let html = '';
+
+    // 家庭学習承認待ち（優先表示）
+    if (studyPending.length > 0) {
+      html += '<div style="font-weight:700;font-size:13px;color:#f59e0b;margin-bottom:8px;">🏠 家庭学習の承認待ち（' + studyPending.length + '件）</div>';
+      for (const log of studyPending) {
+        const ts = log.createdAt ? formatDateTime(log.createdAt.toDate ? log.createdAt.toDate() : new Date(log.createdAt)) : log.date || '';
+        const pauseInfo = log.pauseCount > 0 ? '<span style="color:#f59e0b;font-size:11px;margin-left:6px;">⏸ ' + log.pauseCount + '回一時停止</span>' : '';
+        const photoInfo = log.photoUrl ? '<span style="color:#10b981;font-size:11px;margin-left:6px;">📸 写真あり</span>' : '';
+        const parentInfo = log.parentConfirmed ? '<span style="color:#10b981;font-size:11px;margin-left:6px;">👨‍👩‍👧 保護者確認済</span>' : '';
+        html += '<div style="padding:10px;margin-bottom:8px;border:1px solid #fcd34d;border-radius:10px;background:#fffbeb;">';
+        html += '<div style="display:flex;justify-content:space-between;align-items:flex-start;">';
+        html += '<div>';
+        html += '<strong>' + escapeHtml(log.studentName || '') + '</strong>';
+        html += '<span style="color:var(--text-light);font-size:12px;margin-left:8px;">' + ts + '</span>';
+        html += '<div style="font-size:13px;margin-top:4px;">';
+        html += '📚 ' + escapeHtml(log.subject || '') + ' | ' + (log.duration || 0) + '分 | ' + (log.location || '') + ' | <strong style="color:var(--primary);">+' + (log.points || 0) + 'pt</strong>';
+        html += pauseInfo + photoInfo + parentInfo;
+        html += '</div>';
+        if (log.photoUrl) {
+          html += '<div style="margin-top:8px;"><img src="' + log.photoUrl + '" style="max-width:200px;max-height:150px;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer;" onclick="window.open(this.src,\'_blank\')"></div>';
+        }
+        html += '</div>';
+        html += '<div style="display:flex;gap:6px;flex-shrink:0;">';
+        html += '<button class="btn btn-sm btn-primary" onclick="approveStudyLog(\'' + log.id + '\')">✔ 承認</button>';
+        html += '<button class="btn btn-sm" style="background:#fee2e2;color:#dc2626;" onclick="rejectStudyLog(\'' + log.id + '\')">✖ 拒否</button>';
+        html += '</div></div></div>';
+      }
     }
-    el.innerHTML = pending.map(p => {
-      const ts = p.timestamp ? formatDateTime(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp)) : '';
-      return `<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
-        <div>
-          <strong>${escapeHtml(p.description || p.category)}</strong>
-          <span style="color:var(--text-light);font-size:12px;margin-left:8px">${ts}</span>
-          <span style="color:var(--primary);font-weight:700;margin-left:8px">+${p.amount}</span>
-        </div>
-        <div style="display:flex;gap:6px">
-          <button class="btn btn-sm btn-primary" onclick="approveCoin('${p.id}')">&#10004; 承認</button>
-          <button class="btn btn-sm" style="background:#edf2f7" onclick="rejectCoin('${p.id}')">&#10006;</button>
-        </div>
-      </div>`;
-    }).join('');
+
+    // 従来のコイン承認待ち
+    if (coinPending.length > 0) {
+      html += '<div style="font-weight:700;font-size:13px;color:var(--primary);margin:12px 0 8px;">💰 ポイント取引の承認待ち（' + coinPending.length + '件）</div>';
+      html += coinPending.map(p => {
+        const ts = p.timestamp ? formatDateTime(p.timestamp.toDate ? p.timestamp.toDate() : new Date(p.timestamp)) : '';
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">' +
+          '<div><strong>' + escapeHtml(p.description || p.category) + '</strong>' +
+          '<span style="color:var(--text-light);font-size:12px;margin-left:8px">' + ts + '</span>' +
+          '<span style="color:var(--primary);font-weight:700;margin-left:8px">+' + p.amount + '</span></div>' +
+          '<div style="display:flex;gap:6px">' +
+          '<button class="btn btn-sm btn-primary" onclick="approveCoin(\'' + p.id + '\')">✔ 承認</button>' +
+          '<button class="btn btn-sm" style="background:#edf2f7" onclick="rejectCoin(\'' + p.id + '\')">✖</button>' +
+          '</div></div>';
+      }).join('');
+    }
+
+    if (!html) {
+      el.innerHTML = '<p style="color:var(--text-light)">承認待ちの取引はありません</p>';
+    } else {
+      el.innerHTML = html;
+    }
   } catch (e) {
     console.error('承認待ち読み込みエラー:', e);
   }
@@ -5596,9 +5633,9 @@ async function grantCoin() {
   const note = document.getElementById('coinNote').value.trim();
 
   const amounts = {
-    attendance: 10, pomodoro: 5, pomodoro_triple: 10,
-    review: 5, review_plan: 3, ai_10: 3,
-    teaching: 10, new_support: 15, trial_support: 20
+    attendance: COIN_PARAMS.attendance, pomodoro: COIN_PARAMS.pomodoro, pomodoro_triple: COIN_PARAMS.pomodoroTriple,
+    review: COIN_PARAMS.review, review_plan: COIN_PARAMS.reviewPlan, ai_10: COIN_PARAMS.aiProblems10,
+    teaching: COIN_PARAMS.teaching, new_support: COIN_PARAMS.newStudentSupport, trial_support: COIN_PARAMS.trialSupport
   };
 
   let amount = amounts[category];
@@ -5636,6 +5673,23 @@ async function rejectCoin(id) {
   try {
     await CoinsDB.reject(id);
     showToast('却下しました');
+    loadPendingApprovals();
+  } catch (e) { showToast('エラー', 'error'); }
+}
+
+async function approveStudyLog(id) {
+  try {
+    await StudyLogsDB.approve(id);
+    showToast('家庭学習を承認し、ポイントを付与しました');
+    loadPendingApprovals();
+  } catch (e) { showToast('承認エラー: ' + e.message, 'error'); }
+}
+
+async function rejectStudyLog(id) {
+  const reason = prompt('拒否の理由（任意）:') || '';
+  try {
+    await StudyLogsDB.reject(id, reason);
+    showToast('家庭学習を拒否しました');
     loadPendingApprovals();
   } catch (e) { showToast('エラー', 'error'); }
 }

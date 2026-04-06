@@ -1,0 +1,14 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // 家庭学習の写真: 誰でもアップロード可能、管理者は閲覧可能
+    match /homeStudyPhotos/{studentId}/{fileName} {
+      allow read: if true;
+      allow write: if true;
+    }
+    // その他は拒否
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

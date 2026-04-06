@@ -1217,6 +1217,16 @@ body.theme-space {
         <div class="complete-stat-lbl">累計ポイント</div>
       </div>
     </div>
+    <div id="completePendingNotice" style="display:none;margin:12px 16px;padding:14px;background:#fef3c7;border-radius:10px;border-left:3px solid #f59e0b;">
+      <div style="font-weight:700;color:#92400e;margin-bottom:4px;">📤 学習記録を提出しました</div>
+      <div style="font-size:13px;color:#92400e;">講師の確認後にポイントが付与されます。</div>
+    </div>
+    <div id="completePhotoUpload" style="display:none;margin:12px 16px;padding:14px;background:#f0fdf4;border-radius:10px;border:1px dashed #10b981;">
+      <div style="font-weight:700;color:#059669;margin-bottom:8px;">📸 ノート写真を提出すると +${COIN_PARAMS ? COIN_PARAMS.homeStudyPhotoBonus : 5}pt ボーナス</div>
+      <input type="file" id="homeStudyPhoto" accept="image/*" capture="camera" style="display:none;" onchange="uploadStudyPhoto(this)">
+      <button class="btn" style="background:#10b981;color:white;width:100%;padding:10px;" onclick="document.getElementById('homeStudyPhoto').click()">📷 写真を撮影・選択</button>
+      <div id="photoUploadStatus" style="display:none;font-size:12px;color:#059669;margin-top:8px;text-align:center;"></div>
+    </div>
     <div id="completeEventBonus" style="display:none;"></div>
     <div id="completeCombos"></div>
     <div id="completeBadges"></div>
@@ -1247,10 +1257,17 @@ body.theme-space {
 <div id="screenPrizes" class="screen">
   <div class="header">
     <button class="header-back" onclick="navigate('home')">←</button>
-    <div class="header-title">景品交換</div>
+    <div class="header-title">報酬交換</div>
     <div></div>
   </div>
   <div class="current-points-banner" id="prizePointsBanner">所持ポイント: 0 pt</div>
+  <div style="display:flex;gap:6px;padding:8px 16px;overflow-x:auto;">
+    <button class="btn btn-sm" style="background:var(--primary);color:white;white-space:nowrap;" onclick="filterRewards('all')">全て</button>
+    <button class="btn btn-sm" style="white-space:nowrap;" onclick="filterRewards('privilege')">🎫 特権</button>
+    <button class="btn btn-sm" style="white-space:nowrap;" onclick="filterRewards('title')">🏆 称号</button>
+    <button class="btn btn-sm" style="white-space:nowrap;" onclick="filterRewards('learning')">📚 学習</button>
+    <button class="btn btn-sm" style="white-space:nowrap;" onclick="filterRewards('goods')">🎁 物品</button>
+  </div>
   <div id="prizeGrid" class="prize-grid"></div>
 </div>
 
@@ -1419,6 +1436,7 @@ body.theme-space {
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="db.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -1430,7 +1448,7 @@ body.theme-space {
 let currentStudent = null;
 let currentScreen = 'login';
 let studySession = { subject: null, location: null, method: null, material: null, materialNote: null };
-let timerState = { running: false, elapsed: 0, interval: null, pomodoroCount: 0, pomodoroPhase: 'work', pomodoroTime: 0 };
+let timerState = { running: false, elapsed: 0, interval: null, pomodoroCount: 0, pomodoroPhase: 'work', pomodoroTime: 0, pauseLog: [], pauseCount: 0 };
 let conditionValues = { mood: 0, energy: 0, motivation: 0 };
 let rankingData = [];
 let profileMenuOpen = false;
@@ -1440,7 +1458,7 @@ let currentMissionDraw = null; // Daily mission draw cache
 const SUBJECT_ICONS = { '国語': '📕', '数学': '📐', '英語': '🔤', '理科': '🔬', '社会': '🌍', 'その他': '📝' };
 
 // Level thresholds for progress bar
-const LEVEL_THRESHOLDS = [0, 50, 200, 400, 700, 1000, 1500, 2000, 3000, 5000, 99999];
+const LEVEL_THRESHOLDS = [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4500, 7000, 99999];
 
 // ============================================
 // Navigation
@@ -2638,7 +2656,7 @@ async function selectLocationZoom(btn) {
 function startStudy() {
   if (!studySession.subject || !studySession.location || !studySession.method) return;
 
-  timerState = { running: false, elapsed: 0, interval: null, pomodoroCount: 0, pomodoroPhase: 'work', pomodoroTime: 25 * 60, startHour: new Date().getHours(), startTime: new Date() };
+  timerState = { running: false, elapsed: 0, interval: null, pomodoroCount: 0, pomodoroPhase: 'work', pomodoroTime: 25 * 60, startHour: new Date().getHours(), startTime: new Date(), pauseLog: [], pauseCount: 0 };
 
   const badge = document.getElementById('timerSubjectBadge');
   const zoomTag = studySession.location === 'Zoom' ? ' <span style="background:#2D8CFF;color:#fff;font-size:10px;padding:2px 6px;border-radius:4px;margin-left:4px;">🎥 Zoom授業中</span>' : '';
@@ -2713,6 +2731,10 @@ function resumeTimer() {
 function pauseTimer() {
   timerState.running = false;
   clearInterval(timerState.interval);
+  // 一時停止ログ記録
+  timerState.pauseCount = (timerState.pauseCount || 0) + 1;
+  timerState.pauseLog = timerState.pauseLog || [];
+  timerState.pauseLog.push(new Date().toISOString());
   document.getElementById('timerStartBtn').innerHTML = '▶';
   document.getElementById('timerStartBtn').className = 'timer-btn timer-btn-start';
 }
@@ -2783,10 +2805,12 @@ async function stopStudy(save) {
   } catch(e) { console.error('Event check error:', e); }
 
   let points = Math.round(basePoints * eventMultiplier) + eventBonusPoints;
+  const isHomeStudy = studySession.location === '自宅' || studySession.location === 'Zoom';
+  const approvalStatus = isHomeStudy ? 'pending' : 'confirmed';
 
   try {
     // Save study log
-    await StudyLogsDB.add({
+    lastStudyLogId = await StudyLogsDB.add({
       studentId: currentStudent.id,
       studentName: currentStudent.callsign || currentStudent.nickname || currentStudent.name,
       subject: studySession.subject,
@@ -2796,11 +2820,16 @@ async function stopStudy(save) {
       method: studySession.method,
       pomodoroCount: timerState.pomodoroCount,
       material: studySession.material || null,
-      materialName: studySession.materialNote || null
+      materialName: studySession.materialNote || null,
+      approvalStatus: approvalStatus,
+      pauseCount: timerState.pauseCount || 0,
+      pauseLog: timerState.pauseLog || []
     });
 
-    // Add points to student
-    await StudentsDB.addPoints(currentStudent.id, points);
+    // Add points to student (塾のみ即時付与、自宅/Zoomは承認後)
+    if (!isHomeStudy) {
+      await StudentsDB.addPoints(currentStudent.id, points);
+    }
 
     // Update streak
     await updateStreak();
@@ -2808,8 +2837,8 @@ async function stopStudy(save) {
     // Refresh student
     currentStudent = await StudentsDB.getById(currentStudent.id);
 
-    // Guild points
-    if (currentStudent.guildId) {
+    // Guild points (塾のみ即時)
+    if (!isHomeStudy && currentStudent.guildId) {
       try {
         await GuildsDB.addPoints(currentStudent.guildId, points);
       } catch(e) { console.warn('Guild points add error:', e); }
@@ -2824,12 +2853,15 @@ async function stopStudy(save) {
         location: studySession.location,
         method: studySession.method,
         pomodoroCount: timerState.pomodoroCount,
-        startHour: timerState.startHour || new Date().getHours()
+        startHour: timerState.startHour || new Date().getHours(),
+        approvalStatus: approvalStatus
       });
-      // Award combo points
+      // Award combo points (塾のみ即時、自宅は承認後)
       for (const combo of comboResults) {
         if (combo.reward && combo.reward.points) {
-          await StudentsDB.addPoints(currentStudent.id, combo.reward.points);
+          if (!isHomeStudy) {
+            await StudentsDB.addPoints(currentStudent.id, combo.reward.points);
+          }
           points += combo.reward.points;
         }
       }
@@ -2978,9 +3010,27 @@ async function updateStreak() {
   } catch(e) { console.error(e); }
 }
 
+let lastStudyLogId = null; // 直前のStudyLog IDを保持（写真アップロード用）
+
 function showCompleteScreen(duration, points, newBadges, raidResults, comboResults, missionResult, appliedEvent, basePoints, eventMultiplier, eventBonusPoints) {
   comboResults = comboResults || [];
-  document.getElementById('completePoints').textContent = `+${points}`;
+  const isHomeStudy = studySession.location === '自宅' || studySession.location === 'Zoom';
+
+  // 家庭学習の場合: pending表示
+  const pendingEl = document.getElementById('completePendingNotice');
+  const photoEl = document.getElementById('completePhotoUpload');
+  if (isHomeStudy) {
+    pendingEl.style.display = 'block';
+    photoEl.style.display = 'block';
+    document.getElementById('completePoints').textContent = `(${points}pt 承認待ち)`;
+    document.getElementById('completePoints').style.color = '#f59e0b';
+  } else {
+    pendingEl.style.display = 'none';
+    photoEl.style.display = 'none';
+    document.getElementById('completePoints').textContent = `+${points}`;
+    document.getElementById('completePoints').style.color = '';
+  }
+
   document.getElementById('completeDuration').textContent = `${duration}分`;
   document.getElementById('completeSubject').textContent = studySession.subject;
   document.getElementById('completeTotalPts').textContent = (currentStudent.totalPoints || 0).toLocaleString();
@@ -3101,6 +3151,34 @@ function showCompleteScreen(duration, points, newBadges, raidResults, comboResul
   fireConfetti();
 }
 
+// 写真アップロード（家庭学習検証用）
+async function uploadStudyPhoto(input) {
+  if (!input.files || !input.files[0] || !lastStudyLogId) return;
+  const file = input.files[0];
+  const statusEl = document.getElementById('photoUploadStatus');
+  statusEl.style.display = 'block';
+  statusEl.textContent = '📤 アップロード中...';
+  try {
+    const storage = firebase.storage();
+    const today = new Date().toISOString().split('T')[0];
+    const path = `homeStudyPhotos/${currentStudent.id}/${today}_${Date.now()}.jpg`;
+    const ref = storage.ref(path);
+    await ref.put(file);
+    const url = await ref.getDownloadURL();
+    // StudyLogに写真URLを保存
+    await db.collection('studyLogs').doc(lastStudyLogId).update({
+      photoUrl: url,
+      verificationMethod: 'photo'
+    });
+    statusEl.innerHTML = '✅ 写真を提出しました！承認後に +' + (COIN_PARAMS.homeStudyPhotoBonus || 5) + 'pt ボーナスが付与されます';
+    statusEl.style.color = '#059669';
+  } catch(e) {
+    console.error('Photo upload error:', e);
+    statusEl.textContent = '❌ アップロードに失敗しました: ' + e.message;
+    statusEl.style.color = '#ef4444';
+  }
+}
+
 // ============================================
 // Ranking
 // ============================================
@@ -3155,54 +3233,86 @@ function renderRanking(sortBy) {
 // ============================================
 // Prizes
 // ============================================
+let allRewards = [];
+let currentRewardFilter = 'all';
+
 async function loadPrizes() {
   showLoading();
   try {
     const fresh = await StudentsDB.getById(currentStudent.id);
     if (fresh) currentStudent = fresh;
     const pts = currentStudent.currentPoints || 0;
-    document.getElementById('prizePointsBanner').textContent = `所持ポイント: ${pts.toLocaleString()} pt`;
+    const rank = currentStudent.rank || 'rookie';
+    document.getElementById('prizePointsBanner').textContent = `所持ポイント: ${pts.toLocaleString()} pt | ${getRankDisplay(rank)}`;
 
-    const prizes = await PrizesDB.getAll();
-    const activePrizes = prizes.filter(p => p.active !== false);
-    const container = document.getElementById('prizeGrid');
-
-    if (activePrizes.length === 0) {
-      container.innerHTML = '<div class="empty-state" style="grid-column:span 2"><div class="empty-icon">🎁</div><div class="empty-text">景品はまだ登録されていません</div></div>';
-    } else {
-      container.innerHTML = activePrizes.map(p => {
-        const canAfford = pts >= p.cost;
-        const inStock = p.stock === -1 || p.stock > 0;
-        const available = canAfford && inStock;
-        return `
-          <div class="prize-card ${available ? '' : 'prize-unavailable'}" onclick="${available ? `exchangePrize('${p.id}','${p.name.replace(/'/g,"\\'")}',${p.cost})` : ''}">
-            <div class="prize-icon">${p.icon || '🎁'}</div>
-            <div class="prize-name">${p.name}</div>
-            <div class="prize-cost">${p.cost.toLocaleString()} pt</div>
-            ${p.stock >= 0 ? `<div class="prize-stock">残り${p.stock}個</div>` : ''}
-            ${!canAfford ? '<div class="prize-stock" style="color:var(--danger)">ポイント不足</div>' : ''}
-          </div>
-        `;
-      }).join('');
+    allRewards = await RewardsDB.getAll();
+    if (allRewards.length === 0) {
+      // 初回シード
+      await seedDefaultRewards();
+      allRewards = await RewardsDB.getAll();
     }
+    renderRewards(currentRewardFilter);
   } catch(e) {
     console.error(e);
-    showToast('景品の読み込みに失敗しました');
+    showToast('報酬の読み込みに失敗しました');
   }
   hideLoading();
 }
 
-function exchangePrize(prizeId, name, cost) {
+function filterRewards(category) {
+  currentRewardFilter = category;
+  renderRewards(category);
+}
+
+function renderRewards(filter) {
+  const pts = currentStudent.currentPoints || 0;
+  const rank = currentStudent.rank || 'rookie';
+  const rankOrder = (RANK_DEFINITIONS.find(r => r.id === rank) || { order: 1 }).order;
+
+  let rewards = allRewards.filter(r => r.active !== false);
+  if (filter !== 'all') rewards = rewards.filter(r => r.category === filter);
+
+  const container = document.getElementById('prizeGrid');
+  const categoryLabels = { privilege: '🎫 特権', title: '🏆 称号', learning: '📚 学習', goods: '🎁 物品' };
+
+  if (rewards.length === 0) {
+    container.innerHTML = '<div class="empty-state" style="grid-column:span 2"><div class="empty-icon">🎁</div><div class="empty-text">この カテゴリの報酬はありません</div></div>';
+    return;
+  }
+
+  container.innerHTML = rewards.map(r => {
+    const canAfford = pts >= r.cost;
+    const inStock = r.stock === undefined || r.stock === -1 || r.stock > 0;
+    const requiredRank = RANK_DEFINITIONS.find(rd => rd.id === r.rankRequired);
+    const hasRank = requiredRank ? rankOrder >= requiredRank.order : true;
+    const available = canAfford && inStock && hasRank;
+    const catLabel = categoryLabels[r.category] || '';
+    return `
+      <div class="prize-card ${available ? '' : 'prize-unavailable'}" onclick="${available ? `exchangePrize('${r.id}','${(r.name||'').replace(/'/g,"\\'")}',${r.cost})` : ''}" style="position:relative;">
+        ${!hasRank ? '<div style="position:absolute;top:4px;right:4px;font-size:10px;background:#fef3c7;color:#92400e;padding:1px 6px;border-radius:4px;">🔒 ' + (requiredRank ? requiredRank.name : '') + '</div>' : ''}
+        <div class="prize-icon">${r.icon || '🎁'}</div>
+        <div class="prize-name" style="font-size:12px;">${r.name}</div>
+        <div style="font-size:10px;color:var(--text-light);margin:2px 0;">${catLabel}</div>
+        <div class="prize-cost">${r.cost.toLocaleString()} pt</div>
+        ${r.cooldownDays > 0 ? '<div style="font-size:10px;color:var(--text-light);">⏳ ' + r.cooldownDays + '日CD</div>' : ''}
+        ${r.stock >= 0 && r.stock !== -1 ? '<div class="prize-stock">残り' + r.stock + '個</div>' : ''}
+        ${!canAfford && hasRank ? '<div class="prize-stock" style="color:var(--danger)">ポイント不足</div>' : ''}
+      </div>
+    `;
+  }).join('');
+}
+
+function exchangePrize(rewardId, name, cost) {
   showModal('🎁', '報酬交換', `「${name}」を ${cost}ポイントで交換しますか？`, `
     <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
-    <button class="btn btn-primary" onclick="closeModal();doExchange('${prizeId}','${name.replace(/'/g,"\\'")}',${cost})">交換する</button>
+    <button class="btn btn-primary" onclick="closeModal();doExchange('${rewardId}','${name.replace(/'/g,"\\'")}',${cost})">交換する</button>
   `, true);
 }
 
-async function doExchange(prizeId, name, cost) {
+async function doExchange(rewardId, name, cost) {
   showLoading();
   try {
-    await PrizesDB.exchange(prizeId, currentStudent.id, currentStudent.name, cost);
+    await RewardsDB.exchange(rewardId, currentStudent.id, currentStudent.name, cost);
     showToast(`🎉「${name}」を交換しました！`);
     await loadPrizes();
   } catch(e) {

@@ -10,3 +10,5 @@ const firebaseConfig = {
 
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+// Firebase Storage初期化（家庭学習写真アップロード用）
+try { firebase.storage(); } catch(e) { console.warn('Storage init skipped:', e.message); }
