@@ -126,10 +126,11 @@
     }
     .category-nav::-webkit-scrollbar { display: none; }
     .category-btn {
-      flex-shrink: 0; padding: 8px 18px; border-radius: 20px;
+      flex-shrink: 0; padding: 10px 20px; border-radius: 20px;
       border: 1px solid var(--border); background: white;
-      font-size: 13px; font-weight: 600; color: var(--text);
+      font-size: 14px; font-weight: 600; color: var(--text);
       cursor: pointer; white-space: nowrap; transition: all 0.2s;
+      min-height: 44px;
     }
     .category-btn:hover { border-color: var(--primary); color: var(--primary); }
     .category-btn.active {
@@ -146,14 +147,16 @@
     }
     .tab-nav::-webkit-scrollbar { display: none; }
     .tab-btn {
-      flex-shrink: 0; padding: 12px 14px; border: none; background: none;
-      font-size: 13px; font-weight: 500; color: var(--text-light);
+      flex-shrink: 0; padding: 12px 16px; border: none; background: none;
+      font-size: 14px; font-weight: 500; color: var(--text-light);
       cursor: pointer; white-space: nowrap;
-      border-bottom: 2px solid transparent; transition: all 0.2s;
+      border-bottom: 3px solid transparent; transition: all 0.2s;
+      min-height: 44px;
     }
     .tab-btn:hover { color: var(--primary); }
     .tab-btn.active {
       color: var(--primary); border-bottom-color: var(--primary); font-weight: 700;
+      background: linear-gradient(to bottom, transparent, rgba(102,126,234,0.04));
     }
     .tab-btn.hidden-by-category { display: none; }
 
@@ -464,7 +467,8 @@
 
 <!-- Category Navigation -->
 <nav class="category-nav" id="categoryNav">
-  <button class="category-btn active" data-category="daily">&#127968; 日常業務</button>
+  <button class="category-btn active" data-category="dashboard">📊 ダッシュボード</button>
+  <button class="category-btn" data-category="daily">&#127968; 日常業務</button>
   <button class="category-btn" data-category="analytics">&#128202; 学習分析</button>
   <button class="category-btn" data-category="game">&#127918; ゲーム運営</button>
   <button class="category-btn" data-category="master">&#9881;&#65039; マスター設定</button>
@@ -473,7 +477,8 @@
 <!-- Tab Navigation -->
 <nav class="tab-nav" id="tabNav">
   <!-- 日常業務 -->
-  <button class="tab-btn active" data-tab="plans" data-category="daily">&#128640; 今日のプラン</button>
+  <button class="tab-btn active" data-tab="dashboard" data-category="dashboard">📊 概況</button>
+  <button class="tab-btn hidden-by-category" data-tab="plans" data-category="daily">&#128640; 今日のプラン</button>
   <button class="tab-btn" data-tab="schedule" data-category="daily">&#128197; スケジュール</button>
   <button class="tab-btn" data-tab="optasks" data-category="daily">&#9745; 業務タスク</button>
   <button class="tab-btn" data-tab="tasks" data-category="daily">&#128203; タスク管理</button>
@@ -509,7 +514,34 @@
 
   <!-- ===== ランキング ===== -->
   <!-- 今日のプラン管理 -->
-  <div class="tab-content active" id="tab-plans">
+  <!-- ===== ダッシュボード ===== -->
+  <div class="tab-content active" id="tab-dashboard">
+    <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px;" id="dashKPIs"></div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+      <div class="card">
+        <div class="card-title" style="cursor:pointer;" onclick="switchCategory('daily');switchTab('schedule');">📅 今日のスケジュール <span style="float:right;color:var(--primary);font-size:12px;">詳細 →</span></div>
+        <div id="dashSchedule" style="font-size:13px;color:var(--text-light);">読み込み中...</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="cursor:pointer;" onclick="switchCategory('analytics');switchTab('risk');">⚠️ アラート <span style="float:right;color:var(--primary);font-size:12px;">詳細 →</span></div>
+        <div id="dashAlerts" style="font-size:13px;color:var(--text-light);">読み込み中...</div>
+      </div>
+      <div class="card">
+        <div class="card-title" style="cursor:pointer;" onclick="switchCategory('master');switchTab('finance');">💹 今月の収支 <span style="float:right;color:var(--primary);font-size:12px;">詳細 →</span></div>
+        <div id="dashFinance" style="font-size:13px;color:var(--text-light);">読み込み中...</div>
+      </div>
+      <div class="card">
+        <div class="card-title">📋 クイックアクション</div>
+        <div style="display:flex;flex-direction:column;gap:8px;">
+          <button class="btn btn-primary btn-sm" onclick="switchCategory('daily');switchTab('schedule');setTimeout(()=>showScheduleSlotModal(),300);">+ 予定追加</button>
+          <button class="btn btn-secondary btn-sm" onclick="switchCategory('daily');switchTab('messages');">💬 メッセージ確認</button>
+          <button class="btn btn-secondary btn-sm" onclick="switchCategory('master');switchTab('students');">👤 生徒管理</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="tab-content" id="tab-plans">
     <div class="card">
       <h3>🚀 今日のプラン管理</h3>
       <p style="font-size:13px;color:#718096;margin-bottom:16px;">各生徒の本日の学習プランを設定します。プランがある生徒は、生徒画面でワンタップで学習を開始できます。</p>
@@ -1783,10 +1815,11 @@ function escapeHtml(str) {
 // カテゴリ & タブ切り替え
 // ============================================
 const TAB_CATEGORIES = {
+  dashboard: ['dashboard'],
   daily:     ['plans','schedule','optasks','tasks','messages','condition','prizes'],
   analytics: ['monitor','ranking','coaching','exams','matprogress','history','risk','anomaly'],
   game:      ['guilds','raidboss','story','missions','events','economy'],
-  master:    ['students','teachers','routes','settings']
+  master:    ['students','teachers','routes','finance','settings']
 };
 
 // カテゴリ → タブID の逆引きマップ
@@ -1795,7 +1828,7 @@ for (const [cat, tabs] of Object.entries(TAB_CATEGORIES)) {
   tabs.forEach(t => TAB_TO_CATEGORY[t] = cat);
 }
 
-let currentCategory = 'daily';
+let currentCategory = 'dashboard';
 
 document.querySelectorAll('.category-btn').forEach(btn => {
   btn.addEventListener('click', () => switchCategory(btn.dataset.category));
@@ -1841,6 +1874,7 @@ function switchTab(tabId, fromCategory = false) {
 
   // タブ切替時にデータロード
   const loaders = {
+    dashboard: loadDashboard,
     plans: loadPlanStatus,
     schedule: () => { loadSchedule(); loadTemplateOverview(); },
     optasks: loadOpTasks,
@@ -4914,6 +4948,101 @@ function setupAdminLiveListener() {
         '<div><span style="font-weight:700;color:' + color + ';font-size:14px;">' + (ev.name || 'イベント') + ' ' + valueText + '</span>' +
         '<span style="color:#94a3b8;font-size:11px;margin-left:8px;">' + (ev.durationMinutes || 30) + '分間</span></div></div>';
     }, () => {});
+}
+
+// ============================================
+// ダッシュボード
+// ============================================
+async function loadDashboard() {
+  try {
+    const students = allStudents || await StudentsDB.getAll();
+    allStudents = students;
+    const activeStudents = students.filter(s => s.role !== 'supporter');
+    const today = new Date().toISOString().slice(0, 10);
+
+    // KPIカード
+    const [todaySlots, attendance, pending, teachers] = await Promise.all([
+      ScheduleSlotsDB.getByDate(today),
+      AttendanceDB.getTodayAttendance(),
+      ScheduleSlotsDB.getPending(),
+      TeachersDB.getAll()
+    ]);
+    window._cachedTeachers = teachers;
+
+    const kpis = document.getElementById('dashKPIs');
+    const activeSlots = todaySlots.filter(s => s.status !== 'cancelled');
+    const attended = todaySlots.filter(s => s.status === 'attended');
+    kpis.innerHTML = `
+      <div style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:11px;opacity:0.8;">本日の予定</div>
+        <div style="font-size:28px;font-weight:900;">${activeSlots.length}</div>
+        <div style="font-size:11px;opacity:0.8;">出席 ${attended.length}名</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#10b981,#059669);color:white;border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:11px;opacity:0.8;">在室</div>
+        <div style="font-size:28px;font-weight:900;">${attendance.length}</div>
+        <div style="font-size:11px;opacity:0.8;">/ ${activeStudents.length}名</div>
+      </div>
+      <div style="background:linear-gradient(135deg,${pending.length > 0 ? '#f59e0b,#d97706' : '#94a3b8,#64748b'});color:white;border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:11px;opacity:0.8;">承認待ち</div>
+        <div style="font-size:28px;font-weight:900;">${pending.length}</div>
+        <div style="font-size:11px;opacity:0.8;cursor:pointer;" onclick="switchCategory('daily');switchTab('schedule');">確認する →</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:11px;opacity:0.8;">出勤講師</div>
+        <div style="font-size:28px;font-weight:900;">${(await ShiftsDB.getByDate(today)).length}</div>
+        <div style="font-size:11px;opacity:0.8;">/ ${teachers.length}名</div>
+      </div>
+    `;
+
+    // 今日のスケジュール（ミニ版）
+    const schedEl = document.getElementById('dashSchedule');
+    if (activeSlots.length === 0) {
+      schedEl.innerHTML = '<div style="color:var(--text-light);text-align:center;padding:12px;">本日の予定はありません</div>';
+    } else {
+      const sMap = {}; students.forEach(s => sMap[s.id] = s);
+      const tMap = {}; teachers.forEach(t => tMap[t.id] = t);
+      const sorted = activeSlots.sort((a,b) => a.startTime.localeCompare(b.startTime));
+      schedEl.innerHTML = sorted.slice(0, 8).map(s => {
+        const st = sMap[s.studentId]; const t = tMap[s.teacherId];
+        const statusIcon = s.status === 'attended' ? '✅' : s.status === 'absent' ? '❌' : '⏰';
+        return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:13px;">
+          <span>${statusIcon} ${s.startTime}-${s.endTime} <strong>${st ? st.name : '?'}</strong></span>
+          <span style="color:var(--text-light);">${t ? t.name : '未定'}</span>
+        </div>`;
+      }).join('') + (sorted.length > 8 ? `<div style="text-align:center;font-size:12px;color:var(--primary);margin-top:6px;">...他${sorted.length - 8}件</div>` : '');
+    }
+
+    // アラート
+    const alertEl = document.getElementById('dashAlerts');
+    let alerts = [];
+    if (pending.length > 0) alerts.push(`🔶 承認待ち ${pending.length}件`);
+    try {
+      const risks = await RiskDetector.checkAll();
+      const highRisks = risks.filter(r => r.riskLevel === 'high');
+      if (highRisks.length > 0) alerts.push(`🔴 離脱リスク高: ${highRisks.map(r => r.studentName).join(', ')}`);
+    } catch(e) {}
+    const todayCond = await ConditionsDB.getToday();
+    const lowMood = todayCond.filter(c => c.mood <= 2);
+    if (lowMood.length > 0) alerts.push(`💚 気分低下: ${lowMood.length}名`);
+    alertEl.innerHTML = alerts.length > 0
+      ? alerts.map(a => `<div style="padding:6px 0;border-bottom:1px solid #f1f5f9;">${a}</div>`).join('')
+      : '<div style="text-align:center;color:#10b981;padding:12px;">✅ アラートなし</div>';
+
+    // 収支ミニ
+    const finEl = document.getElementById('dashFinance');
+    let totalRevenue = 0;
+    activeStudents.forEach(s => {
+      const gg = getGradeGroup(s.grade, s.examCandidate);
+      const m = calcMonthly(gg, s.courseType, s.courseKoma);
+      if (m) totalRevenue += m;
+    });
+    finEl.innerHTML = `<div style="display:flex;justify-content:space-around;text-align:center;">
+      <div><div style="font-size:11px;color:var(--text-light);">月次売上</div><div style="font-size:20px;font-weight:900;color:#3b82f6;">¥${totalRevenue.toLocaleString()}</div></div>
+      <div><div style="font-size:11px;color:var(--text-light);">生徒数</div><div style="font-size:20px;font-weight:900;color:#8b5cf6;">${activeStudents.length}名</div></div>
+    </div>`;
+
+  } catch(e) { console.error('Dashboard error:', e); }
 }
 
 async function loadPlanStatus() {

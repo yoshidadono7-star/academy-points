@@ -118,14 +118,14 @@ body {
 }
 .nav-item {
   display: flex; flex-direction: column; align-items: center;
-  gap: 2px; cursor: pointer; padding: 6px 12px;
+  gap: 2px; cursor: pointer; padding: 6px 8px;
   color: var(--text-light); transition: color 0.2s;
   -webkit-tap-highlight-color: transparent;
   background: none; border: none; font-family: inherit;
 }
 .nav-item.active { color: var(--primary); }
 .nav-icon { font-size: 24px; }
-.nav-label { font-size: 10px; font-weight: 600; }
+.nav-label { font-size: 12px; font-weight: 600; }
 .nav-badge {
   position: absolute; top: 2px; right: 2px;
   background: var(--danger); color: white;
@@ -1374,22 +1374,20 @@ body.theme-space {
 
 <!-- ========== Bottom Navigation ========== -->
 <nav id="bottomNav" class="bottom-nav" style="display:none;">
-  <button class="nav-item active" onclick="navTo('home')">
-    <span class="nav-icon">🏠</span>
-    <span class="nav-label">ホーム</span>
+  <button class="nav-item active" onclick="navigate('home')" id="navHome">
+    <span class="nav-icon">🏠</span><span class="nav-label">ホーム</span>
   </button>
-  <button class="nav-item" onclick="navTo('studyMode')">
-    <span class="nav-icon">📚</span>
-    <span class="nav-label">学習</span>
+  <button class="nav-item" onclick="navigate('studyMode')" id="navStudy">
+    <span class="nav-icon">📚</span><span class="nav-label">学習</span>
   </button>
-  <button class="nav-item" onclick="navTo('ranking')">
-    <span class="nav-icon">🏆</span>
-    <span class="nav-label">ランキング</span>
+  <button class="nav-item" onclick="navigate('fullSchedule')" id="navSchedule">
+    <span class="nav-icon">📅</span><span class="nav-label">予定</span>
   </button>
-  <button class="nav-item" style="position:relative" onclick="navTo('profile')">
-    <span class="nav-icon">👤</span>
-    <span class="nav-label">マイページ</span>
-    <span id="navMsgBadge" class="nav-badge" style="display:none">0</span>
+  <button class="nav-item" onclick="navigate('badges')" id="navAchieve">
+    <span class="nav-icon">🏅</span><span class="nav-label">実績</span>
+  </button>
+  <button class="nav-item" onclick="showProfileMenu()" id="navProfile">
+    <span class="nav-icon">👤</span><span class="nav-label">マイページ</span>
   </button>
 </nav>
 
@@ -1442,19 +1440,19 @@ function navigate(screen) {
   switch(screen) {
     case 'home': loadHome(); highlightNav(0); break;
     case 'studyMode': resetStudyMode(); highlightNav(1); break;
-    case 'ranking': loadRanking(); highlightNav(2); break;
+    case 'fullSchedule': loadFullSchedule(); highlightNav(2); break;
+    case 'badges': loadBadges(); highlightNav(3); break;
+    case 'ranking': loadRanking(); break;
     case 'condition': resetCondition(); break;
     case 'tasks': loadTasks(); break;
     case 'prizes': loadPrizes(); break;
     case 'history': loadHistory(); break;
-    case 'badges': loadBadges(); break;
     case 'messages': loadMessages(); break;
     case 'guild': loadGuild(); break;
     case 'raidBoss': loadRaidBoss(); break;
     case 'combo': loadComboEncyclopedia(); break;
     case 'mySchedule': loadMySchedule(); break;
     case 'interviews': loadInterviews(); break;
-    case 'fullSchedule': loadFullSchedule(); break;
   }
 }
 
@@ -1473,7 +1471,7 @@ function highlightNav(idx) {
 }
 
 function showProfileMenu() {
-  highlightNav(3);
+  highlightNav(4);
   // Show a simple profile submenu via modal
   showModal('👤', 'マイページ', currentStudent ? (currentStudent.callsign || currentStudent.nickname || '') : '', `
     <div style="font-size:11px;font-weight:700;color:#667eea;margin-bottom:6px;padding-left:4px;">📋 日常</div>
