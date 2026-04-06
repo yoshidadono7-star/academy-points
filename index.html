@@ -5853,16 +5853,31 @@ async function saveScheduleSlot() {
   } catch(e) { console.error(e); showToast('保存に失敗しました', 'error'); }
 }
 
-function editScheduleSlot(id) {
-  const actions = [
-    { value: 'attended', label: '✅ 出席', color: '#10b981' },
-    { value: 'absent', label: '❌ 欠席', color: '#ef4444' },
-    { value: 'cancelled', label: '🗑 取消', color: '#94a3b8' },
-    { value: 'scheduled', label: '⏰ 予定に戻す', color: '#3b82f6' }
-  ];
+async function editScheduleSlot(id) {
+  const doc = await db.collection('scheduleSlots').doc(id).get();
+  if (!doc.exists) { showToast('予定が見つかりません', 'error'); return; }
+  const slot = { id: doc.id, ...doc.data() };
+  const student = allStudents ? allStudents.find(s => s.id === slot.studentId) : null;
+  const teachers = window._cachedTeachers || await TeachersDB.getAll();
+  const teacher = teachers.find(t => t.id === slot.teacherId);
+  const statusLabels = { scheduled: '⏰ 予定', attended: '✅ 出席', absent: '❌ 欠席', cancelled: '🗑 取消', rescheduled: '🔄 振替' };
+  const currentStatus = statusLabels[slot.status] || slot.status;
+
   openModal('スケジュール操作', `
-    <div style="display:flex;flex-direction:column;gap:10px;">
-      ${actions.map(a => `<button class="btn" style="background:${a.color};color:white;width:100%;padding:14px;" onclick="updateSlotStatus('${id}','${a.value}')">${a.label}</button>`).join('')}
+    <div style="background:#f8fafc;border-radius:10px;padding:12px;margin-bottom:14px;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px;">${student ? student.name : '不明'}</div>
+      <div style="font-size:13px;color:var(--text-light);">${slot.date} ${slot.startTime}〜${slot.endTime}（${slot.komas || 1}コマ）</div>
+      <div style="font-size:13px;color:var(--text-light);">講師: ${teacher ? teacher.name : '未定'}</div>
+      <div style="font-size:13px;color:var(--text-light);">科目: ${slot.subjects ? slot.subjects.join(', ') : '未設定'}</div>
+      <div style="font-size:13px;margin-top:4px;">現在のステータス: <strong>${currentStatus}</strong></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button class="btn" style="background:#10b981;color:white;width:100%;padding:12px;" onclick="updateSlotStatus('${id}','attended')">✅ 出席に変更</button>
+      <button class="btn" style="background:#ef4444;color:white;width:100%;padding:12px;" onclick="updateSlotStatus('${id}','absent')">❌ 欠席に変更</button>
+      <button class="btn" style="background:#3b82f6;color:white;width:100%;padding:12px;" onclick="updateSlotStatus('${id}','scheduled')">⏰ 予定に戻す</button>
+      <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;">
+        <button class="btn" style="background:#fff;color:#ef4444;border:1px solid #ef4444;width:100%;padding:12px;" onclick="deleteScheduleSlot('${id}')">🗑 この予定を削除</button>
+      </div>
     </div>
   `, `<button class="btn btn-secondary" onclick="closeModal()">閉じる</button>`);
 }
@@ -5870,10 +5885,20 @@ function editScheduleSlot(id) {
 async function updateSlotStatus(id, status) {
   try {
     await ScheduleSlotsDB.updateStatus(id, status);
-    showToast('更新しました');
+    showToast('ステータスを更新しました');
     closeModal();
     loadSchedule();
-  } catch(e) { showToast('更新に失敗しました', 'error'); }
+  } catch(e) { showToast('更新に失敗しました', 'error'); console.error(e); }
+}
+
+async function deleteScheduleSlot(id) {
+  if (!confirm('この予定を完全に削除しますか？')) return;
+  try {
+    await db.collection('scheduleSlots').doc(id).delete();
+    showToast('予定を削除しました');
+    closeModal();
+    loadSchedule();
+  } catch(e) { showToast('削除に失敗しました', 'error'); console.error(e); }
 }
 
 async function generateWeekSchedule() {
