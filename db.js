@@ -2776,6 +2776,8 @@ const TeachersDB = {
   async create(data) {
     data.active = true;
     data.maxStudents = data.maxStudents || 3; // 同時担当人数上限
+    data.hourlyRate = data.hourlyRate || 1050; // 時給（円）
+    data.role = data.role || 'teacher'; // 'manager'(教室長) | 'teacher'(講師)
     data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
     const ref = await db.collection('teachers').add(data);
