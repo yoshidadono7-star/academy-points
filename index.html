@@ -1498,15 +1498,17 @@
       </div>
     </div>
     <div class="card">
-      <h3>📅 シフト管理</h3>
+      <h3>📅 シフト表</h3>
+      <div style="font-size:12px;color:var(--text-light);margin-bottom:12px;">各講師の曜日別シフトは上の講師一覧「編集」から設定 → 「🔄 シフト一括反映」で期間に適用されます</div>
       <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;">
         <label>期間:</label>
         <input type="date" id="shiftStartDate" class="form-control" style="width:auto;">
         <span>〜</span>
         <input type="date" id="shiftEndDate" class="form-control" style="width:auto;">
         <button class="btn btn-secondary btn-sm" onclick="loadShifts()">表示</button>
-        <button class="btn btn-primary btn-sm" onclick="generateShiftsFromDefaults()">デフォルトから生成</button>
+        <button class="btn btn-primary btn-sm" onclick="generateShiftsFromDefaults()">🔄 シフト一括反映</button>
       </div>
+      <div style="font-size:11px;color:var(--text-light);margin-top:-12px;margin-bottom:12px;">※ 各講師の曜日別シフト設定を、指定期間に一括で反映します</div>
       <div id="shiftsTable">
         <div style="text-align:center;color:var(--text-light);padding:20px;">期間を選択してください</div>
       </div>
