@@ -5715,16 +5715,18 @@ async function loadSchedule() {
         teacherCols.forEach(t => {
           const matching = slots.filter(s => s.teacherId === t.id && s.startTime <= ts.start && s.endTime > ts.start);
           if (matching.length > 0) {
-            const s = matching[0];
-            const student = students.find(st => st.id === s.studentId);
             const statusColors = { scheduled: '#DBEAFE', attended: '#D1FAE5', absent: '#FEE2E2', cancelled: '#E5E7EB', rescheduled: '#FEF3C7' };
             const statusLabels = { scheduled: '予定', attended: '出席', absent: '欠席', cancelled: '取消', rescheduled: '振替' };
-            const slotIdx = Math.floor(((ts.start.split(':').map(Number).reduce((a,b)=>a*60+b)) - (s.startTime.split(':').map(Number).reduce((a,b)=>a*60+b))) / (schedConfig.slotMinutes || 30));
-            const subj = s.subjects && s.subjects[slotIdx] ? s.subjects[slotIdx] : '';
-            html += `<td style="background:${statusColors[s.status] || '#fff'};cursor:pointer;padding:4px 6px;" onclick="editScheduleSlot('${s.id}')">
-              <div style="font-weight:600;font-size:11px;">${student ? student.name : s.studentId}</div>
-              <div style="font-size:10px;color:#666;">${subj} <span style="font-size:9px;">${statusLabels[s.status] || ''}</span></div>
-            </td>`;
+            const cellBg = statusColors[matching[0].status] || '#fff';
+            html += `<td style="background:${cellBg};cursor:pointer;padding:4px 6px;vertical-align:top;" onclick="editScheduleSlot('${matching[0].id}')">`;
+            for (const s of matching) {
+              const student = students.find(st => st.id === s.studentId);
+              const slotIdx = Math.floor(((ts.start.split(':').map(Number).reduce((a,b)=>a*60+b)) - (s.startTime.split(':').map(Number).reduce((a,b)=>a*60+b))) / (schedConfig.slotMinutes || 30));
+              const subj = s.subjects && s.subjects[slotIdx] ? s.subjects[slotIdx] : '';
+              html += `<div style="font-weight:600;font-size:11px;">${student ? student.name : s.studentId}</div>
+              <div style="font-size:10px;color:#666;margin-bottom:4px;">${subj} <span style="font-size:9px;">${statusLabels[s.status] || ''}</span></div>`;
+            }
+            html += `</td>`;
           } else {
             html += `<td style="cursor:pointer;color:#ccc;text-align:center;" onclick="showScheduleSlotModal('${dateStr}','${ts.start}','${t.id || ''}')">+</td>`;
           }
