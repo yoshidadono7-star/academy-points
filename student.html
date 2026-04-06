@@ -1060,8 +1060,8 @@ body.theme-space {
 }
 .guide-overlay.active { display: block; }
 .guide-backdrop {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
-  pointer-events: auto;
+  position: fixed; inset: 0; background: rgba(0,0,0,0.01);
+  pointer-events: none;
 }
 .guide-spotlight {
   position: absolute; border-radius: 16px;
@@ -1145,6 +1145,7 @@ body.theme-space {
     <div class="guide-tooltip-step" id="guideStep"></div>
     <div class="guide-tooltip-text" id="guideText"></div>
     <div class="guide-tooltip-sub" id="guideSub"></div>
+    <button onclick="GuideSystem.advanceGuide()" style="margin-top:10px;background:none;border:1px solid #cbd5e0;color:#718096;padding:5px 14px;border-radius:8px;font-size:11px;cursor:pointer;">スキップ ▸</button>
   </div>
 </div>
 
