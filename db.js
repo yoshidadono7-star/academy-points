@@ -2902,10 +2902,40 @@ const ScheduleTemplatesDB = {
 const ScheduleSlotsDB = {
   async create(data) {
     data.status = data.status || 'scheduled';
+    data.approval = data.approval || 'approved'; // pending/approved/rejected
+    data.submittedBy = data.submittedBy || 'teacher'; // teacher/student/parent
+    data.approvedBy = data.approvedBy || null;
+    data.approvedAt = data.approvedAt || null;
+    data.parentNotified = data.parentNotified || false;
     data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
     data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
     const ref = await db.collection('scheduleSlots').add(data);
     return ref.id;
+  },
+  async approve(id, approvedBy) {
+    await db.collection('scheduleSlots').doc(id).update({
+      approval: 'approved',
+      approvedBy,
+      approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  },
+  async reject(id, reason) {
+    await db.collection('scheduleSlots').doc(id).update({
+      approval: 'rejected',
+      rejectionReason: reason || '',
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  },
+  async getPending() {
+    const snap = await db.collection('scheduleSlots').where('approval', '==', 'pending').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async markParentNotified(id) {
+    await db.collection('scheduleSlots').doc(id).update({
+      parentNotified: true,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
   },
   async getByDate(date) {
     const snap = await db.collection('scheduleSlots').where('date', '==', date).get();

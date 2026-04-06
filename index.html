@@ -1443,12 +1443,17 @@
         <button class="btn btn-sm" id="schedViewDay" onclick="switchScheduleView('day')" style="background:var(--gradient);color:white;">日表示</button>
         <button class="btn btn-sm" id="schedViewWeek" onclick="switchScheduleView('week')">週表示</button>
         <button class="btn btn-sm" id="schedViewMonth" onclick="switchScheduleView('month')">月表示</button>
+        <button class="btn btn-sm" id="schedViewYear" onclick="switchScheduleView('year')">年表示</button>
         <div style="flex:1"></div>
         <button class="btn btn-sm" onclick="schedPrev()">◀</button>
         <span id="schedDateLabel" style="font-weight:700;font-size:14px;line-height:32px;"></span>
         <button class="btn btn-sm" onclick="schedNext()">▶</button>
         <button class="btn btn-sm" onclick="schedToday()">今日</button>
       </div>
+      <div id="schedPendingAlert" style="display:none;background:#fefce8;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#854d0e;cursor:pointer;" onclick="showPendingSlots()">
+        🔶 <strong id="schedPendingCount">0</strong>件の承認待ちスケジュールがあります（クリックで確認）
+      </div>
+      <div id="schedExamCountdown" style="display:none;margin-bottom:12px;"></div>
       <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
         <button class="btn btn-primary btn-sm" onclick="showScheduleSlotModal()">+ 予定追加</button>
         <button class="btn btn-secondary btn-sm" onclick="generateWeekSchedule()">📋 週次スケジュール生成</button>
@@ -2421,6 +2426,13 @@ async function openStudentModal(student) {
             <option value="supporter" ${isEdit && student.role === 'supporter' ? 'selected' : ''}>&#128588; サポーター</option>
           </select>
         </div>
+        <div class="form-group">
+          <label>スケジュール自己管理</label>
+          <select class="form-control" id="studentSelfSchedule">
+            <option value="false" ${isEdit && !student.selfSchedule ? 'selected' : ''}>OFF（保護者が提出）</option>
+            <option value="true" ${isEdit && student.selfSchedule ? 'selected' : ''}>ON（生徒本人が提出）</option>
+          </select>
+        </div>
       </div>
     </div>
     <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
@@ -2858,6 +2870,7 @@ async function saveStudent(id) {
   const testType = document.getElementById('studentTestType').value || 'midterm';
   const weakSubject = document.getElementById('studentWeakSubject').value || null;
   const role = document.getElementById('studentRole').value || 'student';
+  const selfSchedule = document.getElementById('studentSelfSchedule').value === 'true';
   const materials = [...document.querySelectorAll('.student-material-check:checked')].map(c => c.value);
 
   // 学年別データ
@@ -2904,7 +2917,7 @@ async function saveStudent(id) {
   if (!name) { showToast('名前を入力してください', 'error'); return; }
 
   try {
-    const data = { name, nickname, callsign, pin, parentPin, grade, rank, school, testType, weakSubject, targetStation, role, materials, examCandidate, targetJuniorHighs, targetUniversities, targetQualifications, certGoals, courseType, courseKoma };
+    const data = { name, nickname, callsign, pin, parentPin, grade, rank, school, testType, weakSubject, targetStation, role, selfSchedule, materials, examCandidate, targetJuniorHighs, targetUniversities, targetQualifications, certGoals, courseType, courseKoma };
     let studentId = id;
     if (id) {
       await StudentsDB.update(id, data);
@@ -5666,12 +5679,14 @@ function schedToday() { schedDate = new Date(); loadSchedule(); }
 function schedPrev() {
   if (schedView === 'day') schedDate.setDate(schedDate.getDate() - 1);
   else if (schedView === 'week') schedDate.setDate(schedDate.getDate() - 7);
+  else if (schedView === 'year') schedDate.setFullYear(schedDate.getFullYear() - 1);
   else schedDate.setMonth(schedDate.getMonth() - 1);
   loadSchedule();
 }
 function schedNext() {
   if (schedView === 'day') schedDate.setDate(schedDate.getDate() + 1);
   else if (schedView === 'week') schedDate.setDate(schedDate.getDate() + 7);
+  else if (schedView === 'year') schedDate.setFullYear(schedDate.getFullYear() + 1);
   else schedDate.setMonth(schedDate.getMonth() + 1);
   loadSchedule();
 }
@@ -5828,11 +5843,120 @@ async function loadSchedule() {
           }
         }).catch(() => {});
       }
+
+    } else if (schedView === 'year') {
+      // 年表示
+      const year = schedDate.getFullYear();
+      label.textContent = `${year}年`;
+      const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+      // 受験日を取得
+      const exams = await ExamSchedulesDB.getActive();
+      let html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">';
+      for (let m = 0; m < 12; m++) {
+        const ym = `${year}-${String(m+1).padStart(2,'0')}`;
+        const isCurrentMonth = new Date().getFullYear() === year && new Date().getMonth() === m;
+        html += `<div style="background:${isCurrentMonth ? '#f0f9ff' : '#fff'};border:1px solid ${isCurrentMonth ? '#3b82f6' : '#e2e8f0'};border-radius:10px;padding:10px;cursor:pointer;" onclick="schedDate=new Date(${year},${m},1);switchScheduleView('month');">`;
+        html += `<div style="font-weight:700;font-size:14px;margin-bottom:6px;${isCurrentMonth ? 'color:#3b82f6;' : ''}">${months[m]}</div>`;
+        // 受験日マーカー
+        const monthExams = exams.filter(e => e.date && e.date.startsWith(ym));
+        if (monthExams.length > 0) {
+          html += monthExams.map(e => {
+            const daysUntil = Math.ceil((new Date(e.date) - new Date()) / 86400000);
+            const urgency = daysUntil <= 30 ? '#ef4444' : daysUntil <= 90 ? '#f59e0b' : '#3b82f6';
+            return `<div style="font-size:10px;background:${urgency};color:white;padding:2px 6px;border-radius:4px;margin-bottom:2px;">${e.examName || e.examType} ${e.date.slice(5)}${daysUntil > 0 ? ' (あと' + daysUntil + '日)' : ''}</div>`;
+          }).join('');
+        }
+        html += `<div id="year-${ym}" style="font-size:11px;color:#64748b;margin-top:4px;"></div>`;
+        html += '</div>';
+      }
+      html += '</div>';
+      container.innerHTML = html;
+
+      // 各月の予約数を非同期で取得
+      for (let m = 0; m < 12; m++) {
+        const ym = `${year}-${String(m+1).padStart(2,'0')}`;
+        const firstDate = `${ym}-01`;
+        const lastDate = `${ym}-${String(new Date(year, m+1, 0).getDate()).padStart(2,'0')}`;
+        (async () => {
+          try {
+            // 月初の1日だけサンプルで取得（全日取得は重いので）
+            const snap = await db.collection('scheduleSlots').where('date', '>=', firstDate).where('date', '<=', lastDate).get();
+            const el = document.getElementById(`year-${ym}`);
+            if (el) el.textContent = snap.size > 0 ? `${snap.size}件の予定` : '';
+          } catch(e) {}
+        })();
+      }
     }
+
+    // 承認待ちアラートを更新
+    loadPendingAlert();
+    // 受験カウントダウンを表示
+    loadSchedExamCountdown();
+
   } catch(e) {
     console.error('Schedule load error:', e);
     container.innerHTML = '<div style="text-align:center;color:var(--danger);padding:40px;">スケジュールの読み込みに失敗しました</div>';
   }
+}
+
+async function loadPendingAlert() {
+  try {
+    const pending = await ScheduleSlotsDB.getPending();
+    const alert = document.getElementById('schedPendingAlert');
+    const count = document.getElementById('schedPendingCount');
+    if (pending.length > 0) {
+      alert.style.display = 'block';
+      count.textContent = pending.length;
+    } else {
+      alert.style.display = 'none';
+    }
+  } catch(e) { console.warn('Pending alert error:', e); }
+}
+
+async function showPendingSlots() {
+  try {
+    const pending = await ScheduleSlotsDB.getPending();
+    const students = allStudents || await StudentsDB.getAll();
+    const days = ['日','月','火','水','木','金','土'];
+    let html = '<div style="max-height:400px;overflow-y:auto;">';
+    for (const s of pending) {
+      const student = students.find(st => st.id === s.studentId);
+      const d = new Date(s.date + 'T00:00:00');
+      const submitter = s.submittedBy === 'student' ? '生徒' : s.submittedBy === 'parent' ? '保護者' : '先生';
+      html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid #f1f5f9;">
+        <div>
+          <div style="font-weight:700;">${student ? student.name : s.studentId}</div>
+          <div style="font-size:12px;color:var(--text-light);">${s.date}(${days[d.getDay()]}) ${s.startTime}〜${s.endTime} | 提出: ${submitter}</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm" style="background:#10b981;color:white;padding:6px 12px;" onclick="approveSlot('${s.id}')">承認</button>
+          <button class="btn btn-sm" style="background:#ef4444;color:white;padding:6px 12px;" onclick="rejectSlot('${s.id}')">差戻</button>
+        </div>
+      </div>`;
+    }
+    if (pending.length === 0) html += '<div style="text-align:center;padding:20px;color:var(--text-light);">承認待ちはありません</div>';
+    html += '</div>';
+    openModal('承認待ちスケジュール', html, '<button class="btn btn-secondary" onclick="closeModal()">閉じる</button>');
+  } catch(e) { showToast('読み込みに失敗しました', 'error'); }
+}
+
+async function loadSchedExamCountdown() {
+  const container = document.getElementById('schedExamCountdown');
+  try {
+    const exams = await ExamSchedulesDB.getActive();
+    if (exams.length === 0) { container.style.display = 'none'; return; }
+    const now = new Date();
+    const upcoming = exams.filter(e => new Date(e.date) > now).sort((a,b) => a.date.localeCompare(b.date)).slice(0, 5);
+    if (upcoming.length === 0) { container.style.display = 'none'; return; }
+    container.style.display = 'block';
+    container.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;">' + upcoming.map(e => {
+      const days = Math.ceil((new Date(e.date) - now) / 86400000);
+      const urgency = days <= 14 ? '#ef4444' : days <= 30 ? '#f59e0b' : days <= 90 ? '#3b82f6' : '#10b981';
+      return `<div style="background:${urgency};color:white;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:600;">
+        ${e.examName || e.examType} ${e.date.slice(5)} <span style="font-size:14px;font-weight:900;">あと${days}日</span>
+      </div>`;
+    }).join('') + '</div>';
+  } catch(e) { container.style.display = 'none'; }
 }
 
 function showScheduleSlotModal(date, time, teacherId) {
@@ -5884,14 +6008,29 @@ async function editScheduleSlot(id) {
   const statusLabels = { scheduled: '⏰ 予定', attended: '✅ 出席', absent: '❌ 欠席', cancelled: '🗑 取消', rescheduled: '🔄 振替' };
   const currentStatus = statusLabels[slot.status] || slot.status;
 
+  const approvalLabels = { pending: '🔶 承認待ち', approved: '✅ 承認済み', rejected: '❌ 差戻し' };
+  const approvalStatus = approvalLabels[slot.approval] || '✅ 承認済み';
+  const submitterLabels = { teacher: '先生', student: '生徒', parent: '保護者' };
+  const submitter = submitterLabels[slot.submittedBy] || '先生';
+  const isPending = slot.approval === 'pending';
+
   openModal('スケジュール操作', `
     <div style="background:#f8fafc;border-radius:10px;padding:12px;margin-bottom:14px;">
       <div style="font-size:15px;font-weight:700;margin-bottom:4px;">${student ? student.name : '不明'}</div>
       <div style="font-size:13px;color:var(--text-light);">${slot.date} ${slot.startTime}〜${slot.endTime}（${slot.komas || 1}コマ）</div>
       <div style="font-size:13px;color:var(--text-light);">講師: ${teacher ? teacher.name : '未定'}</div>
       <div style="font-size:13px;color:var(--text-light);">科目: ${slot.subjects ? slot.subjects.join(', ') : '未設定'}</div>
-      <div style="font-size:13px;margin-top:4px;">現在のステータス: <strong>${currentStatus}</strong></div>
+      <div style="font-size:13px;margin-top:4px;">ステータス: <strong>${currentStatus}</strong></div>
+      <div style="font-size:13px;">承認: <strong>${approvalStatus}</strong>（提出: ${submitter}）</div>
     </div>
+    ${isPending ? `
+    <div style="background:#fefce8;border:1px solid #fde68a;border-radius:10px;padding:12px;margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:700;color:#854d0e;margin-bottom:8px;">📋 承認待ちの予定です</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" style="background:#10b981;color:white;flex:1;padding:12px;" onclick="approveSlot('${id}')">✅ 承認</button>
+        <button class="btn" style="background:#ef4444;color:white;flex:1;padding:12px;" onclick="rejectSlot('${id}')">❌ 差戻し</button>
+      </div>
+    </div>` : ''}
     <div style="display:flex;flex-direction:column;gap:8px;">
       <button class="btn" style="background:#10b981;color:white;width:100%;padding:12px;" onclick="updateSlotStatus('${id}','attended')">✅ 出席に変更</button>
       <button class="btn" style="background:#ef4444;color:white;width:100%;padding:12px;" onclick="updateSlotStatus('${id}','absent')">❌ 欠席に変更</button>
@@ -5910,6 +6049,37 @@ async function updateSlotStatus(id, status) {
     closeModal();
     loadSchedule();
   } catch(e) { showToast('更新に失敗しました', 'error'); console.error(e); }
+}
+
+async function approveSlot(id) {
+  try {
+    await ScheduleSlotsDB.approve(id, 'teacher');
+    // 保護者に承認通知
+    const doc = await db.collection('scheduleSlots').doc(id).get();
+    if (doc.exists) {
+      const slot = doc.data();
+      await MessagesDB.send(slot.studentId, `スケジュールが承認されました: ${slot.date} ${slot.startTime}〜${slot.endTime}`, 'teacher');
+      await ScheduleSlotsDB.markParentNotified(id);
+    }
+    showToast('承認しました（保護者に通知済み）');
+    closeModal();
+    loadSchedule();
+  } catch(e) { showToast('承認に失敗しました', 'error'); console.error(e); }
+}
+
+async function rejectSlot(id) {
+  const reason = prompt('差戻し理由（任意）:') || '';
+  try {
+    await ScheduleSlotsDB.reject(id, reason);
+    const doc = await db.collection('scheduleSlots').doc(id).get();
+    if (doc.exists) {
+      const slot = doc.data();
+      await MessagesDB.send(slot.studentId, `スケジュールが差し戻されました: ${slot.date} ${slot.startTime}〜${slot.endTime}${reason ? ' 理由: ' + reason : ''}`, 'teacher');
+    }
+    showToast('差し戻しました');
+    closeModal();
+    loadSchedule();
+  } catch(e) { showToast('差戻しに失敗しました', 'error'); console.error(e); }
 }
 
 async function deleteScheduleSlot(id) {

@@ -1231,6 +1231,48 @@ body.theme-space {
 </div>
 
 <!-- ========== 10. 履歴画面 ========== -->
+<!-- スケジュール提出画面 -->
+<div id="screenMySchedule" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="navigate('home')">←</button>
+    <div class="header-title">📅 スケジュール提出</div>
+    <div></div>
+  </div>
+  <div class="content" style="padding:16px;">
+    <div style="background:#fefce8;border:1px solid #fde68a;border-radius:12px;padding:12px;margin-bottom:16px;font-size:12px;color:#854d0e;">
+      希望する日時を入力して先生に提出してください。先生が承認すると保護者に通知されます。
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:13px;font-weight:600;">日付</label>
+      <input type="date" class="form-control" id="mySchedDate" style="margin-top:4px;">
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:13px;font-weight:600;">開始時間</label>
+      <input type="time" class="form-control" id="mySchedStart" value="16:00" style="margin-top:4px;">
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:13px;font-weight:600;">コマ数</label>
+      <select class="form-control" id="mySchedKomas" style="margin-top:4px;">
+        <option value="1">1コマ（30分）</option>
+        <option value="2" selected>2コマ（1時間）</option>
+        <option value="3">3コマ（1.5時間）</option>
+        <option value="4">4コマ（2時間）</option>
+        <option value="5">5コマ（2.5時間）</option>
+        <option value="6">6コマ（3時間）</option>
+      </select>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:13px;font-weight:600;">科目（カンマ区切り）</label>
+      <input type="text" class="form-control" id="mySchedSubjects" placeholder="例: 数学,英語" style="margin-top:4px;">
+    </div>
+    <button onclick="submitMySchedule()" style="width:100%;padding:14px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;">📤 スケジュールを提出</button>
+    <div style="margin-top:20px;">
+      <div style="font-size:14px;font-weight:700;margin-bottom:8px;">📋 提出済みスケジュール</div>
+      <div id="mySchedList">読み込み中...</div>
+    </div>
+  </div>
+</div>
+
 <div id="screenHistory" class="screen">
   <div class="header">
     <button class="header-back" onclick="navigate('home')">←</button>
@@ -1376,6 +1418,7 @@ function navigate(screen) {
     case 'guild': loadGuild(); break;
     case 'raidBoss': loadRaidBoss(); break;
     case 'combo': loadComboEncyclopedia(); break;
+    case 'mySchedule': loadMySchedule(); break;
   }
 }
 
@@ -1403,6 +1446,7 @@ function showProfileMenu() {
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('guild')" style="margin-bottom:8px">⚔️ ギルド</button>
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('condition')" style="margin-bottom:8px">😊 コンディション</button>
     <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('messages')" style="margin-bottom:8px">💬 メッセージ</button>
+    ${currentStudent && currentStudent.selfSchedule ? '<button class="btn btn-block btn-secondary" onclick="closeModal();navigate(\'mySchedule\')" style="margin-bottom:8px">📅 スケジュール提出</button>' : ''}
     ${typeof isDimensionShiftOpen === 'function' && isDimensionShiftOpen() ? '<button class="btn btn-block btn-secondary" onclick="closeModal();openDimensionShift()" style="margin-bottom:8px">🌌 次元シフト（世界観変更）</button>' : ''}
     <button class="btn btn-block btn-danger" onclick="closeModal();logout()">ログアウト</button>
   `, true);
@@ -1698,6 +1742,61 @@ async function loadTodaySchedule(s) {
   }
   html += '</div>';
   container.innerHTML = html;
+}
+
+async function loadMySchedule() {
+  if (!currentStudent) return;
+  const list = document.getElementById('mySchedList');
+  // デフォルト日付を明日に
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+  document.getElementById('mySchedDate').value = tomorrow.toISOString().slice(0, 10);
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const endDate = new Date(); endDate.setDate(endDate.getDate() + 30);
+    const slots = await ScheduleSlotsDB.getByStudent(currentStudent.id, today, endDate.toISOString().slice(0, 10));
+    if (slots.length === 0) {
+      list.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:12px;">今後の予定はありません</div>';
+      return;
+    }
+    const approvalColors = { pending: '#f59e0b', approved: '#10b981', rejected: '#ef4444' };
+    const approvalLabels = { pending: '承認待ち', approved: '承認済み', rejected: '差戻し' };
+    const days = ['日','月','火','水','木','金','土'];
+    list.innerHTML = slots.filter(s => s.status !== 'cancelled').sort((a,b) => a.date.localeCompare(b.date)).map(s => {
+      const d = new Date(s.date + 'T00:00:00');
+      const appr = s.approval || 'approved';
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f1f5f9;">'
+        + '<div><span style="font-weight:700;">' + s.date.slice(5) + '(' + days[d.getDay()] + ')</span> '
+        + '<span style="color:#64748b;">' + s.startTime + '〜' + s.endTime + '</span>'
+        + (s.subjects && s.subjects.length ? '<div style="font-size:11px;color:#64748b;">' + s.subjects.join(', ') + '</div>' : '') + '</div>'
+        + '<span style="font-size:11px;padding:3px 8px;border-radius:10px;font-weight:600;color:white;background:' + (approvalColors[appr] || '#94a3b8') + ';">' + (approvalLabels[appr] || appr) + '</span>'
+        + '</div>';
+    }).join('');
+  } catch(e) { list.innerHTML = '<div style="color:#ef4444;">読み込みに失敗しました</div>'; console.warn(e); }
+}
+
+async function submitMySchedule() {
+  if (!currentStudent) return;
+  const date = document.getElementById('mySchedDate').value;
+  const startTime = document.getElementById('mySchedStart').value;
+  const komas = parseInt(document.getElementById('mySchedKomas').value) || 2;
+  const subjectsRaw = document.getElementById('mySchedSubjects').value;
+  const subjects = subjectsRaw.split(',').map(s => s.trim()).filter(Boolean);
+  if (!date || !startTime) { showToast('日付と時間を入力してください'); return; }
+  const [sh, sm] = startTime.split(':').map(Number);
+  const endMin = sh * 60 + sm + komas * 30;
+  const endTime = String(Math.floor(endMin/60)).padStart(2,'0') + ':' + String(endMin%60).padStart(2,'0');
+  try {
+    await ScheduleSlotsDB.create({
+      studentId: currentStudent.id,
+      teacherId: null,
+      date, startTime, endTime, komas, subjects,
+      submittedBy: 'student',
+      approval: 'pending',
+      note: ''
+    });
+    showToast('スケジュールを提出しました（先生の承認待ち）');
+    loadMySchedule();
+  } catch(e) { showToast('提出に失敗しました'); console.warn(e); }
 }
 
 let liveCrewUnsubscribe = null;
