@@ -116,6 +116,26 @@
       cursor: pointer; text-decoration: underline;
     }
 
+    /* Category Navigation */
+    .category-nav {
+      display: flex; overflow-x: auto; background: white;
+      padding: 10px 12px; gap: 8px;
+      border-bottom: 1px solid var(--border);
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .category-nav::-webkit-scrollbar { display: none; }
+    .category-btn {
+      flex-shrink: 0; padding: 8px 18px; border-radius: 20px;
+      border: 1px solid var(--border); background: white;
+      font-size: 13px; font-weight: 600; color: var(--text);
+      cursor: pointer; white-space: nowrap; transition: all 0.2s;
+    }
+    .category-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .category-btn.active {
+      background: var(--gradient); color: white; border-color: transparent;
+    }
+
     /* Tab Navigation */
     .tab-nav {
       display: flex; overflow-x: auto; background: white;
@@ -135,6 +155,7 @@
     .tab-btn.active {
       color: var(--primary); border-bottom-color: var(--primary); font-weight: 700;
     }
+    .tab-btn.hidden-by-category { display: none; }
 
     /* Main Content */
     .main { padding: 16px; max-width: 1400px; margin: 0 auto; }
@@ -360,6 +381,7 @@
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
       .form-row { flex-direction: column; }
       .form-row .form-group { min-width: 100%; }
+      .category-btn { padding: 6px 14px; font-size: 12px; }
       .tab-btn { padding: 10px 10px; font-size: 12px; }
       .guild-grid { grid-template-columns: 1fr; }
       .coaching-grid { grid-template-columns: 1fr; }
@@ -440,30 +462,42 @@
   <span id="adminNarrationText"></span>
 </div>
 
+<!-- Category Navigation -->
+<nav class="category-nav" id="categoryNav">
+  <button class="category-btn active" data-category="daily">&#127968; 日常業務</button>
+  <button class="category-btn" data-category="analytics">&#128202; 学習分析</button>
+  <button class="category-btn" data-category="game">&#127918; ゲーム運営</button>
+  <button class="category-btn" data-category="master">&#9881;&#65039; マスター設定</button>
+</nav>
+
 <!-- Tab Navigation -->
 <nav class="tab-nav" id="tabNav">
-  <button class="tab-btn active" data-tab="plans">&#128640; 今日のプラン</button>
-  <button class="tab-btn" data-tab="ranking">&#127942; ランキング</button>
-  <button class="tab-btn" data-tab="monitor">&#128202; 学習モニター</button>
-  <button class="tab-btn" data-tab="tasks">&#128203; タスク管理</button>
-  <button class="tab-btn" data-tab="condition">&#128154; コンディション</button>
-  <button class="tab-btn" data-tab="history">&#128197; 履歴</button>
-  <button class="tab-btn" data-tab="prizes">&#127873; 景品交換</button>
-  <button class="tab-btn" data-tab="messages" style="position:relative;">&#128140; メッセージ<span id="msgTabBadge" class="notification-badge hidden" style="position:absolute;top:4px;right:4px;font-size:9px;min-width:14px;height:14px;line-height:14px;">0</span></button>
-  <button class="tab-btn" data-tab="students">&#128100; 生徒管理</button>
-  <button class="tab-btn" data-tab="matprogress">&#128230; 教材進捗</button>
-  <button class="tab-btn" data-tab="routes">&#128202; 学習ルート</button>
-  <button class="tab-btn" data-tab="guilds">&#9876;&#65039; ギルド</button>
-  <button class="tab-btn" data-tab="raidboss">&#128121; レイドボス</button>
-  <button class="tab-btn" data-tab="story">&#128214; ストーリー</button>
-  <button class="tab-btn" data-tab="missions">&#127919; ミッション</button>
-  <button class="tab-btn" data-tab="events">&#9889; イベント</button>
-  <button class="tab-btn" data-tab="economy">&#128176; ポイント経済</button>
-  <button class="tab-btn" data-tab="coaching">&#127891; コーチング分析</button>
-  <button class="tab-btn" data-tab="anomaly">&#128269; アノマリー</button>
-  <button class="tab-btn" data-tab="risk">&#9888;&#65039; 離脱リスク</button>
-  <button class="tab-btn" data-tab="exams">&#128221; テスト結果</button>
-  <button class="tab-btn" data-tab="settings">&#9881;&#65039; 塾設定</button>
+  <!-- 日常業務 -->
+  <button class="tab-btn active" data-tab="plans" data-category="daily">&#128640; 今日のプラン</button>
+  <button class="tab-btn" data-tab="tasks" data-category="daily">&#128203; タスク管理</button>
+  <button class="tab-btn" data-tab="messages" data-category="daily" style="position:relative;">&#128140; メッセージ<span id="msgTabBadge" class="notification-badge hidden" style="position:absolute;top:4px;right:4px;font-size:9px;min-width:14px;height:14px;line-height:14px;">0</span></button>
+  <button class="tab-btn" data-tab="condition" data-category="daily">&#128154; コンディション</button>
+  <button class="tab-btn" data-tab="prizes" data-category="daily">&#127873; 景品交換</button>
+  <!-- 学習分析 -->
+  <button class="tab-btn hidden-by-category" data-tab="monitor" data-category="analytics">&#128202; 学習モニター</button>
+  <button class="tab-btn hidden-by-category" data-tab="ranking" data-category="analytics">&#127942; ランキング</button>
+  <button class="tab-btn hidden-by-category" data-tab="coaching" data-category="analytics">&#127891; コーチング分析</button>
+  <button class="tab-btn hidden-by-category" data-tab="exams" data-category="analytics">&#128221; テスト結果</button>
+  <button class="tab-btn hidden-by-category" data-tab="matprogress" data-category="analytics">&#128230; 教材進捗</button>
+  <button class="tab-btn hidden-by-category" data-tab="history" data-category="analytics">&#128197; 履歴</button>
+  <button class="tab-btn hidden-by-category" data-tab="risk" data-category="analytics">&#9888;&#65039; 離脱リスク</button>
+  <button class="tab-btn hidden-by-category" data-tab="anomaly" data-category="analytics">&#128269; アノマリー</button>
+  <!-- ゲーム運営 -->
+  <button class="tab-btn hidden-by-category" data-tab="guilds" data-category="game">&#9876;&#65039; ギルド</button>
+  <button class="tab-btn hidden-by-category" data-tab="raidboss" data-category="game">&#128121; レイドボス</button>
+  <button class="tab-btn hidden-by-category" data-tab="story" data-category="game">&#128214; ストーリー</button>
+  <button class="tab-btn hidden-by-category" data-tab="missions" data-category="game">&#127919; ミッション</button>
+  <button class="tab-btn hidden-by-category" data-tab="events" data-category="game">&#9889; イベント</button>
+  <button class="tab-btn hidden-by-category" data-tab="economy" data-category="game">&#128176; ポイント経済</button>
+  <!-- マスター設定 -->
+  <button class="tab-btn hidden-by-category" data-tab="students" data-category="master">&#128100; 生徒管理</button>
+  <button class="tab-btn hidden-by-category" data-tab="routes" data-category="master">&#128202; 学習ルート</button>
+  <button class="tab-btn hidden-by-category" data-tab="settings" data-category="master">&#9881;&#65039; 塾設定</button>
 </nav>
 
 <!-- Main Content -->
@@ -1468,13 +1502,58 @@ function escapeHtml(str) {
 }
 
 // ============================================
-// タブ切り替え
+// カテゴリ & タブ切り替え
 // ============================================
+const TAB_CATEGORIES = {
+  daily:     ['plans','tasks','messages','condition','prizes'],
+  analytics: ['monitor','ranking','coaching','exams','matprogress','history','risk','anomaly'],
+  game:      ['guilds','raidboss','story','missions','events','economy'],
+  master:    ['students','routes','settings']
+};
+
+// カテゴリ → タブID の逆引きマップ
+const TAB_TO_CATEGORY = {};
+for (const [cat, tabs] of Object.entries(TAB_CATEGORIES)) {
+  tabs.forEach(t => TAB_TO_CATEGORY[t] = cat);
+}
+
+let currentCategory = 'daily';
+
+document.querySelectorAll('.category-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchCategory(btn.dataset.category));
+});
+
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
 
-function switchTab(tabId) {
+function switchCategory(categoryId, autoSelectTab = true) {
+  currentCategory = categoryId;
+  // カテゴリボタンの状態更新
+  document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+  const catBtn = document.querySelector(`.category-btn[data-category="${categoryId}"]`);
+  if (catBtn) catBtn.classList.add('active');
+  // サブタブの表示切り替え
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    if (b.dataset.category === categoryId) {
+      b.classList.remove('hidden-by-category');
+    } else {
+      b.classList.add('hidden-by-category');
+    }
+  });
+  // カテゴリ内の最初のタブを自動選択
+  if (autoSelectTab) {
+    const firstTab = TAB_CATEGORIES[categoryId][0];
+    switchTab(firstTab, true);
+  }
+}
+
+function switchTab(tabId, fromCategory = false) {
+  // タブが属するカテゴリが異なれば、カテゴリも切り替え
+  const targetCat = TAB_TO_CATEGORY[tabId];
+  if (targetCat && targetCat !== currentCategory) {
+    switchCategory(targetCat, false);
+  }
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   const btn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
