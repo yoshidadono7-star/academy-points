@@ -4173,7 +4173,12 @@ const GuideSystem = (() => {
       text: 'まずはコンディションを記録しよう！',
       sub: '今日の気分と体調を教えてね',
       position: 'below',
-      waitFor: 'condition_done'
+      waitFor: 'condition_done',
+      skipIf: () => {
+        // 今日すでにコンディション記録済みならスキップ
+        const el = document.getElementById('homeConditionDone');
+        return el && el.style.display !== 'none';
+      }
     },
     {
       target: () => document.getElementById('homeMissionSection'),
@@ -4181,7 +4186,11 @@ const GuideSystem = (() => {
       text: 'クエストを選ぼう！',
       sub: '今日チャレンジするミッションを1つ選んでね',
       position: 'below',
-      waitFor: 'mission_accepted'
+      waitFor: 'mission_accepted',
+      skipIf: () => {
+        // すでにクエストを受注済みならスキップ
+        return currentMissionDraw && currentMissionDraw.accepted;
+      }
     },
     {
       target: () => document.querySelector('.quick-action[onclick*="studyMode"]'),
@@ -4189,7 +4198,8 @@ const GuideSystem = (() => {
       text: '学習をスタートしよう！',
       sub: '科目を選んでタイマーを開始！',
       position: 'below',
-      waitFor: 'study_started'
+      waitFor: 'study_started',
+      skipIf: () => false
     }
   ];
 
@@ -4231,14 +4241,17 @@ const GuideSystem = (() => {
       finish();
       return;
     }
+    // すでに完了済みのステップはスキップ
+    if (steps[currentStep].skipIf && steps[currentStep].skipIf()) {
+      next();
+      return;
+    }
     // ホーム画面にいる時だけ表示
     const homeScreen = document.getElementById('screenHome');
     if (!homeScreen || !homeScreen.classList.contains('active')) {
-      // ホーム画面でないなら、戻ってきた時にloadHomeから再開される
       hide();
       return;
     }
-    // 少し待ってから表示（DOMの更新を待つ）
     setTimeout(() => showStep(steps[currentStep]), 500);
   }
 
