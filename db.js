@@ -2464,7 +2464,7 @@ const ActiveSessionsDB = {
     });
   },
   async end(studentId) {
-    try { await db.collection('activeSessions').doc(studentId).delete(); } catch(e) {}
+    try { await db.collection('activeSessions').doc(studentId).delete(); } catch(e) { console.warn('ActiveSession end error:', e); }
   },
   async getAll() {
     const snap = await db.collection('activeSessions').where('active', '==', true).get();
@@ -2713,67 +2713,244 @@ const RouteTasksDB = {
   }
 };
 
-// ===== 講師管理 (Teachers) =====
+// ============================================
+// 塾設定（営業時間・休校日）
+// ============================================
+const AcademyConfigDB = {
+  DOC_ID: 'main',
+  DEFAULTS: {
+    businessHours: {
+      mon: { start: '15:00', end: '22:00' },
+      tue: { start: '15:00', end: '22:00' },
+      wed: { start: '15:00', end: '22:00' },
+      thu: { start: '15:00', end: '22:00' },
+      fri: { start: '15:00', end: '22:00' },
+      sat: { start: '14:00', end: '20:00' },
+      sun: null
+    },
+    closedDates: [],
+    specialOpenDates: [],
+    slotMinutes: 30
+  },
+  async get() {
+    const doc = await db.collection('academyConfig').doc(this.DOC_ID).get();
+    return doc.exists ? { id: doc.id, ...doc.data() } : { id: this.DOC_ID, ...this.DEFAULTS };
+  },
+  async save(data) {
+    data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    await db.collection('academyConfig').doc(this.DOC_ID).set(data, { merge: true });
+  },
+  getTimeSlots(dayOfWeek, config) {
+    const days = ['sun','mon','tue','wed','thu','fri','sat'];
+    const hours = (config || this.DEFAULTS).businessHours[days[dayOfWeek]];
+    if (!hours) return [];
+    const slots = [];
+    let [h, m] = hours.start.split(':').map(Number);
+    const [endH, endM] = hours.end.split(':').map(Number);
+    const slotMin = (config || this.DEFAULTS).slotMinutes || 30;
+    while (h * 60 + m < endH * 60 + endM) {
+      const start = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+      m += slotMin;
+      if (m >= 60) { h += Math.floor(m / 60); m = m % 60; }
+      const end = `${String(h).padStart(2,'0')}:${String(m).padStart(2,'0')}`;
+      slots.push({ start, end });
+    }
+    return slots;
+  },
+  isOpenOn(date, config) {
+    const cfg = config || this.DEFAULTS;
+    const dateStr = typeof date === 'string' ? date : date.toISOString().slice(0,10);
+    if (cfg.specialOpenDates && cfg.specialOpenDates.includes(dateStr)) return true;
+    if (cfg.closedDates && cfg.closedDates.includes(dateStr)) return false;
+    const d = new Date(dateStr + 'T00:00:00');
+    const dayOfWeek = d.getDay();
+    const days = ['sun','mon','tue','wed','thu','fri','sat'];
+    return !!cfg.businessHours[days[dayOfWeek]];
+  }
+};
+
+// ============================================
+// 講師管理
+// ============================================
 const TeachersDB = {
+  async create(data) {
+    data.active = true;
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    const ref = await db.collection('teachers').add(data);
+    return ref.id;
+  },
   async getAll() {
-    const snap = await db.collection('teachers').orderBy('name').get();
+    const snap = await db.collection('teachers').where('active', '==', true).get();
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   },
   async getById(id) {
     const doc = await db.collection('teachers').doc(id).get();
     return doc.exists ? { id: doc.id, ...doc.data() } : null;
   },
-  async add(data) {
-    const ref = await db.collection('teachers').add({
-      name: data.name,
-      pin: data.pin || '0000',
-      email: data.email || '',
-      subjects: data.subjects || [],
-      defaultShift: data.defaultShift || {},
-      active: true,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    return ref.id;
-  },
   async update(id, data) {
     data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
     await db.collection('teachers').doc(id).update(data);
   },
-  async delete(id) {
-    await db.collection('teachers').doc(id).delete();
+  async deactivate(id) {
+    await db.collection('teachers').doc(id).update({
+      active: false,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
   }
 };
 
-// ===== スケジュールスロット (Schedule Slots) =====
-const ScheduleSlotsDB = {
-  async add(data) {
-    const ref = await db.collection('scheduleSlots').add({
-      date: data.date,
-      startTime: data.startTime || '',
-      endTime: data.endTime || '',
-      teacherId: data.teacherId || null,
-      studentId: data.studentId || null,
-      subjects: data.subjects || [],
-      status: data.status || 'scheduled', // scheduled, attended, cancelled, absent
-      memo: data.memo || '',
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+// ============================================
+// シフト管理
+// ============================================
+const ShiftsDB = {
+  async set(teacherId, date, start, end) {
+    const docId = `${teacherId}_${date}`;
+    await db.collection('shifts').doc(docId).set({
+      teacherId, date, start, end,
+      status: 'scheduled',
+      checkedInAt: null, checkedOutAt: null,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  },
+  async getByDate(date) {
+    const snap = await db.collection('shifts').where('date', '==', date).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getByTeacher(teacherId, startDate, endDate) {
+    let q = db.collection('shifts').where('teacherId', '==', teacherId);
+    if (startDate) q = q.where('date', '>=', startDate);
+    if (endDate) q = q.where('date', '<=', endDate);
+    const snap = await q.orderBy('date', 'asc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async checkIn(teacherId, date) {
+    const docId = `${teacherId}_${date}`;
+    await db.collection('shifts').doc(docId).update({
+      status: 'checked_in',
+      checkedInAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
+  },
+  async checkOut(teacherId, date) {
+    const docId = `${teacherId}_${date}`;
+    await db.collection('shifts').doc(docId).update({
+      status: 'checked_out',
+      checkedOutAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  },
+  async generateFromDefaults(teacherId, teacher, startDate, endDate) {
+    const batch = db.batch();
+    const start = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T00:00:00');
+    const days = ['sun','mon','tue','wed','thu','fri','sat'];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      const dayKey = days[d.getDay()];
+      const shift = teacher.defaultShift && teacher.defaultShift[dayKey];
+      if (!shift) continue;
+      const dateStr = d.toISOString().slice(0,10);
+      const docId = `${teacherId}_${dateStr}`;
+      batch.set(db.collection('shifts').doc(docId), {
+        teacherId, date: dateStr, start: shift.start, end: shift.end,
+        status: 'scheduled', checkedInAt: null, checkedOutAt: null,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      }, { merge: true });
+    }
+    await batch.commit();
+  }
+};
+
+// ============================================
+// スケジュールテンプレート（毎週固定パターン）
+// ============================================
+const ScheduleTemplatesDB = {
+  async create(data) {
+    data.active = true;
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    const ref = await db.collection('scheduleTemplates').add(data);
     return ref.id;
+  },
+  async getByStudent(studentId) {
+    const snap = await db.collection('scheduleTemplates')
+      .where('studentId', '==', studentId)
+      .where('active', '==', true).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getAll() {
+    const snap = await db.collection('scheduleTemplates').where('active', '==', true).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async update(id, data) {
+    data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    await db.collection('scheduleTemplates').doc(id).update(data);
+  },
+  async delete(id) {
+    await db.collection('scheduleTemplates').doc(id).update({
+      active: false,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+};
+
+// ============================================
+// スケジュールスロット（日別確定スケジュール）
+// ============================================
+const ScheduleSlotsDB = {
+  async create(data) {
+    data.status = data.status || 'scheduled';
+    data.approval = data.approval || 'approved'; // pending/approved/rejected
+    data.submittedBy = data.submittedBy || 'teacher'; // teacher/student/parent
+    data.approvedBy = data.approvedBy || null;
+    data.approvedAt = data.approvedAt || null;
+    data.parentNotified = data.parentNotified || false;
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    const ref = await db.collection('scheduleSlots').add(data);
+    return ref.id;
+  },
+  async approve(id, approvedBy) {
+    await db.collection('scheduleSlots').doc(id).update({
+      approval: 'approved',
+      approvedBy,
+      approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  },
+  async reject(id, reason) {
+    await db.collection('scheduleSlots').doc(id).update({
+      approval: 'rejected',
+      rejectionReason: reason || '',
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  },
+  async getPending() {
+    const snap = await db.collection('scheduleSlots').where('approval', '==', 'pending').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async markParentNotified(id) {
+    await db.collection('scheduleSlots').doc(id).update({
+      parentNotified: true,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  },
+  async getByDate(date) {
+    const snap = await db.collection('scheduleSlots').where('date', '==', date).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getByStudent(studentId, startDate, endDate) {
+    let q = db.collection('scheduleSlots').where('studentId', '==', studentId);
+    if (startDate) q = q.where('date', '>=', startDate);
+    if (endDate) q = q.where('date', '<=', endDate);
+    const snap = await q.orderBy('date', 'asc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   },
   async getByTeacher(teacherId, date) {
     const snap = await db.collection('scheduleSlots')
       .where('teacherId', '==', teacherId)
-      .where('date', '==', date).get();
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  },
-  async getByStudent(studentId, date) {
-    const snap = await db.collection('scheduleSlots')
-      .where('studentId', '==', studentId)
-      .where('date', '==', date).get();
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  },
-  async getByDate(date) {
-    const snap = await db.collection('scheduleSlots')
       .where('date', '==', date).get();
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   },
@@ -2781,26 +2958,149 @@ const ScheduleSlotsDB = {
     data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
     await db.collection('scheduleSlots').doc(id).update(data);
   },
-  async delete(id) {
-    await db.collection('scheduleSlots').doc(id).delete();
+  async updateStatus(id, status) {
+    await db.collection('scheduleSlots').doc(id).update({
+      status,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  },
+  async cancel(id, note) {
+    await db.collection('scheduleSlots').doc(id).update({
+      status: 'cancelled',
+      note: note || '',
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  },
+  async reschedule(id, newDate, newStartTime, newEndTime) {
+    const doc = await db.collection('scheduleSlots').doc(id).get();
+    if (!doc.exists) return null;
+    const orig = doc.data();
+    // 元の予定をrescheduledに
+    await this.cancel(id, '振替済み');
+    // 新しい予定を作成
+    return await this.create({
+      studentId: orig.studentId,
+      teacherId: orig.teacherId,
+      date: newDate,
+      startTime: newStartTime,
+      endTime: newEndTime,
+      komas: orig.komas,
+      subjects: orig.subjects,
+      originalDate: orig.date,
+      note: `${orig.date}からの振替`
+    });
+  },
+  async generateWeek(startDate, templates, config) {
+    const batch = db.batch();
+    const start = new Date(startDate + 'T00:00:00');
+    const slotMin = (config && config.slotMinutes) || 30;
+    let count = 0;
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      const dateStr = d.toISOString().slice(0,10);
+      const dayOfWeek = d.getDay();
+      // 営業日チェック
+      if (config && !AcademyConfigDB.isOpenOn(dateStr, config)) continue;
+      const dayTemplates = templates.filter(t => t.dayOfWeek === dayOfWeek);
+      for (const t of dayTemplates) {
+        // endTime計算
+        const [sh, sm] = t.startSlot.split(':').map(Number);
+        const endMin = sh * 60 + sm + t.komas * slotMin;
+        const endTime = `${String(Math.floor(endMin/60)).padStart(2,'0')}:${String(endMin%60).padStart(2,'0')}`;
+        const ref = db.collection('scheduleSlots').doc();
+        batch.set(ref, {
+          studentId: t.studentId,
+          teacherId: t.teacherId || null,
+          date: dateStr,
+          startTime: t.startSlot,
+          endTime,
+          komas: t.komas,
+          subjects: t.subjects || [],
+          status: 'scheduled',
+          originalDate: null,
+          note: '',
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+        count++;
+      }
+    }
+    if (count > 0) await batch.commit();
+    return count;
   }
 };
 
-// ===== 業務タスク (Operation Tasks) =====
+// ============================================
+// 保護者 出欠可否（月次カレンダー）
+// ============================================
+const AvailabilityDB = {
+  async save(studentId, yearMonth, dates, note) {
+    const docId = `${studentId}_${yearMonth}`;
+    await db.collection('availability').doc(docId).set({
+      studentId, yearMonth, dates, note: note || '',
+      submittedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  },
+  async get(studentId, yearMonth) {
+    const docId = `${studentId}_${yearMonth}`;
+    const doc = await db.collection('availability').doc(docId).get();
+    return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  },
+  async getByMonth(yearMonth) {
+    const snap = await db.collection('availability').where('yearMonth', '==', yearMonth).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  }
+};
+
+// ============================================
+// 教室運営タスク（チェックリスト）
+// ============================================
 const OperationTasksDB = {
-  async add(data) {
-    const ref = await db.collection('operationTasks').add({
-      task: data.task || '',
-      description: data.description || '',
-      category: data.category || 'daily', // daily, sales, meeting, admin, event
-      date: data.date || getToday(),
-      teacherId: data.teacherId || null,
-      checked: false,
-      checkedBy: null,
-      verifiedBy: null,
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+  TASK_TEMPLATES: {
+    daily: [
+      { task: '教室清掃', description: '机・椅子の整頓、ゴミ箱回収、トイレ確認' },
+      { task: '教室準備', description: '教材配置、ホワイトボード確認、プリンター用紙補充' },
+      { task: '空調管理', description: '授業開始30分前にエアコンON' },
+      { task: '戸締り確認', description: '全窓・ドア施錠、エアコンOFF、電気消灯' }
+    ],
+    sales: [
+      { task: '新規顧客説明', description: '問い合わせ対応、体験授業の案内' },
+      { task: 'チラシ配り', description: '近隣へのポスティング' },
+      { task: '電話対応', description: '問い合わせ・欠席連絡の受付' }
+    ],
+    meeting: [
+      { task: '保護者面談', description: '学習状況報告・今後の方針相談' },
+      { task: '三者面談', description: '生徒+保護者+講師の面談' },
+      { task: '保護者会', description: '全体説明会・季節講習案内' }
+    ],
+    admin: [
+      { task: '業者打合せ', description: '教材業者・設備業者との打合せ' },
+      { task: '備品発注', description: '文具・プリント用紙・教材等の発注' },
+      { task: '月謝確認', description: '入金確認・未納者フォロー' },
+      { task: '報告書作成', description: '月次報告・生徒成績レポート' }
+    ],
+    event: [
+      { task: '模試運営', description: '模擬試験の準備・実施・採点' },
+      { task: '季節講習準備', description: '夏期/冬期講習のカリキュラム作成' },
+      { task: '説明会準備', description: '入塾説明会の資料・会場準備' }
+    ]
+  },
+  async create(data) {
+    data.checked = false;
+    data.checkedAt = null;
+    data.checkedBy = null;
+    data.verifiedBy = null;
+    data.verifiedAt = null;
+    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    const ref = await db.collection('operationTasks').add(data);
     return ref.id;
+  },
+  async getByDate(date) {
+    const snap = await db.collection('operationTasks').where('date', '==', date).orderBy('dueTime', 'asc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   },
   async getByTeacher(teacherId, date) {
     const snap = await db.collection('operationTasks')
@@ -2808,62 +3108,58 @@ const OperationTasksDB = {
       .where('date', '==', date).get();
     return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   },
-  async getByDate(date) {
-    const snap = await db.collection('operationTasks')
-      .where('date', '==', date).get();
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  },
   async check(id, checkedBy) {
     await db.collection('operationTasks').doc(id).update({
       checked: true,
-      checkedBy: checkedBy || null,
-      checkedAt: firebase.firestore.FieldValue.serverTimestamp()
+      checkedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      checkedBy,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
   },
   async uncheck(id) {
     await db.collection('operationTasks').doc(id).update({
       checked: false,
+      checkedAt: null,
       checkedBy: null,
-      checkedAt: null
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
   },
   async verify(id, verifiedBy) {
     await db.collection('operationTasks').doc(id).update({
       verifiedBy,
-      verifiedAt: firebase.firestore.FieldValue.serverTimestamp()
+      verifiedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-  }
-};
-
-// ===== シフト管理 (Shifts) =====
-const ShiftsDB = {
-  async add(data) {
-    const ref = await db.collection('shifts').add({
-      teacherId: data.teacherId,
-      date: data.date,
-      start: data.start || '',
-      end: data.end || '',
-      status: data.status || 'scheduled', // scheduled, checked_in, checked_out, absent
-      createdAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
-    return ref.id;
   },
-  async getByTeacher(teacherId, startDate, endDate) {
-    const snap = await db.collection('shifts')
-      .where('teacherId', '==', teacherId)
-      .where('date', '>=', startDate)
-      .where('date', '<=', endDate).get();
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }))
-      .sort((a, b) => a.date.localeCompare(b.date));
-  },
-  async getByDate(date) {
-    const snap = await db.collection('shifts')
-      .where('date', '==', date).get();
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  async generateDaily(date, teacherIds) {
+    const batch = db.batch();
+    const dailyTasks = this.TASK_TEMPLATES.daily;
+    for (const task of dailyTasks) {
+      const ref = db.collection('operationTasks').doc();
+      batch.set(ref, {
+        date,
+        teacherId: teacherIds[0] || null,
+        category: 'daily',
+        task: task.task,
+        description: task.description,
+        dueTime: null,
+        checked: false,
+        checkedAt: null,
+        checkedBy: null,
+        verifiedBy: null,
+        verifiedAt: null,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    await batch.commit();
   },
   async update(id, data) {
     data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
-    await db.collection('shifts').doc(id).update(data);
+    await db.collection('operationTasks').doc(id).update(data);
+  },
+  async delete(id) {
+    await db.collection('operationTasks').doc(id).delete();
   }
 };
 
@@ -2877,7 +3173,7 @@ const InterviewRecordsDB = {
       time: data.time || '',
       content: data.content || '',
       interviewer: data.interviewer || '',
-      type: data.type || 'regular', // regular, parent, emergency
+      type: data.type || 'regular',
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     return ref.id;

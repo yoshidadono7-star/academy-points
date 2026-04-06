@@ -116,6 +116,26 @@
       cursor: pointer; text-decoration: underline;
     }
 
+    /* Category Navigation */
+    .category-nav {
+      display: flex; overflow-x: auto; background: white;
+      padding: 10px 12px; gap: 8px;
+      border-bottom: 1px solid var(--border);
+      -webkit-overflow-scrolling: touch;
+      scrollbar-width: none;
+    }
+    .category-nav::-webkit-scrollbar { display: none; }
+    .category-btn {
+      flex-shrink: 0; padding: 8px 18px; border-radius: 20px;
+      border: 1px solid var(--border); background: white;
+      font-size: 13px; font-weight: 600; color: var(--text);
+      cursor: pointer; white-space: nowrap; transition: all 0.2s;
+    }
+    .category-btn:hover { border-color: var(--primary); color: var(--primary); }
+    .category-btn.active {
+      background: var(--gradient); color: white; border-color: transparent;
+    }
+
     /* Tab Navigation */
     .tab-nav {
       display: flex; overflow-x: auto; background: white;
@@ -135,6 +155,7 @@
     .tab-btn.active {
       color: var(--primary); border-bottom-color: var(--primary); font-weight: 700;
     }
+    .tab-btn.hidden-by-category { display: none; }
 
     /* Main Content */
     .main { padding: 16px; max-width: 1400px; margin: 0 auto; }
@@ -360,6 +381,7 @@
       .stats-grid { grid-template-columns: repeat(2, 1fr); }
       .form-row { flex-direction: column; }
       .form-row .form-group { min-width: 100%; }
+      .category-btn { padding: 6px 14px; font-size: 12px; }
       .tab-btn { padding: 10px 10px; font-size: 12px; }
       .guild-grid { grid-template-columns: 1fr; }
       .coaching-grid { grid-template-columns: 1fr; }
@@ -371,7 +393,7 @@
 <body>
 
 <!-- ===== 管理者ログイン画面 ===== -->
-<div id="adminLoginScreen" style="display:none; position:fixed; inset:0; background:linear-gradient(135deg,#667eea,#764ba2); z-index:99999; display:flex; align-items:center; justify-content:center;">
+<div id="adminLoginScreen" style="position:fixed; inset:0; background:linear-gradient(135deg,#667eea,#764ba2); z-index:99999; display:none; align-items:center; justify-content:center;">
   <div style="background:#fff; border-radius:20px; padding:40px 32px; width:90%; max-width:380px; box-shadow:0 20px 60px rgba(0,0,0,0.3); text-align:center;">
     <div style="font-size:48px; margin-bottom:8px;">🚀</div>
     <h2 style="font-size:22px; font-weight:800; color:#2d3748; margin-bottom:4px;">HERO'S 管理画面</h2>
@@ -440,31 +462,45 @@
   <span id="adminNarrationText"></span>
 </div>
 
+<!-- Category Navigation -->
+<nav class="category-nav" id="categoryNav">
+  <button class="category-btn active" data-category="daily">&#127968; 日常業務</button>
+  <button class="category-btn" data-category="analytics">&#128202; 学習分析</button>
+  <button class="category-btn" data-category="game">&#127918; ゲーム運営</button>
+  <button class="category-btn" data-category="master">&#9881;&#65039; マスター設定</button>
+</nav>
+
 <!-- Tab Navigation -->
 <nav class="tab-nav" id="tabNav">
-  <button class="tab-btn active" data-tab="plans">&#128640; 今日のプラン</button>
-  <button class="tab-btn" data-tab="ranking">&#127942; ランキング</button>
-  <button class="tab-btn" data-tab="monitor">&#128202; 学習モニター</button>
-  <button class="tab-btn" data-tab="tasks">&#128203; タスク管理</button>
-  <button class="tab-btn" data-tab="condition">&#128154; コンディション</button>
-  <button class="tab-btn" data-tab="history">&#128197; 履歴</button>
-  <button class="tab-btn" data-tab="prizes">&#127873; 景品交換</button>
-  <button class="tab-btn" data-tab="messages" style="position:relative;">&#128140; メッセージ<span id="msgTabBadge" class="notification-badge hidden" style="position:absolute;top:4px;right:4px;font-size:9px;min-width:14px;height:14px;line-height:14px;">0</span></button>
-  <button class="tab-btn" data-tab="students">&#128100; 生徒管理</button>
-  <button class="tab-btn" data-tab="matprogress">&#128230; 教材進捗</button>
-  <button class="tab-btn" data-tab="routes">&#128202; 学習ルート</button>
-  <button class="tab-btn" data-tab="guilds">&#9876;&#65039; ギルド</button>
-  <button class="tab-btn" data-tab="raidboss">&#128121; レイドボス</button>
-  <button class="tab-btn" data-tab="story">&#128214; ストーリー</button>
-  <button class="tab-btn" data-tab="missions">&#127919; ミッション</button>
-  <button class="tab-btn" data-tab="events">&#9889; イベント</button>
-  <button class="tab-btn" data-tab="economy">&#128176; ポイント経済</button>
-  <button class="tab-btn" data-tab="coaching">&#127891; コーチング分析</button>
-  <button class="tab-btn" data-tab="anomaly">&#128269; アノマリー</button>
-  <button class="tab-btn" data-tab="risk">&#9888;&#65039; 離脱リスク</button>
-  <button class="tab-btn" data-tab="exams">&#128221; テスト結果</button>
-  <button class="tab-btn" data-tab="teachers">&#128105;&#8205;&#127979; 講師管理</button>
-  <button class="tab-btn" data-tab="settings">&#9881;&#65039; 塾設定</button>
+  <!-- 日常業務 -->
+  <button class="tab-btn active" data-tab="plans" data-category="daily">&#128640; 今日のプラン</button>
+  <button class="tab-btn" data-tab="schedule" data-category="daily">&#128197; スケジュール</button>
+  <button class="tab-btn" data-tab="optasks" data-category="daily">&#9745; 業務タスク</button>
+  <button class="tab-btn" data-tab="tasks" data-category="daily">&#128203; タスク管理</button>
+  <button class="tab-btn" data-tab="messages" data-category="daily" style="position:relative;">&#128140; メッセージ<span id="msgTabBadge" class="notification-badge hidden" style="position:absolute;top:4px;right:4px;font-size:9px;min-width:14px;height:14px;line-height:14px;">0</span></button>
+  <button class="tab-btn" data-tab="condition" data-category="daily">&#128154; コンディション</button>
+  <button class="tab-btn" data-tab="prizes" data-category="daily">&#127873; 景品交換</button>
+  <!-- 学習分析 -->
+  <button class="tab-btn hidden-by-category" data-tab="monitor" data-category="analytics">&#128202; 学習モニター</button>
+  <button class="tab-btn hidden-by-category" data-tab="ranking" data-category="analytics">&#127942; ランキング</button>
+  <button class="tab-btn hidden-by-category" data-tab="coaching" data-category="analytics">&#127891; コーチング分析</button>
+  <button class="tab-btn hidden-by-category" data-tab="exams" data-category="analytics">&#128221; テスト結果</button>
+  <button class="tab-btn hidden-by-category" data-tab="matprogress" data-category="analytics">&#128230; 教材進捗</button>
+  <button class="tab-btn hidden-by-category" data-tab="history" data-category="analytics">&#128197; 履歴</button>
+  <button class="tab-btn hidden-by-category" data-tab="risk" data-category="analytics">&#9888;&#65039; 離脱リスク</button>
+  <button class="tab-btn hidden-by-category" data-tab="anomaly" data-category="analytics">&#128269; アノマリー</button>
+  <!-- ゲーム運営 -->
+  <button class="tab-btn hidden-by-category" data-tab="guilds" data-category="game">&#9876;&#65039; ギルド</button>
+  <button class="tab-btn hidden-by-category" data-tab="raidboss" data-category="game">&#128121; レイドボス</button>
+  <button class="tab-btn hidden-by-category" data-tab="story" data-category="game">&#128214; ストーリー</button>
+  <button class="tab-btn hidden-by-category" data-tab="missions" data-category="game">&#127919; ミッション</button>
+  <button class="tab-btn hidden-by-category" data-tab="events" data-category="game">&#9889; イベント</button>
+  <button class="tab-btn hidden-by-category" data-tab="economy" data-category="game">&#128176; ポイント経済</button>
+  <!-- マスター設定 -->
+  <button class="tab-btn hidden-by-category" data-tab="students" data-category="master">&#128100; 生徒管理</button>
+  <button class="tab-btn hidden-by-category" data-tab="teachers" data-category="master">&#128105;&#8205;&#127979; 講師管理</button>
+  <button class="tab-btn hidden-by-category" data-tab="routes" data-category="master">&#128202; 学習ルート</button>
+  <button class="tab-btn hidden-by-category" data-tab="settings" data-category="master">&#9881;&#65039; 塾設定</button>
 </nav>
 
 <!-- Main Content -->
@@ -1286,57 +1322,6 @@
     </div>
   </div>
 
-  <!-- ===== 講師管理 ===== -->
-  <div class="tab-content" id="tab-teachers">
-    <div style="margin-bottom:16px">
-      <button class="btn btn-primary" onclick="openTeacherModal()">&#10133; 講師追加</button>
-    </div>
-    <div class="card">
-      <div class="card-title"><span class="icon">👩‍🏫</span> 講師一覧</div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr><th>名前</th><th>PIN</th><th>メール</th><th>担当科目</th><th>デフォルトシフト</th><th>操作</th></tr>
-          </thead>
-          <tbody id="teachersTable"></tbody>
-        </table>
-      </div>
-    </div>
-    <div class="card" style="margin-top:16px;">
-      <div class="card-title"><span class="icon">🗓</span> スケジュールスロット管理</div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>日付</label>
-          <input type="date" class="form-control" id="slotDate">
-        </div>
-        <div class="form-group">
-          <label>講師</label>
-          <select class="form-control" id="slotTeacher"><option value="">選択</option></select>
-        </div>
-        <div class="form-group">
-          <label>生徒</label>
-          <select class="form-control" id="slotStudent"><option value="">選択</option></select>
-        </div>
-      </div>
-      <div class="form-row">
-        <div class="form-group">
-          <label>開始時間</label>
-          <input type="time" class="form-control" id="slotStart" value="16:00">
-        </div>
-        <div class="form-group">
-          <label>終了時間</label>
-          <input type="time" class="form-control" id="slotEnd" value="17:30">
-        </div>
-        <div class="form-group">
-          <label>科目</label>
-          <input type="text" class="form-control" id="slotSubjects" placeholder="数学, 英語">
-        </div>
-      </div>
-      <button class="btn btn-primary" onclick="addScheduleSlot()" style="margin-top:8px;">📅 スロット追加</button>
-      <div id="todaySlots" style="margin-top:16px;"></div>
-    </div>
-  </div>
-
   <!-- ===== 塾設定 ===== -->
   <div class="tab-content" id="tab-settings">
     <div class="card">
@@ -1450,7 +1435,212 @@
     </div>
   </div>
 
+  <!-- ===== スケジュール ===== -->
+  <div class="tab-content" id="tab-schedule">
+    <div class="card">
+      <h3>📅 スケジュール</h3>
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button class="btn btn-sm" id="schedViewDay" onclick="switchScheduleView('day')" style="background:var(--gradient);color:white;">日表示</button>
+        <button class="btn btn-sm" id="schedViewWeek" onclick="switchScheduleView('week')">週表示</button>
+        <button class="btn btn-sm" id="schedViewMonth" onclick="switchScheduleView('month')">月表示</button>
+        <button class="btn btn-sm" id="schedViewYear" onclick="switchScheduleView('year')">年表示</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-sm" onclick="schedPrev()">◀</button>
+        <span id="schedDateLabel" style="font-weight:700;font-size:14px;line-height:32px;"></span>
+        <button class="btn btn-sm" onclick="schedNext()">▶</button>
+        <button class="btn btn-sm" onclick="schedToday()">今日</button>
+      </div>
+      <div id="schedPendingAlert" style="display:none;background:#fefce8;border:1px solid #fde68a;border-radius:10px;padding:10px 14px;margin-bottom:12px;font-size:13px;color:#854d0e;cursor:pointer;" onclick="showPendingSlots()">
+        🔶 <strong id="schedPendingCount">0</strong>件の承認待ちスケジュールがあります（クリックで確認）
+      </div>
+      <div id="schedExamCountdown" style="display:none;margin-bottom:12px;"></div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+        <button class="btn btn-primary btn-sm" onclick="showScheduleSlotModal()">+ 予定追加</button>
+        <button class="btn btn-secondary btn-sm" onclick="generateWeekSchedule()">📋 週次スケジュール生成</button>
+      </div>
+      <div id="scheduleContent" style="overflow-x:auto;">
+        <div style="text-align:center;color:var(--text-light);padding:40px;">読み込み中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 業務タスク ===== -->
+  <div class="tab-content" id="tab-optasks">
+    <div class="card">
+      <h3>☑ 業務タスク</h3>
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;">
+        <button class="btn btn-sm" onclick="optasksPrev()">◀</button>
+        <span id="optasksDateLabel" style="font-weight:700;font-size:14px;"></span>
+        <button class="btn btn-sm" onclick="optasksNext()">▶</button>
+        <button class="btn btn-sm" onclick="optasksToday()">今日</button>
+        <div style="flex:1"></div>
+        <button class="btn btn-primary btn-sm" onclick="showAddTaskModal()">+ タスク追加</button>
+        <button class="btn btn-secondary btn-sm" onclick="generateDailyTasks()">📋 日次テンプレート生成</button>
+      </div>
+      <div id="optasksSummary" style="display:flex;gap:12px;margin-bottom:16px;flex-wrap:wrap;"></div>
+      <div id="optasksContent">
+        <div style="text-align:center;color:var(--text-light);padding:40px;">読み込み中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 講師管理 ===== -->
+  <div class="tab-content" id="tab-teachers">
+    <div class="card">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px;">
+        <h3 style="margin:0;">👩‍🏫 講師管理</h3>
+        <button class="btn btn-primary" onclick="showTeacherModal()">+ 講師追加</button>
+      </div>
+      <div id="teachersList">
+        <div style="text-align:center;color:var(--text-light);padding:40px;">読み込み中...</div>
+      </div>
+    </div>
+    <div class="card">
+      <h3>📅 シフト管理</h3>
+      <div style="display:flex;gap:8px;margin-bottom:16px;align-items:center;">
+        <label>期間:</label>
+        <input type="date" id="shiftStartDate" class="form-control" style="width:auto;">
+        <span>〜</span>
+        <input type="date" id="shiftEndDate" class="form-control" style="width:auto;">
+        <button class="btn btn-secondary btn-sm" onclick="loadShifts()">表示</button>
+        <button class="btn btn-primary btn-sm" onclick="generateShiftsFromDefaults()">デフォルトから生成</button>
+      </div>
+      <div id="shiftsTable">
+        <div style="text-align:center;color:var(--text-light);padding:20px;">期間を選択してください</div>
+      </div>
+    </div>
+  </div>
+
 </main>
+
+<!-- Schedule Slot Modal -->
+<div id="schedSlotModal" class="modal-overlay" style="display:none;">
+  <div class="modal" style="max-width:480px;">
+    <div class="modal-header">
+      <h3 id="schedSlotModalTitle">予定追加</h3>
+      <button class="modal-close" onclick="closeScheduleSlotModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>生徒</label>
+        <select id="slotStudent" class="form-control"></select>
+      </div>
+      <div class="form-group">
+        <label>講師</label>
+        <select id="slotTeacher" class="form-control"><option value="">未割当</option></select>
+      </div>
+      <div class="form-group">
+        <label>日付</label>
+        <input type="date" id="slotDate" class="form-control">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>開始時刻</label>
+          <input type="time" id="slotStart" class="form-control" step="1800">
+        </div>
+        <div class="form-group">
+          <label>コマ数</label>
+          <input type="number" id="slotKomas" class="form-control" min="1" max="14" value="2">
+        </div>
+      </div>
+      <div class="form-group">
+        <label>科目（コマごとにカンマ区切り）</label>
+        <input type="text" id="slotSubjects" class="form-control" placeholder="数学,英語,国語">
+      </div>
+      <div class="form-group">
+        <label>メモ</label>
+        <input type="text" id="slotNote" class="form-control" placeholder="">
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeScheduleSlotModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveScheduleSlot()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Teacher Modal -->
+<div id="teacherModal" class="modal-overlay" style="display:none;">
+  <div class="modal" style="max-width:520px;">
+    <div class="modal-header">
+      <h3 id="teacherModalTitle">講師追加</h3>
+      <button class="modal-close" onclick="closeTeacherModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <input type="hidden" id="teacherEditId">
+      <div class="form-group">
+        <label>講師名</label>
+        <input type="text" id="teacherName" class="form-control" placeholder="例: 田中先生">
+      </div>
+      <div class="form-group">
+        <label>PIN（ログイン用）</label>
+        <input type="text" id="teacherPin" class="form-control" placeholder="4桁の数字" maxlength="4">
+      </div>
+      <div class="form-group">
+        <label>担当可能科目（カンマ区切り）</label>
+        <input type="text" id="teacherSubjects" class="form-control" placeholder="数学,英語,国語">
+      </div>
+      <div class="form-group">
+        <label>表示色</label>
+        <input type="color" id="teacherColor" value="#4F46E5" style="width:60px;height:36px;border:1px solid var(--border);border-radius:4px;cursor:pointer;">
+      </div>
+      <div class="form-group">
+        <label>デフォルトシフト</label>
+        <div style="font-size:12px;color:var(--text-light);margin-bottom:8px;">出勤する曜日にチェックを入れ、時間帯を設定してください</div>
+        <div id="teacherShiftGrid" style="display:grid;gap:6px;">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeTeacherModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveTeacher()">保存</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Task Modal -->
+<div id="addTaskModal" class="modal-overlay" style="display:none;">
+  <div class="modal" style="max-width:440px;">
+    <div class="modal-header">
+      <h3>タスク追加</h3>
+      <button class="modal-close" onclick="closeAddTaskModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <div class="form-group">
+        <label>カテゴリ</label>
+        <select id="taskCategory" class="form-control">
+          <option value="daily">日常業務</option>
+          <option value="sales">営業</option>
+          <option value="meeting">面談</option>
+          <option value="admin">事務</option>
+          <option value="event">イベント</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>タスク名</label>
+        <input type="text" id="taskName" class="form-control" placeholder="例: 保護者面談（山田さん）">
+      </div>
+      <div class="form-group">
+        <label>詳細（任意）</label>
+        <input type="text" id="taskDesc" class="form-control" placeholder="">
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>担当講師</label>
+          <select id="taskTeacher" class="form-control"><option value="">未割当</option></select>
+        </div>
+        <div class="form-group">
+          <label>期限時刻（任意）</label>
+          <input type="time" id="taskDueTime" class="form-control">
+        </div>
+      </div>
+    </div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary" onclick="closeAddTaskModal()">キャンセル</button>
+      <button class="btn btn-primary" onclick="saveNewTask()">追加</button>
+    </div>
+  </div>
+</div>
 
 <!-- Notification Drawer -->
 <div class="notification-overlay" id="notifOverlay" onclick="toggleNotifications()"></div>
@@ -1520,13 +1710,58 @@ function escapeHtml(str) {
 }
 
 // ============================================
-// タブ切り替え
+// カテゴリ & タブ切り替え
 // ============================================
+const TAB_CATEGORIES = {
+  daily:     ['plans','schedule','optasks','tasks','messages','condition','prizes'],
+  analytics: ['monitor','ranking','coaching','exams','matprogress','history','risk','anomaly'],
+  game:      ['guilds','raidboss','story','missions','events','economy'],
+  master:    ['students','teachers','routes','settings']
+};
+
+// カテゴリ → タブID の逆引きマップ
+const TAB_TO_CATEGORY = {};
+for (const [cat, tabs] of Object.entries(TAB_CATEGORIES)) {
+  tabs.forEach(t => TAB_TO_CATEGORY[t] = cat);
+}
+
+let currentCategory = 'daily';
+
+document.querySelectorAll('.category-btn').forEach(btn => {
+  btn.addEventListener('click', () => switchCategory(btn.dataset.category));
+});
+
 document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
 
-function switchTab(tabId) {
+function switchCategory(categoryId, autoSelectTab = true) {
+  currentCategory = categoryId;
+  // カテゴリボタンの状態更新
+  document.querySelectorAll('.category-btn').forEach(b => b.classList.remove('active'));
+  const catBtn = document.querySelector(`.category-btn[data-category="${categoryId}"]`);
+  if (catBtn) catBtn.classList.add('active');
+  // サブタブの表示切り替え
+  document.querySelectorAll('.tab-btn').forEach(b => {
+    if (b.dataset.category === categoryId) {
+      b.classList.remove('hidden-by-category');
+    } else {
+      b.classList.add('hidden-by-category');
+    }
+  });
+  // カテゴリ内の最初のタブを自動選択
+  if (autoSelectTab) {
+    const firstTab = TAB_CATEGORIES[categoryId][0];
+    switchTab(firstTab, true);
+  }
+}
+
+function switchTab(tabId, fromCategory = false) {
+  // タブが属するカテゴリが異なれば、カテゴリも切り替え
+  const targetCat = TAB_TO_CATEGORY[tabId];
+  if (targetCat && targetCat !== currentCategory) {
+    switchCategory(targetCat, false);
+  }
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
   const btn = document.querySelector(`.tab-btn[data-tab="${tabId}"]`);
@@ -1537,6 +1772,8 @@ function switchTab(tabId) {
   // タブ切替時にデータロード
   const loaders = {
     plans: loadPlanStatus,
+    schedule: loadSchedule,
+    optasks: loadOpTasks,
     ranking: loadRanking,
     monitor: loadMonitor,
     tasks: loadTasks,
@@ -1544,6 +1781,7 @@ function switchTab(tabId) {
     history: () => {},
     prizes: loadPrizes,
     students: loadStudents,
+    teachers: loadTeachers,
     matprogress: loadMatProgress,
     routes: loadRoutes,
     guilds: loadGuilds,
@@ -1557,8 +1795,7 @@ function switchTab(tabId) {
     risk: loadRisk,
     exams: loadExams,
     settings: loadSettings,
-    messages: loadMessages,
-    teachers: loadTeachers
+    messages: loadMessages
   };
   if (loaders[tabId]) loaders[tabId]();
 }
@@ -1619,7 +1856,7 @@ async function markNotifRead(id, el) {
     await NotificationsDB.markRead(id);
     if (el) el.classList.remove('unread');
     loadNotifications();
-  } catch (e) {}
+  } catch (e) { console.warn('Notification markRead error:', e); }
 }
 
 async function markAllNotifRead() {
@@ -1643,6 +1880,318 @@ function openModal(title, bodyHtml, footerHtml) {
 
 function closeModal() {
   document.getElementById('modalOverlay').classList.remove('open');
+}
+
+// ============================================
+// 生徒カルテ（総合ビュー）
+// ============================================
+async function showStudentKarte(studentId) {
+  try {
+    const [student, studyLogs, conditions, messages, badges, coins, examResults] = await Promise.all([
+      StudentsDB.getById(studentId),
+      StudyLogsDB.getByStudent(studentId, 20),
+      ConditionsDB.getByStudent(studentId, 14),
+      MessagesDB.getByStudent(studentId),
+      BadgesDB.getByStudent(studentId),
+      CoinsDB.getByStudent(studentId, 20),
+      ExamResultsDB.getByStudent(studentId)
+    ]);
+    if (!student) { showToast('生徒が見つかりません', 'error'); return; }
+
+    // スケジュール（直近2週間）
+    const today = new Date();
+    const twoWeeksAgo = new Date(); twoWeeksAgo.setDate(today.getDate() - 7);
+    const twoWeeksLater = new Date(); twoWeeksLater.setDate(today.getDate() + 14);
+    const startD = twoWeeksAgo.toISOString().slice(0,10);
+    const endD = twoWeeksLater.toISOString().slice(0,10);
+    let schedSlots = [];
+    try {
+      const snap = await db.collection('scheduleSlots')
+        .where('studentId', '==', studentId)
+        .where('date', '>=', startD)
+        .where('date', '<=', endD)
+        .orderBy('date', 'asc').get();
+      schedSlots = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    } catch(e) { console.warn('Schedule fetch error:', e); }
+
+    // 受験情報
+    let examSchedules = [];
+    try { examSchedules = await ExamSchedulesDB.getUpcoming(10); } catch(e) {}
+
+    const ri = getRankInfo(student.rank || 'rookie');
+    const lv = student.level || calcLevel(student.totalPoints || 0);
+    const days = ['日','月','火','水','木','金','土'];
+
+    // ===== HTML構築 =====
+    let html = '<div style="max-height:80vh;overflow-y:auto;padding:4px;">';
+
+    // --- 基本情報 ---
+    html += `<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px;">
+      <div style="background:linear-gradient(135deg,#667eea20,#764ba220);border-radius:12px;padding:14px;">
+        <div style="font-size:20px;font-weight:800;margin-bottom:4px;">${escapeHtml(student.name)}</div>
+        <div style="font-size:12px;color:var(--text-light);">
+          ${escapeHtml(student.callsign || student.nickname || '')} | ${escapeHtml(student.grade || '-')} | ${escapeHtml(student.school || '-')}
+        </div>
+        <div style="margin-top:8px;display:flex;gap:12px;flex-wrap:wrap;">
+          <span style="font-size:13px;">${ri.icon} ${ri.name}</span>
+          <span style="font-size:13px;">${levelIcon(lv)} Lv.${lv}</span>
+          <span style="font-size:13px;font-weight:700;color:#059669;">${(student.currentPoints || 0).toLocaleString()} pt</span>
+        </div>
+        <div style="font-size:11px;color:var(--text-light);margin-top:4px;">
+          累計: ${(student.totalPoints || 0).toLocaleString()} pt | 連続: ${student.streak || 0}日 | 最長: ${student.bestStreak || 0}日
+        </div>
+      </div>
+      <div style="background:#f8fafc;border-radius:12px;padding:14px;">
+        <div style="font-size:13px;font-weight:700;margin-bottom:6px;">🎯 目標・志望校</div>
+        ${buildKarteTargetInfo(student)}
+        ${(student.certGoals || []).length > 0 ? '<div style="margin-top:6px;">' + student.certGoals.map(c => {
+          const ex = CERTIFICATION_EXAMS[c.examId];
+          return ex ? '<span style="background:#ede9fe;color:#6d28d9;padding:2px 6px;border-radius:4px;font-size:10px;margin-right:4px;">' + ex.icon + c.targetLevel + '</span>' : '';
+        }).join('') + '</div>' : ''}
+      </div>
+    </div>`;
+
+    // --- 受験カウントダウン ---
+    if (examSchedules.length > 0) {
+      html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px;">';
+      examSchedules.slice(0, 4).forEach(e => {
+        const daysUntil = Math.ceil((new Date(e.date) - today) / 86400000);
+        if (daysUntil > 0) {
+          const urgency = daysUntil <= 14 ? '#ef4444' : daysUntil <= 30 ? '#f59e0b' : '#3b82f6';
+          html += '<span style="background:' + urgency + ';color:white;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:600;">' + (e.examName || e.examType) + ' あと' + daysUntil + '日</span>';
+        }
+      });
+      html += '</div>';
+    }
+
+    // --- スケジュール ---
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:12px;">';
+    html += '<div style="font-size:14px;font-weight:700;margin-bottom:8px;">📅 スケジュール（過去1週〜今後2週）</div>';
+    if (schedSlots.length === 0) {
+      html += '<div style="color:#94a3b8;font-size:12px;">予定なし</div>';
+    } else {
+      const statusIcons = { scheduled: '⏰', attended: '✅', absent: '❌', cancelled: '🗑', rescheduled: '🔄' };
+      const approvalIcons = { pending: '🔶', approved: '', rejected: '❌' };
+      html += '<div style="display:grid;gap:4px;">';
+      schedSlots.filter(s => s.status !== 'cancelled').forEach(s => {
+        const d = new Date(s.date + 'T00:00:00');
+        const isPast = s.date < today.toISOString().slice(0,10);
+        const isToday = s.date === today.toISOString().slice(0,10);
+        html += '<div style="display:flex;align-items:center;gap:8px;padding:6px 8px;border-radius:8px;font-size:12px;' +
+          (isToday ? 'background:#dbeafe;border:1px solid #3b82f6;' : isPast ? 'opacity:0.6;' : 'background:#f8fafc;') + '">' +
+          '<span style="font-weight:700;min-width:70px;">' + s.date.slice(5) + '(' + days[d.getDay()] + ')</span>' +
+          '<span>' + s.startTime + '〜' + s.endTime + '</span>' +
+          '<span>' + (s.subjects ? s.subjects.join(',') : '') + '</span>' +
+          '<span style="margin-left:auto;">' + (statusIcons[s.status] || '') + (approvalIcons[s.approval] || '') + '</span>' +
+          '</div>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+
+    // --- コンディション ---
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:12px;">';
+    html += '<div style="font-size:14px;font-weight:700;margin-bottom:8px;">💚 コンディション推移</div>';
+    if (conditions.length === 0) {
+      html += '<div style="color:#94a3b8;font-size:12px;">記録なし</div>';
+    } else {
+      const moodEmoji = ['','😢','😟','😐','😊','🤩'];
+      html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(80px,1fr));gap:6px;">';
+      conditions.slice(0, 14).reverse().forEach(c => {
+        html += '<div style="text-align:center;padding:6px;background:#f8fafc;border-radius:8px;">' +
+          '<div style="font-size:10px;color:#94a3b8;">' + (c.date || '').slice(5) + '</div>' +
+          '<div style="font-size:20px;">' + (moodEmoji[c.mood] || '😐') + '</div>' +
+          '<div style="font-size:9px;color:#64748b;">⚡' + (c.energy || '-') + ' 🔥' + (c.motivation || '-') + '</div>' +
+          '</div>';
+      });
+      html += '</div>';
+      if (conditions[0] && conditions[0].note) {
+        html += '<div style="margin-top:6px;font-size:11px;color:#64748b;background:#fefce8;padding:6px 8px;border-radius:6px;">💬 ' + escapeHtml(conditions[0].note) + '</div>';
+      }
+    }
+    html += '</div>';
+
+    // --- メッセージ ---
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:12px;">';
+    html += '<div style="font-size:14px;font-weight:700;margin-bottom:8px;">💬 最近のメッセージ</div>';
+    const recentMsgs = (messages || []).slice(0, 8);
+    if (recentMsgs.length === 0) {
+      html += '<div style="color:#94a3b8;font-size:12px;">メッセージなし</div>';
+    } else {
+      recentMsgs.forEach(m => {
+        const isFromTeacher = m.fromType === 'teacher';
+        const ts = m.createdAt && m.createdAt.toDate ? m.createdAt.toDate().toLocaleDateString('ja-JP', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+        html += '<div style="padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:12px;">' +
+          '<span style="color:' + (isFromTeacher ? '#3b82f6' : '#10b981') + ';font-weight:600;">' + (isFromTeacher ? '先生' : '生徒') + '</span> ' +
+          '<span style="color:#94a3b8;font-size:10px;">' + ts + '</span>' +
+          '<div style="margin-top:2px;">' + escapeHtml(m.content || '').slice(0, 100) + '</div>' +
+          '</div>';
+      });
+    }
+    html += '</div>';
+
+    // --- 学習履歴 ---
+    html += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;">';
+    // 左: 最近の学習ログ
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;">';
+    html += '<div style="font-size:14px;font-weight:700;margin-bottom:8px;">📊 学習履歴</div>';
+    if (studyLogs.length === 0) {
+      html += '<div style="color:#94a3b8;font-size:12px;">記録なし</div>';
+    } else {
+      const totalMin = studyLogs.reduce((a, l) => a + (l.duration || 0), 0);
+      const totalPts = studyLogs.reduce((a, l) => a + (l.points || 0), 0);
+      html += '<div style="font-size:12px;color:#64748b;margin-bottom:6px;">直近' + studyLogs.length + '件: ' + Math.round(totalMin/60*10)/10 + '時間 / ' + totalPts + 'pt</div>';
+      // 科目別集計
+      const subjectMap = {};
+      studyLogs.forEach(l => { const s = l.subject || '不明'; subjectMap[s] = (subjectMap[s] || 0) + (l.duration || 0); });
+      html += '<div style="display:flex;flex-wrap:wrap;gap:4px;">';
+      Object.entries(subjectMap).sort((a,b) => b[1]-a[1]).forEach(([subj, min]) => {
+        html += '<span style="background:#f0f9ff;color:#0369a1;padding:2px 8px;border-radius:6px;font-size:10px;">' + subj + ' ' + Math.round(min/60*10)/10 + 'h</span>';
+      });
+      html += '</div>';
+    }
+    html += '</div>';
+
+    // 右: テスト結果
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;">';
+    html += '<div style="font-size:14px;font-weight:700;margin-bottom:8px;">📝 テスト結果</div>';
+    if (examResults.length === 0) {
+      html += '<div style="color:#94a3b8;font-size:12px;">結果なし</div>';
+    } else {
+      examResults.slice(0, 5).forEach(e => {
+        const pct = e.maxTotalScore ? Math.round(e.totalScore / e.maxTotalScore * 100) : null;
+        html += '<div style="padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:12px;">' +
+          '<span style="font-weight:600;">' + escapeHtml(e.examName || '') + '</span> ' +
+          '<span style="color:#94a3b8;">' + (e.date || '') + '</span>' +
+          '<div style="font-weight:700;color:#7c3aed;">' + (e.totalScore || 0) + '/' + (e.maxTotalScore || '-') +
+          (pct !== null ? ' (' + pct + '%)' : '') + '</div></div>';
+      });
+    }
+    html += '</div></div>';
+
+    // --- バッジ ---
+    if (badges.length > 0) {
+      html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:12px;">';
+      html += '<div style="font-size:14px;font-weight:700;margin-bottom:8px;">🏅 獲得バッジ（' + badges.length + '個）</div>';
+      html += '<div style="display:flex;flex-wrap:wrap;gap:6px;">';
+      badges.slice(0, 20).forEach(b => {
+        html += '<span style="background:#fef3c7;padding:4px 8px;border-radius:8px;font-size:11px;" title="' + escapeHtml(b.desc || '') + '">' + (b.icon || '🏅') + ' ' + escapeHtml(b.name || '') + '</span>';
+      });
+      html += '</div></div>';
+    }
+
+    // --- 面談記録 ---
+    html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:12px;">';
+    html += '<div style="font-size:14px;font-weight:700;margin-bottom:10px;">📝 面談記録</div>';
+    // 新規入力フォーム
+    html += '<div style="background:#f8fafc;border-radius:10px;padding:12px;margin-bottom:12px;">';
+    html += '<div style="display:flex;gap:8px;margin-bottom:8px;">';
+    html += '<div style="flex:1;"><label style="font-size:11px;font-weight:600;color:#64748b;">面談日</label><input type="date" id="karteInterviewDate" class="form-control" style="font-size:12px;padding:6px 8px;" value="' + today.toISOString().slice(0,10) + '"></div>';
+    html += '<div style="flex:1;"><label style="font-size:11px;font-weight:600;color:#64748b;">時間</label><input type="time" id="karteInterviewTime" class="form-control" style="font-size:12px;padding:6px 8px;" value="' + String(today.getHours()).padStart(2,'0') + ':' + String(today.getMinutes()).padStart(2,'0') + '"></div>';
+    html += '</div>';
+    html += '<textarea id="karteInterviewContent" style="width:100%;min-height:80px;border:1px solid #e2e8f0;border-radius:8px;padding:8px;font-size:12px;box-sizing:border-box;resize:vertical;" placeholder="面談の内容を記入…"></textarea>';
+    html += '<button class="btn btn-primary btn-sm" style="margin-top:6px;" onclick="saveInterviewRecord(\'' + studentId + '\')">📝 面談記録を保存</button>';
+    html += '</div>';
+    // 過去の面談記録一覧
+    html += '<div id="karteInterviewList" style="font-size:12px;color:#94a3b8;">読み込み中...</div>';
+    html += '</div>';
+
+    html += '</div>';
+
+    openModal('📋 ' + student.name + ' のカルテ', html,
+      '<button class="btn btn-secondary" onclick="editStudent(\'' + studentId + '\')">✏️ 生徒編集</button> <button class="btn btn-secondary" onclick="closeModal()">閉じる</button>');
+
+    // 面談記録を読み込み
+    loadInterviewRecords(studentId);
+
+  } catch(e) { console.error('Student karte error:', e); showToast('カルテの読み込みに失敗しました', 'error'); }
+}
+
+function buildKarteTargetInfo(s) {
+  const g = s.grade || '';
+  let html = '';
+  if (g.startsWith('小') && s.examCandidate && s.targetJuniorHighs && s.targetJuniorHighs.length) {
+    html = s.targetJuniorHighs.map((t, i) => {
+      const d = TARGET_JUNIOR_HIGHS[t.id];
+      return d ? '<div style="font-size:12px;color:' + (i===0 ? '#f59e0b' : '#94a3b8') + ';font-weight:' + (i===0 ? '700' : '400') + '">' + (i===0 ? '🎯 ' : '　') + d.name + (t.faculty ? ' ' + t.faculty : '') + '</div>' : '';
+    }).filter(Boolean).join('');
+  } else if (g.startsWith('中') && s.targetStation) {
+    const ts = TARGET_STATIONS[s.targetStation];
+    if (ts) html = '<div style="font-size:12px;font-weight:700;">' + ts.icon + ' ' + ts.name + '</div>';
+  } else if ((g.startsWith('高') || g === '既卒生') && s.targetUniversities && s.targetUniversities.length) {
+    html = s.targetUniversities.map((t, i) => {
+      const d = TARGET_UNIVERSITIES[t.id];
+      return d ? '<div style="font-size:12px;color:' + (i===0 ? '#7c3aed' : '#94a3b8') + ';font-weight:' + (i===0 ? '700' : '400') + '">' + (i===0 ? '🎯 ' : '　') + d.name + (t.faculty ? ' ' + t.faculty : '') + '</div>' : '';
+    }).filter(Boolean).join('');
+  } else if (g === '社会人' && s.targetQualifications && s.targetQualifications.length) {
+    html = s.targetQualifications.map((q, i) => '<div style="font-size:12px;color:' + (i===0 ? '#0891b2' : '#94a3b8') + '">' + (i===0 ? '🎯 ' : '　') + q.name + '</div>').join('');
+  }
+  return html || '<div style="font-size:12px;color:#cbd5e1;">未設定</div>';
+}
+
+async function saveInterviewRecord(studentId) {
+  const date = document.getElementById('karteInterviewDate').value;
+  const time = document.getElementById('karteInterviewTime').value;
+  const content = document.getElementById('karteInterviewContent').value.trim();
+  if (!date || !content) { showToast('日付と内容を入力してください'); return; }
+  try {
+    await db.collection('interviewRecords').add({
+      studentId,
+      date,
+      time: time || '',
+      content,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    document.getElementById('karteInterviewContent').value = '';
+    showToast('面談記録を保存しました');
+    loadInterviewRecords(studentId);
+  } catch(e) { showToast('保存エラー: ' + e.message, 'error'); console.error(e); }
+}
+
+async function loadInterviewRecords(studentId) {
+  const list = document.getElementById('karteInterviewList');
+  try {
+    const snap = await db.collection('interviewRecords')
+      .where('studentId', '==', studentId)
+      .get();
+    const records = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => {
+      const dc = (b.date || '').localeCompare(a.date || '');
+      if (dc !== 0) return dc;
+      const aT = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+      const bT = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+      return bT - aT;
+    }).slice(0, 30);
+    if (records.length === 0) {
+      list.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:12px;">面談記録はまだありません</div>';
+      return;
+    }
+    const days = ['日','月','火','水','木','金','土'];
+    list.innerHTML = records.map(r => {
+      const d = new Date(r.date + 'T00:00:00');
+      const dayName = days[d.getDay()];
+      const ts = r.createdAt && r.createdAt.toDate ? r.createdAt.toDate().toLocaleString('ja-JP', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+      return '<div style="border-left:3px solid #667eea;padding:8px 12px;margin-bottom:10px;background:#f8fafc;border-radius:0 8px 8px 0;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+        '<span style="font-weight:700;font-size:13px;color:#334155;">' + r.date + '(' + dayName + ')' + (r.time ? ' ' + r.time : '') + '</span>' +
+        '<button style="background:none;border:none;color:#ef4444;font-size:11px;cursor:pointer;padding:2px 6px;" onclick="deleteInterviewRecord(\'' + r.id + '\',\'' + studentId + '\')" title="削除">🗑</button>' +
+        '</div>' +
+        '<div style="font-size:12px;color:#475569;white-space:pre-wrap;line-height:1.6;">' + escapeHtml(r.content) + '</div>' +
+        (ts ? '<div style="font-size:10px;color:#94a3b8;margin-top:4px;text-align:right;">記録: ' + ts + '</div>' : '') +
+        '</div>';
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<div style="color:#ef4444;">読み込みに失敗しました</div>';
+    console.error(e);
+  }
+}
+
+async function deleteInterviewRecord(recordId, studentId) {
+  if (!confirm('この面談記録を削除しますか？')) return;
+  try {
+    await db.collection('interviewRecords').doc(recordId).delete();
+    showToast('削除しました');
+    loadInterviewRecords(studentId);
+  } catch(e) { showToast('削除に失敗しました', 'error'); }
 }
 
 // ============================================
@@ -2045,7 +2594,7 @@ async function loadStudents() {
           const roleTag = s.role === 'supporter' ? '<span style="background:#fbbf24;color:#78350f;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:4px">&#128588;サポーター</span>' : '';
           const matIcons = (s.materials || []).map(mid => { const m = getMaterialById(mid); return m ? m.icon : ''; }).join('');
           return `<tr>
-          <td><strong>${escapeHtml(s.name)}</strong> <span style="color:#6366f1;font-size:11px;">${escapeHtml(s.callsign || s.nickname || '')}</span>${roleTag}</td>
+          <td><strong style="cursor:pointer;color:#6366f1;text-decoration:underline;" onclick="event.stopPropagation();showStudentKarte('${s.id}')">${escapeHtml(s.name)}</strong> <span style="color:#6366f1;font-size:11px;">${escapeHtml(s.callsign || s.nickname || '')}</span>${roleTag}</td>
           <td>${escapeHtml(s.callsign || s.nickname || '-')}</td>
           <td>${escapeHtml(s.grade || '-')}</td>
           <td style="font-size:11px;">${(() => {
@@ -2097,7 +2646,11 @@ async function loadStudents() {
   }
 }
 
-function openStudentModal(student) {
+async function openStudentModal(student) {
+  // 講師一覧をキャッシュ（スケジュールテンプレートの講師選択用）
+  if (!window._cachedTeachers) {
+    try { window._cachedTeachers = await TeachersDB.getAll(); } catch(e) { window._cachedTeachers = []; }
+  }
   const isEdit = !!student;
   openModal(isEdit ? '生徒編集' : '生徒追加', `
     <div class="form-group">
@@ -2185,6 +2738,13 @@ function openStudentModal(student) {
             <option value="supporter" ${isEdit && student.role === 'supporter' ? 'selected' : ''}>&#128588; サポーター</option>
           </select>
         </div>
+        <div class="form-group">
+          <label>スケジュール自己管理</label>
+          <select class="form-control" id="studentSelfSchedule">
+            <option value="false" ${isEdit && !student.selfSchedule ? 'selected' : ''}>OFF（保護者が提出）</option>
+            <option value="true" ${isEdit && student.selfSchedule ? 'selected' : ''}>ON（生徒本人が提出）</option>
+          </select>
+        </div>
       </div>
     </div>
     <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
@@ -2206,15 +2766,102 @@ function openStudentModal(student) {
         ).join('');
       })()}
     </div>
+    <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
+      <div style="font-size:13px;font-weight:700;color:#7c3aed;margin-bottom:8px">📅 通常スケジュール（毎週の固定パターン）</div>
+      <div id="scheduleTemplateRows"></div>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="addScheduleTemplateRow()" style="margin-top:8px;">+ 曜日追加</button>
+    </div>
   `, `
     <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
     <button class="btn btn-primary" onclick="saveStudent('${isEdit ? student.id : ''}')">${isEdit ? '更新' : '追加'}</button>
   `);
 
+  // 通常スケジュールテンプレートを読み込んで表示
+  if (isEdit) {
+    ScheduleTemplatesDB.getByStudent(student.id).then(templates => {
+      const container = document.getElementById('scheduleTemplateRows');
+      if (templates.length > 0) {
+        templates.forEach(t => addScheduleTemplateRow(t));
+      } else {
+        addScheduleTemplateRow();
+      }
+    });
+  } else {
+    setTimeout(() => addScheduleTemplateRow(), 50);
+  }
+
   // 学年セレクトの変更で動的セクション切替
   const gradeEl = document.getElementById('studentGrade');
   gradeEl.addEventListener('change', () => renderGradeSection(gradeEl.value, isEdit ? student : null));
   renderGradeSection(gradeEl.value, isEdit ? student : null);
+}
+
+// ----- 通常スケジュールテンプレート行 -----
+function addScheduleTemplateRow(template) {
+  const container = document.getElementById('scheduleTemplateRows');
+  if (!container) return;
+  const row = document.createElement('div');
+  row.className = 'sched-tpl-row';
+  row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap;';
+  if (template) row.dataset.templateId = template.id;
+
+  const days = ['日','月','火','水','木','金','土'];
+  const dayVal = template ? template.dayOfWeek : '';
+  const startVal = template ? template.startSlot : '16:00';
+  const komasVal = template ? template.komas : 2;
+  const teacherVal = template ? (template.teacherId || '') : '';
+  const subjectsVal = template ? (template.subjects || []).join(',') : '';
+
+  // 講師選択肢はcachedTeachersから
+  const teacherOpts = (window._cachedTeachers || []).map(t =>
+    '<option value="' + t.id + '"' + (t.id === teacherVal ? ' selected' : '') + '>' + escapeHtml(t.name) + '</option>'
+  ).join('');
+
+  row.innerHTML = `
+    <select class="form-control stpl-day" style="width:65px;font-size:12px;padding:6px;">
+      <option value="">曜日</option>
+      ${days.map((d, i) => '<option value="' + i + '"' + (String(i) === String(dayVal) ? ' selected' : '') + '>' + d + '</option>').join('')}
+    </select>
+    <input type="time" class="form-control stpl-start" value="${startVal}" style="width:100px;font-size:12px;padding:6px;">
+    <select class="form-control stpl-komas" style="width:75px;font-size:12px;padding:6px;">
+      ${[1,2,3,4,5,6,7,8].map(n => '<option value="' + n + '"' + (n === komasVal ? ' selected' : '') + '>' + n + 'コマ</option>').join('')}
+    </select>
+    <select class="form-control stpl-teacher" style="width:110px;font-size:12px;padding:6px;">
+      <option value="">講師未定</option>
+      ${teacherOpts}
+    </select>
+    <input type="text" class="form-control stpl-subjects" value="${escapeHtml(subjectsVal)}" placeholder="科目(カンマ区切り)" style="width:140px;font-size:12px;padding:6px;">
+    <button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;padding:4px;">✕</button>
+  `;
+  container.appendChild(row);
+}
+
+// 通常スケジュールをFirestoreに保存
+async function saveScheduleTemplates(studentId) {
+  // 既存テンプレートを全て無効化
+  const existing = await ScheduleTemplatesDB.getByStudent(studentId);
+  for (const t of existing) {
+    await ScheduleTemplatesDB.delete(t.id);
+  }
+  // 新しいテンプレートを保存
+  const rows = document.querySelectorAll('.sched-tpl-row');
+  for (const row of rows) {
+    const day = row.querySelector('.stpl-day')?.value;
+    if (day === '' || day === undefined) continue;
+    const startSlot = row.querySelector('.stpl-start')?.value || '16:00';
+    const komas = parseInt(row.querySelector('.stpl-komas')?.value) || 2;
+    const teacherId = row.querySelector('.stpl-teacher')?.value || null;
+    const subjectsRaw = row.querySelector('.stpl-subjects')?.value || '';
+    const subjects = subjectsRaw.split(',').map(s => s.trim()).filter(Boolean);
+    await ScheduleTemplatesDB.create({
+      studentId,
+      dayOfWeek: parseInt(day),
+      startSlot,
+      komas,
+      teacherId,
+      subjects
+    });
+  }
 }
 
 // ----- 志望校情報バッジ表示ヘルパー -----
@@ -2535,6 +3182,7 @@ async function saveStudent(id) {
   const testType = document.getElementById('studentTestType').value || 'midterm';
   const weakSubject = document.getElementById('studentWeakSubject').value || null;
   const role = document.getElementById('studentRole').value || 'student';
+  const selfSchedule = document.getElementById('studentSelfSchedule').value === 'true';
   const materials = [...document.querySelectorAll('.student-material-check:checked')].map(c => c.value);
 
   // 学年別データ
@@ -2581,14 +3229,16 @@ async function saveStudent(id) {
   if (!name) { showToast('名前を入力してください', 'error'); return; }
 
   try {
-    const data = { name, nickname, callsign, pin, parentPin, grade, rank, school, testType, weakSubject, targetStation, role, materials, examCandidate, targetJuniorHighs, targetUniversities, targetQualifications, certGoals, courseType, courseKoma };
+    const data = { name, nickname, callsign, pin, parentPin, grade, rank, school, testType, weakSubject, targetStation, role, selfSchedule, materials, examCandidate, targetJuniorHighs, targetUniversities, targetQualifications, certGoals, courseType, courseKoma };
+    let studentId = id;
     if (id) {
       await StudentsDB.update(id, data);
-      showToast('生徒情報を更新しました');
     } else {
-      await StudentsDB.add(data);
-      showToast('生徒を追加しました');
+      studentId = await StudentsDB.add(data);
     }
+    // 通常スケジュールテンプレートを保存
+    await saveScheduleTemplates(studentId);
+    showToast(id ? '生徒情報を更新しました' : '生徒を追加しました');
     closeModal();
     loadStudents();
   } catch (e) {
@@ -2608,198 +3258,6 @@ async function deleteStudent(id) {
     showToast('生徒を削除しました');
     loadStudents();
   } catch (e) { showToast('削除に失敗しました', 'error'); }
-}
-
-// ============================================
-// 7b. 講師管理
-// ============================================
-let allTeachers = [];
-
-async function loadTeachers() {
-  try {
-    allTeachers = await TeachersDB.getAll();
-    const tbody = document.getElementById('teachersTable');
-    const DAYS = ['日','月','火','水','木','金','土'];
-    const DAY_KEYS = ['sun','mon','tue','wed','thu','fri','sat'];
-    tbody.innerHTML = allTeachers.length === 0
-      ? '<tr><td colspan="6" style="text-align:center;color:var(--text-light)">講師が登録されていません</td></tr>'
-      : allTeachers.map(t => {
-        const shift = t.defaultShift || {};
-        const shiftStr = DAY_KEYS.map((k,i) => shift[k] ? DAYS[i] + shift[k].start + '-' + shift[k].end : '').filter(Boolean).join(', ');
-        return `<tr>
-          <td><strong>${escapeHtml(t.name)}</strong></td>
-          <td>${escapeHtml(t.pin || '-')}</td>
-          <td style="font-size:12px;">${escapeHtml(t.email || '-')}</td>
-          <td style="font-size:12px;">${(t.subjects || []).join(', ') || '-'}</td>
-          <td style="font-size:11px;max-width:200px;">${shiftStr || '<span style="color:#cbd5e1">未設定</span>'}</td>
-          <td>
-            <div class="btn-group">
-              <button class="btn btn-secondary btn-sm" onclick="editTeacher('${t.id}')">編集</button>
-              <button class="btn btn-danger btn-sm" onclick="deleteTeacher('${t.id}')">削除</button>
-            </div>
-          </td>
-        </tr>`;
-      }).join('');
-
-    // セレクトボックス更新
-    const slotTeacherSel = document.getElementById('slotTeacher');
-    slotTeacherSel.innerHTML = '<option value="">選択</option>' + allTeachers.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
-    const slotStudentSel = document.getElementById('slotStudent');
-    if (allStudents && allStudents.length) {
-      slotStudentSel.innerHTML = '<option value="">選択</option>' + allStudents.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.grade || ''})</option>`).join('');
-    }
-
-    // 今日の日付をデフォルトに
-    const dateInput = document.getElementById('slotDate');
-    if (!dateInput.value) dateInput.value = new Date().toISOString().slice(0, 10);
-
-    // 今日のスロット表示
-    loadTodaySlots();
-  } catch(e) { console.error('講師読み込みエラー:', e); }
-}
-
-async function loadTodaySlots() {
-  const container = document.getElementById('todaySlots');
-  const date = document.getElementById('slotDate').value || new Date().toISOString().slice(0, 10);
-  try {
-    const slots = await ScheduleSlotsDB.getByDate(date);
-    if (slots.length === 0) {
-      container.innerHTML = '<div style="text-align:center;color:var(--text-light);padding:12px;">この日のスロットはありません</div>';
-      return;
-    }
-    const teacherMap = {}; allTeachers.forEach(t => teacherMap[t.id] = t);
-    const studentMap = {}; (allStudents || []).forEach(s => studentMap[s.id] = s);
-    const sorted = slots.sort((a,b) => (a.startTime || '').localeCompare(b.startTime || ''));
-    container.innerHTML = '<table style="width:100%;font-size:13px;"><thead><tr><th>時間</th><th>講師</th><th>生徒</th><th>科目</th><th>状態</th><th></th></tr></thead><tbody>'
-      + sorted.map(sl => {
-        const teacher = teacherMap[sl.teacherId];
-        const student = studentMap[sl.studentId];
-        const statusLabel = sl.status === 'attended' ? '<span style="color:var(--success);">✅出席</span>'
-          : sl.status === 'cancelled' ? '<span style="color:var(--danger);">❌キャンセル</span>'
-          : '<span style="color:var(--text-light);">⏰予定</span>';
-        return `<tr>
-          <td>${sl.startTime || ''} - ${sl.endTime || ''}</td>
-          <td>${teacher ? escapeHtml(teacher.name) : '-'}</td>
-          <td>${student ? escapeHtml(student.name) : '-'}</td>
-          <td>${(sl.subjects || []).join(', ')}</td>
-          <td>${statusLabel}</td>
-          <td><button class="btn btn-danger btn-sm" onclick="deleteSlot('${sl.id}')" style="font-size:10px;">削除</button></td>
-        </tr>`;
-      }).join('') + '</tbody></table>';
-  } catch(e) { container.innerHTML = '<div style="color:var(--danger);">読み込みエラー</div>'; }
-}
-
-function openTeacherModal(teacher) {
-  const isEdit = !!teacher;
-  const shift = (teacher && teacher.defaultShift) || {};
-  const DAYS = ['月','火','水','木','金','土','日'];
-  const DAY_KEYS = ['mon','tue','wed','thu','fri','sat','sun'];
-  const shiftRows = DAY_KEYS.map((k, i) => {
-    const s = shift[k];
-    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
-      <span style="width:24px;font-weight:600;font-size:13px;">${DAYS[i]}</span>
-      <input type="time" class="form-control" id="shift_${k}_start" value="${s ? s.start : ''}" style="width:110px;padding:4px 6px;font-size:12px;">
-      <span>〜</span>
-      <input type="time" class="form-control" id="shift_${k}_end" value="${s ? s.end : ''}" style="width:110px;padding:4px 6px;font-size:12px;">
-    </div>`;
-  }).join('');
-  openModal(isEdit ? '講師編集' : '講師追加', `
-    <div class="form-row">
-      <div class="form-group">
-        <label>名前 *</label>
-        <input type="text" class="form-control" id="teacherName" value="${isEdit ? escapeHtml(teacher.name) : ''}">
-      </div>
-      <div class="form-group">
-        <label>PIN (4桁)</label>
-        <input type="text" class="form-control" id="teacherPin" value="${isEdit ? (teacher.pin || '') : ''}" maxlength="4" placeholder="講師ポータル用">
-      </div>
-    </div>
-    <div class="form-group">
-      <label>メール</label>
-      <input type="email" class="form-control" id="teacherEmail" value="${isEdit ? escapeHtml(teacher.email || '') : ''}">
-    </div>
-    <div class="form-group">
-      <label>担当科目（カンマ区切り）</label>
-      <input type="text" class="form-control" id="teacherSubjects" value="${isEdit ? (teacher.subjects || []).join(', ') : ''}" placeholder="数学, 英語, 理科">
-    </div>
-    <div class="form-group">
-      <label>デフォルトシフト</label>
-      ${shiftRows}
-    </div>
-    <button class="btn btn-primary" onclick="saveTeacher(${isEdit ? "'" + teacher.id + "'" : ''})" style="width:100%;margin-top:12px;">
-      ${isEdit ? '更新' : '追加'}
-    </button>
-  `);
-}
-
-async function saveTeacher(editId) {
-  const name = document.getElementById('teacherName').value.trim();
-  if (!name) { showToast('名前を入力してください', 'error'); return; }
-  const pin = document.getElementById('teacherPin').value.trim();
-  const email = document.getElementById('teacherEmail').value.trim();
-  const subjects = document.getElementById('teacherSubjects').value.split(',').map(s => s.trim()).filter(Boolean);
-
-  const DAY_KEYS = ['mon','tue','wed','thu','fri','sat','sun'];
-  const defaultShift = {};
-  DAY_KEYS.forEach(k => {
-    const start = document.getElementById('shift_' + k + '_start').value;
-    const end = document.getElementById('shift_' + k + '_end').value;
-    if (start && end) defaultShift[k] = { start, end };
-  });
-
-  try {
-    if (editId) {
-      await TeachersDB.update(editId, { name, pin, email, subjects, defaultShift });
-      showToast('講師情報を更新しました');
-    } else {
-      await TeachersDB.add({ name, pin, email, subjects, defaultShift });
-      showToast('講師を追加しました');
-    }
-    closeModal();
-    loadTeachers();
-  } catch(e) { showToast('保存に失敗しました: ' + e.message, 'error'); }
-}
-
-function editTeacher(id) {
-  const t = allTeachers.find(t => t.id === id);
-  if (t) openTeacherModal(t);
-}
-
-async function deleteTeacher(id) {
-  if (!confirm('この講師を削除しますか？')) return;
-  try {
-    await TeachersDB.delete(id);
-    showToast('講師を削除しました');
-    loadTeachers();
-  } catch(e) { showToast('削除に失敗しました', 'error'); }
-}
-
-async function addScheduleSlot() {
-  const date = document.getElementById('slotDate').value;
-  const teacherId = document.getElementById('slotTeacher').value;
-  const studentId = document.getElementById('slotStudent').value;
-  const startTime = document.getElementById('slotStart').value;
-  const endTime = document.getElementById('slotEnd').value;
-  const subjects = document.getElementById('slotSubjects').value.split(',').map(s => s.trim()).filter(Boolean);
-
-  if (!date || !teacherId || !studentId || !startTime || !endTime) {
-    showToast('日付・講師・生徒・時間を入力してください', 'error');
-    return;
-  }
-  try {
-    await ScheduleSlotsDB.add({ date, teacherId, studentId, startTime, endTime, subjects });
-    showToast('スロットを追加しました');
-    loadTodaySlots();
-  } catch(e) { showToast('追加に失敗しました: ' + e.message, 'error'); }
-}
-
-async function deleteSlot(id) {
-  if (!confirm('このスロットを削除しますか？')) return;
-  try {
-    await ScheduleSlotsDB.delete(id);
-    showToast('スロットを削除しました');
-    loadTodaySlots();
-  } catch(e) { showToast('削除に失敗しました', 'error'); }
 }
 
 // ============================================
@@ -5486,6 +5944,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ページロード直後は全コンテンツを非表示
   document.querySelector('.risk-banner') && (document.querySelector('.risk-banner').style.display = 'none');
   document.querySelector('.header') && (document.querySelector('.header').style.display = 'none');
+  document.querySelector('.category-nav') && (document.querySelector('.category-nav').style.display = 'none');
   document.querySelector('.tab-nav') && (document.querySelector('.tab-nav').style.display = 'none');
   document.querySelector('.main') && (document.querySelector('.main').style.display = 'none');
 
@@ -5493,6 +5952,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const loginScreen = document.getElementById('adminLoginScreen');
     const riskBanner = document.querySelector('.risk-banner');
     const header = document.querySelector('.header');
+    const categoryNav = document.querySelector('.category-nav');
     const tabNav = document.querySelector('.tab-nav');
     const main = document.querySelector('.main');
 
@@ -5501,6 +5961,7 @@ document.addEventListener('DOMContentLoaded', () => {
       loginScreen.style.display = 'none';
       if (riskBanner) riskBanner.style.display = '';
       if (header) header.style.display = '';
+      if (categoryNav) categoryNav.style.display = '';
       if (tabNav) tabNav.style.display = '';
       if (main) main.style.display = '';
 
@@ -5516,11 +5977,755 @@ document.addEventListener('DOMContentLoaded', () => {
       loginScreen.style.display = 'flex';
       if (riskBanner) riskBanner.style.display = 'none';
       if (header) header.style.display = 'none';
+      if (categoryNav) categoryNav.style.display = 'none';
       if (tabNav) tabNav.style.display = 'none';
       if (main) main.style.display = 'none';
     }
   });
 });
+
+// ============================================
+// スケジュール管理
+// ============================================
+let schedDate = new Date();
+let schedView = 'day';
+let schedConfig = null;
+
+function schedToday() { schedDate = new Date(); loadSchedule(); }
+function schedPrev() {
+  if (schedView === 'day') schedDate.setDate(schedDate.getDate() - 1);
+  else if (schedView === 'week') schedDate.setDate(schedDate.getDate() - 7);
+  else if (schedView === 'year') schedDate.setFullYear(schedDate.getFullYear() - 1);
+  else schedDate.setMonth(schedDate.getMonth() - 1);
+  loadSchedule();
+}
+function schedNext() {
+  if (schedView === 'day') schedDate.setDate(schedDate.getDate() + 1);
+  else if (schedView === 'week') schedDate.setDate(schedDate.getDate() + 7);
+  else if (schedView === 'year') schedDate.setFullYear(schedDate.getFullYear() + 1);
+  else schedDate.setMonth(schedDate.getMonth() + 1);
+  loadSchedule();
+}
+function switchScheduleView(view) {
+  schedView = view;
+  document.querySelectorAll('#tab-schedule .btn-sm').forEach(b => {
+    b.style.background = ''; b.style.color = '';
+  });
+  const btn = document.getElementById(`schedView${view.charAt(0).toUpperCase()+view.slice(1)}`);
+  if (btn) { btn.style.background = 'var(--gradient)'; btn.style.color = 'white'; }
+  loadSchedule();
+}
+
+async function loadSchedule() {
+  const container = document.getElementById('scheduleContent');
+  const label = document.getElementById('schedDateLabel');
+  try {
+    if (!schedConfig) schedConfig = await AcademyConfigDB.get();
+    const dateStr = schedDate.toISOString().slice(0,10);
+    const days = ['日','月','火','水','木','金','土'];
+
+    if (schedView === 'day') {
+      label.textContent = `${dateStr} (${days[schedDate.getDay()]})`;
+      const slots = await ScheduleSlotsDB.getByDate(dateStr);
+      const teachers = await TeachersDB.getAll();
+      const students = allStudents || [];
+      const timeSlots = AcademyConfigDB.getTimeSlots(schedDate.getDay(), schedConfig);
+
+      if (timeSlots.length === 0) {
+        container.innerHTML = '<div style="text-align:center;color:var(--text-light);padding:40px;">この日は休業日です</div>';
+        return;
+      }
+
+      const teacherMap = {};
+      (await TeachersDB.getAll()).forEach(t => teacherMap[t.id] = t);
+      const activeSlots = slots.filter(s => s.status !== 'cancelled');
+      // 生徒ごとにグループ化し、開始時刻順にソート
+      const studentSlots = {};
+      activeSlots.forEach(s => {
+        if (!studentSlots[s.studentId]) studentSlots[s.studentId] = [];
+        studentSlots[s.studentId].push(s);
+      });
+      const studentOrder = Object.keys(studentSlots).sort((a, b) => {
+        const aStart = studentSlots[a].reduce((min, s) => s.startTime < min ? s.startTime : min, '99:99');
+        const bStart = studentSlots[b].reduce((min, s) => s.startTime < min ? s.startTime : min, '99:99');
+        return aStart.localeCompare(bStart);
+      });
+
+      const statusColors = { scheduled: '#DBEAFE', attended: '#D1FAE5', absent: '#FEE2E2', cancelled: '#E5E7EB', rescheduled: '#FEF3C7' };
+      const statusLabels = { scheduled: '予定', attended: '出席', absent: '欠席', cancelled: '取消', rescheduled: '振替' };
+
+      let html = '<table class="data-table" style="font-size:12px;"><thead><tr><th style="min-width:90px;">生徒</th><th style="min-width:70px;">講師</th>';
+      timeSlots.forEach(ts => { html += `<th style="min-width:60px;white-space:nowrap;font-size:11px;">${ts.start}</th>`; });
+      html += '</tr></thead><tbody>';
+
+      for (const sid of studentOrder) {
+        const sSlots = studentSlots[sid];
+        const student = students.find(st => st.id === sid);
+        const teacher = teacherMap[sSlots[0].teacherId];
+        const teacherColor = teacher ? teacher.color : '#9CA3AF';
+        html += `<tr><td style="font-weight:600;white-space:nowrap;">${student ? student.name : sid}</td>`;
+        html += `<td style="font-size:11px;white-space:nowrap;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${teacherColor};margin-right:3px;"></span>${teacher ? teacher.name : '未定'}</td>`;
+        timeSlots.forEach(ts => {
+          const matching = sSlots.filter(s => s.startTime <= ts.start && s.endTime > ts.start);
+          if (matching.length > 0) {
+            const s = matching[0];
+            const slotIdx = Math.floor(((ts.start.split(':').map(Number).reduce((a,b)=>a*60+b)) - (s.startTime.split(':').map(Number).reduce((a,b)=>a*60+b))) / (schedConfig.slotMinutes || 30));
+            const subj = s.subjects && s.subjects[slotIdx] ? s.subjects[slotIdx] : '';
+            html += `<td style="background:${statusColors[s.status] || '#fff'};cursor:pointer;padding:4px 6px;text-align:center;" onclick="editScheduleSlot('${s.id}')">
+              <div style="font-weight:600;font-size:11px;">${subj || '●'}</div>
+              <div style="font-size:9px;color:#666;">${statusLabels[s.status] || ''}</div>
+            </td>`;
+          } else {
+            html += `<td></td>`;
+          }
+        });
+        html += '</tr>';
+      }
+      if (studentOrder.length === 0) {
+        html += `<tr><td colspan="${timeSlots.length + 2}" style="text-align:center;color:var(--text-light);padding:20px;">この日の予定はありません</td></tr>`;
+      }
+      html += '</tbody></table>';
+      // 予定追加ボタン用の行
+      container.innerHTML = html;
+
+    } else if (schedView === 'week') {
+      const monday = new Date(schedDate);
+      monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+      const weekDates = Array.from({length: 7}, (_, i) => { const d = new Date(monday); d.setDate(d.getDate() + i); return d.toISOString().slice(0,10); });
+      label.textContent = `${weekDates[0]} 〜 ${weekDates[6]}`;
+
+      const allSlots = [];
+      for (const wd of weekDates) {
+        const s = await ScheduleSlotsDB.getByDate(wd);
+        allSlots.push(...s);
+      }
+      const students = allStudents || [];
+      const studentIds = [...new Set(allSlots.map(s => s.studentId))];
+
+      let html = '<table class="data-table" style="font-size:12px;"><thead><tr><th>生徒</th>';
+      weekDates.forEach((d, i) => { html += `<th>${d.slice(5)} (${days[new Date(d+'T00:00:00').getDay()]})</th>`; });
+      html += '</tr></thead><tbody>';
+      for (const sid of studentIds) {
+        const student = students.find(s => s.id === sid);
+        html += `<tr><td style="font-weight:600;">${student ? student.name : sid}</td>`;
+        weekDates.forEach(wd => {
+          const daySlots = allSlots.filter(s => s.studentId === sid && s.date === wd && s.status !== 'cancelled');
+          if (daySlots.length > 0) {
+            const s = daySlots[0];
+            const statusColors = { scheduled: '#DBEAFE', attended: '#D1FAE5', absent: '#FEE2E2', rescheduled: '#FEF3C7' };
+            html += `<td style="background:${statusColors[s.status] || '#fff'};font-size:11px;">${s.startTime}-${s.endTime}<br><span style="font-size:10px;color:#666;">${s.komas}コマ</span></td>`;
+          } else {
+            html += '<td style="color:#ccc;text-align:center;">-</td>';
+          }
+        });
+        html += '</tr>';
+      }
+      if (studentIds.length === 0) html += '<tr><td colspan="8" style="text-align:center;color:var(--text-light);">この週の予定はありません</td></tr>';
+      html += '</tbody></table>';
+      container.innerHTML = html;
+
+    } else if (schedView === 'month') {
+      // 月表示
+      const year = schedDate.getFullYear(), month = schedDate.getMonth();
+      label.textContent = `${year}年${month+1}月`;
+      const firstDay = new Date(year, month, 1).getDay();
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+      let html = '<table class="data-table" style="font-size:12px;table-layout:fixed;"><thead><tr>';
+      days.forEach(d => { html += `<th style="text-align:center;">${d}</th>`; });
+      html += '</tr></thead><tbody><tr>';
+      for (let i = 0; i < firstDay; i++) html += '<td></td>';
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        const isOpen = AcademyConfigDB.isOpenOn(dateStr, schedConfig);
+        const dow = (firstDay + d - 1) % 7;
+        html += `<td style="vertical-align:top;min-height:60px;padding:4px;${!isOpen ? 'background:#f7f7f7;' : ''}" onclick="schedDate=new Date('${dateStr}T00:00:00');switchScheduleView('day');">
+          <div style="font-weight:600;font-size:13px;${dow===0?'color:#e53e3e;':dow===6?'color:#3182ce;':''}">${d}</div>
+          <div id="month-${dateStr}" style="font-size:10px;color:#666;"></div>
+        </td>`;
+        if (dow === 6 && d < daysInMonth) html += '</tr><tr>';
+      }
+      html += '</tr></tbody></table>';
+      container.innerHTML = html;
+
+      // 月の各日の予約数を非同期で取得
+      for (let d = 1; d <= daysInMonth; d++) {
+        const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+        ScheduleSlotsDB.getByDate(dateStr).then(slots => {
+          const el = document.getElementById(`month-${dateStr}`);
+          if (el && slots.length > 0) {
+            const attended = slots.filter(s => s.status === 'attended').length;
+            el.textContent = `${slots.length}件${attended > 0 ? ` (${attended}出席)` : ''}`;
+          }
+        }).catch(() => {});
+      }
+
+    } else if (schedView === 'year') {
+      // 年表示
+      const year = schedDate.getFullYear();
+      label.textContent = `${year}年`;
+      const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+      // 受験日を取得
+      const exams = await ExamSchedulesDB.getUpcoming(50);
+      let html = '<div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;">';
+      for (let m = 0; m < 12; m++) {
+        const ym = `${year}-${String(m+1).padStart(2,'0')}`;
+        const isCurrentMonth = new Date().getFullYear() === year && new Date().getMonth() === m;
+        html += `<div style="background:${isCurrentMonth ? '#f0f9ff' : '#fff'};border:1px solid ${isCurrentMonth ? '#3b82f6' : '#e2e8f0'};border-radius:10px;padding:10px;cursor:pointer;" onclick="schedDate=new Date(${year},${m},1);switchScheduleView('month');">`;
+        html += `<div style="font-weight:700;font-size:14px;margin-bottom:6px;${isCurrentMonth ? 'color:#3b82f6;' : ''}">${months[m]}</div>`;
+        // 受験日マーカー
+        const monthExams = exams.filter(e => e.date && e.date.startsWith(ym));
+        if (monthExams.length > 0) {
+          html += monthExams.map(e => {
+            const daysUntil = Math.ceil((new Date(e.date) - new Date()) / 86400000);
+            const urgency = daysUntil <= 30 ? '#ef4444' : daysUntil <= 90 ? '#f59e0b' : '#3b82f6';
+            return `<div style="font-size:10px;background:${urgency};color:white;padding:2px 6px;border-radius:4px;margin-bottom:2px;">${e.examName || e.examType} ${e.date.slice(5)}${daysUntil > 0 ? ' (あと' + daysUntil + '日)' : ''}</div>`;
+          }).join('');
+        }
+        html += `<div id="year-${ym}" style="font-size:11px;color:#64748b;margin-top:4px;"></div>`;
+        html += '</div>';
+      }
+      html += '</div>';
+      container.innerHTML = html;
+
+      // 各月の予約数を非同期で取得
+      for (let m = 0; m < 12; m++) {
+        const ym = `${year}-${String(m+1).padStart(2,'0')}`;
+        const firstDate = `${ym}-01`;
+        const lastDate = `${ym}-${String(new Date(year, m+1, 0).getDate()).padStart(2,'0')}`;
+        (async () => {
+          try {
+            // 月初の1日だけサンプルで取得（全日取得は重いので）
+            const snap = await db.collection('scheduleSlots').where('date', '>=', firstDate).where('date', '<=', lastDate).get();
+            const el = document.getElementById(`year-${ym}`);
+            if (el) el.textContent = snap.size > 0 ? `${snap.size}件の予定` : '';
+          } catch(e) {}
+        })();
+      }
+    }
+
+    // 承認待ちアラートを更新
+    loadPendingAlert();
+    // 受験カウントダウンを表示
+    loadSchedExamCountdown();
+
+  } catch(e) {
+    console.error('Schedule load error:', e);
+    container.innerHTML = '<div style="text-align:center;color:var(--danger);padding:40px;">スケジュールの読み込みに失敗しました</div>';
+  }
+}
+
+async function loadPendingAlert() {
+  try {
+    const pending = await ScheduleSlotsDB.getPending();
+    const alert = document.getElementById('schedPendingAlert');
+    const count = document.getElementById('schedPendingCount');
+    if (pending.length > 0) {
+      alert.style.display = 'block';
+      count.textContent = pending.length;
+    } else {
+      alert.style.display = 'none';
+    }
+  } catch(e) { console.warn('Pending alert error:', e); }
+}
+
+async function showPendingSlots() {
+  try {
+    const pending = await ScheduleSlotsDB.getPending();
+    const students = allStudents || await StudentsDB.getAll();
+    const days = ['日','月','火','水','木','金','土'];
+    let html = '<div style="max-height:400px;overflow-y:auto;">';
+    for (const s of pending) {
+      const student = students.find(st => st.id === s.studentId);
+      const d = new Date(s.date + 'T00:00:00');
+      const submitter = s.submittedBy === 'student' ? '生徒' : s.submittedBy === 'parent' ? '保護者' : '先生';
+      html += `<div style="display:flex;justify-content:space-between;align-items:center;padding:10px;border-bottom:1px solid #f1f5f9;">
+        <div>
+          <div style="font-weight:700;">${student ? student.name : s.studentId}</div>
+          <div style="font-size:12px;color:var(--text-light);">${s.date}(${days[d.getDay()]}) ${s.startTime}〜${s.endTime} | 提出: ${submitter}</div>
+        </div>
+        <div style="display:flex;gap:6px;">
+          <button class="btn btn-sm" style="background:#10b981;color:white;padding:6px 12px;" onclick="approveSlot('${s.id}')">承認</button>
+          <button class="btn btn-sm" style="background:#ef4444;color:white;padding:6px 12px;" onclick="rejectSlot('${s.id}')">差戻</button>
+        </div>
+      </div>`;
+    }
+    if (pending.length === 0) html += '<div style="text-align:center;padding:20px;color:var(--text-light);">承認待ちはありません</div>';
+    html += '</div>';
+    openModal('承認待ちスケジュール', html, '<button class="btn btn-secondary" onclick="closeModal()">閉じる</button>');
+  } catch(e) { showToast('読み込みに失敗しました', 'error'); }
+}
+
+async function loadSchedExamCountdown() {
+  const container = document.getElementById('schedExamCountdown');
+  try {
+    const exams = await ExamSchedulesDB.getUpcoming(50);
+    if (exams.length === 0) { container.style.display = 'none'; return; }
+    const now = new Date();
+    const upcoming = exams.filter(e => new Date(e.date) > now).sort((a,b) => a.date.localeCompare(b.date)).slice(0, 5);
+    if (upcoming.length === 0) { container.style.display = 'none'; return; }
+    container.style.display = 'block';
+    container.innerHTML = '<div style="display:flex;gap:8px;flex-wrap:wrap;">' + upcoming.map(e => {
+      const days = Math.ceil((new Date(e.date) - now) / 86400000);
+      const urgency = days <= 14 ? '#ef4444' : days <= 30 ? '#f59e0b' : days <= 90 ? '#3b82f6' : '#10b981';
+      return `<div style="background:${urgency};color:white;padding:8px 14px;border-radius:10px;font-size:12px;font-weight:600;">
+        ${e.examName || e.examType} ${e.date.slice(5)} <span style="font-size:14px;font-weight:900;">あと${days}日</span>
+      </div>`;
+    }).join('') + '</div>';
+  } catch(e) { container.style.display = 'none'; }
+}
+
+function showScheduleSlotModal(date, time, teacherId) {
+  document.getElementById('schedSlotModal').style.display = 'flex';
+  document.getElementById('slotDate').value = date || schedDate.toISOString().slice(0,10);
+  document.getElementById('slotStart').value = time || '16:00';
+  document.getElementById('slotKomas').value = 2;
+  document.getElementById('slotSubjects').value = '';
+  document.getElementById('slotNote').value = '';
+  // 生徒リスト
+  const sel = document.getElementById('slotStudent');
+  sel.innerHTML = (allStudents || []).map(s => `<option value="${s.id}">${s.name}</option>`).join('');
+  // 講師リスト
+  TeachersDB.getAll().then(teachers => {
+    const tSel = document.getElementById('slotTeacher');
+    tSel.innerHTML = '<option value="">未割当</option>' + teachers.map(t => `<option value="${t.id}" ${teacherId===t.id?'selected':''}>${t.name}</option>`).join('');
+  });
+}
+function closeScheduleSlotModal() { document.getElementById('schedSlotModal').style.display = 'none'; }
+
+async function saveScheduleSlot() {
+  try {
+    const studentId = document.getElementById('slotStudent').value;
+    const teacherId = document.getElementById('slotTeacher').value || null;
+    const date = document.getElementById('slotDate').value;
+    const startTime = document.getElementById('slotStart').value;
+    const komas = parseInt(document.getElementById('slotKomas').value) || 2;
+    const subjects = document.getElementById('slotSubjects').value.split(',').map(s => s.trim()).filter(Boolean);
+    const note = document.getElementById('slotNote').value;
+    const slotMin = (schedConfig && schedConfig.slotMinutes) || 30;
+    const [sh, sm] = startTime.split(':').map(Number);
+    const endMin = sh * 60 + sm + komas * slotMin;
+    const endTime = `${String(Math.floor(endMin/60)).padStart(2,'0')}:${String(endMin%60).padStart(2,'0')}`;
+
+    await ScheduleSlotsDB.create({ studentId, teacherId, date, startTime, endTime, komas, subjects, note });
+    closeScheduleSlotModal();
+    showToast('予定を追加しました');
+    loadSchedule();
+  } catch(e) { console.error(e); showToast('保存に失敗しました', 'error'); }
+}
+
+async function editScheduleSlot(id) {
+  const doc = await db.collection('scheduleSlots').doc(id).get();
+  if (!doc.exists) { showToast('予定が見つかりません', 'error'); return; }
+  const slot = { id: doc.id, ...doc.data() };
+  const student = allStudents ? allStudents.find(s => s.id === slot.studentId) : null;
+  const teachers = window._cachedTeachers || await TeachersDB.getAll();
+  const teacher = teachers.find(t => t.id === slot.teacherId);
+  const statusLabels = { scheduled: '⏰ 予定', attended: '✅ 出席', absent: '❌ 欠席', cancelled: '🗑 取消', rescheduled: '🔄 振替' };
+  const currentStatus = statusLabels[slot.status] || slot.status;
+
+  const approvalLabels = { pending: '🔶 承認待ち', approved: '✅ 承認済み', rejected: '❌ 差戻し' };
+  const approvalStatus = approvalLabels[slot.approval] || '✅ 承認済み';
+  const submitterLabels = { teacher: '先生', student: '生徒', parent: '保護者' };
+  const submitter = submitterLabels[slot.submittedBy] || '先生';
+  const isPending = slot.approval === 'pending';
+
+  openModal('スケジュール操作', `
+    <div style="background:#f8fafc;border-radius:10px;padding:12px;margin-bottom:14px;">
+      <div style="font-size:15px;font-weight:700;margin-bottom:4px;">${student ? student.name : '不明'}</div>
+      <div style="font-size:13px;color:var(--text-light);">${slot.date} ${slot.startTime}〜${slot.endTime}（${slot.komas || 1}コマ）</div>
+      <div style="font-size:13px;color:var(--text-light);">講師: ${teacher ? teacher.name : '未定'}</div>
+      <div style="font-size:13px;color:var(--text-light);">科目: ${slot.subjects ? slot.subjects.join(', ') : '未設定'}</div>
+      <div style="font-size:13px;margin-top:4px;">ステータス: <strong>${currentStatus}</strong></div>
+      <div style="font-size:13px;">承認: <strong>${approvalStatus}</strong>（提出: ${submitter}）</div>
+    </div>
+    ${isPending ? `
+    <div style="background:#fefce8;border:1px solid #fde68a;border-radius:10px;padding:12px;margin-bottom:12px;">
+      <div style="font-size:13px;font-weight:700;color:#854d0e;margin-bottom:8px;">📋 承認待ちの予定です</div>
+      <div style="display:flex;gap:8px;">
+        <button class="btn" style="background:#10b981;color:white;flex:1;padding:12px;" onclick="approveSlot('${id}')">✅ 承認</button>
+        <button class="btn" style="background:#ef4444;color:white;flex:1;padding:12px;" onclick="rejectSlot('${id}')">❌ 差戻し</button>
+      </div>
+    </div>` : ''}
+    <div style="display:flex;flex-direction:column;gap:8px;">
+      <button class="btn" style="background:#10b981;color:white;width:100%;padding:12px;" onclick="updateSlotStatus('${id}','attended')">✅ 出席に変更</button>
+      <button class="btn" style="background:#ef4444;color:white;width:100%;padding:12px;" onclick="updateSlotStatus('${id}','absent')">❌ 欠席に変更</button>
+      <button class="btn" style="background:#3b82f6;color:white;width:100%;padding:12px;" onclick="updateSlotStatus('${id}','scheduled')">⏰ 予定に戻す</button>
+      <div style="border-top:1px solid var(--border);margin-top:8px;padding-top:8px;">
+        <button class="btn" style="background:#fff;color:#ef4444;border:1px solid #ef4444;width:100%;padding:12px;" onclick="deleteScheduleSlot('${id}')">🗑 この予定を削除</button>
+      </div>
+    </div>
+  `, `<button class="btn btn-secondary" onclick="closeModal()">閉じる</button>`);
+}
+
+async function updateSlotStatus(id, status) {
+  try {
+    await ScheduleSlotsDB.updateStatus(id, status);
+    showToast('ステータスを更新しました');
+    closeModal();
+    loadSchedule();
+  } catch(e) { showToast('更新に失敗しました', 'error'); console.error(e); }
+}
+
+async function approveSlot(id) {
+  try {
+    await ScheduleSlotsDB.approve(id, 'teacher');
+    // 保護者に承認通知
+    const doc = await db.collection('scheduleSlots').doc(id).get();
+    if (doc.exists) {
+      const slot = doc.data();
+      await MessagesDB.send(slot.studentId, `スケジュールが承認されました: ${slot.date} ${slot.startTime}〜${slot.endTime}`, 'teacher');
+      await ScheduleSlotsDB.markParentNotified(id);
+    }
+    showToast('承認しました（保護者に通知済み）');
+    closeModal();
+    loadSchedule();
+  } catch(e) { showToast('承認に失敗しました', 'error'); console.error(e); }
+}
+
+async function rejectSlot(id) {
+  const reason = prompt('差戻し理由（任意）:') || '';
+  try {
+    await ScheduleSlotsDB.reject(id, reason);
+    const doc = await db.collection('scheduleSlots').doc(id).get();
+    if (doc.exists) {
+      const slot = doc.data();
+      await MessagesDB.send(slot.studentId, `スケジュールが差し戻されました: ${slot.date} ${slot.startTime}〜${slot.endTime}${reason ? ' 理由: ' + reason : ''}`, 'teacher');
+    }
+    showToast('差し戻しました');
+    closeModal();
+    loadSchedule();
+  } catch(e) { showToast('差戻しに失敗しました', 'error'); console.error(e); }
+}
+
+async function deleteScheduleSlot(id) {
+  if (!confirm('この予定を完全に削除しますか？')) return;
+  try {
+    await db.collection('scheduleSlots').doc(id).delete();
+    showToast('予定を削除しました');
+    closeModal();
+    loadSchedule();
+  } catch(e) { showToast('削除に失敗しました', 'error'); console.error(e); }
+}
+
+async function generateWeekSchedule() {
+  try {
+    if (!schedConfig) schedConfig = await AcademyConfigDB.get();
+    const monday = new Date(schedDate);
+    monday.setDate(monday.getDate() - ((monday.getDay() + 6) % 7));
+    const startDate = monday.toISOString().slice(0,10);
+    const templates = await ScheduleTemplatesDB.getAll();
+    if (templates.length === 0) { showToast('通常スケジュールのテンプレートがありません。生徒管理で設定してください。', 'error'); return; }
+    const count = await ScheduleSlotsDB.generateWeek(startDate, templates, schedConfig);
+    showToast(`${count}件のスケジュールを生成しました`);
+    loadSchedule();
+  } catch(e) { console.error(e); showToast('生成に失敗しました', 'error'); }
+}
+
+// ============================================
+// 業務タスク管理
+// ============================================
+let optasksDate = new Date();
+const OPTASK_CATEGORY_LABELS = { daily: '🧹 日常', sales: '📢 営業', meeting: '🤝 面談', admin: '📋 事務', event: '🎉 イベント' };
+
+function optasksToday() { optasksDate = new Date(); loadOpTasks(); }
+function optasksPrev() { optasksDate.setDate(optasksDate.getDate() - 1); loadOpTasks(); }
+function optasksNext() { optasksDate.setDate(optasksDate.getDate() + 1); loadOpTasks(); }
+
+async function loadOpTasks() {
+  const container = document.getElementById('optasksContent');
+  const summaryEl = document.getElementById('optasksSummary');
+  const dateStr = optasksDate.toISOString().slice(0,10);
+  const days = ['日','月','火','水','木','金','土'];
+  document.getElementById('optasksDateLabel').textContent = `${dateStr} (${days[optasksDate.getDay()]})`;
+
+  try {
+    const tasks = await OperationTasksDB.getByDate(dateStr);
+    const teachers = await TeachersDB.getAll();
+    const teacherMap = {};
+    teachers.forEach(t => { teacherMap[t.id] = t.name; });
+
+    // サマリー
+    const total = tasks.length;
+    const done = tasks.filter(t => t.checked).length;
+    const verified = tasks.filter(t => t.verifiedBy).length;
+    summaryEl.innerHTML = `
+      <div style="background:#DBEAFE;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;">全${total}件</div>
+      <div style="background:#D1FAE5;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;">✅ ${done}完了</div>
+      <div style="background:#E9D5FF;padding:8px 14px;border-radius:8px;font-size:13px;font-weight:600;">🔍 ${verified}確認済</div>
+    `;
+
+    if (tasks.length === 0) {
+      container.innerHTML = '<div style="text-align:center;color:var(--text-light);padding:40px;">この日のタスクはありません</div>';
+      return;
+    }
+
+    // カテゴリ別にグループ化
+    const grouped = {};
+    tasks.forEach(t => {
+      const cat = t.category || 'daily';
+      if (!grouped[cat]) grouped[cat] = [];
+      grouped[cat].push(t);
+    });
+
+    let html = '';
+    for (const [cat, catTasks] of Object.entries(grouped)) {
+      html += `<div style="margin-bottom:16px;">
+        <div style="font-weight:700;font-size:14px;margin-bottom:8px;">${OPTASK_CATEGORY_LABELS[cat] || cat}</div>`;
+      for (const t of catTasks) {
+        const checkedStyle = t.checked ? 'text-decoration:line-through;opacity:0.6;' : '';
+        html += `<div style="display:flex;align-items:center;gap:10px;padding:10px;border:1px solid var(--border);border-radius:8px;margin-bottom:6px;${checkedStyle}">
+          <input type="checkbox" ${t.checked ? 'checked' : ''} onchange="toggleTaskCheck('${t.id}', this.checked)" style="width:20px;height:20px;cursor:pointer;">
+          <div style="flex:1;">
+            <div style="font-weight:600;font-size:13px;">${t.task}</div>
+            ${t.description ? `<div style="font-size:11px;color:#666;">${t.description}</div>` : ''}
+            <div style="font-size:11px;color:#999;margin-top:2px;">
+              ${t.teacherId ? `担当: ${teacherMap[t.teacherId] || '不明'}` : ''}
+              ${t.dueTime ? ` | 期限: ${t.dueTime}` : ''}
+              ${t.checkedBy ? ` | 完了: ${t.checkedBy}` : ''}
+            </div>
+          </div>
+          ${t.checked && !t.verifiedBy ? `<button class="btn btn-sm" onclick="verifyTask('${t.id}')" style="background:#8B5CF6;color:white;font-size:11px;">確認</button>` : ''}
+          ${t.verifiedBy ? `<span style="font-size:11px;color:#8B5CF6;">✔ 確認済</span>` : ''}
+          <button class="btn btn-sm" onclick="deleteTask('${t.id}')" style="font-size:11px;color:#e53e3e;border:1px solid #e53e3e;background:none;">×</button>
+        </div>`;
+      }
+      html += '</div>';
+    }
+    container.innerHTML = html;
+  } catch(e) {
+    console.error('OpTasks load error:', e);
+    container.innerHTML = '<div style="text-align:center;color:var(--danger);padding:40px;">タスクの読み込みに失敗しました</div>';
+  }
+}
+
+async function toggleTaskCheck(id, checked) {
+  try {
+    if (checked) {
+      await OperationTasksDB.check(id, currentAdminName || '管理者');
+    } else {
+      await OperationTasksDB.uncheck(id);
+    }
+    loadOpTasks();
+  } catch(e) { console.error(e); showToast('更新に失敗しました', 'error'); }
+}
+
+async function verifyTask(id) {
+  try {
+    await OperationTasksDB.verify(id, currentAdminName || 'オーナー');
+    showToast('確認しました');
+    loadOpTasks();
+  } catch(e) { console.error(e); showToast('確認に失敗しました', 'error'); }
+}
+
+async function deleteTask(id) {
+  if (!confirm('このタスクを削除しますか？')) return;
+  try {
+    await OperationTasksDB.delete(id);
+    showToast('削除しました');
+    loadOpTasks();
+  } catch(e) { console.error(e); showToast('削除に失敗しました', 'error'); }
+}
+
+function showAddTaskModal() {
+  document.getElementById('addTaskModal').style.display = 'flex';
+  document.getElementById('taskCategory').value = 'daily';
+  document.getElementById('taskName').value = '';
+  document.getElementById('taskDesc').value = '';
+  document.getElementById('taskDueTime').value = '';
+  TeachersDB.getAll().then(teachers => {
+    document.getElementById('taskTeacher').innerHTML = '<option value="">未割当</option>' + teachers.map(t => `<option value="${t.id}">${t.name}</option>`).join('');
+  });
+}
+function closeAddTaskModal() { document.getElementById('addTaskModal').style.display = 'none'; }
+
+async function saveNewTask() {
+  try {
+    const dateStr = optasksDate.toISOString().slice(0,10);
+    await OperationTasksDB.create({
+      date: dateStr,
+      teacherId: document.getElementById('taskTeacher').value || null,
+      category: document.getElementById('taskCategory').value,
+      task: document.getElementById('taskName').value,
+      description: document.getElementById('taskDesc').value,
+      dueTime: document.getElementById('taskDueTime').value || null
+    });
+    closeAddTaskModal();
+    showToast('タスクを追加しました');
+    loadOpTasks();
+  } catch(e) { console.error(e); showToast('追加に失敗しました', 'error'); }
+}
+
+async function generateDailyTasks() {
+  try {
+    const dateStr = optasksDate.toISOString().slice(0,10);
+    const existing = await OperationTasksDB.getByDate(dateStr);
+    if (existing.length > 0 && !confirm('既にタスクがあります。テンプレートから追加しますか？')) return;
+    const teachers = await TeachersDB.getAll();
+    const teacherIds = teachers.map(t => t.id);
+    await OperationTasksDB.generateDaily(dateStr, teacherIds);
+    showToast('日次タスクを生成しました');
+    loadOpTasks();
+  } catch(e) { console.error(e); showToast('生成に失敗しました', 'error'); }
+}
+
+let currentAdminName = 'オーナー';
+
+// ============================================
+// 講師管理
+// ============================================
+async function loadTeachers() {
+  const container = document.getElementById('teachersList');
+  try {
+    const teachers = await TeachersDB.getAll();
+    window._cachedTeachers = teachers;
+    if (teachers.length === 0) {
+      container.innerHTML = '<div style="text-align:center;color:var(--text-light);padding:40px;">講師が登録されていません</div>';
+      return;
+    }
+    const days = ['日','月','火','水','木','金','土'];
+    const dayKeys = ['sun','mon','tue','wed','thu','fri','sat'];
+    let html = '<table class="data-table"><thead><tr><th>名前</th><th>科目</th><th>シフト</th><th>操作</th></tr></thead><tbody>';
+    for (const t of teachers) {
+      const shiftText = dayKeys.map((dk, i) => {
+        const s = t.defaultShift && t.defaultShift[dk];
+        return s ? `${days[i]}${s.start}-${s.end}` : null;
+      }).filter(Boolean).join(', ');
+      html += `<tr>
+        <td><span style="display:inline-block;width:12px;height:12px;border-radius:50%;background:${t.color || '#999'};margin-right:6px;vertical-align:middle;"></span>${t.name}</td>
+        <td style="font-size:12px;">${(t.subjects || []).join(', ')}</td>
+        <td style="font-size:11px;">${shiftText || '未設定'}</td>
+        <td>
+          <button class="btn btn-sm" onclick="editTeacher('${t.id}')">編集</button>
+          <button class="btn btn-sm" style="color:#e53e3e;" onclick="deleteTeacher('${t.id}')">削除</button>
+        </td>
+      </tr>`;
+    }
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  } catch(e) {
+    console.error('Teachers load error:', e);
+    container.innerHTML = '<div style="text-align:center;color:var(--danger);padding:40px;">講師情報の読み込みに失敗しました</div>';
+  }
+}
+
+function showTeacherModal(teacher) {
+  document.getElementById('teacherModal').style.display = 'flex';
+  document.getElementById('teacherModalTitle').textContent = teacher ? '講師編集' : '講師追加';
+  document.getElementById('teacherEditId').value = teacher ? teacher.id : '';
+  document.getElementById('teacherName').value = teacher ? teacher.name : '';
+  document.getElementById('teacherPin').value = teacher ? (teacher.pin || '') : '';
+  document.getElementById('teacherSubjects').value = teacher ? (teacher.subjects || []).join(',') : '';
+  document.getElementById('teacherColor').value = teacher ? (teacher.color || '#4F46E5') : '#4F46E5';
+  // シフトグリッド
+  const grid = document.getElementById('teacherShiftGrid');
+  const days = ['月','火','水','木','金','土','日'];
+  const dayKeys = ['mon','tue','wed','thu','fri','sat','sun'];
+  const defaults = { mon: {start:'15:00',end:'22:00'}, tue: {start:'15:00',end:'22:00'}, wed: {start:'15:00',end:'22:00'}, thu: {start:'15:00',end:'22:00'}, fri: {start:'15:00',end:'22:00'}, sat: {start:'14:00',end:'20:00'}, sun: null };
+  grid.innerHTML = dayKeys.map((dk, i) => {
+    const shift = teacher && teacher.defaultShift ? teacher.defaultShift[dk] : defaults[dk];
+    const checked = !!shift;
+    return `<div style="display:flex;align-items:center;gap:8px;">
+      <input type="checkbox" id="shift_${dk}" ${checked ? 'checked' : ''} style="width:18px;height:18px;">
+      <label style="width:24px;font-weight:600;">${days[i]}</label>
+      <input type="time" id="shiftStart_${dk}" value="${shift ? shift.start : '15:00'}" class="form-control" style="width:auto;font-size:12px;" step="1800">
+      <span>〜</span>
+      <input type="time" id="shiftEnd_${dk}" value="${shift ? shift.end : '22:00'}" class="form-control" style="width:auto;font-size:12px;" step="1800">
+    </div>`;
+  }).join('');
+}
+function closeTeacherModal() { document.getElementById('teacherModal').style.display = 'none'; }
+
+async function editTeacher(id) {
+  const teacher = await TeachersDB.getById(id);
+  if (teacher) showTeacherModal(teacher);
+}
+
+async function saveTeacher() {
+  try {
+    const id = document.getElementById('teacherEditId').value;
+    const name = document.getElementById('teacherName').value.trim();
+    if (!name) { showToast('講師名を入力してください', 'error'); return; }
+    const pin = document.getElementById('teacherPin').value.trim();
+    const subjects = document.getElementById('teacherSubjects').value.split(',').map(s => s.trim()).filter(Boolean);
+    const color = document.getElementById('teacherColor').value;
+    const dayKeys = ['mon','tue','wed','thu','fri','sat','sun'];
+    const defaultShift = {};
+    dayKeys.forEach(dk => {
+      if (document.getElementById(`shift_${dk}`).checked) {
+        defaultShift[dk] = {
+          start: document.getElementById(`shiftStart_${dk}`).value,
+          end: document.getElementById(`shiftEnd_${dk}`).value
+        };
+      } else {
+        defaultShift[dk] = null;
+      }
+    });
+    const data = { name, pin, subjects, color, defaultShift };
+    if (id) { await TeachersDB.update(id, data); }
+    else { await TeachersDB.create(data); }
+    closeTeacherModal();
+    showToast(id ? '更新しました' : '追加しました');
+    loadTeachers();
+  } catch(e) { console.error(e); showToast('保存に失敗しました', 'error'); }
+}
+
+async function deleteTeacher(id) {
+  if (!confirm('この講師を削除しますか？')) return;
+  try {
+    await TeachersDB.deactivate(id);
+    showToast('削除しました');
+    loadTeachers();
+  } catch(e) { console.error(e); showToast('削除に失敗しました', 'error'); }
+}
+
+async function loadShifts() {
+  const start = document.getElementById('shiftStartDate').value;
+  const end = document.getElementById('shiftEndDate').value;
+  if (!start || !end) { showToast('期間を選択してください', 'error'); return; }
+  const container = document.getElementById('shiftsTable');
+  try {
+    const teachers = await TeachersDB.getAll();
+    const days = ['日','月','火','水','木','金','土'];
+    let html = '<table class="data-table" style="font-size:12px;"><thead><tr><th>日付</th>';
+    teachers.forEach(t => { html += `<th>${t.name}</th>`; });
+    html += '</tr></thead><tbody>';
+    const d = new Date(start + 'T00:00:00');
+    const endDate = new Date(end + 'T00:00:00');
+    while (d <= endDate) {
+      const dateStr = d.toISOString().slice(0,10);
+      const shifts = await ShiftsDB.getByDate(dateStr);
+      html += `<tr><td style="font-weight:600;">${dateStr.slice(5)} (${days[d.getDay()]})</td>`;
+      teachers.forEach(t => {
+        const shift = shifts.find(s => s.teacherId === t.id);
+        if (shift) {
+          const statusColors = { scheduled: '#DBEAFE', checked_in: '#D1FAE5', checked_out: '#E5E7EB', absent: '#FEE2E2' };
+          html += `<td style="background:${statusColors[shift.status] || '#fff'};font-size:11px;">${shift.start}-${shift.end}</td>`;
+        } else {
+          html += '<td style="color:#ccc;text-align:center;">-</td>';
+        }
+      });
+      html += '</tr>';
+      d.setDate(d.getDate() + 1);
+    }
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  } catch(e) { console.error(e); container.innerHTML = '<div style="color:var(--danger);">読み込みに失敗しました</div>'; }
+}
+
+async function generateShiftsFromDefaults() {
+  const start = document.getElementById('shiftStartDate').value;
+  const end = document.getElementById('shiftEndDate').value;
+  if (!start || !end) { showToast('期間を選択してください', 'error'); return; }
+  try {
+    const teachers = await TeachersDB.getAll();
+    for (const t of teachers) {
+      await ShiftsDB.generateFromDefaults(t.id, t, start, end);
+    }
+    showToast('シフトを生成しました');
+    loadShifts();
+  } catch(e) { console.error(e); showToast('生成に失敗しました', 'error'); }
+}
 </script>
 </body>
 </html>

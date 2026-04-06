@@ -934,6 +934,9 @@ body.theme-space {
     <span id="homeNarrationText">状況を読み込んでいます...</span>
   </div>
 
+  <!-- 今日のスケジュール -->
+  <div id="homeTodaySchedule" style="display:none;margin:0 16px 12px;"></div>
+
   <!-- テストカウントダウン -->
   <!-- イベント発動中バナー（リアルタイム） -->
   <div id="homeEventBanner" style="display:none;margin:0 16px 12px;"></div>
@@ -1228,6 +1231,82 @@ body.theme-space {
 </div>
 
 <!-- ========== 10. 履歴画面 ========== -->
+<!-- 面談記録画面 -->
+<div id="screenInterviews" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="navigate('home')">←</button>
+    <div class="header-title">📝 面談記録</div>
+    <div></div>
+  </div>
+  <div class="content" style="padding:16px;">
+    <div id="interviewsList">読み込み中...</div>
+  </div>
+</div>
+
+<!-- フルスケジュール画面 -->
+<div id="screenFullSchedule" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="navigate('home')">←</button>
+    <div class="header-title">📅 スケジュール</div>
+    <div></div>
+  </div>
+  <div class="content" style="padding:12px;">
+    <div style="display:flex;gap:6px;margin-bottom:12px;align-items:center;">
+      <button class="btn btn-sm" id="fsViewDay" onclick="switchFullSchedView('day')" style="background:var(--primary);color:white;padding:6px 12px;border-radius:8px;font-size:12px;">日</button>
+      <button class="btn btn-sm" id="fsViewWeek" onclick="switchFullSchedView('week')" style="padding:6px 12px;border-radius:8px;font-size:12px;">週</button>
+      <button class="btn btn-sm" id="fsViewMonth" onclick="switchFullSchedView('month')" style="padding:6px 12px;border-radius:8px;font-size:12px;">月</button>
+      <button class="btn btn-sm" id="fsViewYear" onclick="switchFullSchedView('year')" style="padding:6px 12px;border-radius:8px;font-size:12px;">年</button>
+      <div style="flex:1"></div>
+      <button class="btn btn-sm" onclick="fsPrev()" style="padding:6px 10px;border-radius:8px;">◀</button>
+      <span id="fsDateLabel" style="font-weight:700;font-size:13px;"></span>
+      <button class="btn btn-sm" onclick="fsNext()" style="padding:6px 10px;border-radius:8px;">▶</button>
+    </div>
+    <div id="fullSchedContent">読み込み中...</div>
+  </div>
+</div>
+
+<!-- スケジュール提出画面 -->
+<div id="screenMySchedule" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="navigate('home')">←</button>
+    <div class="header-title">📅 スケジュール提出</div>
+    <div></div>
+  </div>
+  <div class="content" style="padding:16px;">
+    <div style="background:#fefce8;border:1px solid #fde68a;border-radius:12px;padding:12px;margin-bottom:16px;font-size:12px;color:#854d0e;">
+      希望する日時を入力して先生に提出してください。先生が承認すると保護者に通知されます。
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:13px;font-weight:600;">日付</label>
+      <input type="date" class="form-control" id="mySchedDate" style="margin-top:4px;">
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:13px;font-weight:600;">開始時間</label>
+      <input type="time" class="form-control" id="mySchedStart" value="16:00" style="margin-top:4px;">
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:13px;font-weight:600;">コマ数</label>
+      <select class="form-control" id="mySchedKomas" style="margin-top:4px;">
+        <option value="1">1コマ（30分）</option>
+        <option value="2" selected>2コマ（1時間）</option>
+        <option value="3">3コマ（1.5時間）</option>
+        <option value="4">4コマ（2時間）</option>
+        <option value="5">5コマ（2.5時間）</option>
+        <option value="6">6コマ（3時間）</option>
+      </select>
+    </div>
+    <div style="margin-bottom:12px;">
+      <label style="font-size:13px;font-weight:600;">科目（カンマ区切り）</label>
+      <input type="text" class="form-control" id="mySchedSubjects" placeholder="例: 数学,英語" style="margin-top:4px;">
+    </div>
+    <button onclick="submitMySchedule()" style="width:100%;padding:14px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:12px;font-size:15px;font-weight:700;cursor:pointer;">📤 スケジュールを提出</button>
+    <div style="margin-top:20px;">
+      <div style="font-size:14px;font-weight:700;margin-bottom:8px;">📋 提出済みスケジュール</div>
+      <div id="mySchedList">読み込み中...</div>
+    </div>
+  </div>
+</div>
+
 <div id="screenHistory" class="screen">
   <div class="header">
     <button class="header-back" onclick="navigate('home')">←</button>
@@ -1373,6 +1452,9 @@ function navigate(screen) {
     case 'guild': loadGuild(); break;
     case 'raidBoss': loadRaidBoss(); break;
     case 'combo': loadComboEncyclopedia(); break;
+    case 'mySchedule': loadMySchedule(); break;
+    case 'interviews': loadInterviews(); break;
+    case 'fullSchedule': loadFullSchedule(); break;
   }
 }
 
@@ -1394,14 +1476,27 @@ function showProfileMenu() {
   highlightNav(3);
   // Show a simple profile submenu via modal
   showModal('👤', 'マイページ', currentStudent ? (currentStudent.callsign || currentStudent.nickname || '') : '', `
-    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('history')" style="margin-bottom:8px">📊 学習履歴</button>
-    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('badges')" style="margin-bottom:8px">🏅 バッジ</button>
-    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('combo')" style="margin-bottom:8px">🔥 コンボ図鑑</button>
-    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('guild')" style="margin-bottom:8px">⚔️ ギルド</button>
-    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('condition')" style="margin-bottom:8px">😊 コンディション</button>
-    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('messages')" style="margin-bottom:8px">💬 メッセージ</button>
-    ${typeof isDimensionShiftOpen === 'function' && isDimensionShiftOpen() ? '<button class="btn btn-block btn-secondary" onclick="closeModal();openDimensionShift()" style="margin-bottom:8px">🌌 次元シフト（世界観変更）</button>' : ''}
-    <button class="btn btn-block btn-danger" onclick="closeModal();logout()">ログアウト</button>
+    <div style="font-size:11px;font-weight:700;color:#667eea;margin-bottom:6px;padding-left:4px;">📋 日常</div>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('fullSchedule')" style="margin-bottom:6px">📅 スケジュール</button>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('messages')" style="margin-bottom:6px">💬 メッセージ</button>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('condition')" style="margin-bottom:6px">💚 コンディション</button>
+    ${currentStudent && currentStudent.selfSchedule ? '<button class="btn btn-block btn-secondary" onclick="closeModal();navigate(\'mySchedule\')" style="margin-bottom:6px">📤 スケジュール提出</button>' : ''}
+
+    <div style="font-size:11px;font-weight:700;color:#667eea;margin:10px 0 6px;padding-left:4px;">📊 学習</div>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('history')" style="margin-bottom:6px">📊 学習履歴</button>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('badges')" style="margin-bottom:6px">🏅 バッジ</button>
+
+    <div style="font-size:11px;font-weight:700;color:#667eea;margin:10px 0 6px;padding-left:4px;">📝 記録</div>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('interviews')" style="margin-bottom:6px">📝 面談記録</button>
+
+    <div style="font-size:11px;font-weight:700;color:#667eea;margin:10px 0 6px;padding-left:4px;">🎮 ゲーム</div>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('guild')" style="margin-bottom:6px">⚔️ ギルド</button>
+    <button class="btn btn-block btn-secondary" onclick="closeModal();navigate('combo')" style="margin-bottom:6px">🔥 コンボ図鑑</button>
+    ${typeof isDimensionShiftOpen === 'function' && isDimensionShiftOpen() ? '<button class="btn btn-block btn-secondary" onclick="closeModal();openDimensionShift()" style="margin-bottom:6px">🌌 次元シフト</button>' : ''}
+
+    <div style="border-top:1px solid #e2e8f0;margin-top:12px;padding-top:10px;">
+      <button class="btn btn-block btn-danger" onclick="closeModal();logout()">ログアウト</button>
+    </div>
   `, true);
 }
 
@@ -1540,7 +1635,7 @@ async function loadHome() {
   try {
     const fresh = await StudentsDB.getById(currentStudent.id);
     if (fresh) currentStudent = fresh;
-  } catch(e) {}
+  } catch(e) { console.warn('Student refresh error:', e); }
 
   const s = currentStudent;
   const hour = new Date().getHours();
@@ -1631,7 +1726,7 @@ async function loadHome() {
         </div>
       `).join('');
     }
-  } catch(e) {}
+  } catch(e) { console.warn('Study history load error:', e); }
 
   // Check unread messages
   try {
@@ -1643,7 +1738,7 @@ async function loadHome() {
     } else {
       badge.style.display = 'none';
     }
-  } catch(e) {}
+  } catch(e) { console.warn('Unread messages check error:', e); }
 
   // ナレーション + ミッションブリーフィング
   try {
@@ -1655,19 +1750,287 @@ async function loadHome() {
   } catch(e) { console.error('Briefing error:', e); }
 
   // テストカウントダウン
-  try { await loadExamCountdown(s); } catch(e) {}
+  try { await loadExamCountdown(s); } catch(e) { console.warn('Exam countdown error:', e); }
 
   // 学習ルート進捗
-  try { await loadRouteProgressCards(s); } catch(e) {}
+  try { await loadRouteProgressCards(s); } catch(e) { console.warn('Route progress error:', e); }
 
   // 教材進捗カード
-  try { await loadMaterialProgressCards(s); } catch(e) {}
+  try { await loadMaterialProgressCards(s); } catch(e) { console.warn('Material progress error:', e); }
+
+  // 今日のスケジュール
+  try { await loadTodaySchedule(s); } catch(e) { console.warn('Schedule load error:', e); }
 
   // リアルタイム: 現在出撃中の仲間
   setupLiveCrewListener();
 
   // リアルタイム: イベント発動バナー
   setupEventBannerListener();
+}
+
+async function loadTodaySchedule(s) {
+  const container = document.getElementById('homeTodaySchedule');
+  const today = new Date().toISOString().slice(0, 10);
+  const slots = await ScheduleSlotsDB.getByStudent(s.id, today, today);
+  const active = slots.filter(sl => sl.status === 'scheduled' || sl.status === 'attended');
+  if (active.length === 0) { container.style.display = 'none'; return; }
+  container.style.display = 'block';
+  let html = '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;">';
+  html += '<div style="font-size:14px;font-weight:700;color:#2d3748;margin-bottom:10px;">📅 今日のスケジュール</div>';
+  for (const sl of active) {
+    const subjects = sl.subjects && sl.subjects.length ? sl.subjects.join(', ') : '';
+    const isAttended = sl.status === 'attended';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9;">';
+    html += '<div style="display:flex;align-items:center;gap:8px;">';
+    html += '<span style="font-size:12px;font-weight:700;color:#475569;">' + sl.startTime + '〜' + sl.endTime + '</span>';
+    if (subjects) html += '<span style="font-size:12px;color:#64748b;">' + subjects + '</span>';
+    html += '</div>';
+    html += '<span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;' + (isAttended ? 'background:#dcfce7;color:#166534;">' + '✅ 出席' : 'background:#dbeafe;color:#1e40af;">' + '⏰ 予定') + '</span>';
+    html += '</div>';
+  }
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+// ============================================
+// 面談記録（閲覧のみ）
+// ============================================
+async function loadInterviews() {
+  if (!currentStudent) return;
+  const list = document.getElementById('interviewsList');
+  try {
+    const snap = await db.collection('interviewRecords')
+      .where('studentId', '==', currentStudent.id)
+      .get();
+    const records = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+      .slice(0, 30);
+    if (records.length === 0) {
+      list.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px;">面談記録はまだありません</div>';
+      return;
+    }
+    const days = ['日','月','火','水','木','金','土'];
+    list.innerHTML = records.map(r => {
+      const d = new Date(r.date + 'T00:00:00');
+      const dayName = days[d.getDay()];
+      return '<div style="border-left:3px solid #667eea;padding:10px 14px;margin-bottom:10px;background:#f8fafc;border-radius:0 12px 12px 0;">' +
+        '<div style="font-weight:700;font-size:14px;color:#334155;margin-bottom:4px;">' + r.date + '(' + dayName + ')' + (r.time ? ' ' + r.time : '') + '</div>' +
+        '<div style="font-size:13px;color:#475569;white-space:pre-wrap;line-height:1.7;">' + escapeHtml(r.content) + '</div>' +
+        '</div>';
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<div style="color:#ef4444;text-align:center;padding:20px;">読み込みに失敗しました</div>';
+    console.warn(e);
+  }
+}
+
+// ============================================
+// フルスケジュール（日・週・月・年表示）
+// ============================================
+let fsView = 'day';
+let fsDate = new Date();
+
+function switchFullSchedView(view) {
+  fsView = view;
+  document.querySelectorAll('[id^="fsView"]').forEach(b => { b.style.background = ''; b.style.color = ''; });
+  const btn = document.getElementById('fsView' + view.charAt(0).toUpperCase() + view.slice(1));
+  if (btn) { btn.style.background = 'var(--primary)'; btn.style.color = 'white'; }
+  loadFullSchedule();
+}
+function fsPrev() {
+  if (fsView === 'day') fsDate.setDate(fsDate.getDate() - 1);
+  else if (fsView === 'week') fsDate.setDate(fsDate.getDate() - 7);
+  else if (fsView === 'year') fsDate.setFullYear(fsDate.getFullYear() - 1);
+  else fsDate.setMonth(fsDate.getMonth() - 1);
+  loadFullSchedule();
+}
+function fsNext() {
+  if (fsView === 'day') fsDate.setDate(fsDate.getDate() + 1);
+  else if (fsView === 'week') fsDate.setDate(fsDate.getDate() + 7);
+  else if (fsView === 'year') fsDate.setFullYear(fsDate.getFullYear() + 1);
+  else fsDate.setMonth(fsDate.getMonth() + 1);
+  loadFullSchedule();
+}
+
+async function loadFullSchedule() {
+  if (!currentStudent) return;
+  const container = document.getElementById('fullSchedContent');
+  const label = document.getElementById('fsDateLabel');
+  const days = ['日','月','火','水','木','金','土'];
+  const statusIcons = { scheduled: '⏰', attended: '✅', absent: '❌', cancelled: '🗑', rescheduled: '🔄' };
+  const statusColors = { scheduled: '#dbeafe', attended: '#d1fae5', absent: '#fee2e2', cancelled: '#f1f5f9' };
+
+  try {
+    if (fsView === 'day') {
+      const dateStr = fsDate.toISOString().slice(0, 10);
+      const d = new Date(dateStr + 'T00:00:00');
+      label.textContent = dateStr + '(' + days[d.getDay()] + ')';
+      const slots = await ScheduleSlotsDB.getByStudent(currentStudent.id, dateStr, dateStr);
+      const active = slots.filter(s => s.status !== 'cancelled');
+      if (active.length === 0) {
+        container.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px;">この日の予定はありません</div>';
+      } else {
+        container.innerHTML = active.map(s =>
+          '<div style="background:' + (statusColors[s.status] || '#fff') + ';border-radius:12px;padding:14px;margin-bottom:8px;">' +
+          '<div style="display:flex;justify-content:space-between;align-items:center;">' +
+          '<span style="font-weight:700;font-size:15px;">' + s.startTime + '〜' + s.endTime + '</span>' +
+          '<span style="font-size:13px;">' + (statusIcons[s.status] || '') + '</span></div>' +
+          (s.subjects && s.subjects.length ? '<div style="font-size:12px;color:#64748b;margin-top:4px;">' + s.subjects.join(', ') + '</div>' : '') +
+          '<div style="font-size:11px;color:#94a3b8;margin-top:2px;">' + (s.komas || 1) + 'コマ</div>' +
+          '</div>'
+        ).join('');
+      }
+
+    } else if (fsView === 'week') {
+      const startOfWeek = new Date(fsDate);
+      startOfWeek.setDate(startOfWeek.getDate() - startOfWeek.getDay());
+      const endOfWeek = new Date(startOfWeek);
+      endOfWeek.setDate(endOfWeek.getDate() + 6);
+      label.textContent = startOfWeek.toISOString().slice(5, 10) + '〜' + endOfWeek.toISOString().slice(5, 10);
+      const startStr = startOfWeek.toISOString().slice(0, 10);
+      const endStr = endOfWeek.toISOString().slice(0, 10);
+      const slots = await ScheduleSlotsDB.getByStudent(currentStudent.id, startStr, endStr);
+      let html = '';
+      for (let i = 0; i < 7; i++) {
+        const d = new Date(startOfWeek);
+        d.setDate(d.getDate() + i);
+        const ds = d.toISOString().slice(0, 10);
+        const isToday = ds === new Date().toISOString().slice(0, 10);
+        const daySlots = slots.filter(s => s.date === ds && s.status !== 'cancelled');
+        html += '<div style="padding:8px 10px;border-bottom:1px solid #f1f5f9;' + (isToday ? 'background:#eff6ff;border-radius:8px;' : '') + '">';
+        html += '<div style="font-weight:700;font-size:13px;color:' + (i===0 ? '#ef4444' : i===6 ? '#3b82f6' : '#334155') + ';">' + ds.slice(5) + '(' + days[i] + ')' + (isToday ? ' ← 今日' : '') + '</div>';
+        if (daySlots.length === 0) {
+          html += '<div style="font-size:11px;color:#cbd5e1;padding:2px 0;">予定なし</div>';
+        } else {
+          daySlots.forEach(s => {
+            html += '<div style="font-size:12px;margin-top:2px;padding:4px 8px;background:' + (statusColors[s.status] || '#fff') + ';border-radius:6px;">' +
+              (statusIcons[s.status] || '') + ' ' + s.startTime + '〜' + s.endTime +
+              (s.subjects && s.subjects.length ? ' <span style="color:#64748b;">' + s.subjects.join(',') + '</span>' : '') +
+              '</div>';
+          });
+        }
+        html += '</div>';
+      }
+      container.innerHTML = html;
+
+    } else if (fsView === 'month') {
+      const year = fsDate.getFullYear(), month = fsDate.getMonth();
+      label.textContent = year + '年' + (month + 1) + '月';
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const firstDay = new Date(year, month, 1).getDay();
+      // 月全体のスロットを取得
+      const startStr = year + '-' + String(month+1).padStart(2,'0') + '-01';
+      const endStr = year + '-' + String(month+1).padStart(2,'0') + '-' + String(daysInMonth).padStart(2,'0');
+      const slots = await ScheduleSlotsDB.getByStudent(currentStudent.id, startStr, endStr);
+      let html = '<table style="width:100%;border-collapse:collapse;font-size:11px;"><thead><tr>';
+      days.forEach((d, i) => html += '<th style="padding:6px 2px;color:' + (i===0 ? '#ef4444' : i===6 ? '#3b82f6' : '#64748b') + ';">' + d + '</th>');
+      html += '</tr></thead><tbody><tr>';
+      for (let i = 0; i < firstDay; i++) html += '<td></td>';
+      const todayStr = new Date().toISOString().slice(0, 10);
+      for (let d = 1; d <= daysInMonth; d++) {
+        const ds = year + '-' + String(month+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+        const daySlots = slots.filter(s => s.date === ds && s.status !== 'cancelled');
+        const isToday = ds === todayStr;
+        const dow = (firstDay + d - 1) % 7;
+        html += '<td style="vertical-align:top;padding:4px 2px;min-height:40px;' + (isToday ? 'background:#dbeafe;border-radius:6px;' : '') + '">';
+        html += '<div style="font-weight:600;font-size:12px;color:' + (dow===0 ? '#ef4444' : dow===6 ? '#3b82f6' : '#334155') + ';">' + d + '</div>';
+        if (daySlots.length > 0) {
+          daySlots.forEach(s => {
+            html += '<div style="font-size:9px;background:' + (statusColors[s.status] || '#f1f5f9') + ';border-radius:3px;padding:1px 3px;margin-top:1px;white-space:nowrap;overflow:hidden;">' + (statusIcons[s.status] || '') + s.startTime.slice(0,5) + '</div>';
+          });
+        }
+        html += '</td>';
+        if (dow === 6 && d < daysInMonth) html += '</tr><tr>';
+      }
+      html += '</tr></tbody></table>';
+      container.innerHTML = html;
+
+    } else if (fsView === 'year') {
+      const year = fsDate.getFullYear();
+      label.textContent = year + '年';
+      const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+      let html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px;">';
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+      for (let m = 0; m < 12; m++) {
+        const isCurrent = year === currentYear && m === currentMonth;
+        html += '<div style="background:' + (isCurrent ? '#eff6ff' : '#f8fafc') + ';border:1px solid ' + (isCurrent ? '#3b82f6' : '#e2e8f0') + ';border-radius:10px;padding:10px;cursor:pointer;text-align:center;" onclick="fsDate=new Date(' + year + ',' + m + ',1);switchFullSchedView(\'month\');">';
+        html += '<div style="font-weight:700;font-size:14px;' + (isCurrent ? 'color:#3b82f6;' : '') + '">' + months[m] + '</div>';
+        html += '<div id="fsYear-' + m + '" style="font-size:10px;color:#94a3b8;margin-top:4px;"></div>';
+        html += '</div>';
+      }
+      html += '</div>';
+      container.innerHTML = html;
+      // 各月の予定件数を取得
+      for (let m = 0; m < 12; m++) {
+        const startStr = year + '-' + String(m+1).padStart(2,'0') + '-01';
+        const endStr = year + '-' + String(m+1).padStart(2,'0') + '-' + String(new Date(year, m+1, 0).getDate()).padStart(2,'0');
+        ScheduleSlotsDB.getByStudent(currentStudent.id, startStr, endStr).then(slots => {
+          const el = document.getElementById('fsYear-' + m);
+          const active = slots.filter(s => s.status !== 'cancelled');
+          if (el) el.textContent = active.length > 0 ? active.length + '件の予定' : '';
+        }).catch(() => {});
+      }
+    }
+  } catch(e) {
+    container.innerHTML = '<div style="color:#ef4444;text-align:center;padding:20px;">読み込みに失敗しました</div>';
+    console.warn(e);
+  }
+}
+
+async function loadMySchedule() {
+  if (!currentStudent) return;
+  const list = document.getElementById('mySchedList');
+  // デフォルト日付を明日に
+  const tomorrow = new Date(); tomorrow.setDate(tomorrow.getDate() + 1);
+  document.getElementById('mySchedDate').value = tomorrow.toISOString().slice(0, 10);
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const endDate = new Date(); endDate.setDate(endDate.getDate() + 30);
+    const slots = await ScheduleSlotsDB.getByStudent(currentStudent.id, today, endDate.toISOString().slice(0, 10));
+    if (slots.length === 0) {
+      list.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:12px;">今後の予定はありません</div>';
+      return;
+    }
+    const approvalColors = { pending: '#f59e0b', approved: '#10b981', rejected: '#ef4444' };
+    const approvalLabels = { pending: '承認待ち', approved: '承認済み', rejected: '差戻し' };
+    const days = ['日','月','火','水','木','金','土'];
+    list.innerHTML = slots.filter(s => s.status !== 'cancelled').sort((a,b) => a.date.localeCompare(b.date)).map(s => {
+      const d = new Date(s.date + 'T00:00:00');
+      const appr = s.approval || 'approved';
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f1f5f9;">'
+        + '<div><span style="font-weight:700;">' + s.date.slice(5) + '(' + days[d.getDay()] + ')</span> '
+        + '<span style="color:#64748b;">' + s.startTime + '〜' + s.endTime + '</span>'
+        + (s.subjects && s.subjects.length ? '<div style="font-size:11px;color:#64748b;">' + s.subjects.join(', ') + '</div>' : '') + '</div>'
+        + '<span style="font-size:11px;padding:3px 8px;border-radius:10px;font-weight:600;color:white;background:' + (approvalColors[appr] || '#94a3b8') + ';">' + (approvalLabels[appr] || appr) + '</span>'
+        + '</div>';
+    }).join('');
+  } catch(e) { list.innerHTML = '<div style="color:#ef4444;">読み込みに失敗しました</div>'; console.warn(e); }
+}
+
+async function submitMySchedule() {
+  if (!currentStudent) return;
+  const date = document.getElementById('mySchedDate').value;
+  const startTime = document.getElementById('mySchedStart').value;
+  const komas = parseInt(document.getElementById('mySchedKomas').value) || 2;
+  const subjectsRaw = document.getElementById('mySchedSubjects').value;
+  const subjects = subjectsRaw.split(',').map(s => s.trim()).filter(Boolean);
+  if (!date || !startTime) { showToast('日付と時間を入力してください'); return; }
+  const [sh, sm] = startTime.split(':').map(Number);
+  const endMin = sh * 60 + sm + komas * 30;
+  const endTime = String(Math.floor(endMin/60)).padStart(2,'0') + ':' + String(endMin%60).padStart(2,'0');
+  try {
+    await ScheduleSlotsDB.create({
+      studentId: currentStudent.id,
+      teacherId: null,
+      date, startTime, endTime, komas, subjects,
+      submittedBy: 'student',
+      approval: 'pending',
+      note: ''
+    });
+    showToast('スケジュールを提出しました（先生の承認待ち）');
+    loadMySchedule();
+  } catch(e) { showToast('提出に失敗しました'); console.warn(e); }
 }
 
 let liveCrewUnsubscribe = null;
@@ -2274,7 +2637,7 @@ function startStudy() {
   document.getElementById('timerStartBtn').innerHTML = '▶';
 
   // アクティブセッション開始（リアルタイム共有）
-  try { ActiveSessionsDB.start(currentStudent.id, studySession.subject, studySession.material || null); } catch(e) {}
+  try { ActiveSessionsDB.start(currentStudent.id, studySession.subject, studySession.material || null); } catch(e) { console.warn('ActiveSession start error:', e); }
 
   navigate('timer');
 }
@@ -2307,13 +2670,13 @@ function resumeTimer() {
           timerState.pomodoroTime = 5 * 60;
           pomoInfo.textContent = `🍅 ${timerState.pomodoroCount}回完了！ 休憩 5:00`;
           showToast('ポモドーロ完了！5分休憩です');
-          try { navigator.vibrate && navigator.vibrate(500); } catch(e) {}
+          try { navigator.vibrate && navigator.vibrate(500); } catch(e) { /* vibrate API not supported */ }
         } else {
           timerState.pomodoroPhase = 'work';
           timerState.pomodoroTime = 25 * 60;
           pomoInfo.textContent = `🍅 ポモドーロ ${timerState.pomodoroCount + 1}回目 - 作業時間 25:00`;
           showToast('休憩終了！次のポモドーロ開始');
-          try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch(e) {}
+          try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch(e) { /* vibrate API not supported */ }
         }
       } else {
         const phase = timerState.pomodoroPhase === 'work' ? '作業時間' : '休憩';
@@ -2356,7 +2719,7 @@ async function stopStudy(save) {
   clearInterval(timerState.interval);
 
   // アクティブセッション終了
-  try { await ActiveSessionsDB.end(currentStudent.id); } catch(e) {}
+  try { await ActiveSessionsDB.end(currentStudent.id); } catch(e) { console.warn('ActiveSession end error:', e); }
 
   if (!save || timerState.elapsed < 60) {
     navigate('home');
@@ -2427,7 +2790,7 @@ async function stopStudy(save) {
     if (currentStudent.guildId) {
       try {
         await GuildsDB.addPoints(currentStudent.guildId, points);
-      } catch(e) {}
+      } catch(e) { console.warn('Guild points add error:', e); }
     }
 
     // Combo check
@@ -2456,7 +2819,7 @@ async function stopStudy(save) {
       if (currentStudent.role === 'student') {
         supporterBuff = await SupportFleetDB.calculateBuff();
       }
-    } catch(e) {}
+    } catch(e) { console.warn('Supporter buff error:', e); }
 
     // Raid boss damage (with new calculateBossDamage)
     let raidResults = [];
@@ -2504,7 +2867,7 @@ async function stopStudy(save) {
         zoomStudyCount: allLogs.filter(l => l.location === 'Zoom').length
       };
       newBadges = await BadgesDB.checkAndAward(currentStudent.id, stats);
-    } catch(e) {}
+    } catch(e) { console.warn('Badge check error:', e); }
 
     // Check daily mission completion
     let missionResult = null;
@@ -2541,7 +2904,7 @@ async function stopStudy(save) {
         raidBossKills: bossKills
       };
       await SpaceMapDB.checkAndUnlock(currentStudent.id, hiddenStats);
-    } catch(e) {}
+    } catch(e) { console.warn('Hidden area check error:', e); }
 
     // Refresh student again after possible raid rewards
     currentStudent = await StudentsDB.getById(currentStudent.id);
@@ -2926,7 +3289,7 @@ async function loadMessages() {
     // Mark all as read
     for (const m of messages) {
       if (!m.read) {
-        try { await MessagesDB.markRead(m.id); } catch(e) {}
+        try { await MessagesDB.markRead(m.id); } catch(e) { console.warn('Message markRead error:', e); }
       }
     }
   } catch(e) {
@@ -2938,7 +3301,7 @@ async function loadMessages() {
 
 async function markMsgRead(id, isRead) {
   if (!isRead) {
-    try { await MessagesDB.markRead(id); } catch(e) {}
+    try { await MessagesDB.markRead(id); } catch(e) { console.warn('Message markRead error:', e); }
   }
 }
 
@@ -3015,7 +3378,7 @@ async function loadGuild() {
       if (allStudied && members.length > 1) {
         html += '<div style="background:#dcfce7;border:1px solid #86efac;border-radius:8px;padding:10px;margin:8px 16px;text-align:center;font-size:13px;font-weight:700;color:#166534;">🤝 一蓮托生! 今日はギルド全員が学習しました!</div>';
       }
-    } catch(e) {}
+    } catch(e) { console.warn('Guild all-studied check error:', e); }
 
     // メンバーリスト（学年表示付き）
     html += '<div class="guild-members-title">メンバー (' + members.length + '人)</div>';
@@ -3114,7 +3477,7 @@ async function loadRaidBoss() {
           `).join('');
           html += '</div>';
         }
-      } catch(e) {}
+      } catch(e) { console.warn('Raid damage log error:', e); }
     }
 
     container.innerHTML = html;
