@@ -599,7 +599,7 @@ body {
   letter-spacing: 3px;
 }
 
-/* ===== Daily Mission Cards ===== */
+/* ===== Phase 13: Quest Board ===== */
 .mission-section {
   margin: 16px 16px 0;
 }
@@ -607,6 +607,89 @@ body {
   font-size: 16px; font-weight: 700; margin-bottom: 10px;
   display: flex; align-items: center; gap: 6px;
 }
+.quest-board {
+  background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+  border-radius: 16px; padding: 16px; border: 2px solid #2a2a4a;
+  box-shadow: inset 0 0 30px rgba(0,0,0,0.3), 0 4px 20px rgba(0,0,0,0.2);
+}
+.quest-board-header {
+  display: flex; align-items: center; gap: 8px; margin-bottom: 14px;
+  padding-bottom: 10px; border-bottom: 1px solid #2a2a4a;
+}
+.quest-board-title {
+  font-size: 15px; font-weight: 800; color: #ffd700;
+  text-shadow: 0 0 10px rgba(255,215,0,0.3);
+}
+.quest-board-sub {
+  font-size: 11px; color: #8888aa; margin-left: auto;
+}
+.quest-list { display: flex; flex-direction: column; gap: 10px; }
+.quest-item {
+  background: linear-gradient(135deg, #1e2a4a 0%, #1a2040 100%);
+  border: 1px solid #2a3a5a; border-radius: 12px; padding: 14px;
+  cursor: pointer; transition: all 0.3s;
+  position: relative; overflow: hidden;
+}
+.quest-item:hover { border-color: #4a5a8a; transform: translateY(-2px); }
+.quest-item:active { transform: scale(0.98); }
+.quest-item::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
+}
+.quest-item.rarity-common::before { background: linear-gradient(90deg, #6b7280, #9ca3af); }
+.quest-item.rarity-uncommon::before { background: linear-gradient(90deg, #10b981, #34d399); }
+.quest-item.rarity-rare::before { background: linear-gradient(90deg, #3b82f6, #60a5fa); }
+.quest-item.rarity-epic::before { background: linear-gradient(90deg, #8b5cf6, #a78bfa); }
+.quest-item.rarity-legendary::before { background: linear-gradient(90deg, #f59e0b, #fbbf24, #f59e0b); animation: legendaryShine 2s linear infinite; }
+@keyframes legendaryShine { 0%,100% { filter: brightness(1); } 50% { filter: brightness(1.5); } }
+.quest-top { display: flex; align-items: center; gap: 10px; margin-bottom: 6px; }
+.quest-icon { font-size: 28px; width: 40px; text-align: center; }
+.quest-info { flex: 1; }
+.quest-name { font-size: 14px; font-weight: 700; color: #e2e8f0; }
+.quest-rarity-tag {
+  font-size: 9px; font-weight: 700; padding: 2px 8px; border-radius: 8px;
+  display: inline-block; margin-left: 6px; letter-spacing: 0.5px;
+}
+.quest-rarity-tag.common { background: #374151; color: #9ca3af; }
+.quest-rarity-tag.uncommon { background: #064e3b; color: #34d399; }
+.quest-rarity-tag.rare { background: #1e3a5f; color: #60a5fa; }
+.quest-rarity-tag.epic { background: #3b1f6e; color: #a78bfa; }
+.quest-rarity-tag.legendary { background: linear-gradient(135deg, #78350f, #92400e); color: #fbbf24; }
+.quest-flavor {
+  font-size: 12px; color: #8888aa; font-style: italic; line-height: 1.5;
+  margin-top: 4px;
+}
+.quest-reward {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 13px; font-weight: 700; color: #ffd700;
+}
+.quest-btn {
+  margin-top: 10px; width: 100%; padding: 8px; border: none; border-radius: 8px;
+  font-size: 13px; font-weight: 700; cursor: pointer; transition: all 0.2s;
+}
+.quest-btn-accept {
+  background: linear-gradient(135deg, #667eea, #764ba2); color: #fff;
+}
+.quest-btn-accept:hover { filter: brightness(1.1); }
+/* Accepted quest */
+.quest-accepted {
+  background: linear-gradient(135deg, #1a2e1a 0%, #1a3020 100%);
+  border: 2px solid #2d6a2e; border-radius: 12px; padding: 16px;
+}
+.quest-accepted-header {
+  display: flex; align-items: center; gap: 4px;
+  font-size: 12px; color: #48bb78; font-weight: 700; margin-bottom: 8px;
+}
+.quest-completed-badge {
+  background: linear-gradient(135deg, #38a169, #48bb78);
+  color: #fff; font-size: 11px; font-weight: 700; padding: 3px 10px;
+  border-radius: 10px; margin-left: auto;
+}
+@keyframes questAcceptFlash {
+  0% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.5; transform: scale(1.05); }
+  100% { opacity: 1; transform: scale(1); }
+}
+.quest-accept-anim { animation: questAcceptFlash 0.5s ease-out; }
 .mission-cards {
   display: flex; gap: 8px; overflow-x: auto;
   -webkit-overflow-scrolling: touch;
@@ -1171,11 +1254,17 @@ body.theme-space {
     <div class="space-map-next" id="spaceMapNext"></div>
   </div>
 
-  <!-- Daily Missions -->
+  <!-- Phase 13: Quest Board -->
   <div id="homeMissionSection" class="mission-section" style="display:none">
-    <div class="mission-section-title">🎯 今日のミッション</div>
-    <div id="homeMissionCards" class="mission-cards"></div>
-    <div id="homeMissionAccepted" style="display:none"></div>
+    <div class="quest-board">
+      <div class="quest-board-header">
+        <span style="font-size:20px;">📜</span>
+        <span class="quest-board-title">ギルド掲示板</span>
+        <span class="quest-board-sub" id="questBoardDate"></span>
+      </div>
+      <div id="homeMissionCards" class="quest-list"></div>
+      <div id="homeMissionAccepted" style="display:none"></div>
+    </div>
   </div>
 
   <div class="quick-actions">
@@ -3629,48 +3718,79 @@ function renderDailyMissions(draw) {
   const section = document.getElementById('homeMissionSection');
   const cardsEl = document.getElementById('homeMissionCards');
   const acceptedEl = document.getElementById('homeMissionAccepted');
+  const dateEl = document.getElementById('questBoardDate');
 
   if (!draw || !draw.missions || draw.missions.length === 0) {
     section.style.display = 'none';
     return;
   }
   section.style.display = 'block';
+  if (dateEl) {
+    const d = new Date();
+    dateEl.textContent = `${d.getMonth()+1}/${d.getDate()} の依頼`;
+  }
 
-  // If already accepted, show accepted banner
+  // If already accepted, show accepted quest
   if (draw.accepted) {
     const mDef = DailyMissionsDB.getMissionDef(draw.accepted);
     cardsEl.style.display = 'none';
     acceptedEl.style.display = 'block';
     if (mDef) {
       const isComplete = draw.completed;
+      const rarity = draw.missions.find(m => m.missionId === draw.accepted)?.rarity || 'common';
       acceptedEl.innerHTML = `
-        <div class="mission-accepted-banner" style="${isComplete ? 'border:2px solid var(--success)' : ''}">
-          <div style="font-size:28px">${mDef.icon}</div>
-          <div class="mission-accepted-info">
-            <div class="mission-accepted-name">${isComplete ? '✅ ' : ''}${mDef.name}</div>
-            <div class="mission-accepted-desc">${mDef.desc}</div>
+        <div class="quest-accepted">
+          <div class="quest-accepted-header">
+            <span>⚔️ 受注中のクエスト</span>
+            ${isComplete ? '<span class="quest-completed-badge">✅ 達成！</span>' : ''}
           </div>
-          <div style="font-weight:700;color:var(--primary)">${isComplete ? '達成！' : `+${mDef.points}pt`}</div>
+          <div class="quest-top">
+            <div class="quest-icon">${mDef.icon}</div>
+            <div class="quest-info">
+              <div class="quest-name">${mDef.name}
+                <span class="quest-rarity-tag ${rarity}">${rarity.toUpperCase()}</span>
+              </div>
+              <div class="quest-flavor">${mDef.quest || mDef.desc}</div>
+            </div>
+          </div>
+          <div class="quest-reward">${isComplete ? '🎉 達成済み' : `💰 報酬: +${mDef.points}pt`}</div>
+          ${!isComplete && mDef.checkType === 'manual' ?
+            `<button class="quest-btn quest-btn-accept" onclick="manualCompleteMission('${draw.id}')" style="margin-top:10px;">達成報告する</button>` : ''}
+          ${!isComplete && mDef.checkType === 'auto_daily' ?
+            '<div style="font-size:11px;color:#6b7280;margin-top:8px;">※ 条件を満たすと自動的に達成されます</div>' : ''}
         </div>
-        ${!isComplete && mDef.checkType === 'manual' ? `<button class="btn btn-success btn-sm" onclick="manualCompleteMission('${draw.id}')" style="margin-top:8px;width:100%">手動で達成報告</button>` : ''}
       `;
     }
     return;
   }
 
-  // Show 3 mission cards to choose from
+  // Show 3 quest cards to choose from
   cardsEl.style.display = 'flex';
+  cardsEl.style.flexDirection = 'column';
+  cardsEl.style.gap = '10px';
   acceptedEl.style.display = 'none';
   cardsEl.innerHTML = draw.missions.map(m => {
     const mDef = DailyMissionsDB.getMissionDef(m.missionId);
     if (!mDef) return '';
     const isHidden = mDef.hidden;
+    const rarityStars = { common: '⭐', uncommon: '⭐⭐', rare: '⭐⭐⭐', epic: '⭐⭐⭐⭐', legendary: '⭐⭐⭐⭐⭐' };
     return `
-      <div class="mission-card" onclick="acceptMission('${draw.id}','${m.missionId}')">
-        <div class="mission-card-icon">${isHidden ? '❓' : mDef.icon}</div>
-        <div class="mission-card-name">${isHidden ? '???' : mDef.name}</div>
-        <div class="mission-card-rarity rarity-${m.rarity}">${m.rarity.toUpperCase()}</div>
-        <div class="mission-card-pts">${isHidden ? '???' : `+${mDef.points}pt`}</div>
+      <div class="quest-item rarity-${m.rarity}" onclick="acceptMission('${draw.id}','${m.missionId}')">
+        <div class="quest-top">
+          <div class="quest-icon">${isHidden ? '❓' : mDef.icon}</div>
+          <div class="quest-info">
+            <div class="quest-name">
+              ${isHidden ? '???' : mDef.name}
+              <span class="quest-rarity-tag ${m.rarity}">${m.rarity.toUpperCase()}</span>
+            </div>
+            <div class="quest-flavor">${isHidden ? '条件を満たすと解放される秘密のクエスト...' : (mDef.quest || mDef.desc)}</div>
+          </div>
+        </div>
+        <div style="display:flex;justify-content:space-between;align-items:center;">
+          <div class="quest-reward">💰 ${isHidden ? '???' : `+${mDef.points}pt`}</div>
+          <div style="font-size:11px;color:#6b7280;">${rarityStars[m.rarity] || '⭐'}</div>
+        </div>
+        <button class="quest-btn quest-btn-accept">受注する</button>
       </div>
     `;
   }).join('');
@@ -3679,8 +3799,9 @@ function renderDailyMissions(draw) {
 async function acceptMission(drawId, missionId) {
   const mDef = DailyMissionsDB.getMissionDef(missionId);
   const name = mDef ? mDef.name : missionId;
-  showModal('🎯', 'ミッション受注', `「${name}」を今日のミッションにしますか？`, `
-    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+  const flavor = mDef && mDef.quest ? `<div style="font-size:13px;color:rgba(255,255,255,0.6);margin-top:8px;font-style:italic;">${mDef.quest}</div>` : '';
+  showModal('⚔️', 'クエスト受注', `「${name}」を受注しますか？${flavor}`, `
+    <button class="btn btn-secondary" onclick="closeModal()">やめる</button>
     <button class="btn btn-primary" onclick="closeModal();doAcceptMission('${drawId}','${missionId}')">受注する！</button>
   `, true);
 }
@@ -3688,10 +3809,15 @@ async function acceptMission(drawId, missionId) {
 async function doAcceptMission(drawId, missionId) {
   try {
     await DailyMissionsDB.accept(drawId, missionId);
+    SESystem.tap();
     const draw = await DailyMissionsDB.draw(currentStudent.id);
     currentMissionDraw = draw;
     renderDailyMissions(draw);
-    showToast('ミッションを受注しました！');
+    // 受注アニメーション
+    const acceptedEl = document.getElementById('homeMissionAccepted');
+    if (acceptedEl) acceptedEl.classList.add('quest-accept-anim');
+    setTimeout(() => { if (acceptedEl) acceptedEl.classList.remove('quest-accept-anim'); }, 500);
+    showToast('⚔️ クエストを受注しました！');
   } catch(e) {
     console.error(e);
     showToast('受注に失敗しました');
@@ -3712,7 +3838,9 @@ async function doManualComplete(drawId) {
     const draw = await DailyMissionsDB.draw(currentStudent.id);
     currentMissionDraw = draw;
     renderDailyMissions(draw);
-    showToast('ミッション達成！ポイント獲得！');
+    SESystem.missionComplete();
+    fireConfetti();
+    showToast('🎯 クエスト達成！ポイント獲得！');
   } catch(e) {
     console.error(e);
     showToast('達成報告に失敗しました');
