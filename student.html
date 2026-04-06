@@ -1059,18 +1059,8 @@ body.theme-space {
   pointer-events: none;
 }
 .guide-overlay.active { display: block; }
-.guide-backdrop {
-  position: fixed; inset: 0; background: rgba(0,0,0,0.01);
-  pointer-events: none;
-}
-.guide-spotlight {
-  position: absolute; border-radius: 16px;
-  box-shadow: 0 0 0 9999px rgba(0,0,0,0.6), 0 0 30px rgba(102,126,234,0.6);
-  pointer-events: none; transition: all 0.5s ease;
-  z-index: 8001;
-}
 .guide-tooltip {
-  position: absolute; background: #fff; color: #2d3748;
+  position: fixed; background: #fff; color: #2d3748;
   border-radius: 14px; padding: 16px 20px; max-width: 300px;
   box-shadow: 0 10px 40px rgba(0,0,0,0.3);
   pointer-events: auto; z-index: 8002;
@@ -1096,18 +1086,15 @@ body.theme-space {
 }
 .guide-tooltip-arrow.top { top: -8px; left: 30px; }
 .guide-tooltip-arrow.bottom { bottom: -8px; left: 30px; }
-.guide-pulse {
-  position: absolute; border-radius: 16px;
-  border: 3px solid #667eea;
-  animation: guidePulse 1.5s ease-out infinite;
-  pointer-events: none; z-index: 8001;
+@keyframes guideGlow {
+  0%, 100% { box-shadow: 0 0 8px rgba(102,126,234,0.4), 0 0 20px rgba(102,126,234,0.2); }
+  50% { box-shadow: 0 0 16px rgba(102,126,234,0.8), 0 0 40px rgba(102,126,234,0.4); }
 }
-@keyframes guidePulse {
-  0% { opacity: 1; transform: scale(1); }
-  100% { opacity: 0; transform: scale(1.15); }
-}
-.guide-target-highlight {
-  position: relative; z-index: 8001; pointer-events: auto;
+.guide-glow {
+  animation: guideGlow 1.5s ease-in-out infinite;
+  border-radius: 12px;
+  position: relative;
+  z-index: 1;
 }
 </style>
 </head>
@@ -1135,11 +1122,8 @@ body.theme-space {
 <!-- Confetti Container -->
 <div id="confettiContainer" class="confetti-container"></div>
 
-<!-- Phase 13b: ガイドスポットライト -->
+<!-- Phase 13b: ガイドツールチップ -->
 <div id="guideOverlay" class="guide-overlay">
-  <div class="guide-backdrop" onclick="advanceGuide()"></div>
-  <div class="guide-spotlight" id="guideSpotlight"></div>
-  <div class="guide-pulse" id="guidePulse"></div>
   <div class="guide-tooltip" id="guideTooltip">
     <div class="guide-tooltip-arrow top" id="guideArrow"></div>
     <div class="guide-tooltip-step" id="guideStep"></div>
@@ -2558,9 +2542,14 @@ function selectMode(type, value, btn) {
   grid.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
   btn.classList.add('selected');
 
-  // Enable start button when all selected
-  document.getElementById('startStudyBtn').disabled =
-    !(studySession.subject && studySession.location && studySession.method);
+  const allSelected = studySession.subject && studySession.location && studySession.method;
+  document.getElementById('startStudyBtn').disabled = !allSelected;
+
+  // 3つ全て選択されたら自動で学習スタート
+  if (allSelected) {
+    SESystem.tap();
+    setTimeout(() => startStudy(), 300);
+  }
 }
 
 // Zoom場所選択 → 設定されたURLがあれば自動起動
@@ -2631,6 +2620,8 @@ function startStudy() {
   try { ActiveSessionsDB.start(currentStudent.id, studySession.subject, studySession.material || null); } catch(e) {}
 
   navigate('timer');
+  // 自動でタイマー開始
+  setTimeout(() => { if (!timerState.running) toggleTimer(); }, 500);
 }
 
 function toggleTimer() {
@@ -4238,34 +4229,20 @@ const GuideSystem = (() => {
 
   function showStep(step) {
     const overlay = document.getElementById('guideOverlay');
-    const spotlight = document.getElementById('guideSpotlight');
-    const pulse = document.getElementById('guidePulse');
     const tooltip = document.getElementById('guideTooltip');
     const arrow = document.getElementById('guideArrow');
 
     const targetEl = step.target();
     if (!targetEl) { next(); return; }
 
-    targetEl.classList.add('guide-target-highlight');
+    // ターゲットに光るエフェクト
+    targetEl.classList.add('guide-glow');
     targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
     setTimeout(() => {
       const rect = targetEl.getBoundingClientRect();
-      const pad = 8;
 
-      // スポットライト（viewport固定）
-      spotlight.style.left = (rect.left - pad) + 'px';
-      spotlight.style.top = (rect.top - pad) + 'px';
-      spotlight.style.width = (rect.width + pad * 2) + 'px';
-      spotlight.style.height = (rect.height + pad * 2) + 'px';
-
-      // パルス
-      pulse.style.left = (rect.left - pad) + 'px';
-      pulse.style.top = (rect.top - pad) + 'px';
-      pulse.style.width = (rect.width + pad * 2) + 'px';
-      pulse.style.height = (rect.height + pad * 2) + 'px';
-
-      // ツールチップ
+      // ツールチップ位置
       const tooltipWidth = 280;
       let tooltipLeft = Math.max(10, rect.left + rect.width / 2 - tooltipWidth / 2);
       tooltipLeft = Math.min(tooltipLeft, window.innerWidth - tooltipWidth - 10);
@@ -4273,12 +4250,12 @@ const GuideSystem = (() => {
       tooltip.style.left = tooltipLeft + 'px';
 
       if (step.position === 'below') {
-        tooltip.style.top = (rect.bottom + 20) + 'px';
+        tooltip.style.top = (rect.bottom + 16) + 'px';
         tooltip.style.bottom = 'auto';
         arrow.className = 'guide-tooltip-arrow top';
       } else {
         tooltip.style.top = 'auto';
-        tooltip.style.bottom = (window.innerHeight - rect.top + 20) + 'px';
+        tooltip.style.bottom = (window.innerHeight - rect.top + 16) + 'px';
         arrow.className = 'guide-tooltip-arrow bottom';
       }
       arrow.style.left = Math.max(20, Math.min(tooltipWidth - 30, rect.left + rect.width / 2 - tooltipLeft - 8)) + 'px';
@@ -4294,8 +4271,8 @@ const GuideSystem = (() => {
 
   function hide() {
     document.getElementById('guideOverlay').classList.remove('active');
-    document.querySelectorAll('.guide-target-highlight').forEach(el =>
-      el.classList.remove('guide-target-highlight'));
+    document.querySelectorAll('.guide-glow').forEach(el =>
+      el.classList.remove('guide-glow'));
   }
 
   function advanceGuide() {
