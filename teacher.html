@@ -64,10 +64,15 @@
   </header>
 
   <div class="tabs">
-    <button class="tab-btn active" onclick="switchTab('schedule')">📅 今日のスケジュール</button>
+    <button class="tab-btn active" onclick="switchTab('schedule')">📅 スケジュール</button>
     <button class="tab-btn" onclick="switchTab('tasks')">☑ 業務タスク</button>
     <button class="tab-btn" onclick="switchTab('students')">👤 担当生徒</button>
-    <button class="tab-btn" onclick="switchTab('shift')">🗓 シフト確認</button>
+    <button class="tab-btn" onclick="switchTab('interviews')">📝 面談記録</button>
+    <button class="tab-btn" onclick="switchTab('exams')">📊 テスト結果</button>
+    <button class="tab-btn" onclick="switchTab('condition')">💚 コンディション</button>
+    <button class="tab-btn" onclick="switchTab('calendar')">📆 月次・年間</button>
+    <button class="tab-btn" onclick="switchTab('messages')">💬 メッセージ</button>
+    <button class="tab-btn" onclick="switchTab('shift')">🗓 シフト</button>
   </div>
 
   <div class="main">
@@ -95,6 +100,66 @@
       </div>
     </div>
 
+    <!-- 面談記録 -->
+    <div class="tab-panel" id="panel-interviews">
+      <div class="card">
+        <div class="card-title">📝 面談記録</div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;">生徒を選択</label>
+          <select class="form-control" id="interviewStudentSelect" onchange="loadTeacherInterviews()" style="margin-top:4px;"></select>
+        </div>
+        <div id="teacherInterviews">生徒を選択してください</div>
+      </div>
+    </div>
+
+    <!-- テスト結果 -->
+    <div class="tab-panel" id="panel-exams">
+      <div class="card">
+        <div class="card-title">📊 担当生徒のテスト結果</div>
+        <div id="teacherExams">読み込み中...</div>
+      </div>
+    </div>
+
+    <!-- コンディション -->
+    <div class="tab-panel" id="panel-condition">
+      <div class="card">
+        <div class="card-title">💚 担当生徒のコンディション</div>
+        <div id="teacherCondition">読み込み中...</div>
+      </div>
+    </div>
+
+    <!-- 月次・年間スケジュール -->
+    <div class="tab-panel" id="panel-calendar">
+      <div class="card">
+        <div style="display:flex;gap:6px;align-items:center;margin-bottom:12px;">
+          <button class="btn" id="tcViewMonth" onclick="switchTcView('month')" style="background:var(--gradient);color:white;padding:6px 12px;font-size:12px;border-radius:8px;">月表示</button>
+          <button class="btn" id="tcViewYear" onclick="switchTcView('year')" style="padding:6px 12px;font-size:12px;border-radius:8px;">年表示</button>
+          <div style="flex:1"></div>
+          <button class="btn" onclick="tcPrev()" style="padding:6px 10px;font-size:12px;border-radius:8px;">◀</button>
+          <span id="tcDateLabel" style="font-weight:700;font-size:14px;"></span>
+          <button class="btn" onclick="tcNext()" style="padding:6px 10px;font-size:12px;border-radius:8px;">▶</button>
+        </div>
+        <div id="tcExamCountdown" style="display:none;margin-bottom:12px;"></div>
+        <div id="tcCalendarContent">読み込み中...</div>
+      </div>
+    </div>
+
+    <!-- メッセージ -->
+    <div class="tab-panel" id="panel-messages">
+      <div class="card">
+        <div class="card-title">💬 メッセージ</div>
+        <div style="margin-bottom:12px;">
+          <label style="font-size:12px;font-weight:600;">生徒を選択</label>
+          <select class="form-control" id="msgStudentSelect" onchange="loadTeacherMessages()" style="margin-top:4px;"></select>
+        </div>
+        <div id="teacherMessages">生徒を選択してください</div>
+        <div id="teacherMsgForm" style="display:none;margin-top:12px;border-top:1px solid var(--border);padding-top:12px;">
+          <textarea class="form-control" id="teacherMsgContent" rows="3" placeholder="メッセージを入力..." style="margin-bottom:8px;"></textarea>
+          <button class="btn btn-primary" onclick="sendTeacherMessage()" style="width:100%;">送信</button>
+        </div>
+      </div>
+    </div>
+
     <!-- シフト確認 -->
     <div class="tab-panel" id="panel-shift">
       <div class="card">
@@ -113,9 +178,11 @@
 
 let currentTeacher = null;
 
+function escapeHtml(s) { const d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+
 function switchTab(tabId) {
   document.querySelectorAll('.tab-btn').forEach((b, i) => {
-    const tabs = ['schedule', 'tasks', 'students', 'shift'];
+    const tabs = ['schedule', 'tasks', 'students', 'interviews', 'exams', 'condition', 'calendar', 'messages', 'shift'];
     b.classList.toggle('active', tabs[i] === tabId);
   });
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -123,6 +190,11 @@ function switchTab(tabId) {
   if (tabId === 'schedule') loadTeacherSchedule();
   if (tabId === 'tasks') loadTeacherTasks();
   if (tabId === 'students') loadTeacherStudents();
+  if (tabId === 'interviews') initInterviewTab();
+  if (tabId === 'exams') loadTeacherExams();
+  if (tabId === 'condition') loadTeacherCondition();
+  if (tabId === 'calendar') loadTeacherCalendar();
+  if (tabId === 'messages') initMessageTab();
   if (tabId === 'shift') loadTeacherShift();
 }
 
@@ -331,6 +403,321 @@ async function loadTeacherShift() {
         + '</div></div>';
     }).join('');
   } catch(e) { container.innerHTML = '<div style="color:var(--danger);">読み込みに失敗しました</div>'; console.warn(e); }
+}
+
+// ===== 担当生徒リスト取得（共通） =====
+let _myStudentIds = null;
+async function getMyStudentIds() {
+  if (_myStudentIds) return _myStudentIds;
+  const today = new Date().toISOString().slice(0, 10);
+  const endDate = new Date(); endDate.setDate(endDate.getDate() + 30);
+  // 直近30日のスロットから担当生徒を取得
+  const startDate = new Date(); startDate.setDate(startDate.getDate() - 30);
+  try {
+    const snap = await db.collection('scheduleSlots')
+      .where('teacherId', '==', currentTeacher.id)
+      .where('date', '>=', startDate.toISOString().slice(0, 10))
+      .where('date', '<=', endDate.toISOString().slice(0, 10))
+      .get();
+    _myStudentIds = [...new Set(snap.docs.map(d => d.data().studentId))];
+  } catch(e) {
+    // フォールバック：今日のスロットのみ
+    const slots = await ScheduleSlotsDB.getByTeacher(currentTeacher.id, today);
+    _myStudentIds = [...new Set(slots.map(s => s.studentId))];
+  }
+  return _myStudentIds;
+}
+
+async function buildStudentSelect(selectId) {
+  const ids = await getMyStudentIds();
+  const select = document.getElementById(selectId);
+  let options = '<option value="">-- 選択 --</option>';
+  for (const id of ids) {
+    const s = await StudentsDB.getById(id);
+    if (s) options += '<option value="' + id + '">' + escapeHtml(s.name) + ' (' + (s.grade || '') + ')</option>';
+  }
+  select.innerHTML = options;
+}
+
+// ===== 面談記録 =====
+async function initInterviewTab() {
+  await buildStudentSelect('interviewStudentSelect');
+}
+
+async function loadTeacherInterviews() {
+  const sid = document.getElementById('interviewStudentSelect').value;
+  const container = document.getElementById('teacherInterviews');
+  if (!sid) { container.innerHTML = '<div style="color:var(--text-light);text-align:center;padding:20px;">生徒を選択してください</div>'; return; }
+  try {
+    const snap = await db.collection('interviewRecords').where('studentId', '==', sid).get();
+    const records = snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || '')).slice(0, 30);
+    if (records.length === 0) {
+      container.innerHTML = '<div style="text-align:center;color:var(--text-light);padding:20px;">面談記録はまだありません</div>';
+      return;
+    }
+    const days = ['日','月','火','水','木','金','土'];
+    container.innerHTML = records.map(r => {
+      const d = new Date(r.date + 'T00:00:00');
+      return '<div style="border-left:3px solid var(--primary);padding:8px 12px;margin-bottom:8px;background:#f8fafc;border-radius:0 10px 10px 0;">'
+        + '<div style="font-weight:700;font-size:13px;color:var(--text);margin-bottom:4px;">' + r.date + '(' + days[d.getDay()] + ')' + (r.time ? ' ' + r.time : '') + '</div>'
+        + '<div style="font-size:12px;color:#475569;white-space:pre-wrap;line-height:1.6;">' + escapeHtml(r.content) + '</div>'
+        + '</div>';
+    }).join('');
+  } catch(e) { container.innerHTML = '<div style="color:var(--danger);">読み込みに失敗しました</div>'; console.warn(e); }
+}
+
+// ===== テスト結果 =====
+async function loadTeacherExams() {
+  const container = document.getElementById('teacherExams');
+  try {
+    const ids = await getMyStudentIds();
+    if (ids.length === 0) { container.innerHTML = '<div style="color:var(--text-light);text-align:center;padding:20px;">担当生徒がいません</div>'; return; }
+    let html = '';
+    for (const sid of ids) {
+      const student = await StudentsDB.getById(sid);
+      if (!student) continue;
+      const results = await ExamResultsDB.getByStudent(sid);
+      html += '<div style="margin-bottom:16px;">';
+      html += '<div style="font-weight:700;font-size:14px;margin-bottom:6px;">' + escapeHtml(student.name) + ' <span style="color:var(--text-light);font-weight:400;font-size:12px;">' + (student.grade || '') + '</span></div>';
+      if (results.length === 0) {
+        html += '<div style="font-size:12px;color:var(--text-light);padding:4px 0;">テスト結果なし</div>';
+      } else {
+        results.slice(0, 3).forEach(e => {
+          const pct = e.maxTotalScore ? Math.round(e.totalScore / e.maxTotalScore * 100) : null;
+          html += '<div style="display:flex;justify-content:space-between;padding:4px 0;border-bottom:1px solid #f1f5f9;font-size:12px;">'
+            + '<span>' + escapeHtml(e.examName || '') + ' <span style="color:var(--text-light);">' + (e.date || '') + '</span></span>'
+            + '<span style="font-weight:700;color:#7c3aed;">' + (e.totalScore || 0) + '/' + (e.maxTotalScore || '-') + (pct !== null ? ' (' + pct + '%)' : '') + '</span>'
+            + '</div>';
+        });
+      }
+      html += '</div>';
+    }
+    container.innerHTML = html || '<div style="color:var(--text-light);text-align:center;padding:20px;">データがありません</div>';
+  } catch(e) { container.innerHTML = '<div style="color:var(--danger);">読み込みに失敗しました</div>'; console.warn(e); }
+}
+
+// ===== コンディション =====
+async function loadTeacherCondition() {
+  const container = document.getElementById('teacherCondition');
+  try {
+    const ids = await getMyStudentIds();
+    if (ids.length === 0) { container.innerHTML = '<div style="color:var(--text-light);text-align:center;padding:20px;">担当生徒がいません</div>'; return; }
+    const moodEmoji = ['','😢','😟','😐','😊','🤩'];
+    let html = '';
+    for (const sid of ids) {
+      const student = await StudentsDB.getById(sid);
+      if (!student) continue;
+      const conditions = await ConditionsDB.getByStudent(sid, 7);
+      html += '<div style="margin-bottom:14px;">';
+      html += '<div style="font-weight:700;font-size:13px;margin-bottom:6px;">' + escapeHtml(student.name) + '</div>';
+      if (conditions.length === 0) {
+        html += '<div style="font-size:11px;color:var(--text-light);">記録なし</div>';
+      } else {
+        html += '<div style="display:flex;gap:6px;flex-wrap:wrap;">';
+        conditions.slice(0, 7).reverse().forEach(c => {
+          html += '<div style="text-align:center;padding:4px 6px;background:#f8fafc;border-radius:8px;min-width:50px;">'
+            + '<div style="font-size:9px;color:var(--text-light);">' + (c.date || '').slice(5) + '</div>'
+            + '<div style="font-size:18px;">' + (moodEmoji[c.mood] || '😐') + '</div>'
+            + '<div style="font-size:8px;color:var(--text-light);">⚡' + (c.energy || '-') + ' 🔥' + (c.motivation || '-') + '</div>'
+            + '</div>';
+        });
+        html += '</div>';
+        if (conditions[0] && conditions[0].note) {
+          html += '<div style="margin-top:4px;font-size:11px;color:#64748b;background:#fefce8;padding:4px 8px;border-radius:6px;">💬 ' + escapeHtml(conditions[0].note) + '</div>';
+        }
+      }
+      html += '</div>';
+    }
+    container.innerHTML = html || '<div style="color:var(--text-light);text-align:center;padding:20px;">データがありません</div>';
+  } catch(e) { container.innerHTML = '<div style="color:var(--danger);">読み込みに失敗しました</div>'; console.warn(e); }
+}
+
+// ===== 月次・年間カレンダー =====
+let tcView = 'month';
+let tcDate = new Date();
+
+function switchTcView(view) {
+  tcView = view;
+  document.getElementById('tcViewMonth').style.background = view === 'month' ? 'var(--gradient)' : '';
+  document.getElementById('tcViewMonth').style.color = view === 'month' ? 'white' : '';
+  document.getElementById('tcViewYear').style.background = view === 'year' ? 'var(--gradient)' : '';
+  document.getElementById('tcViewYear').style.color = view === 'year' ? 'white' : '';
+  loadTeacherCalendar();
+}
+function tcPrev() {
+  if (tcView === 'year') tcDate.setFullYear(tcDate.getFullYear() - 1);
+  else tcDate.setMonth(tcDate.getMonth() - 1);
+  loadTeacherCalendar();
+}
+function tcNext() {
+  if (tcView === 'year') tcDate.setFullYear(tcDate.getFullYear() + 1);
+  else tcDate.setMonth(tcDate.getMonth() + 1);
+  loadTeacherCalendar();
+}
+
+async function loadTeacherCalendar() {
+  if (!currentTeacher) return;
+  const container = document.getElementById('tcCalendarContent');
+  const label = document.getElementById('tcDateLabel');
+  const days = ['日','月','火','水','木','金','土'];
+
+  // 受験カウントダウン
+  try {
+    const exams = await ExamSchedulesDB.getUpcoming(10);
+    const cdEl = document.getElementById('tcExamCountdown');
+    const now = new Date();
+    const upcoming = exams.filter(e => new Date(e.date) > now).slice(0, 5);
+    if (upcoming.length > 0) {
+      cdEl.style.display = 'block';
+      cdEl.innerHTML = '<div style="display:flex;gap:6px;flex-wrap:wrap;">' + upcoming.map(e => {
+        const daysUntil = Math.ceil((new Date(e.date) - now) / 86400000);
+        const urgency = daysUntil <= 14 ? '#ef4444' : daysUntil <= 30 ? '#f59e0b' : daysUntil <= 90 ? '#3b82f6' : '#10b981';
+        return '<span style="background:' + urgency + ';color:white;padding:4px 10px;border-radius:8px;font-size:11px;font-weight:600;">' + (e.examName || e.examType) + ' あと' + daysUntil + '日</span>';
+      }).join('') + '</div>';
+    } else { cdEl.style.display = 'none'; }
+  } catch(e) {}
+
+  try {
+    const exams = await ExamSchedulesDB.getUpcoming(50);
+
+    if (tcView === 'month') {
+      const year = tcDate.getFullYear(), month = tcDate.getMonth();
+      label.textContent = year + '年' + (month + 1) + '月';
+      const daysInMonth = new Date(year, month + 1, 0).getDate();
+      const firstDay = new Date(year, month, 1).getDay();
+      const startStr = year + '-' + String(month+1).padStart(2,'0') + '-01';
+      const endStr = year + '-' + String(month+1).padStart(2,'0') + '-' + String(daysInMonth).padStart(2,'0');
+      // 自分の担当スロットを取得
+      const snap = await db.collection('scheduleSlots')
+        .where('teacherId', '==', currentTeacher.id)
+        .where('date', '>=', startStr)
+        .where('date', '<=', endStr)
+        .get();
+      const slots = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      const todayStr = new Date().toISOString().slice(0, 10);
+      const ym = year + '-' + String(month+1).padStart(2,'0');
+      const monthExams = exams.filter(e => e.date && e.date.startsWith(ym));
+
+      let html = '';
+      // 受験日表示
+      if (monthExams.length > 0) {
+        html += '<div style="margin-bottom:10px;display:flex;gap:6px;flex-wrap:wrap;">';
+        monthExams.forEach(e => {
+          const daysUntil = Math.ceil((new Date(e.date) - new Date()) / 86400000);
+          html += '<span style="background:#fef3c7;color:#92400e;padding:3px 8px;border-radius:6px;font-size:11px;font-weight:600;">🎯 ' + (e.examName || e.examType) + ' ' + e.date.slice(5) + (daysUntil > 0 ? ' (あと' + daysUntil + '日)' : '') + '</span>';
+        });
+        html += '</div>';
+      }
+
+      html += '<table style="width:100%;border-collapse:collapse;font-size:12px;"><thead><tr>';
+      days.forEach((d, i) => html += '<th style="padding:8px 2px;color:' + (i===0 ? '#ef4444' : i===6 ? '#3b82f6' : 'var(--text-light)') + ';">' + d + '</th>');
+      html += '</tr></thead><tbody><tr>';
+      for (let i = 0; i < firstDay; i++) html += '<td></td>';
+      for (let d = 1; d <= daysInMonth; d++) {
+        const ds = year + '-' + String(month+1).padStart(2,'0') + '-' + String(d).padStart(2,'0');
+        const daySlots = slots.filter(s => s.date === ds && s.status !== 'cancelled');
+        const isToday = ds === todayStr;
+        const isExamDay = monthExams.some(e => e.date === ds);
+        const dow = (firstDay + d - 1) % 7;
+        html += '<td style="vertical-align:top;padding:4px 2px;min-height:50px;' + (isToday ? 'background:#dbeafe;border-radius:6px;' : '') + (isExamDay ? 'border:2px solid #f59e0b;border-radius:6px;' : '') + '">';
+        html += '<div style="font-weight:600;font-size:12px;color:' + (dow===0 ? '#ef4444' : dow===6 ? '#3b82f6' : 'var(--text)') + ';">' + d + '</div>';
+        if (isExamDay) html += '<div style="font-size:8px;background:#fef3c7;color:#92400e;border-radius:3px;padding:1px 2px;text-align:center;">🎯試験</div>';
+        if (daySlots.length > 0) {
+          html += '<div style="font-size:9px;background:#dbeafe;color:#1e40af;border-radius:3px;padding:1px 3px;margin-top:1px;text-align:center;">' + daySlots.length + '件</div>';
+        }
+        html += '</td>';
+        if (dow === 6 && d < daysInMonth) html += '</tr><tr>';
+      }
+      html += '</tr></tbody></table>';
+      container.innerHTML = html;
+
+    } else {
+      // 年表示
+      const year = tcDate.getFullYear();
+      label.textContent = year + '年';
+      const months = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+      const currentMonth = new Date().getMonth();
+      const currentYear = new Date().getFullYear();
+
+      let html = '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;">';
+      for (let m = 0; m < 12; m++) {
+        const isCurrent = year === currentYear && m === currentMonth;
+        const ym = year + '-' + String(m+1).padStart(2,'0');
+        const monthExams = exams.filter(e => e.date && e.date.startsWith(ym));
+        html += '<div style="background:' + (isCurrent ? '#eff6ff' : '#f8fafc') + ';border:1px solid ' + (isCurrent ? 'var(--primary)' : 'var(--border)') + ';border-radius:10px;padding:10px;cursor:pointer;" onclick="tcDate=new Date(' + year + ',' + m + ',1);switchTcView(\'month\');">';
+        html += '<div style="font-weight:700;font-size:14px;' + (isCurrent ? 'color:var(--primary);' : '') + '">' + months[m] + '</div>';
+        if (monthExams.length > 0) {
+          monthExams.forEach(e => {
+            const daysUntil = Math.ceil((new Date(e.date) - new Date()) / 86400000);
+            const urgency = daysUntil <= 30 ? '#ef4444' : daysUntil <= 90 ? '#f59e0b' : '#3b82f6';
+            html += '<div style="font-size:9px;background:' + urgency + ';color:white;padding:2px 5px;border-radius:4px;margin-top:3px;">' + (e.examName || e.examType) + ' ' + e.date.slice(8) + '日' + (daysUntil > 0 ? ' あと' + daysUntil + '日' : '') + '</div>';
+          });
+        }
+        html += '<div id="tcYear-' + m + '" style="font-size:10px;color:var(--text-light);margin-top:4px;"></div>';
+        html += '</div>';
+      }
+      html += '</div>';
+      container.innerHTML = html;
+
+      // 各月の担当件数を取得
+      for (let m = 0; m < 12; m++) {
+        const startStr = year + '-' + String(m+1).padStart(2,'0') + '-01';
+        const endStr = year + '-' + String(m+1).padStart(2,'0') + '-' + String(new Date(year, m+1, 0).getDate()).padStart(2,'0');
+        (async () => {
+          try {
+            const snap = await db.collection('scheduleSlots')
+              .where('teacherId', '==', currentTeacher.id)
+              .where('date', '>=', startStr)
+              .where('date', '<=', endStr)
+              .get();
+            const el = document.getElementById('tcYear-' + m);
+            if (el) el.textContent = snap.size > 0 ? '担当 ' + snap.size + '件' : '';
+          } catch(e) {}
+        })();
+      }
+    }
+  } catch(e) { container.innerHTML = '<div style="color:var(--danger);">読み込みに失敗しました</div>'; console.warn(e); }
+}
+
+// ===== メッセージ =====
+async function initMessageTab() {
+  await buildStudentSelect('msgStudentSelect');
+}
+
+async function loadTeacherMessages() {
+  const sid = document.getElementById('msgStudentSelect').value;
+  const container = document.getElementById('teacherMessages');
+  const form = document.getElementById('teacherMsgForm');
+  if (!sid) { container.innerHTML = '<div style="color:var(--text-light);text-align:center;padding:20px;">生徒を選択してください</div>'; form.style.display = 'none'; return; }
+  form.style.display = 'block';
+  try {
+    const msgs = await MessagesDB.getByStudent(sid);
+    if (msgs.length === 0) {
+      container.innerHTML = '<div style="color:var(--text-light);text-align:center;padding:20px;">メッセージはありません</div>';
+      return;
+    }
+    container.innerHTML = msgs.slice(0, 20).map(m => {
+      const isTeacher = m.fromType === 'teacher';
+      const ts = m.createdAt && m.createdAt.toDate ? m.createdAt.toDate().toLocaleString('ja-JP', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+      return '<div style="padding:8px 0;border-bottom:1px solid #f1f5f9;">'
+        + '<span style="font-size:11px;font-weight:600;color:' + (isTeacher ? 'var(--primary)' : 'var(--success)') + ';">' + (isTeacher ? '先生' : '生徒') + '</span> '
+        + '<span style="font-size:10px;color:var(--text-light);">' + ts + '</span>'
+        + '<div style="font-size:12px;margin-top:2px;">' + escapeHtml(m.content || '') + '</div>'
+        + '</div>';
+    }).join('');
+  } catch(e) { container.innerHTML = '<div style="color:var(--danger);">読み込みに失敗しました</div>'; console.warn(e); }
+}
+
+async function sendTeacherMessage() {
+  const sid = document.getElementById('msgStudentSelect').value;
+  const content = document.getElementById('teacherMsgContent').value.trim();
+  if (!sid || !content) return;
+  try {
+    await MessagesDB.send({ toStudentId: sid, content, fromType: 'teacher' });
+    document.getElementById('teacherMsgContent').value = '';
+    loadTeacherMessages();
+  } catch(e) { console.warn('Send error:', e); }
 }
 
 </script>
