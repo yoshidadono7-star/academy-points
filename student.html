@@ -2214,6 +2214,7 @@ async function handleLogin() {
     BuddySystem.updateStatus(student);
     ChatUI.startSubscription();
     AIBuddy.loadConfig();
+    BuddyMemory.rebuild(student);
     const isFirstLogin = !student.seenBuddy;
     const hasNoBuddy = !student.buddyId;
     const studentName = student.callsign || student.nickname || student.name;
@@ -2272,6 +2273,7 @@ async function tryAutoLogin() {
       BuddySystem.updateStatus(student);
       ChatUI.startSubscription();
       AIBuddy.loadConfig();
+      BuddyMemory.rebuild(student);
       const studentName = student.callsign || student.nickname || student.name;
       setTimeout(() => {
         const hour = new Date().getHours();
@@ -3562,6 +3564,8 @@ function showCompleteScreen(duration, points, newBadges, raidResults, comboResul
   // Phase 14: バディが反応
   const studentName = currentStudent.callsign || currentStudent.nickname || currentStudent.name;
   BuddySystem.updateStatus(currentStudent);
+  // Phase 14d: 学習完了でメモリを再構築
+  BuddyMemory.rebuild(currentStudent);
 
   // ボス討伐があれば最優先
   const bossDefeated = (raidResults || []).find(r => r.defeated);
@@ -5107,6 +5111,76 @@ function toggleBuddyVoice() {
 }
 
 // ============================================
+// Phase 14d: バディの記憶コンテキスト
+// ============================================
+const BuddyMemory = (() => {
+  let context = {
+    todayStudyMin: 0,
+    todaySessionCount: 0,
+    todaySubjects: [],
+    recentTopics: [],   // 直近の会話トピック（最大10件）
+    streak: 0,
+    bestStreak: 0,
+    activeBoss: null,
+    lastSessionAt: null,
+    daysSinceJoin: 0
+  };
+
+  async function rebuild(student) {
+    if (!student) return context;
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      // 今日の学習ログ
+      let logs = [];
+      try { logs = await StudyLogsDB.getByDate(today); } catch(e) {}
+      const myLogs = logs.filter(l => l.studentId === student.id);
+      context.todayStudyMin = myLogs.reduce((s, l) => s + (l.duration || 0), 0);
+      context.todaySessionCount = myLogs.length;
+      context.todaySubjects = [...new Set(myLogs.map(l => l.subject))];
+      context.streak = student.streak || 0;
+      context.bestStreak = student.bestStreak || 0;
+
+      // アクティブなボス
+      try {
+        const bosses = await RaidBossDB.getActive();
+        context.activeBoss = bosses && bosses.length > 0 ? bosses[0] : null;
+      } catch(e) {}
+
+      // 入塾からの日数
+      if (student.enrollDate) {
+        const en = student.enrollDate.toDate ? student.enrollDate.toDate() : new Date(student.enrollDate);
+        context.daysSinceJoin = Math.floor((Date.now() - en.getTime()) / 86400000);
+      }
+    } catch(e) { console.error('BuddyMemory.rebuild error:', e); }
+    return context;
+  }
+
+  function rememberTopic(topic) {
+    context.recentTopics.push({ topic, at: Date.now() });
+    if (context.recentTopics.length > 10) context.recentTopics.shift();
+  }
+
+  function get() { return context; }
+
+  // コンテキスト感のある応答を生成
+  function contextualGreeting(student) {
+    const name = student.callsign || student.nickname || '君';
+    const c = context;
+    const lines = [];
+    if (c.streak >= 7) lines.push(`${name}、${c.streak}日連続！すごい継続力だね`);
+    if (c.todayStudyMin > 0) lines.push(`今日もう${c.todayStudyMin}分も学習してるね、すごい！`);
+    if (c.todaySubjects.length >= 2) lines.push(`今日は${c.todaySubjects.length}教科やってるんだ、バランスいいね`);
+    if (c.activeBoss && !c.activeBoss.defeated) {
+      const hpPct = Math.round((c.activeBoss.currentHp / c.activeBoss.maxHp) * 100);
+      if (hpPct < 25) lines.push(`${c.activeBoss.name}、HP${hpPct}%！もう少しで倒せるよ！`);
+    }
+    return lines;
+  }
+
+  return { rebuild, rememberTopic, get, contextualGreeting };
+})();
+
+// ============================================
 // Phase 14: AIバディ（Claude API連携）
 // ============================================
 const AIBuddy = (() => {
@@ -5328,13 +5402,42 @@ const ChatUI = (() => {
     }
   }
 
-  // パターンマッチ返答ロジック
+  // パターンマッチ返答ロジック（コンテキスト対応）
   function generateReply(text, student) {
     const t = text.toLowerCase();
     const name = student.callsign || student.nickname || student.name;
+    const ctx = BuddyMemory.get();
+
+    // トピックを記憶
+    BuddyMemory.rememberTopic(text);
+
+    // コンテキスト感のある質問への返答
+    if (/今日|きょう/i.test(t)) {
+      if (/勉強|べんきょう|学習/i.test(t)) {
+        if (ctx.todayStudyMin > 0) {
+          return `今日はもう${ctx.todayStudyMin}分も学習してるよ！${ctx.todaySubjects.length > 0 ? ctx.todaySubjects.join('、') + 'をやったね' : ''}`;
+        } else {
+          return `今日はまだ学習してないね。何から始める？`;
+        }
+      }
+    }
+    if (/連続|ストリーク|streak/i.test(t)) {
+      if (ctx.streak > 0) return `今、${ctx.streak}日連続だよ！${ctx.bestStreak > ctx.streak ? '最高記録は' + ctx.bestStreak + '日。更新狙おう！' : 'これが最高記録だね！'}`;
+      return `連続記録はリセットされてるよ。今日から再スタートしよう！`;
+    }
+    if (/ボス|boss/i.test(t)) {
+      if (ctx.activeBoss && !ctx.activeBoss.defeated) {
+        const hpPct = Math.round((ctx.activeBoss.currentHp / ctx.activeBoss.maxHp) * 100);
+        return `今のボスは${ctx.activeBoss.icon}${ctx.activeBoss.name}！HP${hpPct}%だよ。${ctx.activeBoss.weakness ? '弱点は' + ctx.activeBoss.weakness : ''}`;
+      }
+      return `今はアクティブなボスはいないみたいだよ`;
+    }
 
     // 挨拶
-    if (/おはよ|good morning/i.test(t)) return `おはよう、${name}！今日も最高の1日にしよう！☀️`;
+    if (/おはよ|good morning/i.test(t)) {
+      const ext = ctx.streak >= 3 ? `${ctx.streak}日連続すごいね！` : '';
+      return `おはよう、${name}！今日も最高の1日にしよう！${ext}`;
+    }
     if (/こんにちは|こんにちわ|hello/i.test(t)) return `こんにちは、${name}！何かお手伝いできることある？`;
     if (/こんばんは|こんばんわ/i.test(t)) return `こんばんは！夜の学習も応援してるよ✨`;
     if (/おやすみ|good night/i.test(t)) return `おやすみ、${name}。良い夢を！明日も一緒にがんばろう🌙`;
