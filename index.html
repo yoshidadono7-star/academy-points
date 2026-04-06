@@ -5706,13 +5706,13 @@ async function loadSchedule() {
       }
 
       const teacherCols = [...teachers, { id: null, name: '未割当', color: '#9CA3AF' }];
-      let html = '<table class="data-table" style="font-size:12px;"><thead><tr><th style="width:70px;">時間</th>';
-      teacherCols.forEach(t => { html += `<th style="min-width:120px;"><span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${t.color};margin-right:4px;"></span>${t.name}</th>`; });
+      let html = '<table class="data-table" style="font-size:12px;"><thead><tr><th style="min-width:80px;">講師</th>';
+      timeSlots.forEach(ts => { html += `<th style="min-width:60px;white-space:nowrap;font-size:11px;">${ts.start}</th>`; });
       html += '</tr></thead><tbody>';
 
-      for (const ts of timeSlots) {
-        html += `<tr><td style="font-weight:600;white-space:nowrap;">${ts.start}</td>`;
-        teacherCols.forEach(t => {
+      for (const t of teacherCols) {
+        html += `<tr><td style="font-weight:600;white-space:nowrap;"><span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${t.color};margin-right:4px;"></span>${t.name}</td>`;
+        timeSlots.forEach(ts => {
           const matching = slots.filter(s => s.teacherId === t.id && s.startTime <= ts.start && s.endTime > ts.start);
           if (matching.length > 0) {
             const statusColors = { scheduled: '#DBEAFE', attended: '#D1FAE5', absent: '#FEE2E2', cancelled: '#E5E7EB', rescheduled: '#FEF3C7' };
