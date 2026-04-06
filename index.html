@@ -2080,11 +2080,20 @@ async function showStudentKarte(studentId) {
       html += '</div></div>';
     }
 
-    // --- コーチングメモ ---
+    // --- 面談記録 ---
     html += '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px;margin-bottom:12px;">';
-    html += '<div style="font-size:14px;font-weight:700;margin-bottom:8px;">📝 コーチングメモ</div>';
-    html += '<textarea id="karteCoachNote" style="width:100%;min-height:80px;border:1px solid #e2e8f0;border-radius:8px;padding:8px;font-size:12px;box-sizing:border-box;resize:vertical;" placeholder="ミーティング時のメモ…"></textarea>';
-    html += '<button class="btn btn-primary btn-sm" style="margin-top:6px;" onclick="saveKarteNote(\'' + studentId + '\')">メモ保存</button>';
+    html += '<div style="font-size:14px;font-weight:700;margin-bottom:10px;">📝 面談記録</div>';
+    // 新規入力フォーム
+    html += '<div style="background:#f8fafc;border-radius:10px;padding:12px;margin-bottom:12px;">';
+    html += '<div style="display:flex;gap:8px;margin-bottom:8px;">';
+    html += '<div style="flex:1;"><label style="font-size:11px;font-weight:600;color:#64748b;">面談日</label><input type="date" id="karteInterviewDate" class="form-control" style="font-size:12px;padding:6px 8px;" value="' + today.toISOString().slice(0,10) + '"></div>';
+    html += '<div style="flex:1;"><label style="font-size:11px;font-weight:600;color:#64748b;">時間</label><input type="time" id="karteInterviewTime" class="form-control" style="font-size:12px;padding:6px 8px;" value="' + String(today.getHours()).padStart(2,'0') + ':' + String(today.getMinutes()).padStart(2,'0') + '"></div>';
+    html += '</div>';
+    html += '<textarea id="karteInterviewContent" style="width:100%;min-height:80px;border:1px solid #e2e8f0;border-radius:8px;padding:8px;font-size:12px;box-sizing:border-box;resize:vertical;" placeholder="面談の内容を記入…"></textarea>';
+    html += '<button class="btn btn-primary btn-sm" style="margin-top:6px;" onclick="saveInterviewRecord(\'' + studentId + '\')">📝 面談記録を保存</button>';
+    html += '</div>';
+    // 過去の面談記録一覧
+    html += '<div id="karteInterviewList" style="font-size:12px;color:#94a3b8;">読み込み中...</div>';
     html += '</div>';
 
     html += '</div>';
@@ -2092,11 +2101,8 @@ async function showStudentKarte(studentId) {
     openModal('📋 ' + student.name + ' のカルテ', html,
       '<button class="btn btn-secondary" onclick="editStudent(\'' + studentId + '\')">✏️ 生徒編集</button> <button class="btn btn-secondary" onclick="closeModal()">閉じる</button>');
 
-    // 保存済みメモを読み込み
-    try {
-      const noteDoc = await db.collection('coachingNotes').doc(studentId).get();
-      if (noteDoc.exists) document.getElementById('karteCoachNote').value = noteDoc.data().note || '';
-    } catch(e) {}
+    // 面談記録を読み込み
+    loadInterviewRecords(studentId);
 
   } catch(e) { console.error('Student karte error:', e); showToast('カルテの読み込みに失敗しました', 'error'); }
 }
@@ -2123,15 +2129,65 @@ function buildKarteTargetInfo(s) {
   return html || '<div style="font-size:12px;color:#cbd5e1;">未設定</div>';
 }
 
-async function saveKarteNote(studentId) {
-  const note = document.getElementById('karteCoachNote').value;
+async function saveInterviewRecord(studentId) {
+  const date = document.getElementById('karteInterviewDate').value;
+  const time = document.getElementById('karteInterviewTime').value;
+  const content = document.getElementById('karteInterviewContent').value.trim();
+  if (!date || !content) { showToast('日付と内容を入力してください'); return; }
   try {
-    await db.collection('coachingNotes').doc(studentId).set({
-      note,
-      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true });
-    showToast('メモを保存しました');
-  } catch(e) { showToast('保存に失敗しました', 'error'); }
+    await db.collection('interviewRecords').add({
+      studentId,
+      date,
+      time: time || '',
+      content,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    document.getElementById('karteInterviewContent').value = '';
+    showToast('面談記録を保存しました');
+    loadInterviewRecords(studentId);
+  } catch(e) { showToast('保存に失敗しました', 'error'); console.error(e); }
+}
+
+async function loadInterviewRecords(studentId) {
+  const list = document.getElementById('karteInterviewList');
+  try {
+    const snap = await db.collection('interviewRecords')
+      .where('studentId', '==', studentId)
+      .orderBy('date', 'desc')
+      .orderBy('createdAt', 'desc')
+      .limit(30).get();
+    const records = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (records.length === 0) {
+      list.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:12px;">面談記録はまだありません</div>';
+      return;
+    }
+    const days = ['日','月','火','水','木','金','土'];
+    list.innerHTML = records.map(r => {
+      const d = new Date(r.date + 'T00:00:00');
+      const dayName = days[d.getDay()];
+      const ts = r.createdAt && r.createdAt.toDate ? r.createdAt.toDate().toLocaleString('ja-JP', { month:'short', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '';
+      return '<div style="border-left:3px solid #667eea;padding:8px 12px;margin-bottom:10px;background:#f8fafc;border-radius:0 8px 8px 0;">' +
+        '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">' +
+        '<span style="font-weight:700;font-size:13px;color:#334155;">' + r.date + '(' + dayName + ')' + (r.time ? ' ' + r.time : '') + '</span>' +
+        '<button style="background:none;border:none;color:#ef4444;font-size:11px;cursor:pointer;padding:2px 6px;" onclick="deleteInterviewRecord(\'' + r.id + '\',\'' + studentId + '\')" title="削除">🗑</button>' +
+        '</div>' +
+        '<div style="font-size:12px;color:#475569;white-space:pre-wrap;line-height:1.6;">' + escapeHtml(r.content) + '</div>' +
+        (ts ? '<div style="font-size:10px;color:#94a3b8;margin-top:4px;text-align:right;">記録: ' + ts + '</div>' : '') +
+        '</div>';
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<div style="color:#ef4444;">読み込みに失敗しました</div>';
+    console.error(e);
+  }
+}
+
+async function deleteInterviewRecord(recordId, studentId) {
+  if (!confirm('この面談記録を削除しますか？')) return;
+  try {
+    await db.collection('interviewRecords').doc(recordId).delete();
+    showToast('削除しました');
+    loadInterviewRecords(studentId);
+  } catch(e) { showToast('削除に失敗しました', 'error'); }
 }
 
 // ============================================
