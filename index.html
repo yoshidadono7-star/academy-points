@@ -2145,7 +2145,7 @@ async function saveInterviewRecord(studentId) {
     document.getElementById('karteInterviewContent').value = '';
     showToast('面談記録を保存しました');
     loadInterviewRecords(studentId);
-  } catch(e) { showToast('保存に失敗しました', 'error'); console.error(e); }
+  } catch(e) { showToast('保存エラー: ' + e.message, 'error'); console.error(e); }
 }
 
 async function loadInterviewRecords(studentId) {
@@ -2153,9 +2153,14 @@ async function loadInterviewRecords(studentId) {
   try {
     const snap = await db.collection('interviewRecords')
       .where('studentId', '==', studentId)
-      .orderBy('createdAt', 'desc')
-      .limit(30).get();
-    const records = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+      .get();
+    const records = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => {
+      const dc = (b.date || '').localeCompare(a.date || '');
+      if (dc !== 0) return dc;
+      const aT = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+      const bT = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+      return bT - aT;
+    }).slice(0, 30);
     if (records.length === 0) {
       list.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:12px;">面談記録はまだありません</div>';
       return;
