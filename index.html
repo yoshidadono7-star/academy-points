@@ -1464,6 +1464,21 @@
         <div style="text-align:center;color:var(--text-light);padding:40px;">読み込み中...</div>
       </div>
     </div>
+
+    <!-- 週固定パターン（テンプレート）一覧 -->
+    <div class="card" style="margin-top:16px;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px;">
+        <h3>📋 週固定パターン（テンプレート）</h3>
+        <button class="btn btn-primary btn-sm" onclick="showAddTemplateModal()">+ パターン追加</button>
+      </div>
+      <div style="font-size:12px;color:var(--text-light);margin-bottom:12px;">
+        各生徒の毎週の通塾パターン。「📋 週次生成」「🤖 月次自動生成」の元データになります。<br>
+        生徒管理の「編集」からも個別に設定できます。
+      </div>
+      <div id="templateOverview" style="overflow-x:auto;">
+        <div style="text-align:center;color:var(--text-light);padding:20px;">読み込み中...</div>
+      </div>
+    </div>
   </div>
 
   <!-- ===== 業務タスク ===== -->
@@ -1811,7 +1826,7 @@ function switchTab(tabId, fromCategory = false) {
   // タブ切替時にデータロード
   const loaders = {
     plans: loadPlanStatus,
-    schedule: loadSchedule,
+    schedule: () => { loadSchedule(); loadTemplateOverview(); },
     optasks: loadOpTasks,
     ranking: loadRanking,
     monitor: loadMonitor,
@@ -6445,6 +6460,215 @@ async function deleteScheduleSlot(id) {
     closeModal();
     loadSchedule();
   } catch(e) { showToast('削除に失敗しました', 'error'); console.error(e); }
+}
+
+// ============================================
+// テンプレート一覧（週固定パターン）
+// ============================================
+async function loadTemplateOverview() {
+  const container = document.getElementById('templateOverview');
+  try {
+    const templates = await ScheduleTemplatesDB.getAll();
+    const students = allStudents || await StudentsDB.getAll();
+    const teachers = window._cachedTeachers || await TeachersDB.getAll();
+    const sMap = {}; students.forEach(s => sMap[s.id] = s);
+    const tMap = {}; teachers.forEach(t => tMap[t.id] = t);
+    const days = ['日','月','火','水','木','金','土'];
+
+    if (templates.length === 0) {
+      container.innerHTML = '<div style="text-align:center;color:var(--text-light);padding:24px;">テンプレートが登録されていません。「+ パターン追加」または生徒管理の「編集」から設定してください。</div>';
+      return;
+    }
+
+    // 生徒別にグループ化
+    const byStudent = {};
+    templates.forEach(t => {
+      if (!byStudent[t.studentId]) byStudent[t.studentId] = [];
+      byStudent[t.studentId].push(t);
+    });
+
+    // 曜日順ソート
+    Object.values(byStudent).forEach(arr => arr.sort((a, b) => a.dayOfWeek - b.dayOfWeek));
+
+    let html = '<table class="data-table" style="font-size:12px;"><thead><tr><th>生徒</th><th>学年</th>';
+    days.forEach(d => html += `<th style="text-align:center;">${d}</th>`);
+    html += '<th>週コマ計</th><th></th></tr></thead><tbody>';
+
+    for (const [sid, tmpls] of Object.entries(byStudent)) {
+      const student = sMap[sid];
+      if (!student) continue;
+      let weekKomas = 0;
+      html += `<tr><td style="font-weight:600;">${escapeHtml(student.name)}</td><td style="font-size:11px;">${student.grade || ''}</td>`;
+      for (let d = 0; d < 7; d++) {
+        const dayTmpls = tmpls.filter(t => t.dayOfWeek === d);
+        if (dayTmpls.length > 0) {
+          const t = dayTmpls[0];
+          const teacher = tMap[t.teacherId];
+          const tColor = teacher ? teacher.color : '#94a3b8';
+          weekKomas += t.komas;
+          html += `<td style="text-align:center;background:#EFF6FF;cursor:pointer;" onclick="showEditTemplateModal('${t.id}')">
+            <div style="font-weight:700;font-size:11px;">${t.startSlot}</div>
+            <div style="font-size:10px;color:#3b82f6;">${t.komas}コマ</div>
+            <div style="font-size:9px;"><span style="display:inline-block;width:6px;height:6px;border-radius:50%;background:${tColor};"></span> ${teacher ? teacher.name : '未定'}</div>
+          </td>`;
+        } else {
+          html += '<td style="text-align:center;color:#ddd;">-</td>';
+        }
+      }
+      html += `<td style="text-align:center;font-weight:700;color:#4c51bf;">${weekKomas}</td>`;
+      html += `<td><button class="btn btn-sm" style="font-size:10px;" onclick="editStudent('${sid}')">編集</button></td>`;
+      html += '</tr>';
+    }
+
+    // テンプレートなしの生徒
+    const noTemplate = students.filter(s => !byStudent[s.id] && s.role !== 'supporter');
+    if (noTemplate.length > 0) {
+      html += `<tr><td colspan="${10}" style="background:#fefce8;color:#854d0e;font-size:12px;padding:8px;">
+        ⚠️ テンプレート未設定: ${noTemplate.map(s => escapeHtml(s.name)).join(', ')}
+      </td></tr>`;
+    }
+
+    html += '</tbody></table>';
+    container.innerHTML = html;
+  } catch(e) { console.error(e); container.innerHTML = '<div style="color:var(--danger);">読み込みに失敗しました</div>'; }
+}
+
+function showAddTemplateModal() {
+  const students = allStudents || [];
+  const teachers = window._cachedTeachers || [];
+  const days = ['日','月','火','水','木','金','土'];
+  openModal('📋 週固定パターン追加', `
+    <div class="form-group">
+      <label>生徒</label>
+      <select id="tplStudent" class="form-control">
+        ${students.filter(s => s.role !== 'supporter').map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.grade || ''})</option>`).join('')}
+      </select>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>曜日</label>
+        <select id="tplDay" class="form-control">
+          ${days.map((d, i) => `<option value="${i}">${d}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>開始時刻</label>
+        <input type="time" id="tplStart" class="form-control" value="16:00" step="1800">
+      </div>
+      <div class="form-group">
+        <label>コマ数</label>
+        <select id="tplKomas" class="form-control">
+          ${[1,2,3,4,5,6,7,8].map(n => `<option value="${n}" ${n===2?'selected':''}>${n}コマ (${n*30}分)</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>講師</label>
+        <select id="tplTeacher" class="form-control">
+          <option value="">自動割当</option>
+          ${teachers.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>科目（カンマ区切り）</label>
+        <input type="text" id="tplSubjects" class="form-control" placeholder="数学,英語">
+      </div>
+    </div>
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" onclick="saveNewTemplate()">保存</button>
+  `);
+}
+
+async function saveNewTemplate() {
+  const studentId = document.getElementById('tplStudent').value;
+  const dayOfWeek = parseInt(document.getElementById('tplDay').value);
+  const startSlot = document.getElementById('tplStart').value || '16:00';
+  const komas = parseInt(document.getElementById('tplKomas').value) || 2;
+  const teacherId = document.getElementById('tplTeacher').value || null;
+  const subjects = document.getElementById('tplSubjects').value.split(',').map(s => s.trim()).filter(Boolean);
+  if (!studentId) { showToast('生徒を選択してください', 'error'); return; }
+  try {
+    await ScheduleTemplatesDB.create({ studentId, dayOfWeek, startSlot, komas, teacherId, subjects });
+    closeModal();
+    showToast('パターンを追加しました');
+    loadTemplateOverview();
+  } catch(e) { showToast('保存に失敗しました', 'error'); console.error(e); }
+}
+
+async function showEditTemplateModal(templateId) {
+  const doc = await db.collection('scheduleTemplates').doc(templateId).get();
+  if (!doc.exists) { showToast('テンプレートが見つかりません', 'error'); return; }
+  const t = { id: doc.id, ...doc.data() };
+  const student = await StudentsDB.getById(t.studentId);
+  const teachers = window._cachedTeachers || await TeachersDB.getAll();
+  const days = ['日','月','火','水','木','金','土'];
+  openModal('📋 パターン編集', `
+    <div style="background:#f8fafc;border-radius:10px;padding:10px;margin-bottom:12px;">
+      <strong>${student ? escapeHtml(student.name) : '不明'}</strong> <span style="color:var(--text-light);font-size:12px;">${student ? student.grade : ''}</span>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>曜日</label>
+        <select id="etplDay" class="form-control">
+          ${days.map((d, i) => `<option value="${i}" ${i === t.dayOfWeek ? 'selected' : ''}>${d}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>開始時刻</label>
+        <input type="time" id="etplStart" class="form-control" value="${t.startSlot || '16:00'}" step="1800">
+      </div>
+      <div class="form-group">
+        <label>コマ数</label>
+        <select id="etplKomas" class="form-control">
+          ${[1,2,3,4,5,6,7,8].map(n => `<option value="${n}" ${n === t.komas ? 'selected' : ''}>${n}コマ</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>講師</label>
+        <select id="etplTeacher" class="form-control">
+          <option value="">自動割当</option>
+          ${teachers.map(tc => `<option value="${tc.id}" ${tc.id === t.teacherId ? 'selected' : ''}>${escapeHtml(tc.name)}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>科目</label>
+        <input type="text" id="etplSubjects" class="form-control" value="${(t.subjects || []).join(',')}" placeholder="数学,英語">
+      </div>
+    </div>
+  `, `
+    <button class="btn" style="color:#ef4444;border:1px solid #ef4444;background:white;" onclick="deleteTemplate('${templateId}')">削除</button>
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" onclick="updateTemplate('${templateId}')">更新</button>
+  `);
+}
+
+async function updateTemplate(id) {
+  try {
+    await ScheduleTemplatesDB.update(id, {
+      dayOfWeek: parseInt(document.getElementById('etplDay').value),
+      startSlot: document.getElementById('etplStart').value || '16:00',
+      komas: parseInt(document.getElementById('etplKomas').value) || 2,
+      teacherId: document.getElementById('etplTeacher').value || null,
+      subjects: document.getElementById('etplSubjects').value.split(',').map(s => s.trim()).filter(Boolean)
+    });
+    closeModal();
+    showToast('更新しました');
+    loadTemplateOverview();
+  } catch(e) { showToast('更新に失敗しました', 'error'); }
+}
+
+async function deleteTemplate(id) {
+  if (!confirm('このパターンを削除しますか？')) return;
+  try {
+    await ScheduleTemplatesDB.delete(id);
+    closeModal();
+    showToast('削除しました');
+    loadTemplateOverview();
+  } catch(e) { showToast('削除に失敗しました', 'error'); }
 }
 
 async function generateWeekSchedule() {
