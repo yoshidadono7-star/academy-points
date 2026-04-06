@@ -3750,7 +3750,7 @@ function renderDailyMissions(draw) {
       acceptedEl.innerHTML = `
         <div class="quest-accepted">
           <div class="quest-accepted-header">
-            <span>⚔️ 受注中のクエスト</span>
+            <span>⚔️ チャレンジ中のクエスト</span>
             ${isComplete ? '<span class="quest-completed-badge">✅ 達成！</span>' : ''}
           </div>
           <div class="quest-top">
@@ -3799,7 +3799,7 @@ function renderDailyMissions(draw) {
           <div class="quest-reward">💰 ${isHidden ? '???' : `+${mDef.points}pt`}</div>
           <div style="font-size:11px;color:#6b7280;">${rarityStars[m.rarity] || '⭐'}</div>
         </div>
-        <button class="quest-btn quest-btn-accept">受注する</button>
+        <button class="quest-btn quest-btn-accept">チャレンジする！</button>
       </div>
     `;
   }).join('');
@@ -3809,9 +3809,9 @@ async function acceptMission(drawId, missionId) {
   const mDef = DailyMissionsDB.getMissionDef(missionId);
   const name = mDef ? mDef.name : missionId;
   const flavor = mDef && mDef.quest ? `<div style="font-size:13px;color:rgba(255,255,255,0.6);margin-top:8px;font-style:italic;">${mDef.quest}</div>` : '';
-  showModal('⚔️', 'クエスト受注', `「${name}」を受注しますか？${flavor}`, `
+  showModal('⚔️', 'クエスト選択', `「${name}」にチャレンジしますか？${flavor}`, `
     <button class="btn btn-secondary" onclick="closeModal()">やめる</button>
-    <button class="btn btn-primary" onclick="closeModal();doAcceptMission('${drawId}','${missionId}')">受注する！</button>
+    <button class="btn btn-primary" onclick="closeModal();doAcceptMission('${drawId}','${missionId}')">チャレンジする！！</button>
   `, true);
 }
 
@@ -3826,7 +3826,7 @@ async function doAcceptMission(drawId, missionId) {
     const acceptedEl = document.getElementById('homeMissionAccepted');
     if (acceptedEl) acceptedEl.classList.add('quest-accept-anim');
     setTimeout(() => { if (acceptedEl) acceptedEl.classList.remove('quest-accept-anim'); }, 500);
-    showToast('⚔️ クエストを受注しました！');
+    showToast('⚔️ クエストをチャレンジ開始！！');
   } catch(e) {
     console.error(e);
     showToast('受注に失敗しました');
