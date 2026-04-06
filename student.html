@@ -265,6 +265,100 @@ body.buddy-on .buddy-panel { display: flex; align-items: center; }
   .conv-bubble { font-size: 13px; padding: 9px 13px; }
 }
 
+/* ===== Phase 14c: 宇宙基地 ===== */
+.base-container {
+  background: linear-gradient(180deg, #0a0a2e 0%, #1a1a3e 100%);
+  min-height: 100vh;
+  color: #e2e8f0;
+  padding-bottom: 20px;
+}
+.base-stats {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  padding: 16px;
+}
+.base-stat {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 12px;
+  padding: 10px 6px;
+  text-align: center;
+}
+.base-stat-icon { font-size: 22px; margin-bottom: 2px; }
+.base-stat-val { font-size: 18px; font-weight: 800; color: #ffd700; }
+.base-stat-name { font-size: 10px; color: rgba(255,255,255,0.6); }
+
+.base-grid-wrap {
+  padding: 16px;
+}
+.base-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 8px;
+  background: radial-gradient(circle at center, rgba(102,126,234,0.15) 0%, transparent 70%);
+  padding: 14px;
+  border-radius: 16px;
+  border: 2px solid rgba(255,215,0,0.3);
+}
+.base-cell {
+  aspect-ratio: 1;
+  background: rgba(255,255,255,0.04);
+  border: 2px dashed rgba(255,255,255,0.15);
+  border-radius: 12px;
+  display: flex; align-items: center; justify-content: center;
+  flex-direction: column;
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s;
+}
+.base-cell.empty:hover {
+  border-color: rgba(255,215,0,0.5);
+  background: rgba(255,215,0,0.05);
+}
+.base-cell.empty::before {
+  content: '+';
+  font-size: 28px;
+  color: rgba(255,255,255,0.3);
+}
+.base-cell.built {
+  background: linear-gradient(135deg, rgba(102,126,234,0.2), rgba(118,75,162,0.2));
+  border: 2px solid rgba(255,215,0,0.4);
+}
+.base-cell.built .building-icon {
+  font-size: 32px;
+}
+.base-cell.built .building-level {
+  position: absolute;
+  bottom: 4px; right: 4px;
+  background: #ffd700;
+  color: #1a1a2e;
+  font-size: 10px; font-weight: 800;
+  padding: 2px 6px;
+  border-radius: 8px;
+}
+
+.base-buildings-list {
+  padding: 8px 0;
+}
+#basePalette {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  padding: 0 16px;
+}
+.palette-item {
+  background: rgba(255,255,255,0.06);
+  border: 1px solid rgba(255,255,255,0.15);
+  border-radius: 12px;
+  padding: 12px;
+  text-align: center;
+}
+.palette-item-icon { font-size: 32px; margin-bottom: 4px; }
+.palette-item-name { font-size: 13px; font-weight: 700; color: #fff; margin-bottom: 4px; }
+.palette-item-desc { font-size: 10px; color: rgba(255,255,255,0.6); margin-bottom: 6px; line-height: 1.3; }
+.palette-item-cost { font-size: 12px; color: #ffd700; font-weight: 700; }
+
 /* ===== Phase 14a: バディ選択画面 ===== */
 .buddy-select-overlay {
   display: none;
@@ -1678,6 +1772,10 @@ body.theme-space {
       <div class="quick-action-icon">💬</div>
       <div class="quick-action-label">メッセージ</div>
     </button>
+    <button class="quick-action" onclick="navigate('base')">
+      <div class="quick-action-icon">🚀</div>
+      <div class="quick-action-label">マイ基地</div>
+    </button>
   </div>
 
   <div class="home-section-title">最近の学習</div>
@@ -1941,6 +2039,25 @@ body.theme-space {
   <div id="comboGrid" class="combo-grid"></div>
 </div>
 
+<!-- ========== Phase 14c: 宇宙基地 ========== -->
+<div id="screenBase" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="navigate('home')">←</button>
+    <div class="header-title">🚀 マイ宇宙基地</div>
+    <button class="header-action" onclick="renameBaseDialog()">名前変更</button>
+  </div>
+  <div class="base-container">
+    <div class="base-stats" id="baseStats"></div>
+    <div class="base-grid-wrap">
+      <div class="base-grid" id="baseGrid"></div>
+    </div>
+    <div class="base-buildings-list">
+      <h3 style="font-size:14px;color:var(--text-light);margin-bottom:10px;padding:0 16px;">建設可能な施設</h3>
+      <div id="basePalette"></div>
+    </div>
+  </div>
+</div>
+
 <!-- ========== Bottom Navigation ========== -->
 <nav id="bottomNav" class="bottom-nav" style="display:none;">
   <button class="nav-item active" onclick="navTo('home')">
@@ -2029,6 +2146,7 @@ function navigate(screen) {
     case 'guild': loadGuild(); break;
     case 'raidBoss': loadRaidBoss(); break;
     case 'combo': loadComboEncyclopedia(); break;
+    case 'base': loadBaseScreen(); break;
   }
 }
 
@@ -5363,6 +5481,199 @@ const ChatUI = (() => {
     toggleVoiceInput, startSubscription, stopSubscription
   };
 })();
+
+// ============================================
+// Phase 14c: 宇宙基地（拠点）
+// ============================================
+let currentBase = null;
+const BASE_GRID_SIZE = 16; // 4x4
+
+async function loadBaseScreen() {
+  if (!currentStudent) return;
+  try {
+    currentBase = await BasesDB.getOrCreate(currentStudent.id, currentStudent.callsign || currentStudent.nickname || currentStudent.name);
+    renderBaseScreen();
+  } catch(e) {
+    console.error('Base load error:', e);
+  }
+}
+
+function renderBaseScreen() {
+  if (!currentBase) return;
+  // ヘッダー
+  const headerTitle = document.querySelector('#screenBase .header-title');
+  if (headerTitle) headerTitle.textContent = `🚀 ${currentBase.name}`;
+
+  // 統計
+  const score = BasesDB.calculateScore(currentBase);
+  const statsEl = document.getElementById('baseStats');
+  statsEl.innerHTML = `
+    <div class="base-stat"><div class="base-stat-icon">🛡️</div><div class="base-stat-val">${score.defense}</div><div class="base-stat-name">防御</div></div>
+    <div class="base-stat"><div class="base-stat-icon">🔫</div><div class="base-stat-val">${score.attack}</div><div class="base-stat-name">攻撃</div></div>
+    <div class="base-stat"><div class="base-stat-icon">📡</div><div class="base-stat-val">${score.radar}</div><div class="base-stat-name">探知</div></div>
+    <div class="base-stat"><div class="base-stat-icon">🔬</div><div class="base-stat-val">${score.lab}</div><div class="base-stat-name">研究</div></div>
+  `;
+
+  // グリッド
+  const grid = document.getElementById('baseGrid');
+  const buildings = currentBase.buildings || [];
+  const cells = [];
+  for (let i = 0; i < BASE_GRID_SIZE; i++) {
+    const b = buildings.find(x => x.position === i);
+    if (b) {
+      const def = getBuildingType(b.type);
+      cells.push(`
+        <div class="base-cell built" onclick="openBuildingMenu(${i})" style="border-color:${def.color};">
+          <div class="building-icon">${def.icon}</div>
+          <div class="building-level">Lv.${b.level}</div>
+        </div>
+      `);
+    } else {
+      cells.push(`<div class="base-cell empty" onclick="selectPositionForBuild(${i})"></div>`);
+    }
+  }
+  grid.innerHTML = cells.join('');
+
+  // パレット（建設可能施設）
+  const palette = document.getElementById('basePalette');
+  const cp = currentStudent.currentPoints || 0;
+  palette.innerHTML = BUILDING_TYPES.map(b => `
+    <div class="palette-item" style="border-color:${b.color}55;">
+      <div class="palette-item-icon">${b.icon}</div>
+      <div class="palette-item-name">${b.name}</div>
+      <div class="palette-item-desc">${b.desc}</div>
+      <div class="palette-item-cost">💎 ${b.costs[0]}pt 〜</div>
+    </div>
+  `).join('');
+}
+
+let pendingBuildPosition = null;
+
+function selectPositionForBuild(position) {
+  pendingBuildPosition = position;
+  // 建設選択モーダル
+  const buildings = BUILDING_TYPES.map(b => `
+    <button class="palette-item" style="border-color:${b.color}88;cursor:pointer;border:1px solid ${b.color};background:rgba(255,255,255,0.06);color:#fff;font-family:inherit;width:100%;text-align:left;display:flex;align-items:center;gap:10px;padding:12px;border-radius:10px;margin-bottom:8px;"
+      onclick="buildAt('${b.type}', ${position})">
+      <span style="font-size:32px;">${b.icon}</span>
+      <span style="flex:1;text-align:left;">
+        <div style="font-size:14px;font-weight:700;">${b.name}</div>
+        <div style="font-size:11px;opacity:0.7;">${b.desc}</div>
+        <div style="font-size:13px;color:#ffd700;font-weight:700;margin-top:3px;">💎 ${b.costs[0]}pt</div>
+      </span>
+    </button>
+  `).join('');
+  showModal('🏗️', '建設する施設を選ぶ', '', buildings + '<button class="btn btn-secondary btn-block" onclick="closeModal()" style="margin-top:8px;">キャンセル</button>', true);
+}
+
+async function buildAt(buildingType, position) {
+  closeModal();
+  if (!currentStudent || !currentBase) return;
+  const def = getBuildingType(buildingType);
+  if (!def) return;
+  const cost = def.costs[0];
+  if ((currentStudent.currentPoints || 0) < cost) {
+    showToast('ポイントが足りません');
+    return;
+  }
+  try {
+    // ポイント消費
+    await StudentsDB.spendPoints(currentStudent.id, cost);
+    // 建物追加
+    const buildings = await BasesDB.addBuilding(currentStudent.id, buildingType, position);
+    if (!buildings) {
+      showToast('建設失敗');
+      return;
+    }
+    // 投資額更新
+    await BasesDB.update(currentStudent.id, {
+      totalInvested: (currentBase.totalInvested || 0) + cost
+    });
+    // データ再取得
+    currentStudent = await StudentsDB.getById(currentStudent.id);
+    currentBase = await BasesDB.getOrCreate(currentStudent.id);
+    BuddySystem.updateStatus(currentStudent);
+    renderBaseScreen();
+    BuddySystem.say(`${def.name}を建設したよ！基地が強くなったね！`, { emotion: 'excited', duration: 5000 });
+  } catch(e) {
+    console.error(e);
+    showToast('建設に失敗しました');
+  }
+}
+
+function openBuildingMenu(position) {
+  if (!currentBase) return;
+  const b = (currentBase.buildings || []).find(x => x.position === position);
+  if (!b) return;
+  const def = getBuildingType(b.type);
+  const isMax = b.level >= 5;
+  const upgradeCost = isMax ? 0 : def.costs[Math.min(b.level, 4)];
+  const currentStat = def.statPerLevel[Math.min(b.level - 1, 4)];
+  const nextStat = isMax ? null : def.statPerLevel[Math.min(b.level, 4)];
+
+  const body = `
+    <div style="text-align:center;padding:10px 0;">
+      <div style="font-size:64px;">${def.icon}</div>
+      <div style="font-size:18px;font-weight:700;margin:6px 0;">${def.name}</div>
+      <div style="font-size:12px;color:#718096;margin-bottom:10px;">${def.desc}</div>
+      <div style="background:#f7fafc;padding:10px;border-radius:8px;font-size:13px;">
+        現在: <strong>Lv.${b.level}</strong> (${def.statName} +${currentStat})
+        ${!isMax ? `<br>強化後: <strong>Lv.${b.level + 1}</strong> (${def.statName} +${nextStat})` : '<br><strong>最大レベル</strong>'}
+      </div>
+    </div>
+  `;
+  const buttons = `
+    ${!isMax ? `<button class="btn btn-primary" onclick="upgradeBuilding(${position})">強化 (💎${upgradeCost}pt)</button>` : ''}
+    <button class="btn btn-danger" onclick="demolishBuilding(${position})">解体</button>
+    <button class="btn btn-secondary" onclick="closeModal()">閉じる</button>
+  `;
+  showModal(def.icon, def.name, body, buttons, true);
+}
+
+async function upgradeBuilding(position) {
+  closeModal();
+  if (!currentStudent || !currentBase) return;
+  const b = (currentBase.buildings || []).find(x => x.position === position);
+  if (!b) return;
+  const def = getBuildingType(b.type);
+  const cost = def.costs[Math.min(b.level, 4)];
+  if ((currentStudent.currentPoints || 0) < cost) {
+    showToast('ポイントが足りません');
+    return;
+  }
+  try {
+    await StudentsDB.spendPoints(currentStudent.id, cost);
+    const buildings = await BasesDB.upgradeBuilding(currentStudent.id, position);
+    await BasesDB.update(currentStudent.id, {
+      totalInvested: (currentBase.totalInvested || 0) + cost
+    });
+    currentStudent = await StudentsDB.getById(currentStudent.id);
+    currentBase = await BasesDB.getOrCreate(currentStudent.id);
+    BuddySystem.updateStatus(currentStudent);
+    renderBaseScreen();
+    BuddySystem.say(`${def.name}を強化したよ！レベル${b.level + 1}！`, { emotion: 'excited', duration: 5000 });
+  } catch(e) { console.error(e); }
+}
+
+async function demolishBuilding(position) {
+  closeModal();
+  if (!confirm('この施設を解体しますか？投資ポイントは戻りません')) return;
+  try {
+    await BasesDB.demolishBuilding(currentStudent.id, position);
+    currentBase = await BasesDB.getOrCreate(currentStudent.id);
+    renderBaseScreen();
+    showToast('施設を解体しました');
+  } catch(e) { console.error(e); }
+}
+
+function renameBaseDialog() {
+  const newName = prompt('基地の名前を入力:', currentBase ? currentBase.name : '');
+  if (!newName || !currentStudent) return;
+  BasesDB.renameBase(currentStudent.id, newName).then(() => {
+    currentBase.name = newName;
+    renderBaseScreen();
+  });
+}
 
 // ============================================
 // Init

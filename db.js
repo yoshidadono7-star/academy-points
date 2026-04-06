@@ -3204,3 +3204,160 @@ const ChatDB = {
     });
   }
 };
+
+// ============================================
+// Phase 14c: デジタル拠点（宇宙基地）
+// ============================================
+// データモデル: bases/{studentId}
+// {
+//   studentId, name, level, defenseRating,
+//   buildings: [{ type, level, position }],
+//   totalInvested, createdAt
+// }
+
+const BUILDING_TYPES = [
+  {
+    type: 'shield',
+    name: 'エネルギーシールド',
+    icon: '🛡️',
+    desc: '防御力を上げる。学習中の集中力を守る',
+    color: '#3b82f6',
+    costs: [50, 100, 200, 400, 800],
+    statName: '防御力',
+    statPerLevel: [10, 25, 50, 100, 200]
+  },
+  {
+    type: 'cannon',
+    name: 'レーザーキャノン',
+    icon: '🔫',
+    desc: '攻撃力を上げる。レイドボスへの追加ダメージ',
+    color: '#ef4444',
+    costs: [80, 150, 300, 600, 1200],
+    statName: '攻撃力',
+    statPerLevel: [15, 35, 70, 150, 300]
+  },
+  {
+    type: 'radar',
+    name: 'レーダー施設',
+    icon: '📡',
+    desc: 'ミッション報酬+5%/レベル。隠しクエスト発見率UP',
+    color: '#10b981',
+    costs: [60, 120, 250, 500, 1000],
+    statName: '探知力',
+    statPerLevel: [5, 10, 20, 40, 80]
+  },
+  {
+    type: 'lab',
+    name: '研究ラボ',
+    icon: '🔬',
+    desc: 'ポイント獲得時に微量ボーナス',
+    color: '#8b5cf6',
+    costs: [100, 200, 400, 800, 1600],
+    statName: '研究力',
+    statPerLevel: [2, 5, 10, 20, 50]
+  },
+  {
+    type: 'hangar',
+    name: '格納庫',
+    icon: '🚀',
+    desc: 'ストリーク維持力アップ',
+    color: '#f59e0b',
+    costs: [40, 80, 160, 320, 640],
+    statName: '収容数',
+    statPerLevel: [5, 10, 20, 40, 80]
+  },
+  {
+    type: 'observatory',
+    name: '天体観測所',
+    icon: '🔭',
+    desc: 'マップ情報の精度UP',
+    color: '#06b6d4',
+    costs: [70, 140, 280, 560, 1120],
+    statName: '視界',
+    statPerLevel: [10, 20, 40, 80, 160]
+  }
+];
+
+function getBuildingType(typeId) {
+  return BUILDING_TYPES.find(b => b.type === typeId);
+}
+
+const BasesDB = {
+  async getOrCreate(studentId, studentName) {
+    const ref = db.collection('bases').doc(studentId);
+    const doc = await ref.get();
+    if (doc.exists) return { id: doc.id, ...doc.data() };
+    const data = {
+      studentId,
+      name: (studentName || 'クルー') + 'の基地',
+      level: 1,
+      defenseRating: 0,
+      buildings: [],
+      totalInvested: 0,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    await ref.set(data);
+    return { id: studentId, ...data };
+  },
+
+  async update(studentId, data) {
+    await db.collection('bases').doc(studentId).update(data);
+  },
+
+  async addBuilding(studentId, buildingType, position) {
+    const ref = db.collection('bases').doc(studentId);
+    const doc = await ref.get();
+    if (!doc.exists) return null;
+    const base = doc.data();
+    const buildings = base.buildings || [];
+    // 同じpositionに既に建物があればエラー
+    if (buildings.some(b => b.position === position)) return null;
+    buildings.push({ type: buildingType, level: 1, position });
+    await ref.update({ buildings });
+    return buildings;
+  },
+
+  async upgradeBuilding(studentId, position) {
+    const ref = db.collection('bases').doc(studentId);
+    const doc = await ref.get();
+    if (!doc.exists) return null;
+    const base = doc.data();
+    const buildings = base.buildings || [];
+    const idx = buildings.findIndex(b => b.position === position);
+    if (idx < 0) return null;
+    if (buildings[idx].level >= 5) return null; // max
+    buildings[idx].level++;
+    await ref.update({ buildings });
+    return buildings;
+  },
+
+  async demolishBuilding(studentId, position) {
+    const ref = db.collection('bases').doc(studentId);
+    const doc = await ref.get();
+    if (!doc.exists) return null;
+    const base = doc.data();
+    const buildings = (base.buildings || []).filter(b => b.position !== position);
+    await ref.update({ buildings });
+    return buildings;
+  },
+
+  async renameBase(studentId, name) {
+    await db.collection('bases').doc(studentId).update({ name });
+  },
+
+  // 拠点全体の総合スコア計算
+  calculateScore(base) {
+    if (!base || !base.buildings) return { defense: 0, attack: 0, radar: 0, lab: 0, total: 0 };
+    let defense = 0, attack = 0, radar = 0, lab = 0;
+    base.buildings.forEach(b => {
+      const def = getBuildingType(b.type);
+      if (!def) return;
+      const stat = def.statPerLevel[Math.min(b.level - 1, 4)] || 0;
+      if (b.type === 'shield') defense += stat;
+      else if (b.type === 'cannon') attack += stat;
+      else if (b.type === 'radar') radar += stat;
+      else if (b.type === 'lab') lab += stat;
+    });
+    return { defense, attack, radar, lab, total: defense + attack + radar + lab };
+  }
+};

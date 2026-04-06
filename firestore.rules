@@ -291,5 +291,10 @@ service cloud.firestore {
         allow update, delete: if isAdmin();
       }
     }
+
+    // === Phase 14c: デジタル拠点 ===
+    match /bases/{studentId} {
+      allow read, write: if true;
+    }
   }
 }
