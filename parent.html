@@ -410,7 +410,7 @@ async function tryAutoLogin() {
       currentStudent = { id: doc.id, ...doc.data() };
       await showPortal();
     }
-  } catch(e) {}
+  } catch(e) { console.error('Parent auto-login error:', e); }
 }
 
 // ===== ポータル表示 =====

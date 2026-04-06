@@ -1561,8 +1561,8 @@ async function handleLogin() {
 
 async function logout() {
   if (currentStudent) {
-    try { await AttendanceDB.checkOut(currentStudent.id); } catch(e) {}
-    try { await ActiveSessionsDB.end(currentStudent.id); } catch(e) {}
+    try { await AttendanceDB.checkOut(currentStudent.id); } catch(e) { console.warn('CheckOut error:', e); }
+    try { await ActiveSessionsDB.end(currentStudent.id); } catch(e) { console.warn('Session end error:', e); }
   }
   currentStudent = null;
   localStorage.removeItem('heroAcademy_student');
@@ -2489,7 +2489,7 @@ function startStudy() {
   document.getElementById('timerStartBtn').innerHTML = '▶';
 
   // アクティブセッション開始（リアルタイム共有）
-  try { ActiveSessionsDB.start(currentStudent.id, studySession.subject, studySession.material || null); } catch(e) {}
+  try { ActiveSessionsDB.start(currentStudent.id, studySession.subject, studySession.material || null); } catch(e) { console.warn('Session start error:', e); }
 
   navigate('timer');
 }
@@ -2571,7 +2571,7 @@ async function stopStudy(save) {
   clearInterval(timerState.interval);
 
   // アクティブセッション終了
-  try { await ActiveSessionsDB.end(currentStudent.id); } catch(e) {}
+  try { await ActiveSessionsDB.end(currentStudent.id); } catch(e) { console.warn('Session end error:', e); }
 
   if (!save || timerState.elapsed < 60) {
     navigate('home');
@@ -2616,7 +2616,7 @@ async function stopStudy(save) {
   let commanderMultiplier = 1.0;
   try {
     commanderMultiplier = await CommanderBuffDB.getPointMultiplier();
-  } catch(e) {}
+  } catch(e) { console.warn('CommanderBuff point error:', e); }
 
   let points = Math.round(basePoints * eventMultiplier * commanderMultiplier) + eventBonusPoints;
 
@@ -2649,7 +2649,7 @@ async function stopStudy(save) {
     if (currentStudent.guildId) {
       try {
         await GuildsDB.addPoints(currentStudent.guildId, points);
-      } catch(e) {}
+      } catch(e) { console.warn('Guild points error:', e); }
 
       // 一蓮托生ボーナス: ギルド全員が今日学習していたらボーナス
       try {
@@ -2694,12 +2694,12 @@ async function stopStudy(save) {
       if (currentStudent.role === 'student') {
         supporterBuff = await SupportFleetDB.calculateBuff();
       }
-    } catch(e) {}
+    } catch(e) { console.warn('SupportFleet error:', e); }
 
     // Raid boss damage (with new calculateBossDamage)
     let raidResults = [];
     let commanderBossBuff = 1.0;
-    try { commanderBossBuff = await CommanderBuffDB.getBossDamageMultiplier(); } catch(e) {}
+    try { commanderBossBuff = await CommanderBuffDB.getBossDamageMultiplier(); } catch(e) { console.warn('CommanderBuff boss error:', e); }
     try {
       const activeBosses = await RaidBossDB.getActive();
       const session = {

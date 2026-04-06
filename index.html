@@ -3311,11 +3311,11 @@ async function loadCommanderCP() {
 
     // CP50到達: ポイント+20%バフ発動（30分間）
     if (pointBuffActive) {
-      try { await CommanderBuffDB.activate('point_boost', 30); } catch(e) {}
+      try { await CommanderBuffDB.activate('point_boost', 30); } catch(e) { console.warn('Point buff activate error:', e); }
     }
     // CP100到達: ボスダメージ×1.5バフ発動（60分間）
     if (bossBuffActive) {
-      try { await CommanderBuffDB.activate('boss_boost', 60); } catch(e) {}
+      try { await CommanderBuffDB.activate('boss_boost', 60); } catch(e) { console.warn('Boss buff activate error:', e); }
     }
 
     return { cp, maxCp, pct, buffActive: pointBuffActive, bossBuffActive };
