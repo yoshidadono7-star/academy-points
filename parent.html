@@ -221,6 +221,7 @@
         <button class="tab-btn" onclick="switchTab('matprogress')">📦 教材進捗</button>
         <button class="tab-btn" onclick="switchTab('exams')">📝 テスト</button>
         <button class="tab-btn" onclick="switchTab('badges')">🏅 バッジ</button>
+        <button class="tab-btn" onclick="switchTab('space')">🚀 宇宙冒険</button>
         <button class="tab-btn" onclick="switchTab('messages')">💬 メッセージ</button>
       </div>
 
@@ -315,6 +316,18 @@
         </div>
       </div>
 
+      <!-- 宇宙冒険タブ -->
+      <div class="tab-panel" id="panel-space">
+        <div class="card">
+          <div class="card-title">🚀 宇宙冒険マップ</div>
+          <div id="parentSpaceMap" style="font-size:13px;color:#718096;">読み込み中...</div>
+        </div>
+        <div class="card" id="parentGuildCard" style="display:none;">
+          <div class="card-title">⚔️ ギルド情報</div>
+          <div id="parentGuildInfo"></div>
+        </div>
+      </div>
+
       <!-- メッセージタブ -->
       <div class="tab-panel" id="panel-messages">
         <div class="card">
@@ -331,6 +344,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
+<script src="db.js"></script>
 <script>
 
 let currentStudent = null;
@@ -427,6 +441,7 @@ async function showPortal() {
       loadParentMatProgress(),
       loadExams(),
       loadBadges(),
+      loadParentSpaceMap(),
       loadMessages(),
     ]);
   } catch(e) {
@@ -566,7 +581,7 @@ async function generateParentNarration() {
 // ===== タブ切替 =====
 function switchTab(tabId) {
   document.querySelectorAll('.tab-btn').forEach((b, i) => {
-    const tabs = ['today', 'summary', 'routes', 'matprogress', 'exams', 'badges', 'messages'];
+    const tabs = ['today', 'summary', 'routes', 'matprogress', 'exams', 'badges', 'space', 'messages'];
     b.classList.toggle('active', tabs[i] === tabId);
   });
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
@@ -794,6 +809,99 @@ async function loadParentMatProgress() {
   }
 
   container.innerHTML = cards.join('');
+}
+
+// ===== 宇宙マップ + ギルド =====
+async function loadParentSpaceMap() {
+  const container = document.getElementById('parentSpaceMap');
+  if (!container || !currentStudent) return;
+  try {
+    const pts = currentStudent.totalPoints || 0;
+    const prog = SpaceMapDB.getStationProgress(pts);
+    const discoveries = await SpaceMapDB.getDiscoveries(currentStudent.id);
+
+    let html = `<div style="background:linear-gradient(135deg,#0f0c29,#302b63);border-radius:12px;padding:16px;color:#fff;margin-bottom:12px;">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:12px;">
+        <div style="font-size:36px;">${prog.current.icon}</div>
+        <div>
+          <div style="font-size:16px;font-weight:700;">${prog.current.name}</div>
+          <div style="font-size:11px;opacity:0.7;">${prog.current.desc}</div>
+          <div style="font-size:12px;color:#ffd700;margin-top:4px;">累計 ${pts.toLocaleString()} pt</div>
+        </div>
+      </div>`;
+
+    if (prog.next) {
+      html += `<div style="background:rgba(255,255,255,0.15);height:10px;border-radius:5px;overflow:hidden;margin-bottom:4px;">
+        <div style="height:100%;width:${prog.percent}%;background:linear-gradient(90deg,#667eea,#ffd700);border-radius:5px;"></div>
+      </div>
+      <div style="font-size:11px;opacity:0.6;text-align:right;">→ ${prog.next.icon} ${prog.next.name} まであと ${prog.remaining} pt</div>`;
+    } else {
+      html += '<div style="font-size:13px;color:#ffd700;text-align:center;font-weight:700;">🌌 最終ステーション到達！</div>';
+    }
+    html += '</div>';
+
+    // ステーション一覧（ミニ版）
+    html += '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;">';
+    for (const st of SPACE_STATIONS) {
+      const reached = pts >= st.points;
+      html += `<div style="display:flex;align-items:center;gap:4px;padding:4px 8px;border-radius:8px;font-size:11px;
+        background:${reached ? 'rgba(102,126,234,0.15)' : 'rgba(0,0,0,0.05)'};
+        color:${reached ? '#4338ca' : '#94a3b8'};border:1px solid ${reached ? 'rgba(102,126,234,0.3)' : '#e2e8f0'};">
+        <span>${st.icon}</span><span>${st.name}</span>${reached ? ' ✅' : ''}
+      </div>`;
+    }
+    html += '</div>';
+
+    // 隠しエリア発見
+    if (discoveries.length > 0) {
+      html += '<div style="font-size:12px;font-weight:700;color:#2d3748;margin-bottom:6px;">🔮 発見した隠しエリア</div>';
+      for (const disc of discoveries) {
+        const area = HIDDEN_AREAS.find(a => a.id === disc.areaId);
+        if (area) {
+          html += `<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;margin-bottom:4px;">
+            <span style="font-size:18px;">${area.icon}</span>
+            <div><div style="font-size:12px;font-weight:600;">${area.name}</div>
+            ${area.reward ? `<div style="font-size:10px;color:#d97706;">称号: ${area.reward.title}</div>` : ''}</div>
+          </div>`;
+        }
+      }
+    }
+
+    container.innerHTML = html;
+
+    // ギルド情報
+    const guildCard = document.getElementById('parentGuildCard');
+    const guildInfo = document.getElementById('parentGuildInfo');
+    if (currentStudent.guildId && guildCard && guildInfo) {
+      const guild = await GuildsDB.getById(currentStudent.guildId);
+      if (guild) {
+        const theme = GUILD_THEMES.find(t => t.id === guild.themeId);
+        const memberCount = (guild.members || []).length;
+        const guildPts = guild.totalPoints || 0;
+        const nextMilestone = GUILD_MILESTONES.find(m => guildPts < m.points);
+
+        guildCard.style.display = 'block';
+        guildInfo.innerHTML = `
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
+            <span style="font-size:28px;">${theme ? theme.icon : '⚔️'}</span>
+            <div>
+              <div style="font-size:15px;font-weight:700;">${guild.name || (theme ? theme.name : 'ギルド')}</div>
+              <div style="font-size:12px;color:#718096;">${memberCount}人のメンバー ・ ${guildPts.toLocaleString()} pt</div>
+            </div>
+          </div>
+          ${nextMilestone ? `<div style="background:#f0f4ff;border-radius:8px;padding:10px;font-size:12px;">
+            <div style="font-weight:600;color:#4338ca;margin-bottom:4px;">次のマイルストーン: ${nextMilestone.icon} ${nextMilestone.name}</div>
+            <div style="background:#e2e8f0;height:8px;border-radius:4px;overflow:hidden;">
+              <div style="height:100%;width:${Math.min(100, guildPts / nextMilestone.points * 100)}%;background:linear-gradient(90deg,#667eea,#764ba2);border-radius:4px;"></div>
+            </div>
+            <div style="font-size:11px;color:#94a3b8;margin-top:2px;text-align:right;">あと ${(nextMilestone.points - guildPts).toLocaleString()} pt</div>
+          </div>` : '<div style="color:#059669;font-weight:600;">🏆 全マイルストーン達成！</div>'}`;
+      }
+    }
+  } catch(e) {
+    console.error('Parent spacemap error:', e);
+    container.innerHTML = '<div style="color:#94a3b8;">データの読み込みに失敗しました</div>';
+  }
 }
 
 // ===== サマリー =====

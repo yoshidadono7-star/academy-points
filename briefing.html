@@ -1193,12 +1193,16 @@ async function renderSpaceMap() {
         <div style="font-size:10px;color:var(--accent-blue);font-family:'Orbitron',monospace;margin-bottom:2px">
           ${g.station.icon} ${g.station.name} <span style="color:var(--text-secondary)">Lv.${g.station.level}</span>
         </div>
-        ${g.students.map(s => `
-          <div class="spacemap-student">
+        ${g.students.map(s => {
+          const prog = SpaceMapDB.getStationProgress(s.totalPoints || 0);
+          return `<div class="spacemap-student">
             <span class="spacemap-student-name">${s.callsign || s.nickname || s.name}</span>
+            ${prog.next ? `<span style="display:inline-block;width:40px;height:4px;background:rgba(255,255,255,0.15);border-radius:2px;vertical-align:middle;overflow:hidden;margin:0 4px;">
+              <span style="display:block;height:100%;width:${prog.percent}%;background:var(--accent-green);border-radius:2px;"></span>
+            </span>` : '<span style="font-size:8px;color:var(--accent-gold);">★</span>'}
             <span style="font-size:10px;color:var(--accent-green)">${(s.totalPoints || 0).toLocaleString()}pt</span>
-          </div>
-        `).join('')}
+          </div>`;
+        }).join('')}
       </div>
     `).join('');
   } catch(e) { console.error('SpaceMap error:', e); }
@@ -1215,10 +1219,12 @@ async function renderStoryPanel() {
     if (typeof getCurrentStoryTheme === 'function') {
       const theme = getCurrentStoryTheme();
       if (theme) {
+        const monthNum = new Date().getMonth() + 1;
         html += `
           <div class="story-theme-icon">${theme.icon}</div>
-          <div class="story-theme-name">${theme.code}</div>
-          <div style="font-size:11px;color:var(--text-secondary);margin-bottom:6px">${theme.name}</div>
+          <div class="story-theme-name">CHAPTER ${monthNum} — ${theme.code}</div>
+          <div style="font-size:12px;color:var(--accent-blue);margin-bottom:4px;font-weight:600">${theme.name}</div>
+          <div style="font-size:10px;color:var(--text-secondary);margin-bottom:6px;line-height:1.4">${theme.desc}</div>
         `;
       }
     }
