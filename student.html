@@ -1848,10 +1848,11 @@ async function handleLogin() {
     // プッシュ通知のセットアップ（バックグラウンドで実行）
     setupPushNotifications(student.id);
 
-    // Phase 14: バディシステム起動
+    // Phase 14: バディシステム起動 + AI設定読み込み
     BuddySystem.init();
     BuddySystem.updateStatus(student);
     ChatUI.startSubscription();
+    AIBuddy.loadConfig();
     const isFirstLogin = !student.seenBuddy;
     const studentName = student.callsign || student.nickname || student.name;
     setTimeout(() => {
@@ -1905,6 +1906,7 @@ async function tryAutoLogin() {
       BuddySystem.init();
       BuddySystem.updateStatus(student);
       ChatUI.startSubscription();
+      AIBuddy.loadConfig();
       const studentName = student.callsign || student.nickname || student.name;
       setTimeout(() => {
         const hour = new Date().getHours();
@@ -4316,6 +4318,101 @@ function toggleBuddyVoice() {
 }
 
 // ============================================
+// Phase 14: AIバディ（Claude API連携）
+// ============================================
+const AIBuddy = (() => {
+  let config = null;
+  let history = []; // 会話履歴（直近10件）
+
+  async function loadConfig() {
+    try {
+      const doc = await db.collection('settings').doc('claudeAi').get();
+      if (doc.exists) {
+        config = doc.data();
+      }
+    } catch(e) { console.error('AIBuddy loadConfig error:', e); }
+    return config;
+  }
+
+  function isEnabled() {
+    return config && config.enabled && config.apiKey;
+  }
+
+  function buildSystemPrompt(student) {
+    const name = student.callsign || student.nickname || student.name || '冒険者';
+    const grade = student.grade || '不明';
+    const level = student.level || 1;
+    const points = student.currentPoints || 0;
+    const streak = student.streak || 0;
+    return `あなたは「ルカ」という名前の、宇宙をテーマにした塾の学習ゲーミフィケーションアプリの可愛いバディAIです。
+生徒「${name}」（${grade}、Lv.${level}、${points}pt、連続${streak}日）と会話しています。
+
+【あなたの役割】
+- 生徒の良き相棒・応援団として、常に温かく寄り添う
+- 学習の質問には簡潔に答える（小中学生でも分かる言葉で）
+- 落ち込んでいる時は優しく励まし、頑張っている時は一緒に喜ぶ
+- 必要なら「先生に相談しよう」「先生を呼ぼうか」と提案する
+
+【話し方のルール】
+- 1〜3文の短い返答（最大100文字程度）
+- フランクで親しみやすい口調（「〜だよ」「〜だね」「〜しよう」）
+- 絵文字は控えめに使う（多用しすぎない）
+- 年齢に合わせた優しい言葉遣い
+- 名前を時々呼ぶ（${name}さん、または${name}）
+
+【NG事項】
+- 長文の説教
+- 難しすぎる解説
+- 上から目線
+- 否定的な言葉遣い`;
+  }
+
+  async function ask(userMessage, student) {
+    if (!config) await loadConfig();
+    if (!isEnabled()) return null;
+
+    history.push({ role: 'user', content: userMessage });
+    if (history.length > 20) history = history.slice(-20);
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': config.apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: config.model || 'claude-haiku-4-5-20251001',
+          max_tokens: 200,
+          system: buildSystemPrompt(student),
+          messages: history
+        })
+      });
+      const data = await res.json();
+      if (data.error) {
+        console.error('Claude API error:', data.error);
+        return null;
+      }
+      if (data.content && data.content[0] && data.content[0].text) {
+        const reply = data.content[0].text.trim();
+        history.push({ role: 'assistant', content: reply });
+        return reply;
+      }
+      return null;
+    } catch(e) {
+      console.error('AIBuddy.ask error:', e);
+      return null;
+    }
+  }
+
+  function clearHistory() { history = []; }
+
+  return { loadConfig, isEnabled, ask, clearHistory };
+})();
+
+// ============================================
 // Phase 14: チャットUI + 音声認識
 // ============================================
 const ChatUI = (() => {
@@ -4415,14 +4512,22 @@ const ChatUI = (() => {
     try {
       // 生徒メッセージを保存
       await ChatDB.sendMessage(currentStudent.id, studentName, 'student', studentName, text);
-      // 即時バブル表示
-      BuddySystem.say('えーっと...', { emotion: 'thinking', duration: 1500 });
-      // パターンマッチで返答
-      const reply = generateReply(text, currentStudent);
-      setTimeout(async () => {
-        await ChatDB.sendMessage(currentStudent.id, studentName, 'buddy', 'ルカ', reply);
-        BuddySystem.say(reply, { emotion: 'happy', duration: 5000 });
-      }, 1200);
+      // 思考中表示
+      BuddySystem.say('えーっと...', { emotion: 'thinking', duration: 60000 });
+
+      // まずClaude APIを試す
+      let reply = null;
+      if (AIBuddy.isEnabled()) {
+        reply = await AIBuddy.ask(text, currentStudent);
+      }
+
+      // 失敗したらパターンマッチにフォールバック
+      if (!reply) {
+        reply = generateReply(text, currentStudent);
+      }
+
+      await ChatDB.sendMessage(currentStudent.id, studentName, 'buddy', 'ルカ', reply);
+      BuddySystem.say(reply, { emotion: 'happy', duration: 6000 });
     } catch(e) {
       console.error('Chat send error:', e);
       BuddySystem.say('うーん、うまく聞こえなかった...もう一度言ってくれる？', { emotion: 'sad' });

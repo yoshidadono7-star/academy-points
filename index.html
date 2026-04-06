@@ -1338,6 +1338,42 @@
       </div>
     </div>
 
+    <!-- Phase 14: バディAI設定（Claude API） -->
+    <div class="card">
+      <div class="card-title"><span class="icon">🤖</span> バディAI設定（Claude API）</div>
+      <p style="font-size:13px;color:var(--text-light);margin-bottom:12px;">
+        Claude APIキーを設定すると、バディがClaude AIで本格的な会話ができるようになります。
+        未設定の場合はパターンマッチで返答します。
+      </p>
+      <div style="background:#fff5f5;border:1px solid #fc8181;border-radius:8px;padding:10px;margin-bottom:12px;font-size:12px;color:#c53030;">
+        ⚠️ 注意: APIキーはFirestoreに保存され、ログイン中の生徒からも参照可能です。
+        学校用の専用キーを使用し、利用上限を設定することを推奨します。
+      </div>
+      <div class="form-group">
+        <label>Claude API キー</label>
+        <input type="password" class="form-control" id="settingClaudeApiKey" placeholder="sk-ant-api03-..." style="font-size:12px;">
+        <small style="color:var(--text-light);">
+          <a href="https://console.anthropic.com/" target="_blank" style="color:#667eea;">Anthropic Consoleでキーを取得 →</a>
+        </small>
+      </div>
+      <div class="form-group">
+        <label>使用モデル</label>
+        <select class="form-control" id="settingClaudeModel">
+          <option value="claude-haiku-4-5-20251001">Claude Haiku 4.5（高速・安価・推奨）</option>
+          <option value="claude-sonnet-4-6">Claude Sonnet 4.6（バランス）</option>
+          <option value="claude-opus-4-6">Claude Opus 4.6（高品質・高価）</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>
+          <input type="checkbox" id="settingClaudeEnabled"> Claude AIを有効にする
+        </label>
+      </div>
+      <button class="btn btn-primary" onclick="saveClaudeSettings()">💾 設定を保存</button>
+      <button class="btn btn-secondary" onclick="testClaudeApi()" style="margin-left:8px;">🧪 接続テスト</button>
+      <div id="claudeTestResult" style="margin-top:10px;font-size:13px;"></div>
+    </div>
+
     <!-- 保護者レポート -->
     <div class="card">
       <div class="card-title"><span class="icon">📧</span> 保護者への定期レポート</div>
@@ -5795,6 +5831,73 @@ function loadSettings() {
   if (saved.schoolName) document.getElementById('settingSchoolName').value = saved.schoolName;
   if (saved.notice) document.getElementById('settingNotice').value = saved.notice;
   loadEmailJSSettings();
+  loadClaudeSettings();
+}
+
+// Phase 14: Claude API設定
+async function loadClaudeSettings() {
+  try {
+    const doc = await db.collection('settings').doc('claudeAi').get();
+    if (doc.exists) {
+      const d = doc.data();
+      if (d.apiKey) document.getElementById('settingClaudeApiKey').value = d.apiKey;
+      if (d.model) document.getElementById('settingClaudeModel').value = d.model;
+      document.getElementById('settingClaudeEnabled').checked = !!d.enabled;
+    }
+  } catch(e) { console.error(e); }
+}
+
+async function saveClaudeSettings() {
+  const apiKey = document.getElementById('settingClaudeApiKey').value.trim();
+  const model = document.getElementById('settingClaudeModel').value;
+  const enabled = document.getElementById('settingClaudeEnabled').checked;
+  try {
+    await db.collection('settings').doc('claudeAi').set({
+      apiKey, model, enabled,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    showToast('Claude設定を保存しました');
+  } catch(e) {
+    console.error(e);
+    showToast('保存に失敗しました', 'error');
+  }
+}
+
+async function testClaudeApi() {
+  const apiKey = document.getElementById('settingClaudeApiKey').value.trim();
+  const model = document.getElementById('settingClaudeModel').value;
+  const result = document.getElementById('claudeTestResult');
+  if (!apiKey) {
+    result.innerHTML = '<span style="color:#fc8181;">APIキーを入力してください</span>';
+    return;
+  }
+  result.innerHTML = '<span style="color:#a0aec0;">テスト中...</span>';
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: model,
+        max_tokens: 100,
+        messages: [{ role: 'user', content: 'こんにちは。「テスト成功」と返してください。' }]
+      })
+    });
+    const data = await res.json();
+    if (data.error) {
+      result.innerHTML = '<span style="color:#fc8181;">エラー: ' + (data.error.message || JSON.stringify(data.error)) + '</span>';
+    } else if (data.content && data.content[0]) {
+      result.innerHTML = '<span style="color:#48bb78;">✅ 成功: ' + escapeHtml(data.content[0].text || '') + '</span>';
+    } else {
+      result.innerHTML = '<span style="color:#fc8181;">予期しない応答: ' + JSON.stringify(data) + '</span>';
+    }
+  } catch(e) {
+    result.innerHTML = '<span style="color:#fc8181;">通信エラー: ' + e.message + '</span>';
+  }
 }
 
 function saveSettings() {
