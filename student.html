@@ -355,6 +355,85 @@ body.buddy-on .buddy-panel { display: flex; align-items: center; }
   opacity: 0.5; cursor: not-allowed;
 }
 
+/* ===== Phase 14b: 生徒アバターカスタマイズ ===== */
+.avatar-customize-overlay {
+  display: none;
+  position: fixed; inset: 0;
+  background: linear-gradient(180deg, #0a0a2e 0%, #1a1a4e 50%, #0f172a 100%);
+  z-index: 9500;
+  overflow-y: auto;
+  padding: 30px 16px;
+}
+.avatar-customize-overlay.active { display: block; }
+.avatar-customize-content {
+  max-width: 560px; margin: 0 auto;
+  text-align: center; color: #e2e8f0;
+}
+.avatar-preview {
+  width: 130px; height: 130px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #ffd700, #f6ad55);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 60px;
+  margin: 12px auto 24px;
+  box-shadow: 0 8px 32px rgba(255,215,0,0.5),
+              0 0 0 4px rgba(255,255,255,0.2);
+}
+.avatar-section-title {
+  font-size: 14px; font-weight: 700;
+  color: #ffd700; margin-bottom: 10px; text-align: left;
+}
+.avatar-emoji-grid {
+  display: grid;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 8px; margin-bottom: 24px;
+}
+.avatar-emoji-cell {
+  background: rgba(255,255,255,0.08);
+  border: 2px solid rgba(255,255,255,0.15);
+  border-radius: 12px;
+  padding: 8px;
+  font-size: 26px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.avatar-emoji-cell:hover {
+  background: rgba(255,255,255,0.15);
+  border-color: rgba(255,215,0,0.4);
+}
+.avatar-emoji-cell.selected {
+  border-color: #ffd700;
+  background: rgba(255,215,0,0.2);
+  transform: scale(1.1);
+}
+.avatar-color-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px; margin-bottom: 24px;
+}
+.avatar-color-cell {
+  height: 50px;
+  border-radius: 12px;
+  cursor: pointer;
+  border: 3px solid rgba(255,255,255,0.15);
+  position: relative;
+  transition: all 0.2s;
+}
+.avatar-color-cell:hover { transform: scale(1.05); }
+.avatar-color-cell.selected {
+  border-color: #fff;
+  box-shadow: 0 0 16px rgba(255,255,255,0.4);
+}
+.avatar-color-cell.selected::after {
+  content: '✓'; position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-weight: 900; font-size: 20px;
+  text-shadow: 0 2px 6px rgba(0,0,0,0.6);
+}
+@media (max-width: 480px) {
+  .avatar-emoji-grid { grid-template-columns: repeat(6, 1fr); }
+}
+
 /* チャット入力バー */
 .buddy-chatbar {
   display: none;
@@ -1318,6 +1397,22 @@ body.theme-space {
 </head>
 <body>
 
+<!-- Phase 14b: 生徒アバターカスタマイズ画面 -->
+<div id="avatarCustomizeOverlay" class="avatar-customize-overlay">
+  <div class="avatar-customize-content">
+    <button onclick="document.getElementById('avatarCustomizeOverlay').classList.remove('active')"
+      style="position:absolute;top:16px;right:16px;background:rgba(255,255,255,0.15);border:none;color:#fff;width:36px;height:36px;border-radius:50%;font-size:18px;cursor:pointer;">✕</button>
+    <div class="buddy-select-title">🎨 アバターをカスタマイズ</div>
+    <div class="buddy-select-sub">自分らしいアバターを作ろう！</div>
+    <div class="avatar-preview" id="avatarPreview">?</div>
+    <div class="avatar-section-title">アイコンを選ぼう</div>
+    <div class="avatar-emoji-grid" id="avatarEmojiGrid"></div>
+    <div class="avatar-section-title">カラーを選ぼう</div>
+    <div class="avatar-color-row" id="avatarColorRow"></div>
+    <button class="buddy-select-confirm" onclick="confirmAvatarCustomize()">この見た目に決めた！</button>
+  </div>
+</div>
+
 <!-- Phase 14a: バディ選択画面 -->
 <div id="buddySelectOverlay" class="buddy-select-overlay">
   <div class="buddy-select-content">
@@ -1355,7 +1450,7 @@ body.theme-space {
   </div>
   <!-- 右: 生徒アバター -->
   <div class="student-character">
-    <div class="student-avatar" id="studentAvatar">?</div>
+    <div class="student-avatar" id="studentAvatar" onclick="openAvatarCustomize()" style="cursor:pointer;" title="タップしてカスタマイズ">?</div>
   </div>
 </div>
 
@@ -4356,6 +4451,31 @@ function getBuddyById(id) {
   return BUDDY_CATALOG.find(b => b.id === id) || BUDDY_CATALOG[0];
 }
 
+// ============================================
+// Phase 14b: 生徒アバターカタログ
+// ============================================
+const STUDENT_AVATAR_EMOJIS = [
+  '🦸', '🧙', '🧚', '🧝', '🦹', '🥷', '👨‍🚀', '👩‍🚀',
+  '🧑‍🎓', '👨‍🎓', '👩‍🎓', '🧑‍🏫', '🦊', '🐱', '🐰', '🐼',
+  '🦁', '🐯', '🐶', '🐺', '🐻', '🐨', '🐸', '🐵',
+  '🦄', '🐲', '🦖', '⭐', '🌟', '💎', '🔥', '⚡'
+];
+const STUDENT_AVATAR_COLORS = [
+  { id: 'gold', name: 'ゴールド', gradient: 'linear-gradient(135deg, #ffd700, #f6ad55)' },
+  { id: 'red', name: 'レッド', gradient: 'linear-gradient(135deg, #fc8181, #e53e3e)' },
+  { id: 'blue', name: 'ブルー', gradient: 'linear-gradient(135deg, #63b3ed, #3182ce)' },
+  { id: 'green', name: 'グリーン', gradient: 'linear-gradient(135deg, #68d391, #38a169)' },
+  { id: 'purple', name: 'パープル', gradient: 'linear-gradient(135deg, #b794f4, #805ad5)' },
+  { id: 'pink', name: 'ピンク', gradient: 'linear-gradient(135deg, #f687b3, #d53f8c)' },
+  { id: 'orange', name: 'オレンジ', gradient: 'linear-gradient(135deg, #fbd38d, #ed8936)' },
+  { id: 'cyan', name: 'シアン', gradient: 'linear-gradient(135deg, #76e4f7, #00b5d8)' },
+];
+
+function getAvatarColorGradient(id) {
+  const c = STUDENT_AVATAR_COLORS.find(x => x.id === id);
+  return c ? c.gradient : STUDENT_AVATAR_COLORS[0].gradient;
+}
+
 // Phase 14a: バディ選択UI
 let pendingBuddySelection = null;
 
@@ -4416,6 +4536,82 @@ async function confirmBuddySelection() {
     setTimeout(() => {
       BuddySystem.say(buddy.intro, { emotion: 'happy', duration: 6000 });
     }, 300);
+  } catch(e) {
+    console.error(e);
+    alert('保存に失敗しました');
+  }
+}
+
+// Phase 14b: 生徒アバターカスタマイズ
+let pendingAvatarEmoji = null;
+let pendingAvatarColor = 'gold';
+
+function openAvatarCustomize() {
+  if (!currentStudent) return;
+  pendingAvatarEmoji = currentStudent.avatarEmoji || null;
+  pendingAvatarColor = currentStudent.avatarColor || 'gold';
+  renderAvatarCustomize();
+  document.getElementById('avatarCustomizeOverlay').classList.add('active');
+}
+
+function renderAvatarCustomize() {
+  // プレビュー
+  const preview = document.getElementById('avatarPreview');
+  if (preview) {
+    if (pendingAvatarEmoji) {
+      preview.textContent = pendingAvatarEmoji;
+      preview.style.fontSize = '70px';
+    } else {
+      const name = (currentStudent && (currentStudent.callsign || currentStudent.nickname || currentStudent.name)) || '?';
+      preview.textContent = name.charAt(0);
+      preview.style.fontSize = '60px';
+    }
+    preview.style.background = getAvatarColorGradient(pendingAvatarColor);
+  }
+  // 絵文字グリッド
+  const grid = document.getElementById('avatarEmojiGrid');
+  if (grid) {
+    grid.innerHTML = STUDENT_AVATAR_EMOJIS.map(em => `
+      <div class="avatar-emoji-cell ${pendingAvatarEmoji === em ? 'selected' : ''}"
+        onclick="selectAvatarEmoji('${em}')">${em}</div>
+    `).join('') + `
+      <div class="avatar-emoji-cell ${!pendingAvatarEmoji ? 'selected' : ''}"
+        onclick="selectAvatarEmoji(null)" style="font-size:14px;color:#fff;">頭文字</div>
+    `;
+  }
+  // 色グリッド
+  const row = document.getElementById('avatarColorRow');
+  if (row) {
+    row.innerHTML = STUDENT_AVATAR_COLORS.map(c => `
+      <div class="avatar-color-cell ${pendingAvatarColor === c.id ? 'selected' : ''}"
+        style="background:${c.gradient};"
+        onclick="selectAvatarColor('${c.id}')" title="${c.name}"></div>
+    `).join('');
+  }
+}
+
+function selectAvatarEmoji(em) {
+  pendingAvatarEmoji = em;
+  renderAvatarCustomize();
+}
+
+function selectAvatarColor(id) {
+  pendingAvatarColor = id;
+  renderAvatarCustomize();
+}
+
+async function confirmAvatarCustomize() {
+  if (!currentStudent) return;
+  try {
+    await StudentsDB.update(currentStudent.id, {
+      avatarEmoji: pendingAvatarEmoji || null,
+      avatarColor: pendingAvatarColor || 'gold'
+    });
+    currentStudent.avatarEmoji = pendingAvatarEmoji;
+    currentStudent.avatarColor = pendingAvatarColor;
+    BuddySystem.updateStudentAvatar(currentStudent);
+    document.getElementById('avatarCustomizeOverlay').classList.remove('active');
+    BuddySystem.say('うわぁ、新しい見た目だね！カッコいい！', { emotion: 'happy', duration: 5000 });
   } catch(e) {
     console.error(e);
     alert('保存に失敗しました');
@@ -4661,10 +4857,17 @@ const BuddySystem = (() => {
   function updateStudentAvatar(student) {
     const av = document.getElementById('studentAvatar');
     if (!av || !student) return;
-    const name = student.callsign || student.nickname || student.name || '?';
-    // 最初の1文字を表示
-    const ch = name.charAt(0);
-    av.textContent = ch;
+    // 絵文字が設定されていればそれを、なければ名前の頭文字
+    if (student.avatarEmoji) {
+      av.textContent = student.avatarEmoji;
+      av.style.fontSize = '46px';
+    } else {
+      const name = student.callsign || student.nickname || student.name || '?';
+      av.textContent = name.charAt(0);
+      av.style.fontSize = '36px';
+    }
+    // 色設定
+    av.style.background = getAvatarColorGradient(student.avatarColor || 'gold');
   }
 
   // イベント別ヘルパー
