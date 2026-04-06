@@ -2712,3 +2712,188 @@ const RouteTasksDB = {
     return all.filter(t => t.endDate && t.endDate < today && t.status !== 'completed');
   }
 };
+
+// ===== 講師管理 (Teachers) =====
+const TeachersDB = {
+  async getAll() {
+    const snap = await db.collection('teachers').orderBy('name').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getById(id) {
+    const doc = await db.collection('teachers').doc(id).get();
+    return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  },
+  async add(data) {
+    const ref = await db.collection('teachers').add({
+      name: data.name,
+      pin: data.pin || '0000',
+      email: data.email || '',
+      subjects: data.subjects || [],
+      defaultShift: data.defaultShift || {},
+      active: true,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return ref.id;
+  },
+  async update(id, data) {
+    data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    await db.collection('teachers').doc(id).update(data);
+  },
+  async delete(id) {
+    await db.collection('teachers').doc(id).delete();
+  }
+};
+
+// ===== スケジュールスロット (Schedule Slots) =====
+const ScheduleSlotsDB = {
+  async add(data) {
+    const ref = await db.collection('scheduleSlots').add({
+      date: data.date,
+      startTime: data.startTime || '',
+      endTime: data.endTime || '',
+      teacherId: data.teacherId || null,
+      studentId: data.studentId || null,
+      subjects: data.subjects || [],
+      status: data.status || 'scheduled', // scheduled, attended, cancelled, absent
+      memo: data.memo || '',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return ref.id;
+  },
+  async getByTeacher(teacherId, date) {
+    const snap = await db.collection('scheduleSlots')
+      .where('teacherId', '==', teacherId)
+      .where('date', '==', date).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getByStudent(studentId, date) {
+    const snap = await db.collection('scheduleSlots')
+      .where('studentId', '==', studentId)
+      .where('date', '==', date).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getByDate(date) {
+    const snap = await db.collection('scheduleSlots')
+      .where('date', '==', date).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async update(id, data) {
+    data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    await db.collection('scheduleSlots').doc(id).update(data);
+  },
+  async delete(id) {
+    await db.collection('scheduleSlots').doc(id).delete();
+  }
+};
+
+// ===== 業務タスク (Operation Tasks) =====
+const OperationTasksDB = {
+  async add(data) {
+    const ref = await db.collection('operationTasks').add({
+      task: data.task || '',
+      description: data.description || '',
+      category: data.category || 'daily', // daily, sales, meeting, admin, event
+      date: data.date || getToday(),
+      teacherId: data.teacherId || null,
+      checked: false,
+      checkedBy: null,
+      verifiedBy: null,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return ref.id;
+  },
+  async getByTeacher(teacherId, date) {
+    const snap = await db.collection('operationTasks')
+      .where('teacherId', '==', teacherId)
+      .where('date', '==', date).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getByDate(date) {
+    const snap = await db.collection('operationTasks')
+      .where('date', '==', date).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async check(id, checkedBy) {
+    await db.collection('operationTasks').doc(id).update({
+      checked: true,
+      checkedBy: checkedBy || null,
+      checkedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  },
+  async uncheck(id) {
+    await db.collection('operationTasks').doc(id).update({
+      checked: false,
+      checkedBy: null,
+      checkedAt: null
+    });
+  },
+  async verify(id, verifiedBy) {
+    await db.collection('operationTasks').doc(id).update({
+      verifiedBy,
+      verifiedAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+  }
+};
+
+// ===== シフト管理 (Shifts) =====
+const ShiftsDB = {
+  async add(data) {
+    const ref = await db.collection('shifts').add({
+      teacherId: data.teacherId,
+      date: data.date,
+      start: data.start || '',
+      end: data.end || '',
+      status: data.status || 'scheduled', // scheduled, checked_in, checked_out, absent
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return ref.id;
+  },
+  async getByTeacher(teacherId, startDate, endDate) {
+    const snap = await db.collection('shifts')
+      .where('teacherId', '==', teacherId)
+      .where('date', '>=', startDate)
+      .where('date', '<=', endDate).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => a.date.localeCompare(b.date));
+  },
+  async getByDate(date) {
+    const snap = await db.collection('shifts')
+      .where('date', '==', date).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async update(id, data) {
+    data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    await db.collection('shifts').doc(id).update(data);
+  }
+};
+
+// ===== 面談記録 (Interview Records) =====
+const InterviewRecordsDB = {
+  async add(data) {
+    const ref = await db.collection('interviewRecords').add({
+      studentId: data.studentId,
+      studentName: data.studentName || '',
+      date: data.date || getToday(),
+      time: data.time || '',
+      content: data.content || '',
+      interviewer: data.interviewer || '',
+      type: data.type || 'regular', // regular, parent, emergency
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return ref.id;
+  },
+  async getByStudent(studentId, limitCount = 30) {
+    const snap = await db.collection('interviewRecords')
+      .where('studentId', '==', studentId).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+      .slice(0, limitCount);
+  },
+  async update(id, data) {
+    data.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+    await db.collection('interviewRecords').doc(id).update(data);
+  },
+  async delete(id) {
+    await db.collection('interviewRecords').doc(id).delete();
+  }
+};

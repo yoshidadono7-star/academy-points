@@ -36,6 +36,10 @@
         "destination": "/parent.html"
       },
       {
+        "source": "/teacher",
+        "destination": "/teacher.html"
+      },
+      {
         "source": "/classroom",
         "destination": "/briefing.html"
       },

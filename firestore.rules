@@ -226,5 +226,38 @@ service cloud.firestore {
       allow create, update: if true;
       allow delete: if isAdmin();
     }
+
+    // 講師管理
+    match /teachers/{teacherId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // スケジュールスロット
+    match /scheduleSlots/{slotId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isAdmin();
+    }
+
+    // 業務タスク
+    match /operationTasks/{taskId} {
+      allow read: if true;
+      allow create: if isAdmin();
+      allow update: if true;
+      allow delete: if isAdmin();
+    }
+
+    // シフト管理
+    match /shifts/{shiftId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // 面談記録
+    match /interviewRecords/{recordId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
   }
 }
