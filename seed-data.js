@@ -145,4 +145,91 @@ async function seedAll() {
   console.log('🎉 全ての初期データ投入が完了しました！');
 }
 
+// ============================================
+// テスト用ヘルパー関数（Phase 12演出確認用）
+// ============================================
+
+// 指定生徒のポイントを99にセット → 1分学習でレベルアップ演出が見られる
+async function setupLevelUpTest(nickname) {
+  const all = await StudentsDB.getAll();
+  const student = all.find(s => s.nickname === nickname || s.callsign === nickname);
+  if (!student) {
+    console.error(`❌ 生徒「${nickname}」が見つかりません`);
+    return;
+  }
+  await StudentsDB.update(student.id, {
+    totalPoints: 99,
+    currentPoints: 99,
+    level: 1
+  });
+  console.log(`✅ ${student.callsign || student.nickname} のポイントを99にセットしました`);
+  console.log('   → 1分以上学習すると Lv.2 へのレベルアップ演出が見られます');
+}
+
+// 弱いレイドボスを作成 → 1分学習で討伐演出
+async function setupBossDefeatTest() {
+  const id = await RaidBossDB.create({
+    name: 'テスト用スライム',
+    icon: '👾',
+    maxHp: 1,        // HP1なので1ダメージで討伐
+    reward: 50
+  });
+  console.log(`✅ テスト用ボスを作成しました (HP:1)`);
+  console.log('   → 1分以上学習すれば討伐演出が見られます');
+  return id;
+}
+
+// 全テスト生徒のポイントをリセット
+async function resetAllPoints() {
+  const all = await StudentsDB.getAll();
+  for (const s of all) {
+    await StudentsDB.update(s.id, {
+      totalPoints: 0, currentPoints: 0, totalEarned: 0,
+      level: 1, streak: 0
+    });
+  }
+  console.log(`✅ ${all.length}名のポイントをリセットしました`);
+}
+
+// アクティブなボスを全て削除
+async function clearAllBosses() {
+  const bosses = await RaidBossDB.getActive();
+  for (const b of bosses) {
+    await db.collection('raidBosses').doc(b.id).delete();
+  }
+  console.log(`✅ ${bosses.length}体のボスを削除しました`);
+}
+
+// 全機能テスト用セットアップ（おすすめ）
+async function setupAllTests(nickname) {
+  console.log('🧪 全機能テスト用セットアップを開始...');
+  console.log(`   対象生徒: ${nickname}`);
+
+  // 1. ポイントを99にセット → レベルアップテスト用
+  await setupLevelUpTest(nickname);
+
+  // 2. 弱いボスを作成 → 討伐テスト用
+  await setupBossDefeatTest();
+
+  // 3. オープニングを再表示するためフラグリセット
+  const all = await StudentsDB.getAll();
+  const student = all.find(s => s.nickname === nickname || s.callsign === nickname);
+  if (student) {
+    await StudentsDB.update(student.id, { seenOpening: false });
+    console.log(`✅ ${student.callsign} のオープニング表示フラグをリセット`);
+  }
+
+  console.log('\n🎬 確認できる演出:');
+  console.log('   1. ログイン → オープニング演出');
+  console.log('   2. ホーム画面 → ガイドスポットライト (3ステップ)');
+  console.log('   3. コンディション記録 → SE');
+  console.log('   4. クエスト選択 → ⚔️ SE');
+  console.log('   5. 1分以上学習して終了 → ');
+  console.log('       - 紙吹雪 + ポイント獲得SE');
+  console.log('       - レベルアップ演出 (リング+星バースト+音)');
+  console.log('       - ボス討伐演出 (爆発+VICTORY!)');
+  console.log('\n🚀 ' + nickname + ' でログインして試してください！');
+  console.log('\n⚠️  ガイドを再表示したい場合は localStorage.clear() も実行してください');
+}
+
 // 実行: seedAll()
