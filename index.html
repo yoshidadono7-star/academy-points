@@ -5845,7 +5845,7 @@ async function sendAdminMessage() {
       : [studentId];
 
     for (const sid of targets) {
-      await MessagesDB.send({ studentId: sid, type, text });
+      await MessagesDB.send({ toStudentId: sid, content: text, fromType: 'teacher' });
     }
 
     // FCMプッシュ通知を送信
@@ -6574,7 +6574,7 @@ async function approveSlot(id) {
     const doc = await db.collection('scheduleSlots').doc(id).get();
     if (doc.exists) {
       const slot = doc.data();
-      await MessagesDB.send(slot.studentId, `スケジュールが承認されました: ${slot.date} ${slot.startTime}〜${slot.endTime}`, 'teacher');
+      await MessagesDB.send({ toStudentId: slot.studentId, content: `スケジュールが承認されました: ${slot.date} ${slot.startTime}〜${slot.endTime}`, fromType: 'teacher' });
       await ScheduleSlotsDB.markParentNotified(id);
     }
     showToast('承認しました（保護者に通知済み）');
@@ -6590,7 +6590,7 @@ async function rejectSlot(id) {
     const doc = await db.collection('scheduleSlots').doc(id).get();
     if (doc.exists) {
       const slot = doc.data();
-      await MessagesDB.send(slot.studentId, `スケジュールが差し戻されました: ${slot.date} ${slot.startTime}〜${slot.endTime}${reason ? ' 理由: ' + reason : ''}`, 'teacher');
+      await MessagesDB.send({ toStudentId: slot.studentId, content: `スケジュールが差し戻されました: ${slot.date} ${slot.startTime}〜${slot.endTime}${reason ? ' 理由: ' + reason : ''}`, fromType: 'teacher' });
     }
     showToast('差し戻しました');
     closeModal();
