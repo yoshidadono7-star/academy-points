@@ -2153,10 +2153,9 @@ async function loadInterviewRecords(studentId) {
   try {
     const snap = await db.collection('interviewRecords')
       .where('studentId', '==', studentId)
-      .orderBy('date', 'desc')
       .orderBy('createdAt', 'desc')
       .limit(30).get();
-    const records = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    const records = snap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     if (records.length === 0) {
       list.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:12px;">面談記録はまだありません</div>';
       return;
