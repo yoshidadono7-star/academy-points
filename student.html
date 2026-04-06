@@ -1052,6 +1052,63 @@ body.theme-space {
 .opening-proceed {
   margin-top: 30px; opacity: 0; animation: openingFadeIn 1s ease-out 8s forwards;
 }
+
+/* ===== Phase 13b: ガイドスポットライトシステム ===== */
+.guide-overlay {
+  display: none; position: fixed; inset: 0; z-index: 8000;
+  pointer-events: none;
+}
+.guide-overlay.active { display: block; }
+.guide-backdrop {
+  position: fixed; inset: 0; background: rgba(0,0,0,0.6);
+  pointer-events: auto;
+}
+.guide-spotlight {
+  position: absolute; border-radius: 16px;
+  box-shadow: 0 0 0 9999px rgba(0,0,0,0.6), 0 0 30px rgba(102,126,234,0.6);
+  pointer-events: none; transition: all 0.5s ease;
+  z-index: 8001;
+}
+.guide-tooltip {
+  position: absolute; background: #fff; color: #2d3748;
+  border-radius: 14px; padding: 16px 20px; max-width: 300px;
+  box-shadow: 0 10px 40px rgba(0,0,0,0.3);
+  pointer-events: auto; z-index: 8002;
+  animation: guideTooltipIn 0.4s ease-out;
+}
+@keyframes guideTooltipIn {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+.guide-tooltip-step {
+  font-size: 11px; color: #667eea; font-weight: 700;
+  margin-bottom: 4px; letter-spacing: 0.5px;
+}
+.guide-tooltip-text {
+  font-size: 14px; font-weight: 600; line-height: 1.6;
+}
+.guide-tooltip-sub {
+  font-size: 12px; color: #718096; margin-top: 6px;
+}
+.guide-tooltip-arrow {
+  position: absolute; width: 16px; height: 16px;
+  background: #fff; transform: rotate(45deg);
+}
+.guide-tooltip-arrow.top { top: -8px; left: 30px; }
+.guide-tooltip-arrow.bottom { bottom: -8px; left: 30px; }
+.guide-pulse {
+  position: absolute; border-radius: 16px;
+  border: 3px solid #667eea;
+  animation: guidePulse 1.5s ease-out infinite;
+  pointer-events: none; z-index: 8001;
+}
+@keyframes guidePulse {
+  0% { opacity: 1; transform: scale(1); }
+  100% { opacity: 0; transform: scale(1.15); }
+}
+.guide-target-highlight {
+  position: relative; z-index: 8001; pointer-events: auto;
+}
 </style>
 </head>
 <body>
@@ -1077,6 +1134,19 @@ body.theme-space {
 
 <!-- Confetti Container -->
 <div id="confettiContainer" class="confetti-container"></div>
+
+<!-- Phase 13b: ガイドスポットライト -->
+<div id="guideOverlay" class="guide-overlay">
+  <div class="guide-backdrop" onclick="advanceGuide()"></div>
+  <div class="guide-spotlight" id="guideSpotlight"></div>
+  <div class="guide-pulse" id="guidePulse"></div>
+  <div class="guide-tooltip" id="guideTooltip">
+    <div class="guide-tooltip-arrow top" id="guideArrow"></div>
+    <div class="guide-tooltip-step" id="guideStep"></div>
+    <div class="guide-tooltip-text" id="guideText"></div>
+    <div class="guide-tooltip-sub" id="guideSub"></div>
+  </div>
+</div>
 
 <!-- Phase 12: カットシーン用オーバーレイ -->
 <div id="cutsceneOverlay" class="cutscene-overlay">
@@ -1946,6 +2016,9 @@ async function loadHome() {
 
   // リアルタイム: イベント発動バナー
   setupEventBannerListener();
+
+  // Phase 13b: ガイドスポットライト開始
+  setTimeout(() => GuideSystem.start(), 1000);
 }
 
 let liveCrewUnsubscribe = null;
@@ -2396,6 +2469,7 @@ async function submitCondition() {
       note: document.getElementById('conditionNote').value.trim()
     });
     showToast('コンディションを記録しました！');
+    GuideSystem.onAction('condition_done');
     navigate('home');
   } catch(e) {
     console.error(e);
@@ -2530,6 +2604,7 @@ async function selectLocationZoom(btn) {
 // ============================================
 function startStudy() {
   if (!studySession.subject || !studySession.location || !studySession.method) return;
+  GuideSystem.onAction('study_started');
 
   timerState = { running: false, elapsed: 0, interval: null, pomodoroCount: 0, pomodoroPhase: 'work', pomodoroTime: 25 * 60, startHour: new Date().getHours(), startTime: new Date() };
 
@@ -3827,6 +3902,7 @@ async function doAcceptMission(drawId, missionId) {
     if (acceptedEl) acceptedEl.classList.add('quest-accept-anim');
     setTimeout(() => { if (acceptedEl) acceptedEl.classList.remove('quest-accept-anim'); }, 500);
     showToast('⚔️ クエストをチャレンジ開始！！');
+    GuideSystem.onAction('mission_accepted');
   } catch(e) {
     console.error(e);
     showToast('受注に失敗しました');
@@ -4074,6 +4150,175 @@ function closeOpening() {
   overlay.classList.remove('active');
   if (window._openingResolve) { window._openingResolve(); window._openingResolve = null; }
 }
+
+// ============================================
+// Phase 13b: ガイドスポットライトシステム
+// ============================================
+const GuideSystem = (() => {
+  let currentStep = -1;
+  let steps = [];
+  let active = false;
+
+  // ガイドのステップ定義
+  const HOME_GUIDE = [
+    {
+      target: () => document.querySelector('.quick-action[onclick*="condition"]'),
+      step: 'STEP 1 / 3',
+      text: 'まずはコンディションを記録しよう！',
+      sub: '今日の気分と体調を教えてね',
+      position: 'below',
+      waitFor: 'condition_done' // コンディション記録完了を待つ
+    },
+    {
+      target: () => document.getElementById('homeMissionSection'),
+      step: 'STEP 2 / 3',
+      text: 'クエストを選ぼう！',
+      sub: '今日チャレンジするミッションを1つ選んでね',
+      position: 'below',
+      waitFor: 'mission_accepted'
+    },
+    {
+      target: () => document.querySelector('.quick-action[onclick*="studyMode"]'),
+      step: 'STEP 3 / 3',
+      text: '学習をスタートしよう！',
+      sub: '科目を選んでタイマーを開始！',
+      position: 'below',
+      waitFor: 'study_started'
+    }
+  ];
+
+  function shouldShowGuide() {
+    if (!currentStudent) return false;
+    // 今日すでにコンディション記録済みかどうかで判断
+    // シンプルに: ガイドを見たことがなければ表示
+    const guideKey = `guide_seen_${currentStudent.id}_${new Date().toISOString().split('T')[0]}`;
+    return !localStorage.getItem(guideKey);
+  }
+
+  function markGuideSeen() {
+    if (!currentStudent) return;
+    const guideKey = `guide_seen_${currentStudent.id}_${new Date().toISOString().split('T')[0]}`;
+    localStorage.setItem(guideKey, '1');
+  }
+
+  function start() {
+    if (!shouldShowGuide()) return;
+    steps = HOME_GUIDE;
+    currentStep = -1;
+    active = true;
+    next();
+  }
+
+  function next() {
+    currentStep++;
+    if (currentStep >= steps.length) {
+      finish();
+      return;
+    }
+    showStep(steps[currentStep]);
+  }
+
+  function showStep(step) {
+    const overlay = document.getElementById('guideOverlay');
+    const spotlight = document.getElementById('guideSpotlight');
+    const pulse = document.getElementById('guidePulse');
+    const tooltip = document.getElementById('guideTooltip');
+    const arrow = document.getElementById('guideArrow');
+
+    const targetEl = step.target();
+    if (!targetEl) { next(); return; } // ターゲットが見つからなければスキップ
+
+    // ターゲットをハイライト
+    targetEl.classList.add('guide-target-highlight');
+    // スクロールして表示
+    targetEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    setTimeout(() => {
+      const rect = targetEl.getBoundingClientRect();
+      const pad = 8;
+
+      // スポットライト位置
+      spotlight.style.left = (rect.left - pad) + 'px';
+      spotlight.style.top = (rect.top - pad) + 'px';
+      spotlight.style.width = (rect.width + pad * 2) + 'px';
+      spotlight.style.height = (rect.height + pad * 2) + 'px';
+
+      // パルス
+      pulse.style.left = (rect.left - pad) + 'px';
+      pulse.style.top = (rect.top - pad) + 'px';
+      pulse.style.width = (rect.width + pad * 2) + 'px';
+      pulse.style.height = (rect.height + pad * 2) + 'px';
+
+      // ツールチップ位置
+      const tooltipWidth = 280;
+      let tooltipLeft = Math.max(10, rect.left + rect.width / 2 - tooltipWidth / 2);
+      tooltipLeft = Math.min(tooltipLeft, window.innerWidth - tooltipWidth - 10);
+      tooltip.style.width = tooltipWidth + 'px';
+      tooltip.style.left = tooltipLeft + 'px';
+
+      if (step.position === 'below') {
+        tooltip.style.top = (rect.bottom + 20) + 'px';
+        tooltip.style.bottom = 'auto';
+        arrow.className = 'guide-tooltip-arrow top';
+        arrow.style.left = Math.max(20, (rect.left + rect.width / 2 - tooltipLeft - 8)) + 'px';
+      } else {
+        tooltip.style.top = 'auto';
+        tooltip.style.bottom = (window.innerHeight - rect.top + 20) + 'px';
+        arrow.className = 'guide-tooltip-arrow bottom';
+        arrow.style.left = Math.max(20, (rect.left + rect.width / 2 - tooltipLeft - 8)) + 'px';
+      }
+
+      // テキスト
+      document.getElementById('guideStep').textContent = step.step;
+      document.getElementById('guideText').textContent = step.text;
+      document.getElementById('guideSub').textContent = step.sub;
+
+      overlay.classList.add('active');
+      SESystem.tap();
+    }, 300);
+  }
+
+  function advanceGuide() {
+    // 背景タップでスキップ
+    dismiss();
+  }
+
+  function dismiss() {
+    const overlay = document.getElementById('guideOverlay');
+    overlay.classList.remove('active');
+    // ハイライト解除
+    document.querySelectorAll('.guide-target-highlight').forEach(el =>
+      el.classList.remove('guide-target-highlight'));
+    active = false;
+    markGuideSeen();
+  }
+
+  // 外部から呼ぶ: 特定のアクション完了時に次のステップへ
+  function onAction(actionId) {
+    if (!active || currentStep < 0 || currentStep >= steps.length) return;
+    if (steps[currentStep].waitFor === actionId) {
+      // ハイライト解除
+      document.querySelectorAll('.guide-target-highlight').forEach(el =>
+        el.classList.remove('guide-target-highlight'));
+      next();
+    }
+  }
+
+  function finish() {
+    const overlay = document.getElementById('guideOverlay');
+    overlay.classList.remove('active');
+    document.querySelectorAll('.guide-target-highlight').forEach(el =>
+      el.classList.remove('guide-target-highlight'));
+    active = false;
+    markGuideSeen();
+  }
+
+  function isActive() { return active; }
+
+  return { start, next, onAction, dismiss, isActive, advanceGuide };
+})();
+
+function advanceGuide() { GuideSystem.advanceGuide(); }
 
 // レベル変化検出用
 let _previousLevel = null;
