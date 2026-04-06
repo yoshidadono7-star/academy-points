@@ -112,7 +112,7 @@ body {
 }
 .panel-title {
   font-family: 'Orbitron', monospace;
-  font-size: 11px;
+  font-size: 14px;
   color: var(--accent-blue);
   letter-spacing: 2px;
   margin-bottom: 12px;
@@ -155,7 +155,7 @@ body {
   text-overflow: ellipsis;
 }
 .spacemap-station-icon { font-size: 16px; }
-.spacemap-station-name { font-size: 10px; color: var(--text-secondary); }
+.spacemap-station-name { font-size: 12px; color: var(--text-secondary); }
 
 /* ストーリーパネル */
 .story-panel {
@@ -1355,7 +1355,7 @@ async function renderTodayTimetable() {
         const shift = shifts.find(s => s.teacherId === t.id);
         const tSlots = activeSlots.filter(s => s.teacherId === t.id);
         const isOnDuty = !!shift;
-        sumHtml += '<div style="background:' + (isOnDuty ? 'rgba(0,212,255,0.1)' : 'rgba(255,255,255,0.03)') + ';border:1px solid ' + (isOnDuty ? t.color || 'var(--accent-blue)' : '#333') + ';border-radius:8px;padding:6px 10px;font-size:11px;">';
+        sumHtml += '<div style="background:' + (isOnDuty ? 'rgba(0,212,255,0.1)' : 'rgba(255,255,255,0.03)') + ';border:1px solid ' + (isOnDuty ? t.color || 'var(--accent-blue)' : '#333') + ';border-radius:8px;padding:8px 12px;font-size:13px;">';
         sumHtml += '<span style="color:' + (t.color || 'var(--text-secondary)') + ';font-weight:700;">' + (t.role === 'manager' ? '🏫 ' : '') + t.name + '</span>';
         if (isOnDuty) {
           sumHtml += ' <span style="color:var(--text-secondary);">' + shift.start + '-' + shift.end + '</span>';
@@ -1391,9 +1391,9 @@ async function renderTodayTimetable() {
       const statusColors = { scheduled: 'var(--accent-blue)', attended: 'var(--accent-green)', absent: 'var(--accent-red)' };
       const bg = isCurrent ? 'rgba(0,212,255,0.15)' : isPast ? 'rgba(255,255,255,0.03)' : 'rgba(255,255,255,0.06)';
       const border = isCurrent ? 'var(--accent-blue)' : 'transparent';
-      html += '<div style="display:flex;align-items:center;gap:12px;padding:8px 12px;background:' + bg + ';border-left:3px solid ' + border + ';border-radius:6px;' + (isPast ? 'opacity:0.5;' : '') + '">';
-      html += '<div style="font-family:\'Orbitron\',monospace;font-size:12px;color:var(--accent-blue);min-width:100px;">' + sl.startTime + ' - ' + sl.endTime + '</div>';
-      html += '<div style="font-weight:600;color:var(--text-primary);min-width:80px;">' + (student ? student.callsign || student.name : '?') + '</div>';
+      html += '<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:' + bg + ';border-left:3px solid ' + border + ';border-radius:6px;' + (isPast ? 'opacity:0.5;' : '') + '">';
+      html += '<div style="font-family:\'Orbitron\',monospace;font-size:14px;color:var(--accent-blue);min-width:110px;">' + sl.startTime + ' - ' + sl.endTime + '</div>';
+      html += '<div style="font-weight:700;color:var(--text-primary);min-width:90px;font-size:14px;">' + (student ? student.callsign || student.name : '?') + '</div>';
       html += '<div style="font-size:12px;color:var(--text-secondary);flex:1;">' + (sl.subjects ? sl.subjects.join(', ') : '') + '</div>';
       html += '<div style="font-size:11px;color:' + (teacher ? teacher.color || 'var(--text-secondary)' : 'var(--text-secondary)') + ';">' + (teacher ? teacher.name : '未定') + '</div>';
       if (isCurrent) html += '<span style="color:var(--accent-green);font-size:11px;font-weight:700;">● NOW</span>';
