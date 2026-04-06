@@ -222,6 +222,7 @@
         <button class="tab-btn" onclick="switchTab('exams')">📝 テスト</button>
         <button class="tab-btn" onclick="switchTab('badges')">🏅 バッジ</button>
         <button class="tab-btn" onclick="switchTab('messages')">💬 メッセージ</button>
+        <button class="tab-btn" onclick="switchTab('schedule')">📅 スケジュール</button>
       </div>
 
       <!-- 今日のようすタブ -->
@@ -324,6 +325,32 @@
         </div>
       </div>
 
+      <!-- スケジュールタブ -->
+      <div class="tab-panel" id="panel-schedule">
+        <!-- 今週の予定 -->
+        <div class="card">
+          <div class="card-title">📅 今週の予定</div>
+          <div id="parentWeekSchedule" style="font-size:13px;color:#718096;">読み込���中...</div>
+        </div>
+        <!-- 月次出欠可否カレンダー -->
+        <div class="card">
+          <div class="card-title">📆 月次出欠可否</div>
+          <p style="font-size:11px;color:#94a3b8;margin-bottom:8px;">日付をタップして ○(出席可) / △(未定) / ×(欠席) を切り替えてください</p>
+          <div style="display:flex;gap:8px;align-items:center;margin-bottom:12px;">
+            <button onclick="availCalPrev()" style="border:none;background:none;font-size:18px;cursor:pointer;">◀</button>
+            <span id="availCalMonth" style="font-weight:700;font-size:15px;"></span>
+            <button onclick="availCalNext()" style="border:none;background:none;font-size:18px;cursor:pointer;">▶</button>
+          </div>
+          <div id="availCalendar" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center;"></div>
+          <div class="form-group" style="margin-top:12px;">
+            <label style="font-size:12px;font-weight:600;">備考（任意）</label>
+            <textarea id="availNote" class="form-control" rows="2" placeholder="例: 4/15は家族旅行のためお休みします" style="font-size:12px;"></textarea>
+          </div>
+          <button onclick="submitAvailability()" style="width:100%;padding:10px;background:linear-gradient(135deg,#667eea,#764ba2);color:white;border:none;border-radius:8px;font-weight:700;font-size:14px;cursor:pointer;">📤 出欠可否を提出</button>
+          <div id="availSubmitMsg" style="display:none;color:#059669;font-size:12px;margin-top:8px;text-align:center;"></div>
+        </div>
+      </div>
+
     </div><!-- /portalContent -->
   </div><!-- /container -->
 </div><!-- /mainContent -->
@@ -331,6 +358,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
+<script src="db.js"></script>
 <script>
 
 let currentStudent = null;
@@ -566,11 +594,121 @@ async function generateParentNarration() {
 // ===== タブ切替 =====
 function switchTab(tabId) {
   document.querySelectorAll('.tab-btn').forEach((b, i) => {
-    const tabs = ['today', 'summary', 'routes', 'matprogress', 'exams', 'badges', 'messages'];
+    const tabs = ['today', 'summary', 'routes', 'matprogress', 'exams', 'badges', 'messages', 'schedule'];
     b.classList.toggle('active', tabs[i] === tabId);
   });
   document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
   document.getElementById('panel-' + tabId).classList.add('active');
+  if (tabId === 'schedule') loadParentSchedule();
+}
+
+// ===== 保���者スケジュール =====
+let availCalDate = new Date();
+let availData = {};
+
+async function loadParentSchedule() {
+  if (!currentStudent) return;
+  // 今週の予定を表示
+  const container = document.getElementById('parentWeekSchedule');
+  try {
+    const today = new Date();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const startStr = monday.toISOString().slice(0,10);
+    const endStr = sunday.toISOString().slice(0,10);
+    const slots = await ScheduleSlotsDB.getByStudent(currentStudent.id, startStr, endStr);
+    const days = ['日','月','火','水','木','金','土'];
+    if (slots.length === 0) {
+      container.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:16px;">今週の予定はありません</div>';
+    } else {
+      const sorted = slots.sort((a,b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime));
+      container.innerHTML = sorted.map(s => {
+        const d = new Date(s.date + 'T00:00:00');
+        const dayName = days[d.getDay()];
+        const statusColors = { scheduled: '#3b82f6', attended: '#10b981', absent: '#ef4444', cancelled: '#94a3b8', rescheduled: '#f59e0b' };
+        const statusLabels = { scheduled: '予定', attended: '出席', absent: '欠席', cancelled: '取消', rescheduled: '振替' };
+        const color = statusColors[s.status] || '#94a3b8';
+        const label = statusLabels[s.status] || s.status;
+        return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f1f5f9;">'
+          + '<div><span style="font-weight:700;">' + s.date.slice(5) + '(' + dayName + ')</span> '
+          + '<span style="color:#64748b;">' + s.startTime + '〜' + s.endTime + '</span></div>'
+          + '<div style="display:flex;gap:6px;align-items:center;">'
+          + (s.subjects && s.subjects.length ? '<span style="font-size:11px;color:#64748b;">' + s.subjects.join(', ') + '</span>' : '')
+          + '<span style="background:' + color + ';color:#fff;padding:2px 8px;border-radius:10px;font-size:11px;font-weight:600;">' + label + '</span>'
+          + '</div></div>';
+      }).join('');
+    }
+  } catch(e) { container.innerHTML = '<div style="color:#ef4444;">読み込みに失敗しました</div>'; console.warn('Parent schedule error:', e); }
+
+  // カレンダー初期表示
+  renderAvailCalendar();
+}
+
+function availCalPrev() { availCalDate.setMonth(availCalDate.getMonth() - 1); renderAvailCalendar(); }
+function availCalNext() { availCalDate.setMonth(availCalDate.getMonth() + 1); renderAvailCalendar(); }
+
+async function renderAvailCalendar() {
+  if (!currentStudent) return;
+  const year = availCalDate.getFullYear();
+  const month = availCalDate.getMonth();
+  const ym = year + '-' + String(month + 1).padStart(2, '0');
+  document.getElementById('availCalMonth').textContent = year + '年' + (month + 1) + '月';
+
+  // 既存データ読み込み
+  try {
+    const saved = await AvailabilityDB.get(currentStudent.id, ym);
+    availData = (saved && saved.dates) || {};
+    if (saved && saved.note) document.getElementById('availNote').value = saved.note;
+  } catch(e) { availData = {}; }
+
+  const cal = document.getElementById('availCalendar');
+  const days = ['日','月','火','水','木','金','土'];
+  let html = days.map(d => '<div style="font-size:11px;font-weight:700;color:#64748b;padding:4px;">' + d + '</div>').join('');
+
+  const firstDay = new Date(year, month, 1).getDay();
+  const lastDate = new Date(year, month + 1, 0).getDate();
+
+  for (let i = 0; i < firstDay; i++) html += '<div></div>';
+  for (let d = 1; d <= lastDate; d++) {
+    const dateStr = ym + '-' + String(d).padStart(2, '0');
+    const val = availData[dateStr] || '';
+    const symbol = val === 'ok' ? '○' : val === 'ng' ? '×' : val === 'maybe' ? '△' : '';
+    const bg = val === 'ok' ? '#dcfce7' : val === 'ng' ? '#fef2f2' : val === 'maybe' ? '#fefce8' : '#f8fafc';
+    const color = val === 'ok' ? '#166534' : val === 'ng' ? '#991b1b' : val === 'maybe' ? '#854d0e' : '#94a3b8';
+    html += '<div onclick="toggleAvail(\'' + dateStr + '\')" style="cursor:pointer;padding:6px 2px;border-radius:8px;background:' + bg + ';border:1px solid #e2e8f0;min-height:40px;">'
+      + '<div style="font-size:11px;color:#64748b;">' + d + '</div>'
+      + '<div style="font-size:16px;font-weight:700;color:' + color + ';">' + symbol + '</div>'
+      + '</div>';
+  }
+  cal.innerHTML = html;
+}
+
+function toggleAvail(dateStr) {
+  const current = availData[dateStr] || '';
+  const cycle = { '': 'ok', 'ok': 'maybe', 'maybe': 'ng', 'ng': '' };
+  const next = cycle[current];
+  if (next) { availData[dateStr] = next; } else { delete availData[dateStr]; }
+  renderAvailCalendar();
+}
+
+async function submitAvailability() {
+  if (!currentStudent) return;
+  const year = availCalDate.getFullYear();
+  const month = availCalDate.getMonth();
+  const ym = year + '-' + String(month + 1).padStart(2, '0');
+  const note = document.getElementById('availNote').value.trim();
+  try {
+    await AvailabilityDB.save(currentStudent.id, ym, availData, note);
+    const msg = document.getElementById('availSubmitMsg');
+    msg.textContent = '✅ ' + (month + 1) + '月の出欠可否を提出しました';
+    msg.style.display = 'block';
+    setTimeout(() => { msg.style.display = 'none'; }, 3000);
+  } catch(e) {
+    console.warn('Availability submit error:', e);
+    alert('提出に失敗しました。もう一度お試しください。');
+  }
 }
 
 // ===== テストカウントダウン（保護者） =====

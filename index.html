@@ -2329,7 +2329,11 @@ async function loadStudents() {
   }
 }
 
-function openStudentModal(student) {
+async function openStudentModal(student) {
+  // 講師一覧をキャッシュ（スケジュールテンプレートの講師選択用）
+  if (!window._cachedTeachers) {
+    try { window._cachedTeachers = await TeachersDB.getAll(); } catch(e) { window._cachedTeachers = []; }
+  }
   const isEdit = !!student;
   openModal(isEdit ? '生徒編集' : '生徒追加', `
     <div class="form-group">
@@ -2438,15 +2442,102 @@ function openStudentModal(student) {
         ).join('');
       })()}
     </div>
+    <div style="border-top:1px solid var(--border);margin-top:12px;padding-top:12px">
+      <div style="font-size:13px;font-weight:700;color:#7c3aed;margin-bottom:8px">📅 通常スケジュール（毎週の固定パターン）</div>
+      <div id="scheduleTemplateRows"></div>
+      <button type="button" class="btn btn-secondary btn-sm" onclick="addScheduleTemplateRow()" style="margin-top:8px;">+ 曜日追加</button>
+    </div>
   `, `
     <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
     <button class="btn btn-primary" onclick="saveStudent('${isEdit ? student.id : ''}')">${isEdit ? '更新' : '追加'}</button>
   `);
 
+  // 通常スケジュールテンプレートを読み込んで表示
+  if (isEdit) {
+    ScheduleTemplatesDB.getByStudent(student.id).then(templates => {
+      const container = document.getElementById('scheduleTemplateRows');
+      if (templates.length > 0) {
+        templates.forEach(t => addScheduleTemplateRow(t));
+      } else {
+        addScheduleTemplateRow();
+      }
+    });
+  } else {
+    setTimeout(() => addScheduleTemplateRow(), 50);
+  }
+
   // 学年セレクトの変更で動的セクション切替
   const gradeEl = document.getElementById('studentGrade');
   gradeEl.addEventListener('change', () => renderGradeSection(gradeEl.value, isEdit ? student : null));
   renderGradeSection(gradeEl.value, isEdit ? student : null);
+}
+
+// ----- 通常スケジュールテンプレート行 -----
+function addScheduleTemplateRow(template) {
+  const container = document.getElementById('scheduleTemplateRows');
+  if (!container) return;
+  const row = document.createElement('div');
+  row.className = 'sched-tpl-row';
+  row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px;flex-wrap:wrap;';
+  if (template) row.dataset.templateId = template.id;
+
+  const days = ['日','月','火','水','木','金','土'];
+  const dayVal = template ? template.dayOfWeek : '';
+  const startVal = template ? template.startSlot : '16:00';
+  const komasVal = template ? template.komas : 2;
+  const teacherVal = template ? (template.teacherId || '') : '';
+  const subjectsVal = template ? (template.subjects || []).join(',') : '';
+
+  // 講師選択肢はcachedTeachersから
+  const teacherOpts = (window._cachedTeachers || []).map(t =>
+    '<option value="' + t.id + '"' + (t.id === teacherVal ? ' selected' : '') + '>' + escapeHtml(t.name) + '</option>'
+  ).join('');
+
+  row.innerHTML = `
+    <select class="form-control stpl-day" style="width:65px;font-size:12px;padding:6px;">
+      <option value="">曜日</option>
+      ${days.map((d, i) => '<option value="' + i + '"' + (String(i) === String(dayVal) ? ' selected' : '') + '>' + d + '</option>').join('')}
+    </select>
+    <input type="time" class="form-control stpl-start" value="${startVal}" style="width:100px;font-size:12px;padding:6px;">
+    <select class="form-control stpl-komas" style="width:75px;font-size:12px;padding:6px;">
+      ${[1,2,3,4,5,6,7,8].map(n => '<option value="' + n + '"' + (n === komasVal ? ' selected' : '') + '>' + n + 'コマ</option>').join('')}
+    </select>
+    <select class="form-control stpl-teacher" style="width:110px;font-size:12px;padding:6px;">
+      <option value="">講師未定</option>
+      ${teacherOpts}
+    </select>
+    <input type="text" class="form-control stpl-subjects" value="${escapeHtml(subjectsVal)}" placeholder="科目(カンマ区切り)" style="width:140px;font-size:12px;padding:6px;">
+    <button type="button" onclick="this.parentElement.remove()" style="background:none;border:none;color:var(--danger);cursor:pointer;font-size:16px;padding:4px;">✕</button>
+  `;
+  container.appendChild(row);
+}
+
+// 通常スケジュールをFirestoreに保存
+async function saveScheduleTemplates(studentId) {
+  // 既存テンプレートを全て無効化
+  const existing = await ScheduleTemplatesDB.getByStudent(studentId);
+  for (const t of existing) {
+    await ScheduleTemplatesDB.delete(t.id);
+  }
+  // 新しいテンプレートを保存
+  const rows = document.querySelectorAll('.sched-tpl-row');
+  for (const row of rows) {
+    const day = row.querySelector('.stpl-day')?.value;
+    if (day === '' || day === undefined) continue;
+    const startSlot = row.querySelector('.stpl-start')?.value || '16:00';
+    const komas = parseInt(row.querySelector('.stpl-komas')?.value) || 2;
+    const teacherId = row.querySelector('.stpl-teacher')?.value || null;
+    const subjectsRaw = row.querySelector('.stpl-subjects')?.value || '';
+    const subjects = subjectsRaw.split(',').map(s => s.trim()).filter(Boolean);
+    await ScheduleTemplatesDB.create({
+      studentId,
+      dayOfWeek: parseInt(day),
+      startSlot,
+      komas,
+      teacherId,
+      subjects
+    });
+  }
 }
 
 // ----- 志望校情報バッジ表示ヘルパー -----
@@ -2814,13 +2905,15 @@ async function saveStudent(id) {
 
   try {
     const data = { name, nickname, callsign, pin, parentPin, grade, rank, school, testType, weakSubject, targetStation, role, materials, examCandidate, targetJuniorHighs, targetUniversities, targetQualifications, certGoals, courseType, courseKoma };
+    let studentId = id;
     if (id) {
       await StudentsDB.update(id, data);
-      showToast('生徒情報を更新しました');
     } else {
-      await StudentsDB.add(data);
-      showToast('生徒を追加しました');
+      studentId = await StudentsDB.add(data);
     }
+    // 通常スケジュールテンプレートを保存
+    await saveScheduleTemplates(studentId);
+    showToast(id ? '生徒情報を更新しました' : '生徒を追加しました');
     closeModal();
     loadStudents();
   } catch (e) {
@@ -5936,6 +6029,7 @@ async function loadTeachers() {
   const container = document.getElementById('teachersList');
   try {
     const teachers = await TeachersDB.getAll();
+    window._cachedTeachers = teachers;
     if (teachers.length === 0) {
       container.innerHTML = '<div style="text-align:center;color:var(--text-light);padding:40px;">講師が登録されていません</div>';
       return;

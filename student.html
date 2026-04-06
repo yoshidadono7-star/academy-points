@@ -934,6 +934,9 @@ body.theme-space {
     <span id="homeNarrationText">状況を読み込んでいます...</span>
   </div>
 
+  <!-- 今日のスケジュール -->
+  <div id="homeTodaySchedule" style="display:none;margin:0 16px 12px;"></div>
+
   <!-- テストカウントダウン -->
   <!-- イベント発動中バナー（リアルタイム） -->
   <div id="homeEventBanner" style="display:none;margin:0 16px 12px;"></div>
@@ -1663,11 +1666,38 @@ async function loadHome() {
   // 教材進捗カード
   try { await loadMaterialProgressCards(s); } catch(e) { console.warn('Material progress error:', e); }
 
+  // 今日のスケジュール
+  try { await loadTodaySchedule(s); } catch(e) { console.warn('Schedule load error:', e); }
+
   // リアルタイム: 現在出撃中の仲間
   setupLiveCrewListener();
 
   // リアルタイム: イベント発動バナー
   setupEventBannerListener();
+}
+
+async function loadTodaySchedule(s) {
+  const container = document.getElementById('homeTodaySchedule');
+  const today = new Date().toISOString().slice(0, 10);
+  const slots = await ScheduleSlotsDB.getByStudent(s.id, today, today);
+  const active = slots.filter(sl => sl.status === 'scheduled' || sl.status === 'attended');
+  if (active.length === 0) { container.style.display = 'none'; return; }
+  container.style.display = 'block';
+  let html = '<div style="background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:14px 16px;">';
+  html += '<div style="font-size:14px;font-weight:700;color:#2d3748;margin-bottom:10px;">📅 今日のスケジュール</div>';
+  for (const sl of active) {
+    const subjects = sl.subjects && sl.subjects.length ? sl.subjects.join(', ') : '';
+    const isAttended = sl.status === 'attended';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid #f1f5f9;">';
+    html += '<div style="display:flex;align-items:center;gap:8px;">';
+    html += '<span style="font-size:12px;font-weight:700;color:#475569;">' + sl.startTime + '〜' + sl.endTime + '</span>';
+    if (subjects) html += '<span style="font-size:12px;color:#64748b;">' + subjects + '</span>';
+    html += '</div>';
+    html += '<span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;' + (isAttended ? 'background:#dcfce7;color:#166534;">' + '✅ 出席' : 'background:#dbeafe;color:#1e40af;">' + '⏰ 予定') + '</span>';
+    html += '</div>';
+  }
+  html += '</div>';
+  container.innerHTML = html;
 }
 
 let liveCrewUnsubscribe = null;

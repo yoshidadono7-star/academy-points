@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HERO'S ACADEMY - 講師ポータル</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  :root {
+    --primary: #667eea; --primary-dark: #5a67d8; --success: #10b981; --danger: #ef4444;
+    --warning: #f59e0b; --text: #1e293b; --text-light: #64748b; --border: #e2e8f0;
+    --card: #ffffff; --bg: #f8fafc; --radius: 14px; --shadow: 0 1px 3px rgba(0,0,0,0.08);
+    --gradient: linear-gradient(135deg, #667eea, #764ba2);
+  }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--bg); color: var(--text); }
+  .header { background: var(--gradient); color: white; padding: 16px 20px; display: flex; justify-content: space-between; align-items: center; }
+  .header h1 { font-size: 17px; font-weight: 700; }
+  .header .teacher-name { font-size: 13px; opacity: 0.9; }
+  .tabs { display: flex; overflow-x: auto; background: white; border-bottom: 1px solid var(--border); padding: 0 8px; gap: 2px; }
+  .tab-btn { flex-shrink: 0; padding: 12px 14px; border: none; background: none; font-size: 13px; font-weight: 500; color: var(--text-light); cursor: pointer; white-space: nowrap; border-bottom: 2px solid transparent; }
+  .tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); font-weight: 700; }
+  .main { padding: 16px; max-width: 800px; margin: 0 auto; }
+  .card { background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow); padding: 16px; margin-bottom: 12px; }
+  .card-title { font-size: 15px; font-weight: 700; margin-bottom: 12px; display: flex; align-items: center; gap: 6px; }
+  .tab-panel { display: none; }
+  .tab-panel.active { display: block; }
+  .btn { padding: 10px 20px; border: none; border-radius: 10px; font-weight: 600; cursor: pointer; font-size: 14px; }
+  .btn-primary { background: var(--gradient); color: white; }
+  .form-control { width: 100%; padding: 10px 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 14px; }
+  .task-item { display: flex; align-items: center; gap: 10px; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+  .task-check { width: 22px; height: 22px; cursor: pointer; accent-color: var(--success); }
+  .task-done { text-decoration: line-through; opacity: 0.5; }
+  .slot-card { display: flex; justify-content: space-between; align-items: center; padding: 10px 0; border-bottom: 1px solid #f1f5f9; }
+  /* Login */
+  .login-screen { display: flex; align-items: center; justify-content: center; min-height: 100vh; background: var(--gradient); }
+  .login-box { background: white; border-radius: 20px; padding: 32px 28px; width: 320px; text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.2); }
+  .login-box h2 { font-size: 20px; margin-bottom: 20px; color: var(--text); }
+  .login-box .form-control { margin-bottom: 12px; }
+  .login-error { color: var(--danger); font-size: 13px; min-height: 20px; margin-bottom: 8px; }
+</style>
+</head>
+<body>
+
+<!-- ログイン画面 -->
+<div id="loginScreen" class="login-screen">
+  <div class="login-box">
+    <div style="font-size:36px;margin-bottom:8px;">👩‍🏫</div>
+    <h2>講師ポータル</h2>
+    <input type="text" class="form-control" id="loginName" placeholder="名前" autofocus>
+    <input type="password" class="form-control" id="loginPin" placeholder="PIN (4桁)" maxlength="4">
+    <div class="login-error" id="loginError"></div>
+    <button class="btn btn-primary" style="width:100%;" onclick="teacherLogin()">ログイン</button>
+  </div>
+</div>
+
+<!-- メイン画面 -->
+<div id="mainScreen" style="display:none;">
+  <header class="header">
+    <div>
+      <h1>HERO'S ACADEMY 講師ポータル</h1>
+      <div class="teacher-name" id="headerTeacherName"></div>
+    </div>
+    <button onclick="teacherLogout()" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:6px 14px;border-radius:8px;font-size:12px;cursor:pointer;">ログアウト</button>
+  </header>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('schedule')">📅 今日のスケジュール</button>
+    <button class="tab-btn" onclick="switchTab('tasks')">☑ 業務タスク</button>
+    <button class="tab-btn" onclick="switchTab('students')">👤 担当生徒</button>
+    <button class="tab-btn" onclick="switchTab('shift')">🗓 シフト確認</button>
+  </div>
+
+  <div class="main">
+    <!-- 今日のスケジュール -->
+    <div class="tab-panel active" id="panel-schedule">
+      <div class="card">
+        <div class="card-title">📅 今日の担当スケジュール</div>
+        <div id="teacherSchedule">読み込み中...</div>
+      </div>
+    </div>
+
+    <!-- 業務タスク -->
+    <div class="tab-panel" id="panel-tasks">
+      <div class="card">
+        <div class="card-title">☑ 今日の業務タスク</div>
+        <div id="teacherTasks">読み込み中...</div>
+      </div>
+    </div>
+
+    <!-- 担当生徒 -->
+    <div class="tab-panel" id="panel-students">
+      <div class="card">
+        <div class="card-title">👤 担当生徒の学習状況</div>
+        <div id="teacherStudents">読み込み中...</div>
+      </div>
+    </div>
+
+    <!-- シフト確認 -->
+    <div class="tab-panel" id="panel-shift">
+      <div class="card">
+        <div class="card-title">🗓 今週のシフト</div>
+        <div id="teacherShift">読み込み中...</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="firebase-config.js"></script>
+<script src="db.js"></script>
+<script>
+
+let currentTeacher = null;
+
+function switchTab(tabId) {
+  document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    const tabs = ['schedule', 'tasks', 'students', 'shift'];
+    b.classList.toggle('active', tabs[i] === tabId);
+  });
+  document.querySelectorAll('.tab-panel').forEach(p => p.classList.remove('active'));
+  document.getElementById('panel-' + tabId).classList.add('active');
+  if (tabId === 'schedule') loadTeacherSchedule();
+  if (tabId === 'tasks') loadTeacherTasks();
+  if (tabId === 'students') loadTeacherStudents();
+  if (tabId === 'shift') loadTeacherShift();
+}
+
+// ===== ログイン =====
+async function teacherLogin() {
+  const name = document.getElementById('loginName').value.trim();
+  const pin = document.getElementById('loginPin').value.trim();
+  const errEl = document.getElementById('loginError');
+  errEl.textContent = '';
+  if (!name || !pin) { errEl.textContent = '名前とPINを入力してください'; return; }
+  try {
+    const teachers = await TeachersDB.getAll();
+    const found = teachers.find(t => t.name === name && t.pin === pin);
+    if (!found) { errEl.textContent = '名前またはPINが正しくありません'; return; }
+    currentTeacher = found;
+    localStorage.setItem('teacherLogin', JSON.stringify({ id: found.id, name: found.name, pin }));
+    showPortal();
+  } catch(e) { errEl.textContent = 'ログインに失敗しました'; console.error(e); }
+}
+
+function teacherLogout() {
+  currentTeacher = null;
+  localStorage.removeItem('teacherLogin');
+  document.getElementById('mainScreen').style.display = 'none';
+  document.getElementById('loginScreen').style.display = 'flex';
+}
+
+async function showPortal() {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('mainScreen').style.display = 'block';
+  document.getElementById('headerTeacherName').textContent = currentTeacher.name;
+  loadTeacherSchedule();
+}
+
+// ===== 自動ログイン =====
+(async () => {
+  const saved = localStorage.getItem('teacherLogin');
+  if (saved) {
+    try {
+      const { id, name, pin } = JSON.parse(saved);
+      const teacher = await TeachersDB.getById(id);
+      if (teacher && teacher.name === name && teacher.pin === pin) {
+        currentTeacher = teacher;
+        showPortal();
+        return;
+      }
+    } catch(e) { console.warn('Auto-login error:', e); }
+  }
+})();
+
+// ===== 今日のスケジュール =====
+async function loadTeacherSchedule() {
+  if (!currentTeacher) return;
+  const container = document.getElementById('teacherSchedule');
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const slots = await ScheduleSlotsDB.getByTeacher(currentTeacher.id, today);
+    const students = await StudentsDB.getAll();
+    const studentMap = {}; students.forEach(s => studentMap[s.id] = s);
+
+    if (slots.length === 0) {
+      container.innerHTML = '<div style="text-align:center;color:var(--text-light);padding:20px;">今日の担当予定はありません</div>';
+      return;
+    }
+    const sorted = slots.filter(s => s.status !== 'cancelled').sort((a,b) => a.startTime.localeCompare(b.startTime));
+    const now = new Date();
+    const nowMin = now.getHours() * 60 + now.getMinutes();
+    container.innerHTML = sorted.map(sl => {
+      const student = studentMap[sl.studentId];
+      const [sh, sm] = sl.startTime.split(':').map(Number);
+      const [eh, em] = sl.endTime.split(':').map(Number);
+      const isCurrent = nowMin >= sh*60+sm && nowMin < eh*60+em;
+      const isPast = nowMin >= eh*60+em;
+      return '<div class="slot-card" style="' + (isCurrent ? 'background:#f0f9ff;border-left:3px solid var(--primary);padding-left:10px;' : '') + (isPast ? 'opacity:0.5;' : '') + '">'
+        + '<div>'
+        + '<div style="font-weight:700;">' + sl.startTime + ' - ' + sl.endTime + (isCurrent ? ' <span style="color:var(--success);font-size:11px;">● NOW</span>' : '') + '</div>'
+        + '<div style="font-size:13px;color:var(--text-light);">' + (student ? student.name + (student.callsign ? ' (' + student.callsign + ')' : '') : '不明') + '</div>'
+        + '</div>'
+        + '<div style="text-align:right;">'
+        + '<div style="font-size:12px;color:var(--text-light);">' + (sl.subjects ? sl.subjects.join(', ') : '') + '</div>'
+        + '<div style="font-size:11px;color:' + (sl.status === 'attended' ? 'var(--success)' : 'var(--primary)') + ';font-weight:600;">' + (sl.status === 'attended' ? '✅ 出席' : '⏰ 予定') + '</div>'
+        + '</div></div>';
+    }).join('');
+  } catch(e) { container.innerHTML = '<div style="color:var(--danger);">読み込みに失敗しました</div>'; console.warn(e); }
+}
+
+// ===== 業務タスク =====
+async function loadTeacherTasks() {
+  if (!currentTeacher) return;
+  const container = document.getElementById('teacherTasks');
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const tasks = await OperationTasksDB.getByTeacher(currentTeacher.id, today);
+    // 自分に割り当てられたタスク + 全体タ���ク
+    const allTasks = await OperationTasksDB.getByDate(today);
+    const myTasks = allTasks.filter(t => !t.teacherId || t.teacherId === currentTeacher.id);
+
+    if (myTasks.length === 0) {
+      container.innerHTML = '<div style="text-align:center;color:var(--text-light);padding:20px;">今日のタスクはありません</div>';
+      return;
+    }
+    const cats = { daily: '日常業務', sales: '営業', meeting: '面談', admin: '事務', event: 'イベント' };
+    container.innerHTML = myTasks.map(t => {
+      const catLabel = cats[t.category] || t.category;
+      return '<div class="task-item' + (t.checked ? ' task-done' : '') + '">'
+        + '<input type="checkbox" class="task-check"' + (t.checked ? ' checked' : '') + ' onchange="toggleTask(\'' + t.id + '\', this.checked)">'
+        + '<div style="flex:1;">'
+        + '<div style="font-weight:600;font-size:13px;">' + t.task + '</div>'
+        + '<div style="font-size:11px;color:var(--text-light);">' + catLabel + (t.description ? ' - ' + t.description : '') + '</div>'
+        + '</div>'
+        + (t.checked && t.checkedBy ? '<span style="font-size:10px;color:var(--success);">✓</span>' : '')
+        + (t.verifiedBy ? '<span style="font-size:10px;color:var(--primary);">👁</span>' : '')
+        + '</div>';
+    }).join('');
+  } catch(e) { container.innerHTML = '<div style="color:var(--danger);">読み込みに失敗しました</div>'; console.warn(e); }
+}
+
+async function toggleTask(id, checked) {
+  try {
+    if (checked) {
+      await OperationTasksDB.check(id, currentTeacher.name);
+    } else {
+      await OperationTasksDB.uncheck(id);
+    }
+  } catch(e) { console.warn('Task toggle error:', e); }
+}
+
+// ===== 担当生徒 =====
+async function loadTeacherStudents() {
+  if (!currentTeacher) return;
+  const container = document.getElementById('teacherStudents');
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const slots = await ScheduleSlotsDB.getByTeacher(currentTeacher.id, today);
+    const studentIds = [...new Set(slots.map(s => s.studentId))];
+    if (studentIds.length === 0) {
+      container.innerHTML = '<div style="text-align:center;color:var(--text-light);padding:20px;">今日の担当生徒はいません</div>';
+      return;
+    }
+    let html = '';
+    for (const sid of studentIds) {
+      const student = await StudentsDB.getById(sid);
+      if (!student) continue;
+      const todayLogs = await StudyLogsDB.getByStudent(sid, 5);
+      const recentMin = todayLogs.filter(l => l.date === today).reduce((s, l) => s + (l.duration || 0), 0);
+      html += '<div class="card" style="padding:12px;">'
+        + '<div style="display:flex;justify-content:space-between;align-items:center;">'
+        + '<div>'
+        + '<div style="font-weight:700;">' + student.name + (student.callsign ? ' <span style="color:var(--text-light);font-weight:400;">(' + student.callsign + ')</span>' : '') + '</div>'
+        + '<div style="font-size:12px;color:var(--text-light);">' + (student.grade || '') + ' | Lv.' + (student.level || 1) + ' | ' + (student.totalPoints || 0) + 'pt</div>'
+        + '</div>'
+        + '<div style="text-align:right;font-size:12px;">'
+        + '<div style="color:var(--primary);font-weight:600;">今日: ' + recentMin + '分</div>'
+        + '<div style="color:var(--text-light);">🔥 ' + (student.streak || 0) + '日連続</div>'
+        + '</div>'
+        + '</div></div>';
+    }
+    container.innerHTML = html;
+  } catch(e) { container.innerHTML = '<div style="color:var(--danger);">読み込みに失敗しました</div>'; console.warn(e); }
+}
+
+// ===== シフト確認 =====
+async function loadTeacherShift() {
+  if (!currentTeacher) return;
+  const container = document.getElementById('teacherShift');
+  try {
+    const today = new Date();
+    const monday = new Date(today);
+    monday.setDate(today.getDate() - ((today.getDay() + 6) % 7));
+    const sunday = new Date(monday);
+    sunday.setDate(monday.getDate() + 6);
+    const startStr = monday.toISOString().slice(0, 10);
+    const endStr = sunday.toISOString().slice(0, 10);
+    const shifts = await ShiftsDB.getByTeacher(currentTeacher.id, startStr, endStr);
+    const days = ['日','月','火','水','木','金','土'];
+
+    if (shifts.length === 0) {
+      // デフォルトシフトを表示
+      const ds = currentTeacher.defaultShift || {};
+      const dayKeys = ['sun','mon','tue','wed','thu','fri','sat'];
+      container.innerHTML = '<div style="margin-bottom:8px;font-size:12px;color:var(--text-light);">※ デフォルトシフト（確定シフトは未生成）</div>'
+        + dayKeys.map((dk, i) => {
+          const s = ds[dk];
+          return '<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid #f1f5f9;">'
+            + '<span style="font-weight:600;">' + days[i] + '</span>'
+            + '<span style="color:' + (s ? 'var(--text)' : 'var(--text-light)') + ';">' + (s ? s.start + ' - ' + s.end : '休み') + '</span>'
+            + '</div>';
+        }).join('');
+      return;
+    }
+    container.innerHTML = shifts.map(s => {
+      const d = new Date(s.date + 'T00:00:00');
+      const isToday = s.date === today.toISOString().slice(0, 10);
+      return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f1f5f9;' + (isToday ? 'background:#f0f9ff;margin:0 -12px;padding:10px 12px;border-radius:8px;' : '') + '">'
+        + '<div>'
+        + '<span style="font-weight:700;">' + s.date.slice(5) + ' (' + days[d.getDay()] + ')' + (isToday ? ' <span style="color:var(--primary);font-size:11px;">今日</span>' : '') + '</span>'
+        + '</div>'
+        + '<div style="display:flex;gap:8px;align-items:center;">'
+        + '<span>' + s.start + ' - ' + s.end + '</span>'
+        + '<span style="font-size:11px;padding:2px 8px;border-radius:10px;font-weight:600;'
+        + (s.status === 'checked_in' ? 'background:#dcfce7;color:#166534;">' + '出勤中'
+          : s.status === 'checked_out' ? 'background:#f1f5f9;color:#64748b;">' + '退勤済'
+          : s.status === 'absent' ? 'background:#fef2f2;color:#991b1b;">' + '欠勤'
+          : 'background:#dbeafe;color:#1e40af;">' + '予定')
+        + '</span>'
+        + '</div></div>';
+    }).join('');
+  } catch(e) { container.innerHTML = '<div style="color:var(--danger);">読み込みに失敗しました</div>'; console.warn(e); }
+}
+
+</script>
+</body>
+</html>
