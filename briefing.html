@@ -708,6 +708,7 @@ body {
     <!-- 本日の時間割 -->
     <div class="panel" style="overflow-y:auto;grid-column:1/-1;">
       <div class="panel-title"><span class="icon">📅</span> 本日の時間割</div>
+      <div id="todayShiftSummary" style="margin-bottom:8px;"></div>
       <div id="todayTimetable" style="font-size:13px;color:var(--text-secondary);">読み込み中...</div>
     </div>
 
@@ -1335,13 +1336,38 @@ function showCommanderBuff() {
 // 初期化
 async function renderTodayTimetable() {
   const container = document.getElementById('todayTimetable');
+  const summaryEl = document.getElementById('todayShiftSummary');
   try {
     const today = new Date().toISOString().slice(0, 10);
-    const [slots, teachers, students] = await Promise.all([
+    const [slots, teachers, students, shifts] = await Promise.all([
       ScheduleSlotsDB.getByDate(today),
       TeachersDB.getAll(),
-      StudentsDB.getAll()
+      StudentsDB.getAll(),
+      ShiftsDB.getByDate(today)
     ]);
+
+    // 講師シフトサマリー
+    if (shifts.length > 0 || teachers.length > 0) {
+      const teacherMap = {}; teachers.forEach(t => teacherMap[t.id] = t);
+      const activeSlots = slots.filter(s => s.status !== 'cancelled');
+      let sumHtml = '<div style="display:flex;gap:6px;flex-wrap:wrap;">';
+      for (const t of teachers) {
+        const shift = shifts.find(s => s.teacherId === t.id);
+        const tSlots = activeSlots.filter(s => s.teacherId === t.id);
+        const isOnDuty = !!shift;
+        sumHtml += '<div style="background:' + (isOnDuty ? 'rgba(0,212,255,0.1)' : 'rgba(255,255,255,0.03)') + ';border:1px solid ' + (isOnDuty ? t.color || 'var(--accent-blue)' : '#333') + ';border-radius:8px;padding:6px 10px;font-size:11px;">';
+        sumHtml += '<span style="color:' + (t.color || 'var(--text-secondary)') + ';font-weight:700;">' + (t.role === 'manager' ? '🏫 ' : '') + t.name + '</span>';
+        if (isOnDuty) {
+          sumHtml += ' <span style="color:var(--text-secondary);">' + shift.start + '-' + shift.end + '</span>';
+          sumHtml += ' <span style="color:var(--accent-green);">(' + tSlots.length + '名)</span>';
+        } else {
+          sumHtml += ' <span style="color:#555;">休み</span>';
+        }
+        sumHtml += '</div>';
+      }
+      sumHtml += '</div>';
+      summaryEl.innerHTML = sumHtml;
+    }
     if (slots.length === 0) {
       container.innerHTML = '<div style="text-align:center;color:var(--text-secondary);padding:12px;">本日の予定はありません</div>';
       return;
