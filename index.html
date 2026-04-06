@@ -463,6 +463,7 @@
   <button class="tab-btn" data-tab="anomaly">&#128269; アノマリー</button>
   <button class="tab-btn" data-tab="risk">&#9888;&#65039; 離脱リスク</button>
   <button class="tab-btn" data-tab="exams">&#128221; テスト結果</button>
+  <button class="tab-btn" data-tab="teachers">&#128105;&#8205;&#127979; 講師管理</button>
   <button class="tab-btn" data-tab="settings">&#9881;&#65039; 塾設定</button>
 </nav>
 
@@ -1285,6 +1286,57 @@
     </div>
   </div>
 
+  <!-- ===== 講師管理 ===== -->
+  <div class="tab-content" id="tab-teachers">
+    <div style="margin-bottom:16px">
+      <button class="btn btn-primary" onclick="openTeacherModal()">&#10133; 講師追加</button>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">👩‍🏫</span> 講師一覧</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>名前</th><th>PIN</th><th>メール</th><th>担当科目</th><th>デフォルトシフト</th><th>操作</th></tr>
+          </thead>
+          <tbody id="teachersTable"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title"><span class="icon">🗓</span> スケジュールスロット管理</div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>日付</label>
+          <input type="date" class="form-control" id="slotDate">
+        </div>
+        <div class="form-group">
+          <label>講師</label>
+          <select class="form-control" id="slotTeacher"><option value="">選択</option></select>
+        </div>
+        <div class="form-group">
+          <label>生徒</label>
+          <select class="form-control" id="slotStudent"><option value="">選択</option></select>
+        </div>
+      </div>
+      <div class="form-row">
+        <div class="form-group">
+          <label>開始時間</label>
+          <input type="time" class="form-control" id="slotStart" value="16:00">
+        </div>
+        <div class="form-group">
+          <label>終了時間</label>
+          <input type="time" class="form-control" id="slotEnd" value="17:30">
+        </div>
+        <div class="form-group">
+          <label>科目</label>
+          <input type="text" class="form-control" id="slotSubjects" placeholder="数学, 英語">
+        </div>
+      </div>
+      <button class="btn btn-primary" onclick="addScheduleSlot()" style="margin-top:8px;">📅 スロット追加</button>
+      <div id="todaySlots" style="margin-top:16px;"></div>
+    </div>
+  </div>
+
   <!-- ===== 塾設定 ===== -->
   <div class="tab-content" id="tab-settings">
     <div class="card">
@@ -1505,7 +1557,8 @@ function switchTab(tabId) {
     risk: loadRisk,
     exams: loadExams,
     settings: loadSettings,
-    messages: loadMessages
+    messages: loadMessages,
+    teachers: loadTeachers
   };
   if (loaders[tabId]) loaders[tabId]();
 }
@@ -2555,6 +2608,198 @@ async function deleteStudent(id) {
     showToast('生徒を削除しました');
     loadStudents();
   } catch (e) { showToast('削除に失敗しました', 'error'); }
+}
+
+// ============================================
+// 7b. 講師管理
+// ============================================
+let allTeachers = [];
+
+async function loadTeachers() {
+  try {
+    allTeachers = await TeachersDB.getAll();
+    const tbody = document.getElementById('teachersTable');
+    const DAYS = ['日','月','火','水','木','金','土'];
+    const DAY_KEYS = ['sun','mon','tue','wed','thu','fri','sat'];
+    tbody.innerHTML = allTeachers.length === 0
+      ? '<tr><td colspan="6" style="text-align:center;color:var(--text-light)">講師が登録されていません</td></tr>'
+      : allTeachers.map(t => {
+        const shift = t.defaultShift || {};
+        const shiftStr = DAY_KEYS.map((k,i) => shift[k] ? DAYS[i] + shift[k].start + '-' + shift[k].end : '').filter(Boolean).join(', ');
+        return `<tr>
+          <td><strong>${escapeHtml(t.name)}</strong></td>
+          <td>${escapeHtml(t.pin || '-')}</td>
+          <td style="font-size:12px;">${escapeHtml(t.email || '-')}</td>
+          <td style="font-size:12px;">${(t.subjects || []).join(', ') || '-'}</td>
+          <td style="font-size:11px;max-width:200px;">${shiftStr || '<span style="color:#cbd5e1">未設定</span>'}</td>
+          <td>
+            <div class="btn-group">
+              <button class="btn btn-secondary btn-sm" onclick="editTeacher('${t.id}')">編集</button>
+              <button class="btn btn-danger btn-sm" onclick="deleteTeacher('${t.id}')">削除</button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+
+    // セレクトボックス更新
+    const slotTeacherSel = document.getElementById('slotTeacher');
+    slotTeacherSel.innerHTML = '<option value="">選択</option>' + allTeachers.map(t => `<option value="${t.id}">${escapeHtml(t.name)}</option>`).join('');
+    const slotStudentSel = document.getElementById('slotStudent');
+    if (allStudents && allStudents.length) {
+      slotStudentSel.innerHTML = '<option value="">選択</option>' + allStudents.map(s => `<option value="${s.id}">${escapeHtml(s.name)} (${s.grade || ''})</option>`).join('');
+    }
+
+    // 今日の日付をデフォルトに
+    const dateInput = document.getElementById('slotDate');
+    if (!dateInput.value) dateInput.value = new Date().toISOString().slice(0, 10);
+
+    // 今日のスロット表示
+    loadTodaySlots();
+  } catch(e) { console.error('講師読み込みエラー:', e); }
+}
+
+async function loadTodaySlots() {
+  const container = document.getElementById('todaySlots');
+  const date = document.getElementById('slotDate').value || new Date().toISOString().slice(0, 10);
+  try {
+    const slots = await ScheduleSlotsDB.getByDate(date);
+    if (slots.length === 0) {
+      container.innerHTML = '<div style="text-align:center;color:var(--text-light);padding:12px;">この日のスロットはありません</div>';
+      return;
+    }
+    const teacherMap = {}; allTeachers.forEach(t => teacherMap[t.id] = t);
+    const studentMap = {}; (allStudents || []).forEach(s => studentMap[s.id] = s);
+    const sorted = slots.sort((a,b) => (a.startTime || '').localeCompare(b.startTime || ''));
+    container.innerHTML = '<table style="width:100%;font-size:13px;"><thead><tr><th>時間</th><th>講師</th><th>生徒</th><th>科目</th><th>状態</th><th></th></tr></thead><tbody>'
+      + sorted.map(sl => {
+        const teacher = teacherMap[sl.teacherId];
+        const student = studentMap[sl.studentId];
+        const statusLabel = sl.status === 'attended' ? '<span style="color:var(--success);">✅出席</span>'
+          : sl.status === 'cancelled' ? '<span style="color:var(--danger);">❌キャンセル</span>'
+          : '<span style="color:var(--text-light);">⏰予定</span>';
+        return `<tr>
+          <td>${sl.startTime || ''} - ${sl.endTime || ''}</td>
+          <td>${teacher ? escapeHtml(teacher.name) : '-'}</td>
+          <td>${student ? escapeHtml(student.name) : '-'}</td>
+          <td>${(sl.subjects || []).join(', ')}</td>
+          <td>${statusLabel}</td>
+          <td><button class="btn btn-danger btn-sm" onclick="deleteSlot('${sl.id}')" style="font-size:10px;">削除</button></td>
+        </tr>`;
+      }).join('') + '</tbody></table>';
+  } catch(e) { container.innerHTML = '<div style="color:var(--danger);">読み込みエラー</div>'; }
+}
+
+function openTeacherModal(teacher) {
+  const isEdit = !!teacher;
+  const shift = (teacher && teacher.defaultShift) || {};
+  const DAYS = ['月','火','水','木','金','土','日'];
+  const DAY_KEYS = ['mon','tue','wed','thu','fri','sat','sun'];
+  const shiftRows = DAY_KEYS.map((k, i) => {
+    const s = shift[k];
+    return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;">
+      <span style="width:24px;font-weight:600;font-size:13px;">${DAYS[i]}</span>
+      <input type="time" class="form-control" id="shift_${k}_start" value="${s ? s.start : ''}" style="width:110px;padding:4px 6px;font-size:12px;">
+      <span>〜</span>
+      <input type="time" class="form-control" id="shift_${k}_end" value="${s ? s.end : ''}" style="width:110px;padding:4px 6px;font-size:12px;">
+    </div>`;
+  }).join('');
+  openModal(isEdit ? '講師編集' : '講師追加', `
+    <div class="form-row">
+      <div class="form-group">
+        <label>名前 *</label>
+        <input type="text" class="form-control" id="teacherName" value="${isEdit ? escapeHtml(teacher.name) : ''}">
+      </div>
+      <div class="form-group">
+        <label>PIN (4桁)</label>
+        <input type="text" class="form-control" id="teacherPin" value="${isEdit ? (teacher.pin || '') : ''}" maxlength="4" placeholder="講師ポータル用">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>メール</label>
+      <input type="email" class="form-control" id="teacherEmail" value="${isEdit ? escapeHtml(teacher.email || '') : ''}">
+    </div>
+    <div class="form-group">
+      <label>担当科目（カンマ区切り）</label>
+      <input type="text" class="form-control" id="teacherSubjects" value="${isEdit ? (teacher.subjects || []).join(', ') : ''}" placeholder="数学, 英語, 理科">
+    </div>
+    <div class="form-group">
+      <label>デフォルトシフト</label>
+      ${shiftRows}
+    </div>
+    <button class="btn btn-primary" onclick="saveTeacher(${isEdit ? "'" + teacher.id + "'" : ''})" style="width:100%;margin-top:12px;">
+      ${isEdit ? '更新' : '追加'}
+    </button>
+  `);
+}
+
+async function saveTeacher(editId) {
+  const name = document.getElementById('teacherName').value.trim();
+  if (!name) { showToast('名前を入力してください', 'error'); return; }
+  const pin = document.getElementById('teacherPin').value.trim();
+  const email = document.getElementById('teacherEmail').value.trim();
+  const subjects = document.getElementById('teacherSubjects').value.split(',').map(s => s.trim()).filter(Boolean);
+
+  const DAY_KEYS = ['mon','tue','wed','thu','fri','sat','sun'];
+  const defaultShift = {};
+  DAY_KEYS.forEach(k => {
+    const start = document.getElementById('shift_' + k + '_start').value;
+    const end = document.getElementById('shift_' + k + '_end').value;
+    if (start && end) defaultShift[k] = { start, end };
+  });
+
+  try {
+    if (editId) {
+      await TeachersDB.update(editId, { name, pin, email, subjects, defaultShift });
+      showToast('講師情報を更新しました');
+    } else {
+      await TeachersDB.add({ name, pin, email, subjects, defaultShift });
+      showToast('講師を追加しました');
+    }
+    closeModal();
+    loadTeachers();
+  } catch(e) { showToast('保存に失敗しました: ' + e.message, 'error'); }
+}
+
+function editTeacher(id) {
+  const t = allTeachers.find(t => t.id === id);
+  if (t) openTeacherModal(t);
+}
+
+async function deleteTeacher(id) {
+  if (!confirm('この講師を削除しますか？')) return;
+  try {
+    await TeachersDB.delete(id);
+    showToast('講師を削除しました');
+    loadTeachers();
+  } catch(e) { showToast('削除に失敗しました', 'error'); }
+}
+
+async function addScheduleSlot() {
+  const date = document.getElementById('slotDate').value;
+  const teacherId = document.getElementById('slotTeacher').value;
+  const studentId = document.getElementById('slotStudent').value;
+  const startTime = document.getElementById('slotStart').value;
+  const endTime = document.getElementById('slotEnd').value;
+  const subjects = document.getElementById('slotSubjects').value.split(',').map(s => s.trim()).filter(Boolean);
+
+  if (!date || !teacherId || !studentId || !startTime || !endTime) {
+    showToast('日付・講師・生徒・時間を入力してください', 'error');
+    return;
+  }
+  try {
+    await ScheduleSlotsDB.add({ date, teacherId, studentId, startTime, endTime, subjects });
+    showToast('スロットを追加しました');
+    loadTodaySlots();
+  } catch(e) { showToast('追加に失敗しました: ' + e.message, 'error'); }
+}
+
+async function deleteSlot(id) {
+  if (!confirm('このスロットを削除しますか？')) return;
+  try {
+    await ScheduleSlotsDB.delete(id);
+    showToast('スロットを削除しました');
+    loadTodaySlots();
+  } catch(e) { showToast('削除に失敗しました', 'error'); }
 }
 
 // ============================================
