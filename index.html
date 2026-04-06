@@ -5854,11 +5854,26 @@ async function saveScheduleSlot() {
 }
 
 function editScheduleSlot(id) {
-  // 簡易的にステータス変更メニューを表示
-  const action = prompt('操作を選択（attended/absent/cancelled）:');
-  if (action && ['attended','absent','cancelled'].includes(action)) {
-    ScheduleSlotsDB.updateStatus(id, action).then(() => { showToast('更新しました'); loadSchedule(); });
-  }
+  const actions = [
+    { value: 'attended', label: '✅ 出席', color: '#10b981' },
+    { value: 'absent', label: '❌ 欠席', color: '#ef4444' },
+    { value: 'cancelled', label: '🗑 取消', color: '#94a3b8' },
+    { value: 'scheduled', label: '⏰ 予定に戻す', color: '#3b82f6' }
+  ];
+  openModal('スケジュール操作', `
+    <div style="display:flex;flex-direction:column;gap:10px;">
+      ${actions.map(a => `<button class="btn" style="background:${a.color};color:white;width:100%;padding:14px;" onclick="updateSlotStatus('${id}','${a.value}')">${a.label}</button>`).join('')}
+    </div>
+  `, `<button class="btn btn-secondary" onclick="closeModal()">閉じる</button>`);
+}
+
+async function updateSlotStatus(id, status) {
+  try {
+    await ScheduleSlotsDB.updateStatus(id, status);
+    showToast('更新しました');
+    closeModal();
+    loadSchedule();
+  } catch(e) { showToast('更新に失敗しました', 'error'); }
 }
 
 async function generateWeekSchedule() {
