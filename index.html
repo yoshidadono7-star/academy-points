@@ -5812,7 +5812,7 @@ async function loadSchedule() {
       html += '</tbody></table>';
       container.innerHTML = html;
 
-    } else {
+    } else if (schedView === 'month') {
       // 月表示
       const year = schedDate.getFullYear(), month = schedDate.getMonth();
       label.textContent = `${year}年${month+1}月`;
