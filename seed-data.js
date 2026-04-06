@@ -83,6 +83,60 @@ async function seedAprilBoss() {
   return id;
 }
 
+// ===== テスト生徒20名一括登録 =====
+async function seedStudents() {
+  const students = [
+    { name: '田中 太郎',   nickname: 'たろう',   callsign: 'Taro-1',    pin: '1001', grade: '中1', school: 'nobeoka_east' },
+    { name: '佐藤 花子',   nickname: 'はなこ',   callsign: 'Hana-2',    pin: '1002', grade: '中1', school: 'nobeoka_east' },
+    { name: '鈴木 一郎',   nickname: 'いちろう', callsign: 'Ichi-3',    pin: '1003', grade: '中2', school: 'nobeoka_west' },
+    { name: '高橋 美咲',   nickname: 'みさき',   callsign: 'Misa-4',    pin: '1004', grade: '中2', school: 'nobeoka_west' },
+    { name: '渡辺 大輝',   nickname: 'だいき',   callsign: 'Daiki-5',   pin: '1005', grade: '中3', school: 'nobeoka_east', targetStation: 'nobeoka_h' },
+    { name: '伊藤 さくら', nickname: 'さくら',   callsign: 'Sakura-6',  pin: '1006', grade: '中3', school: 'nobeoka_east', targetStation: 'nobeoka_seiun' },
+    { name: '山本 健太',   nickname: 'けんた',   callsign: 'Kenta-7',   pin: '1007', grade: '中3', school: 'nobeoka_west', targetStation: 'nobeoka_h' },
+    { name: '中村 あおい', nickname: 'あおい',   callsign: 'Aoi-8',     pin: '1008', grade: '小5', school: null },
+    { name: '小林 翔太',   nickname: 'しょうた', callsign: 'Shota-9',   pin: '1009', grade: '小6', school: null, examCandidate: true },
+    { name: '加藤 ひなた', nickname: 'ひなた',   callsign: 'Hina-10',   pin: '1010', grade: '小4', school: null },
+    { name: '吉田 蓮',     nickname: 'れん',     callsign: 'Ren-11',    pin: '1011', grade: '高1', school: null },
+    { name: '山田 結衣',   nickname: 'ゆい',     callsign: 'Yui-12',    pin: '1012', grade: '高2', school: null },
+    { name: '松本 悠真',   nickname: 'ゆうま',   callsign: 'Yuma-13',   pin: '1013', grade: '中1', school: 'nobeoka_east' },
+    { name: '井上 凛',     nickname: 'りん',     callsign: 'Rin-14',    pin: '1014', grade: '中2', school: 'nobeoka_west' },
+    { name: '木村 陸',     nickname: 'りく',     callsign: 'Riku-15',   pin: '1015', grade: '中3', school: 'nobeoka_east', targetStation: 'nobeoka_seiun' },
+    { name: '林 七海',     nickname: 'ななみ',   callsign: 'Nana-16',   pin: '1016', grade: '小6', school: null },
+    { name: '清水 颯太',   nickname: 'そうた',   callsign: 'Sota-17',   pin: '1017', grade: '中1', school: 'nobeoka_west' },
+    { name: '森 楓',       nickname: 'かえで',   callsign: 'Kaede-18',  pin: '1018', grade: '中2', school: 'nobeoka_east' },
+    { name: '阿部 陽菜',   nickname: 'はるな',   callsign: 'Haru-19',   pin: '1019', grade: '高1', school: null },
+    { name: '藤田 大地',   nickname: 'だいち',   callsign: 'Dai-20',    pin: '1020', grade: '中3', school: 'nobeoka_west', targetStation: 'nobeoka_ko' },
+  ];
+
+  console.log('👥 テスト生徒20名を登録します...');
+  for (const s of students) {
+    try {
+      const id = await StudentsDB.add({
+        name: s.name,
+        nickname: s.nickname,
+        callsign: s.callsign,
+        pin: s.pin,
+        grade: s.grade || null,
+        school: s.school || null,
+        targetStation: s.targetStation || null,
+        examCandidate: s.examCandidate || false,
+        totalPoints: 0,
+        currentPoints: 0,
+        totalEarned: 0,
+        totalSpent: 0,
+        streak: 0,
+        bestStreak: 0,
+        level: 1,
+        rank: 'rookie',
+      });
+      console.log(`  ✅ ${s.callsign} (${s.name}) PIN:${s.pin} → ${id}`);
+    } catch (e) {
+      console.error(`  ❌ ${s.name}: ${e.message}`);
+    }
+  }
+  console.log('🎉 生徒登録完了！');
+}
+
 // ===== まとめて実行 =====
 async function seedAll() {
   console.log('🌟 初期データ投入を開始します...');
