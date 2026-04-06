@@ -360,10 +360,14 @@
 
       <!-- スケジュールタブ -->
       <div class="tab-panel" id="panel-schedule">
+        <!-- 直近の予定 -->
+        <div id="parentNextLesson" class="card" style="display:none;background:linear-gradient(135deg,#eff6ff,#e0e7ff);border:1px solid #93c5fd;"></div>
+        <!-- 承認通知 -->
+        <div id="parentApprovalNotice" style="display:none;margin-bottom:14px;"></div>
         <!-- 今週の予定 -->
         <div class="card">
           <div class="card-title">📅 今週の予定</div>
-          <div id="parentWeekSchedule" style="font-size:13px;color:#718096;">読み込���中...</div>
+          <div id="parentWeekSchedule" style="font-size:13px;color:#718096;">読み込み中...</div>
         </div>
         <!-- 月次出欠可否カレンダー -->
         <div class="card">
@@ -881,6 +885,59 @@ async function loadParentInterviews() {
 
 async function loadParentSchedule() {
   if (!currentStudent) return;
+  // 直近の予定（次回の授業）
+  try {
+    const today = new Date().toISOString().slice(0, 10);
+    const future = new Date(); future.setDate(future.getDate() + 14);
+    const upcoming = await ScheduleSlotsDB.getByStudent(currentStudent.id, today, future.toISOString().slice(0, 10));
+    const nextSlot = upcoming.filter(s => s.status === 'scheduled' && s.approval === 'approved' && s.date >= today)
+      .sort((a, b) => a.date.localeCompare(b.date) || a.startTime.localeCompare(b.startTime))[0];
+    const nextEl = document.getElementById('parentNextLesson');
+    if (nextSlot) {
+      const d = new Date(nextSlot.date + 'T00:00:00');
+      const days = ['日','月','火','水','木','金','土'];
+      const isToday = nextSlot.date === today;
+      nextEl.style.display = 'block';
+      nextEl.innerHTML = '<div style="display:flex;justify-content:space-between;align-items:center;">'
+        + '<div><div style="font-size:11px;color:#3b82f6;font-weight:600;">' + (isToday ? '📌 本日の授業' : '📌 次回の授業') + '</div>'
+        + '<div style="font-size:18px;font-weight:800;color:#1e3a5f;">' + nextSlot.date.slice(5) + '(' + days[d.getDay()] + ') ' + nextSlot.startTime + '〜' + nextSlot.endTime + '</div>'
+        + '<div style="font-size:12px;color:#64748b;">' + (nextSlot.subjects ? nextSlot.subjects.join(', ') : '') + ' | ' + (nextSlot.komas || 1) + 'コマ</div></div>'
+        + '<div style="font-size:28px;">' + (isToday ? '🔔' : '📅') + '</div></div>';
+    } else { nextEl.style.display = 'none'; }
+  } catch(e) { console.warn('Next lesson error:', e); }
+
+  // 承認通知（最近承認/差戻しされたスケジュール）
+  try {
+    const noticeEl = document.getElementById('parentApprovalNotice');
+    const recent = await ScheduleSlotsDB.getByStudent(currentStudent.id,
+      new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10),
+      new Date(Date.now() + 30 * 86400000).toISOString().slice(0, 10));
+    const rejected = recent.filter(s => s.approval === 'rejected');
+    const recentApproved = recent.filter(s => s.approval === 'approved' && s.parentNotified && s.submittedBy !== 'system');
+    if (rejected.length > 0 || recentApproved.length > 0) {
+      let html = '';
+      if (rejected.length > 0) {
+        html += '<div class="card" style="border-left:3px solid #ef4444;background:#fef2f2;">'
+          + '<div style="font-weight:700;color:#991b1b;margin-bottom:6px;">❌ 差し戻されたスケジュール</div>';
+        rejected.forEach(s => {
+          html += '<div style="font-size:12px;padding:4px 0;">' + s.date + ' ' + s.startTime + '〜' + s.endTime
+            + (s.rejectionReason ? ' <span style="color:#94a3b8;">理由: ' + s.rejectionReason + '</span>' : '') + '</div>';
+        });
+        html += '</div>';
+      }
+      if (recentApproved.length > 0) {
+        html += '<div class="card" style="border-left:3px solid #10b981;background:#f0fdf4;">'
+          + '<div style="font-weight:700;color:#166534;margin-bottom:6px;">✅ 承認されたスケジュール</div>';
+        recentApproved.slice(0, 5).forEach(s => {
+          html += '<div style="font-size:12px;padding:4px 0;">' + s.date + ' ' + s.startTime + '〜' + s.endTime + '</div>';
+        });
+        html += '</div>';
+      }
+      noticeEl.innerHTML = html;
+      noticeEl.style.display = 'block';
+    } else { noticeEl.style.display = 'none'; }
+  } catch(e) { console.warn('Approval notice error:', e); }
+
   // 今週の予定を表示
   const container = document.getElementById('parentWeekSchedule');
   try {
