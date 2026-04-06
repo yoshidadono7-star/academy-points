@@ -205,6 +205,9 @@ async function setupAllTests(nickname) {
   console.log('🧪 全機能テスト用セットアップを開始...');
   console.log(`   対象生徒: ${nickname}`);
 
+  // 0. 既存のアクティブボスを全て削除（min_duration等の特殊能力ボスがあると邪魔）
+  await clearAllBosses();
+
   // 1. ポイントを99にセット → レベルアップテスト用
   await setupLevelUpTest(nickname);
 
@@ -216,7 +219,7 @@ async function setupAllTests(nickname) {
   const student = all.find(s => s.nickname === nickname || s.callsign === nickname);
   if (student) {
     await StudentsDB.update(student.id, { seenOpening: false });
-    console.log(`✅ ${student.callsign} のオープニング表示フラグをリセット`);
+    console.log(`✅ ${student.callsign || student.nickname} のオープニング表示フラグをリセット`);
   }
 
   console.log('\n🎬 確認できる演出:');
@@ -224,11 +227,13 @@ async function setupAllTests(nickname) {
   console.log('   2. ホーム画面 → ガイドスポットライト (3ステップ)');
   console.log('   3. コンディション記録 → SE');
   console.log('   4. クエスト選択 → ⚔️ SE');
-  console.log('   5. 1分以上学習して終了 → ');
+  console.log('   5. 学習スタート → 場所「塾」を選んで1分以上学習 → ');
   console.log('       - 紙吹雪 + ポイント獲得SE');
   console.log('       - レベルアップ演出 (リング+星バースト+音)');
   console.log('       - ボス討伐演出 (爆発+VICTORY!)');
   console.log('\n🚀 ' + nickname + ' でログインして試してください！');
+  console.log('\n⚠️  重要: 学習場所は「塾」または「Zoom」を選んでください');
+  console.log('         「自宅」を選ぶと承認待ちでポイント付与されません');
   console.log('\n⚠️  ガイドを再表示したい場合は localStorage.clear() も実行してください');
 }
 
