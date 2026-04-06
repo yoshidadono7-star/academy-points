@@ -2805,7 +2805,7 @@ async function stopStudy(save) {
     }
 
     // Show complete screen
-    showCompleteScreen(duration, points, newBadges, raidResults, comboResults, missionResult, appliedEvent, basePoints, eventMultiplier, eventBonusPoints);
+    showCompleteScreen(duration, points, newBadges, raidResults, comboResults, missionResult, appliedEvent, basePoints, eventMultiplier, eventBonusPoints, commanderMultiplier, commanderBossBuff, allStudiedBonus);
   } catch(e) {
     console.error(e);
     showToast('記録に失敗しました');
@@ -2841,7 +2841,7 @@ async function updateStreak() {
   } catch(e) { console.error(e); }
 }
 
-function showCompleteScreen(duration, points, newBadges, raidResults, comboResults, missionResult, appliedEvent, basePoints, eventMultiplier, eventBonusPoints) {
+function showCompleteScreen(duration, points, newBadges, raidResults, comboResults, missionResult, appliedEvent, basePoints, eventMultiplier, eventBonusPoints, commanderMultiplier, commanderBossBuff, allStudiedBonus) {
   comboResults = comboResults || [];
   document.getElementById('completePoints').textContent = `+${points}`;
   document.getElementById('completeDuration').textContent = `${duration}分`;

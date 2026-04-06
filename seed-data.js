@@ -83,11 +83,53 @@ async function seedAprilBoss() {
   return id;
 }
 
+// ===== サンプル報酬カタログ =====
+async function seedRewards() {
+  const rewards = [
+    // Lv.1 — ルーキー向け
+    { name: '好きな席選択権', category: 'privilege', cost: 100, stock: -1, level: 1, rankRequired: 'rookie', cooldownDays: 7 },
+    { name: '消しゴム（宇宙柄）', category: 'goods', cost: 150, stock: 10, level: 1, rankRequired: 'rookie', cooldownDays: 0 },
+    { name: 'ドリンクチケット', category: 'regional', cost: 200, stock: -1, level: 1, rankRequired: 'rookie', cooldownDays: 3 },
+    // Lv.2 — クルー向け
+    { name: 'BGM選曲権（1日）', category: 'experience', cost: 300, stock: -1, level: 2, rankRequired: 'crew', cooldownDays: 7 },
+    { name: '特製ノート', category: 'goods', cost: 400, stock: 5, level: 2, rankRequired: 'crew', cooldownDays: 0 },
+    { name: '宿題パス（1回）', category: 'privilege', cost: 500, stock: -1, level: 2, rankRequired: 'crew', cooldownDays: 14 },
+    // Lv.3 — シニア向け
+    { name: '先生とランチ権', category: 'experience', cost: 800, stock: -1, level: 3, rankRequired: 'senior', cooldownDays: 30 },
+    { name: 'オリジナルバッジ（物理）', category: 'goods', cost: 1000, stock: 3, level: 3, rankRequired: 'senior', cooldownDays: 0 },
+    // Lv.4 — キャプテン向け
+    { name: '延岡チキン南蛮チケット', category: 'regional', cost: 1500, stock: 2, level: 4, rankRequired: 'captain', cooldownDays: 60 },
+    { name: '教室イベント企画権', category: 'privilege', cost: 2000, stock: -1, level: 4, rankRequired: 'captain', cooldownDays: 90 },
+  ];
+
+  for (const r of rewards) {
+    await RewardsDB.create(r);
+  }
+  console.log(`✅ 報酬カタログ ${rewards.length}件 作成完了`);
+}
+
+// ===== サンプル景品 =====
+async function seedPrizes() {
+  const prizes = [
+    { name: 'えんぴつ', icon: '✏️', cost: 50, stock: 20 },
+    { name: 'シール5枚セット', icon: '⭐', cost: 100, stock: 15 },
+    { name: 'お菓子セット', icon: '🍬', cost: 200, stock: 10 },
+    { name: 'ミニフィギュア', icon: '🎮', cost: 500, stock: 5 },
+  ];
+
+  for (const p of prizes) {
+    await PrizesDB.add({ ...p, active: true });
+  }
+  console.log(`✅ 景品 ${prizes.length}件 作成完了`);
+}
+
 // ===== まとめて実行 =====
 async function seedAll() {
   console.log('🌟 初期データ投入を開始します...');
   await seedAprilStory();
   await seedAprilBoss();
+  await seedRewards();
+  await seedPrizes();
   console.log('🎉 全ての初期データ投入が完了しました！');
 }
 

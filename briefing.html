@@ -1435,7 +1435,8 @@ async function renderLeagueRanking() {
 
 async function init() {
   try {
-    await Promise.all([
+    // Promise.allSettled で個別の失敗を許容（部分的に表示可能）
+    const results = await Promise.allSettled([
       renderRanking(),
       renderStats(),
       renderEvent(),
@@ -1444,6 +1445,11 @@ async function init() {
       renderGuildProgress(),
       renderLeagueRanking()
     ]);
+    // 失敗したモジュールをログ
+    const names = ['Ranking','Stats','Event','SpaceMap','Boss','Guild','League'];
+    results.forEach((r, i) => {
+      if (r.status === 'rejected') console.warn(`${names[i]} load failed:`, r.reason);
+    });
 
     // 初期フィードメッセージ
     addFeed('🛸', 'ミッションコントロール起動完了');
@@ -1477,7 +1483,7 @@ setInterval(async () => {
   checkCommanderBuff();
 }, 300000);
 
-init();
+document.addEventListener('DOMContentLoaded', init);
 </script>
 </body>
 </html>
