@@ -449,6 +449,7 @@
   <button class="tab-btn" data-tab="condition">&#128154; コンディション</button>
   <button class="tab-btn" data-tab="history">&#128197; 履歴</button>
   <button class="tab-btn" data-tab="prizes">&#127873; 景品交換</button>
+  <button class="tab-btn" data-tab="rewards">&#127942; 報酬カタログ</button>
   <button class="tab-btn" data-tab="messages" style="position:relative;">&#128140; メッセージ<span id="msgTabBadge" class="notification-badge hidden" style="position:absolute;top:4px;right:4px;font-size:9px;min-width:14px;height:14px;line-height:14px;">0</span></button>
   <button class="tab-btn" data-tab="students">&#128100; 生徒管理</button>
   <button class="tab-btn" data-tab="matprogress">&#128230; 教材進捗</button>
@@ -676,6 +677,35 @@
             <tr><th>日時</th><th>生徒</th><th>景品</th><th>消費pt</th></tr>
           </thead>
           <tbody id="prizeHistoryTable"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== 報酬カタログ ===== -->
+  <div class="tab-content" id="tab-rewards">
+    <div style="margin-bottom:16px">
+      <button class="btn btn-primary" onclick="openRewardModal()">&#10133; 報酬追加</button>
+    </div>
+    <div class="card">
+      <div class="card-title"><span class="icon">&#127942;</span> 報酬カタログ <span style="font-size:12px;color:var(--text-light);font-weight:400;">（生徒がポイントで交換できる報酬）</span></div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>カテゴリ</th><th>報酬名</th><th>必要pt</th><th>在庫</th><th>レベル</th><th>必要ランク</th><th>クールダウン</th><th>状態</th><th>操作</th></tr>
+          </thead>
+          <tbody id="rewardsTable"></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <div class="card-title"><span class="icon">&#128195;</span> 交換履歴</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr><th>日時</th><th>生徒</th><th>報酬</th><th>消費pt</th></tr>
+          </thead>
+          <tbody id="rewardHistoryTable"></tbody>
         </table>
       </div>
     </div>
@@ -1491,6 +1521,7 @@ function switchTab(tabId) {
     condition: loadCondition,
     history: () => {},
     prizes: loadPrizes,
+    rewards: loadRewardsCatalog,
     students: loadStudents,
     matprogress: loadMatProgress,
     routes: loadRoutes,
@@ -1977,6 +2008,136 @@ async function editPrize(id) {
   const prizes = await PrizesDB.getAll();
   const prize = prizes.find(p => p.id === id);
   if (prize) openPrizeModal(prize);
+}
+
+// ============================================
+// 6b. 報酬カタログ管理
+// ============================================
+async function loadRewardsCatalog() {
+  try {
+    const rewards = await RewardsDB.getAll();
+    const CATS = { goods: '🎁 グッズ', experience: '🌟 体験', privilege: '👑 特権', regional: '🏮 地域' };
+    const RANKS = { rookie: '🔰 ルーキー', crew: '🚀 クルー', senior: '⭐ シニア', captain: '👑 キャプテン' };
+    document.getElementById('rewardsTable').innerHTML = rewards.map(r => `
+      <tr>
+        <td>${CATS[r.category] || r.category || '-'}</td>
+        <td>${escapeHtml(r.name || '')}</td>
+        <td>${(r.cost || 0).toLocaleString()}</td>
+        <td>${r.stock === -1 ? '∞' : r.stock}</td>
+        <td>Lv.${r.level || 1}</td>
+        <td>${RANKS[r.rankRequired] || '🔰'}</td>
+        <td>${r.cooldownDays ? r.cooldownDays + '日' : 'なし'}</td>
+        <td><span style="color:${r.active !== false ? '#059669' : '#ef4444'}">${r.active !== false ? '有効' : '無効'}</span></td>
+        <td>
+          <div class="btn-group">
+            <button class="btn btn-secondary btn-sm" onclick="editReward('${r.id}')">編集</button>
+            <button class="btn btn-danger btn-sm" onclick="deleteReward('${r.id}')">削除</button>
+          </div>
+        </td>
+      </tr>
+    `).join('') || '<tr><td colspan="9" style="text-align:center;color:var(--text-light)">報酬が登録されていません</td></tr>';
+
+    // 交換履歴
+    const histSnap = await db.collection('rewardHistory').orderBy('exchangedAt', 'desc').limit(50).get();
+    document.getElementById('rewardHistoryTable').innerHTML = histSnap.docs.map(d => {
+      const h = d.data();
+      const date = h.exchangedAt?.toDate ? h.exchangedAt.toDate().toLocaleString('ja-JP') : '-';
+      return `<tr><td>${date}</td><td>${escapeHtml(h.studentName || '')}</td><td>${escapeHtml(h.rewardId || '')}</td><td>${(h.cost || 0).toLocaleString()}</td></tr>`;
+    }).join('') || '<tr><td colspan="4" style="text-align:center;color:var(--text-light)">交換履歴なし</td></tr>';
+  } catch(e) { console.error('Rewards load error:', e); }
+}
+
+function openRewardModal(reward) {
+  const isEdit = !!reward;
+  openModal(isEdit ? '報酬を編集' : '報酬を追加', `
+    <div class="form-group">
+      <label>報酬名</label>
+      <input type="text" class="form-control" id="rwName" value="${isEdit ? escapeHtml(reward.name || '') : ''}">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>カテゴリ</label>
+        <select class="form-control" id="rwCategory">
+          <option value="goods" ${isEdit && reward.category === 'goods' ? 'selected' : ''}>🎁 グッズ</option>
+          <option value="experience" ${isEdit && reward.category === 'experience' ? 'selected' : ''}>🌟 体験</option>
+          <option value="privilege" ${isEdit && reward.category === 'privilege' ? 'selected' : ''}>👑 特権</option>
+          <option value="regional" ${isEdit && reward.category === 'regional' ? 'selected' : ''}>🏮 地域</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>必要ポイント</label>
+        <input type="number" class="form-control" id="rwCost" value="${isEdit ? reward.cost || '' : ''}">
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>在庫 (-1=無制限)</label>
+        <input type="number" class="form-control" id="rwStock" value="${isEdit ? (reward.stock !== undefined ? reward.stock : -1) : -1}">
+      </div>
+      <div class="form-group">
+        <label>レベル (1-4)</label>
+        <select class="form-control" id="rwLevel">
+          ${[1,2,3,4].map(l => `<option value="${l}" ${isEdit && reward.level === l ? 'selected' : ''}>Lv.${l}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>必要ランク</label>
+        <select class="form-control" id="rwRank">
+          <option value="rookie" ${isEdit && reward.rankRequired === 'rookie' ? 'selected' : ''}>🔰 ルーキー</option>
+          <option value="crew" ${isEdit && reward.rankRequired === 'crew' ? 'selected' : ''}>🚀 クルー</option>
+          <option value="senior" ${isEdit && reward.rankRequired === 'senior' ? 'selected' : ''}>⭐ シニア</option>
+          <option value="captain" ${isEdit && reward.rankRequired === 'captain' ? 'selected' : ''}>👑 キャプテン</option>
+        </select>
+      </div>
+      <div class="form-group">
+        <label>クールダウン(日)</label>
+        <input type="number" class="form-control" id="rwCooldown" value="${isEdit ? reward.cooldownDays || 0 : 0}" min="0">
+      </div>
+    </div>
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" onclick="saveReward('${isEdit ? reward.id : ''}')">${isEdit ? '更新' : '追加'}</button>
+  `);
+}
+
+async function saveReward(id) {
+  const data = {
+    name: document.getElementById('rwName').value.trim(),
+    category: document.getElementById('rwCategory').value,
+    cost: parseInt(document.getElementById('rwCost').value) || 0,
+    stock: parseInt(document.getElementById('rwStock').value),
+    level: parseInt(document.getElementById('rwLevel').value) || 1,
+    rankRequired: document.getElementById('rwRank').value,
+    cooldownDays: parseInt(document.getElementById('rwCooldown').value) || 0
+  };
+  if (!data.name || !data.cost) { showToast('報酬名と必要ポイントは必須です', 'error'); return; }
+  try {
+    if (id) {
+      await RewardsDB.update(id, data);
+    } else {
+      await RewardsDB.create(data);
+    }
+    showToast(id ? '報酬を更新しました' : '報酬を追加しました');
+    closeModal();
+    loadRewardsCatalog();
+  } catch(e) { showToast('保存に失敗しました', 'error'); }
+}
+
+async function editReward(id) {
+  const rewards = await RewardsDB.getAll();
+  const reward = rewards.find(r => r.id === id);
+  if (reward) openRewardModal(reward);
+}
+
+async function deleteReward(id) {
+  if (!confirm('この報酬を削除しますか？')) return;
+  try {
+    await db.collection('rewards').doc(id).delete();
+    showToast('報酬を削除しました');
+    loadRewardsCatalog();
+  } catch(e) { showToast('削除に失敗しました', 'error'); }
 }
 
 // ============================================
