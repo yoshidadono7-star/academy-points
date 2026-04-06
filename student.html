@@ -1087,14 +1087,16 @@ body.theme-space {
 .guide-tooltip-arrow.top { top: -8px; left: 30px; }
 .guide-tooltip-arrow.bottom { bottom: -8px; left: 30px; }
 @keyframes guideGlow {
-  0%, 100% { box-shadow: 0 0 8px rgba(102,126,234,0.4), 0 0 20px rgba(102,126,234,0.2); }
-  50% { box-shadow: 0 0 16px rgba(102,126,234,0.8), 0 0 40px rgba(102,126,234,0.4); }
+  0%, 100% { box-shadow: 0 0 10px rgba(255,215,0,0.6), 0 0 30px rgba(255,215,0,0.3), inset 0 0 10px rgba(255,215,0,0.1); }
+  50% { box-shadow: 0 0 20px rgba(255,215,0,1), 0 0 50px rgba(255,215,0,0.5), inset 0 0 20px rgba(255,215,0,0.2); }
 }
 .guide-glow {
-  animation: guideGlow 1.5s ease-in-out infinite;
+  animation: guideGlow 1s ease-in-out infinite;
   border-radius: 12px;
   position: relative;
   z-index: 1;
+  outline: 3px solid #ffd700;
+  outline-offset: 4px;
 }
 </style>
 </head>
