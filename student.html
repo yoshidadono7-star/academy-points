@@ -31,7 +31,7 @@
   --radius: 16px;
   --radius-sm: 10px;
   --bottom-nav-h: 70px;
-  --buddy-h: 160px;
+  --buddy-h: 240px;
 }
 
 * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -83,13 +83,13 @@ body.buddy-on .buddy-panel { display: flex; align-items: center; }
 
 .buddy-character {
   position: relative;
-  width: 110px; height: var(--buddy-h);
+  width: 130px; height: var(--buddy-h);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   z-index: 2;
 }
 .buddy-avatar {
-  font-size: 75px;
+  font-size: 95px;
   display: inline-block;
   filter: drop-shadow(0 0 20px rgba(102,126,234,0.6));
   animation: buddyIdle 3s ease-in-out infinite;
@@ -128,7 +128,7 @@ body.buddy-on .buddy-panel { display: flex; align-items: center; }
 
 .buddy-glow {
   position: absolute;
-  width: 95px; height: 95px;
+  width: 120px; height: 120px;
   border-radius: 50%;
   background: radial-gradient(circle, rgba(102,126,234,0.4) 0%, transparent 70%);
   animation: buddyGlow 3s ease-in-out infinite;
@@ -145,8 +145,8 @@ body.buddy-on .buddy-panel { display: flex; align-items: center; }
   height: 100%;
   display: flex; flex-direction: column;
   justify-content: center;
-  gap: 6px;
-  padding: 12px 6px;
+  gap: 10px;
+  padding: 18px 8px 14px;
   z-index: 2;
   overflow: hidden;
 }
@@ -165,12 +165,12 @@ body.buddy-on .buddy-panel { display: flex; align-items: center; }
 .conv-line.from-student { justify-content: flex-end; }
 .conv-bubble {
   background: #fff;
-  border-radius: 14px;
-  padding: 8px 12px;
-  font-size: 13px;
+  border-radius: 16px;
+  padding: 11px 16px;
+  font-size: 14px;
   color: #2d3748;
-  line-height: 1.4;
-  box-shadow: 0 4px 12px rgba(0,0,0,0.25);
+  line-height: 1.5;
+  box-shadow: 0 4px 14px rgba(0,0,0,0.25);
   max-width: 90%;
   word-break: break-word;
   position: relative;
@@ -204,17 +204,17 @@ body.buddy-on .buddy-panel { display: flex; align-items: center; }
 /* 右側: 生徒のアバター */
 .student-character {
   position: relative;
-  width: 90px; height: var(--buddy-h);
+  width: 110px; height: var(--buddy-h);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   z-index: 2;
 }
 .student-avatar {
-  width: 70px; height: 70px;
+  width: 90px; height: 90px;
   border-radius: 50%;
   background: linear-gradient(135deg, #ffd700, #f6ad55);
   display: flex; align-items: center; justify-content: center;
-  font-size: 28px; font-weight: 900;
+  font-size: 36px; font-weight: 900;
   color: #fff;
   box-shadow: 0 4px 16px rgba(255,215,0,0.4),
               0 0 0 3px rgba(255,255,255,0.2);
@@ -256,12 +256,13 @@ body.buddy-on .buddy-panel { display: flex; align-items: center; }
 .buddy-status-item .icon { margin-right: 3px; }
 
 @media (max-width: 480px) {
-  :root { --buddy-h: 170px; }
-  .buddy-character { width: 90px; }
-  .buddy-avatar { font-size: 65px; }
-  .student-character { width: 75px; }
-  .student-avatar { width: 60px; height: 60px; font-size: 24px; }
-  .conv-bubble { font-size: 12px; padding: 7px 10px; }
+  :root { --buddy-h: 220px; }
+  .buddy-character { width: 100px; }
+  .buddy-avatar { font-size: 75px; }
+  .buddy-glow { width: 100px; height: 100px; }
+  .student-character { width: 90px; }
+  .student-avatar { width: 70px; height: 70px; font-size: 28px; }
+  .conv-bubble { font-size: 13px; padding: 9px 13px; }
 }
 
 /* チャット入力バー */
