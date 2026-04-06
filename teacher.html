@@ -83,6 +83,27 @@
         <div id="teacherSchedule">読み込み中...</div>
       </div>
       <div class="card">
+        <div class="card-title">📝 授業コメント入力</div>
+        <div style="font-size:12px;color:var(--text-light);margin-bottom:10px;">授業後に生徒ごとのコメントを入力してください。保護者レポートに反映されます。</div>
+        <div style="margin-bottom:10px;">
+          <select class="form-control" id="commentStudentSelect" onchange="loadExistingComment()" style="margin-bottom:8px;">
+            <option value="">-- 生徒を選択 --</option>
+          </select>
+        </div>
+        <div id="commentInputArea" style="display:none;">
+          <div style="display:flex;gap:6px;margin-bottom:8px;">
+            <button class="btn" style="background:#10b981;color:white;font-size:12px;padding:6px 12px;" onclick="autoGenerateComment()">🤖 自動生成</button>
+            <button class="btn" id="voiceBtn" style="background:#3b82f6;color:white;font-size:12px;padding:6px 12px;" onclick="toggleVoiceInput()">🎤 音声入力</button>
+            <span id="voiceStatus" style="font-size:11px;color:var(--text-light);line-height:32px;"></span>
+          </div>
+          <textarea class="form-control" id="commentText" rows="4" placeholder="授業の様子・頑張ったこと・課題などを入力..." style="margin-bottom:8px;font-size:14px;line-height:1.7;"></textarea>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary" onclick="saveTeacherComment()" style="flex:1;">💾 保存</button>
+          </div>
+          <div id="commentSaveMsg" style="display:none;color:#10b981;font-size:12px;margin-top:6px;text-align:center;"></div>
+        </div>
+      </div>
+      <div class="card">
         <div class="card-title">☑ 今日の業務タスク</div>
         <div id="teacherTasks">読み込み中...</div>
       </div>
@@ -902,6 +923,121 @@ async function loadTeacherEconomy() {
       ).join('');
   } catch(e) { container.innerHTML = '<div style="color:var(--danger);">読み込みに失敗しました</div>'; }
 }
+
+// ===== 授業コメント入力 =====
+async function initCommentStudentSelect() {
+  const ids = await getMyStudentIds();
+  const sel = document.getElementById('commentStudentSelect');
+  let opts = '<option value="">-- 生徒を選択 --</option>';
+  for (const id of ids) {
+    const s = await StudentsDB.getById(id);
+    if (s) opts += '<option value="' + id + '">' + escapeHtml(s.name) + ' (' + (s.grade || '') + ')</option>';
+  }
+  sel.innerHTML = opts;
+}
+
+async function loadExistingComment() {
+  const sid = document.getElementById('commentStudentSelect').value;
+  const area = document.getElementById('commentInputArea');
+  if (!sid) { area.style.display = 'none'; return; }
+  area.style.display = 'block';
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    const existing = await TeacherCommentsDB.getByStudentDate(sid, today);
+    document.getElementById('commentText').value = existing.length > 0 ? existing[0].comment : '';
+  } catch(e) { document.getElementById('commentText').value = ''; }
+}
+
+async function autoGenerateComment() {
+  const sid = document.getElementById('commentStudentSelect').value;
+  if (!sid) return;
+  try {
+    const student = await StudentsDB.getById(sid);
+    const today = new Date().toISOString().slice(0, 10);
+    const logs = await StudyLogsDB.getByStudent(sid, 10);
+    const todayLogs = logs.filter(l => l.date === today);
+    const conditions = await ConditionsDB.getByStudent(sid, 3);
+    const todayCondition = conditions.find(c => c.date === today);
+    const auto = generateAutoComment(student, todayLogs, todayCondition);
+    document.getElementById('commentText').value = auto;
+  } catch(e) { console.warn('Auto comment error:', e); }
+}
+
+let voiceRecognition = null;
+function toggleVoiceInput() {
+  const btn = document.getElementById('voiceBtn');
+  const status = document.getElementById('voiceStatus');
+  if (voiceRecognition) {
+    voiceRecognition.stop();
+    voiceRecognition = null;
+    btn.style.background = '#3b82f6';
+    btn.textContent = '🎤 音声入力';
+    status.textContent = '';
+    return;
+  }
+  const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SpeechRecognition) { alert('このブラウザは音声入力に対応していません。Chromeをお使いください。'); return; }
+  voiceRecognition = new SpeechRecognition();
+  voiceRecognition.lang = 'ja-JP';
+  voiceRecognition.continuous = true;
+  voiceRecognition.interimResults = true;
+  const textarea = document.getElementById('commentText');
+  const baseText = textarea.value;
+  voiceRecognition.onresult = (e) => {
+    let interim = '';
+    let final = '';
+    for (let i = 0; i < e.results.length; i++) {
+      if (e.results[i].isFinal) final += e.results[i][0].transcript;
+      else interim += e.results[i][0].transcript;
+    }
+    textarea.value = baseText + final + interim;
+  };
+  voiceRecognition.onerror = () => { status.textContent = 'エラー'; };
+  voiceRecognition.onend = () => {
+    voiceRecognition = null;
+    btn.style.background = '#3b82f6';
+    btn.textContent = '🎤 音声入力';
+    status.textContent = '';
+  };
+  voiceRecognition.start();
+  btn.style.background = '#ef4444';
+  btn.textContent = '⏹ 停止';
+  status.textContent = '🔴 録音中...';
+}
+
+async function saveTeacherComment() {
+  const sid = document.getElementById('commentStudentSelect').value;
+  const comment = document.getElementById('commentText').value.trim();
+  if (!sid || !comment) { alert('生徒とコメントを入力してください'); return; }
+  const today = new Date().toISOString().slice(0, 10);
+  try {
+    const existing = await TeacherCommentsDB.getByStudentDate(sid, today);
+    if (existing.length > 0) {
+      await TeacherCommentsDB.update(existing[0].id, { comment, method: voiceRecognition ? 'voice' : 'text' });
+    } else {
+      await TeacherCommentsDB.add({
+        studentId: sid,
+        teacherId: currentTeacher.id,
+        teacherName: currentTeacher.name,
+        date: today,
+        comment,
+        autoGenerated: '',
+        method: voiceRecognition ? 'voice' : 'text'
+      });
+    }
+    const msg = document.getElementById('commentSaveMsg');
+    msg.textContent = '✅ 保存しました';
+    msg.style.display = 'block';
+    setTimeout(() => { msg.style.display = 'none'; }, 2000);
+  } catch(e) { alert('保存に失敗しました: ' + e.message); }
+}
+
+// スケジュールタブ表示時にコメント用の生徒リストも更新
+const _origLoadSchedule = loadTeacherSchedule;
+loadTeacherSchedule = async function() {
+  await _origLoadSchedule();
+  initCommentStudentSelect();
+};
 
 </script>
 </body>

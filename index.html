@@ -482,6 +482,7 @@
   <button class="tab-btn" data-tab="schedule" data-category="daily">&#128197; スケジュール</button>
   <button class="tab-btn" data-tab="optasks" data-category="daily">&#9745; 業務タスク</button>
   <button class="tab-btn" data-tab="tasks" data-category="daily">&#128203; タスク管理</button>
+  <button class="tab-btn" data-tab="reports" data-category="daily">&#128225; レポート配信</button>
   <button class="tab-btn" data-tab="messages" data-category="daily" style="position:relative;">&#128140; メッセージ<span id="msgTabBadge" class="notification-badge hidden" style="position:absolute;top:4px;right:4px;font-size:9px;min-width:14px;height:14px;line-height:14px;">0</span></button>
   <button class="tab-btn" data-tab="condition" data-category="daily">&#128154; コンディション</button>
   <button class="tab-btn" data-tab="prizes" data-category="daily">&#127873; 景品交換</button>
@@ -1529,6 +1530,37 @@
     </div>
   </div>
 
+  <!-- ===== レポート配信 ===== -->
+  <div class="tab-content" id="tab-reports">
+    <div class="card">
+      <h3>📡 レポート配信</h3>
+      <div style="display:flex;gap:8px;margin-bottom:16px;flex-wrap:wrap;">
+        <select class="form-control" id="reportType" style="width:auto;" onchange="updateReportUI()">
+          <option value="daily">📋 日次レポート</option>
+          <option value="weekly">📊 週次レポート</option>
+          <option value="monthly">📈 月次レポート</option>
+        </select>
+        <select class="form-control" id="reportTarget" style="width:auto;">
+          <option value="all">全生徒</option>
+        </select>
+        <div style="display:flex;gap:6px;align-items:center;font-size:13px;">
+          <label><input type="checkbox" id="chEmail" checked> 📧メール</label>
+          <label><input type="checkbox" id="chLine" checked> 📱LINE</label>
+          <label><input type="checkbox" id="chApp" checked> 🔔アプリ内</label>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;margin-bottom:16px;">
+        <button class="btn btn-secondary" onclick="previewReports()">📊 プレビュー生成</button>
+        <button class="btn btn-primary" onclick="sendReportsAll()">🚀 一括送信</button>
+      </div>
+      <div id="reportPreviewArea"></div>
+    </div>
+    <div class="card" style="margin-top:16px;">
+      <h3>📜 送信履歴</h3>
+      <div id="reportLogList" style="font-size:13px;color:var(--text-light);">読み込み中...</div>
+    </div>
+  </div>
+
   <!-- ===== 業務タスク ===== -->
   <div class="tab-content" id="tab-optasks">
     <div class="card">
@@ -1816,7 +1848,7 @@ function escapeHtml(str) {
 // ============================================
 const TAB_CATEGORIES = {
   dashboard: ['dashboard'],
-  daily:     ['plans','schedule','optasks','tasks','messages','condition','prizes'],
+  daily:     ['plans','schedule','optasks','reports','tasks','messages','condition','prizes'],
   analytics: ['monitor','ranking','coaching','exams','matprogress','history','risk','anomaly'],
   game:      ['guilds','raidboss','story','missions','events','economy'],
   master:    ['students','teachers','routes','finance','settings']
@@ -1881,6 +1913,7 @@ function switchTab(tabId, fromCategory = false) {
     ranking: loadRanking,
     monitor: loadMonitor,
     tasks: loadTasks,
+    reports: loadReports,
     condition: loadCondition,
     history: () => {},
     prizes: loadPrizes,
@@ -7436,6 +7469,146 @@ let finDate = new Date();
 function finPrev() { finDate.setMonth(finDate.getMonth() - 1); loadFinance(); }
 function finNext() { finDate.setMonth(finDate.getMonth() + 1); loadFinance(); }
 function finThisMonth() { finDate = new Date(); loadFinance(); }
+
+// ============================================
+// レポート配信
+// ============================================
+let reportPreviews = [];
+
+async function loadReports() {
+  // 対象生徒セレクトを更新
+  const sel = document.getElementById('reportTarget');
+  const students = allStudents || await StudentsDB.getAll();
+  sel.innerHTML = '<option value="all">全生徒（' + students.filter(s => s.role !== 'supporter').length + '名）</option>'
+    + students.filter(s => s.role !== 'supporter').map(s => '<option value="' + s.id + '">' + escapeHtml(s.name) + '</option>').join('');
+  loadReportLogs();
+}
+
+function updateReportUI() {}
+
+async function previewReports() {
+  const type = document.getElementById('reportType').value;
+  const target = document.getElementById('reportTarget').value;
+  const container = document.getElementById('reportPreviewArea');
+  container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-light);">⏳ プレビュー生成中...</div>';
+
+  try {
+    const students = allStudents || await StudentsDB.getAll();
+    const targets = target === 'all' ? students.filter(s => s.role !== 'supporter') : students.filter(s => s.id === target);
+    reportPreviews = [];
+
+    const generator = type === 'daily' ? ReportEngine.generateDaily.bind(ReportEngine)
+      : type === 'weekly' ? ReportEngine.generateWeekly.bind(ReportEngine)
+      : ReportEngine.generateMonthly.bind(ReportEngine);
+
+    for (const s of targets) {
+      const report = await generator(s.id);
+      if (report) reportPreviews.push(report);
+    }
+
+    if (reportPreviews.length === 0) {
+      container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-light);">レポート対象がありません</div>';
+      return;
+    }
+
+    // カード形式でプレビュー表示
+    let html = '<div style="font-weight:700;margin-bottom:12px;">' + reportPreviews.length + '名のレポートを生成しました</div>';
+    for (let i = 0; i < reportPreviews.length; i++) {
+      const r = reportPreviews[i];
+      const student = students.find(s => s.id === r.studentId);
+      const hasComment = r.data && r.data.teacherComment;
+      html += `<div style="border:1px solid var(--border);border-radius:10px;margin-bottom:10px;overflow:hidden;">
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 14px;background:#f8fafc;cursor:pointer;" onclick="this.nextElementSibling.style.display=this.nextElementSibling.style.display==='none'?'block':'none'">
+          <div>
+            <strong>${student ? escapeHtml(student.name) : '?'}</strong>
+            <span style="font-size:12px;color:var(--text-light);margin-left:8px;">${student ? student.grade : ''}</span>
+            ${!hasComment ? '<span style="color:#f59e0b;font-size:11px;margin-left:8px;">⚠️ コメント未入力</span>' : '<span style="color:#10b981;font-size:11px;margin-left:8px;">✅ コメントあり</span>'}
+          </div>
+          <span style="color:var(--text-light);">▼</span>
+        </div>
+        <div style="display:none;padding:14px;max-height:400px;overflow-y:auto;">
+          ${r.html}
+          <div style="margin-top:12px;">
+            <label style="font-size:12px;font-weight:600;">📝 コメント編集（送信前に修正可能）</label>
+            <textarea class="form-control" id="editComment_${i}" rows="3" style="margin-top:4px;font-size:13px;">${escapeHtml(r.data && r.data.teacherComment ? r.data.teacherComment : r.text.split('先生より:')[1] || '')}</textarea>
+          </div>
+        </div>
+      </div>`;
+    }
+    container.innerHTML = html;
+  } catch(e) {
+    container.innerHTML = '<div style="color:var(--danger);padding:12px;">エラー: ' + e.message + '</div>';
+    console.error(e);
+  }
+}
+
+async function sendReportsAll() {
+  if (reportPreviews.length === 0) { showToast('まずプレビューを生成してください', 'error'); return; }
+  if (!confirm(reportPreviews.length + '名にレポートを送信します。よろしいですか？')) return;
+
+  const container = document.getElementById('reportPreviewArea');
+  container.innerHTML = '<div style="text-align:center;padding:20px;color:var(--text-light);">⏳ 送信中...</div>';
+
+  try {
+    let sent = 0, failed = 0;
+    const emailOn = document.getElementById('chEmail').checked;
+    const lineOn = document.getElementById('chLine').checked;
+    const appOn = document.getElementById('chApp').checked;
+
+    for (const report of reportPreviews) {
+      try {
+        // チャンネル制御を一時的に反映
+        const student = await StudentsDB.getById(report.studentId);
+        const origPrefs = student.notifyPrefs || {};
+        const tempPrefs = { email: emailOn, line: lineOn, app: appOn };
+        if (JSON.stringify(origPrefs) !== JSON.stringify(tempPrefs)) {
+          await StudentsDB.update(report.studentId, { notifyPrefs: tempPrefs });
+        }
+        await NotificationChannel.send(report.studentId, report);
+        // 元に戻す
+        if (JSON.stringify(origPrefs) !== JSON.stringify(tempPrefs)) {
+          await StudentsDB.update(report.studentId, { notifyPrefs: origPrefs });
+        }
+        sent++;
+      } catch(e) { failed++; console.warn('Send error:', e); }
+    }
+
+    container.innerHTML = `<div style="background:#dcfce7;border-radius:10px;padding:16px;text-align:center;">
+      <div style="font-size:20px;margin-bottom:8px;">✅</div>
+      <div style="font-weight:700;color:#166534;">送信完了</div>
+      <div style="font-size:13px;color:#166534;">成功: ${sent}名 ${failed > 0 ? '/ 失敗: ' + failed + '名' : ''}</div>
+    </div>`;
+    showToast('レポートを送信しました');
+    loadReportLogs();
+  } catch(e) {
+    container.innerHTML = '<div style="color:var(--danger);padding:12px;">送信エラー: ' + e.message + '</div>';
+  }
+}
+
+async function loadReportLogs() {
+  const container = document.getElementById('reportLogList');
+  try {
+    const snap = await db.collection('reportLogs').orderBy('sentAt', 'desc').limit(20).get();
+    const logs = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+    if (logs.length === 0) {
+      container.innerHTML = '<div style="text-align:center;padding:12px;color:var(--text-light);">送信履歴はありません</div>';
+      return;
+    }
+    const students = allStudents || await StudentsDB.getAll();
+    const sMap = {}; students.forEach(s => sMap[s.id] = s);
+    container.innerHTML = logs.map(l => {
+      const s = sMap[l.studentId];
+      const ch = l.channels || {};
+      const chText = [ch.app === 'sent' ? '🔔' : '', ch.email === 'sent' ? '📧' : '', ch.line === 'sent' ? '📱' : ''].filter(Boolean).join('');
+      const date = l.sentAt && l.sentAt.toDate ? l.sentAt.toDate().toLocaleString('ja-JP', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }) : '';
+      const typeLabels = { daily: '日次', weekly: '週次', monthly: '月次', instant: '随時' };
+      return `<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:12px;">
+        <span>${date} ${typeLabels[l.type] || l.type} → ${s ? s.name : l.studentId.slice(0, 8)}</span>
+        <span>${chText || '-'}</span>
+      </div>`;
+    }).join('');
+  } catch(e) { container.innerHTML = '<div style="color:var(--text-light);">履歴を読み込めませんでした</div>'; }
+}
 
 async function loadFinance() {
   const year = finDate.getFullYear();

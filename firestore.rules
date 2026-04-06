@@ -284,5 +284,19 @@ service cloud.firestore {
       allow read: if true;
       allow write: if isAdmin();
     }
+
+    // 講師コメント（授業所見）
+    match /teacherComments/{commentId} {
+      allow read: if true;
+      allow create, update: if true;
+      allow delete: if isAdmin();
+    }
+
+    // レポート送信ログ
+    match /reportLogs/{logId} {
+      allow read: if true;
+      allow create: if true;
+      allow delete: if isAdmin();
+    }
   }
 }
