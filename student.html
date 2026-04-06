@@ -323,12 +323,36 @@ body {
 .badge-notification {
   background: var(--gradient); color: white;
   border-radius: var(--radius); padding: 16px; margin: 12px 16px;
-  animation: slideUp 0.5s ease;
 }
 @keyframes slideUp {
   from { opacity: 0; transform: translateY(20px); }
   to { opacity: 1; transform: translateY(0); }
 }
+
+/* ===== Confetti Celebration ===== */
+.confetti-container {
+  position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+  pointer-events: none; z-index: 9999; overflow: hidden;
+}
+.confetti-piece {
+  position: absolute; top: -20px;
+  width: 10px; height: 10px;
+  animation: confettiFall linear forwards;
+}
+@keyframes confettiFall {
+  0%   { transform: translateY(0) rotate(0deg) scale(1); opacity: 1; }
+  80%  { opacity: 1; }
+  100% { transform: translateY(100vh) rotate(720deg) scale(0.5); opacity: 0; }
+}
+@keyframes confettiPop {
+  0%   { transform: scale(0) rotate(0deg); opacity: 0; }
+  50%  { transform: scale(1.3) rotate(180deg); opacity: 1; }
+  100% { transform: scale(1) rotate(360deg); opacity: 1; }
+}
+.badge-notification {
+  animation: slideUp 0.5s ease, confettiPop 0.6s ease;
+}
+
 .raid-notification {
   background: linear-gradient(135deg, #e53e3e, #c53030);
   color: white; border-radius: var(--radius); padding: 16px; margin: 12px 16px;
@@ -3020,11 +3044,13 @@ function showCompleteScreen(duration, points, newBadges, raidResults, comboResul
     badgesEl.innerHTML = badgeDefs.map(b => `
       <div class="badge-notification">
         <div style="font-size:13px;opacity:0.9">🏅 新しいバッジ獲得！</div>
-        <div style="font-size:28px;margin:6px 0">${b.icon}</div>
-        <div style="font-weight:700">${b.name}</div>
-        <div style="font-size:12px;opacity:0.9">${b.desc}</div>
+        <div style="font-size:36px;margin:8px 0">${b.icon}</div>
+        <div style="font-size:18px;font-weight:700">${b.name}</div>
+        <div style="font-size:13px;opacity:0.9;margin-top:4px">${b.desc}</div>
       </div>
     `).join('');
+    // 紙吹雪エフェクト発動！
+    launchConfetti();
   } else {
     badgesEl.innerHTML = '';
   }
@@ -3491,6 +3517,65 @@ async function loadRaidBoss() {
 // ============================================
 function showLoading() { document.getElementById('loadingOverlay').classList.add('show'); }
 function hideLoading() { document.getElementById('loadingOverlay').classList.remove('show'); }
+
+// ===== 紙吹雪エフェクト =====
+function launchConfetti() {
+  const container = document.createElement('div');
+  container.className = 'confetti-container';
+  document.body.appendChild(container);
+
+  const colors = ['#667eea', '#764ba2', '#f59e0b', '#10b981', '#ef4444', '#3b82f6', '#8b5cf6', '#ec4899', '#06b6d4'];
+  const shapes = ['circle', 'square', 'star'];
+  const count = 80;
+
+  for (let i = 0; i < count; i++) {
+    const piece = document.createElement('div');
+    piece.className = 'confetti-piece';
+    const color = colors[Math.floor(Math.random() * colors.length)];
+    const shape = shapes[Math.floor(Math.random() * shapes.length)];
+    const size = 6 + Math.random() * 10;
+    const left = Math.random() * 100;
+    const delay = Math.random() * 1.5;
+    const duration = 2 + Math.random() * 2;
+
+    piece.style.left = left + '%';
+    piece.style.width = size + 'px';
+    piece.style.height = size + 'px';
+    piece.style.backgroundColor = color;
+    piece.style.animationDelay = delay + 's';
+    piece.style.animationDuration = duration + 's';
+
+    if (shape === 'circle') {
+      piece.style.borderRadius = '50%';
+    } else if (shape === 'star') {
+      piece.style.backgroundColor = 'transparent';
+      piece.style.fontSize = size + 'px';
+      piece.style.lineHeight = '1';
+      piece.textContent = '✦';
+      piece.style.color = color;
+    }
+    // ランダムに揺れるように
+    piece.style.transform = `rotate(${Math.random() * 360}deg)`;
+
+    container.appendChild(piece);
+  }
+
+  // クラッカー音的なフラッシュ
+  const flash = document.createElement('div');
+  flash.style.cssText = 'position:fixed;inset:0;background:rgba(255,255,255,0.3);z-index:9998;pointer-events:none;animation:flashFade 0.3s ease forwards;';
+  document.body.appendChild(flash);
+
+  // スタイルにフラッシュアニメーションが無ければ追加
+  if (!document.getElementById('confetti-flash-style')) {
+    const style = document.createElement('style');
+    style.id = 'confetti-flash-style';
+    style.textContent = '@keyframes flashFade { from { opacity: 1; } to { opacity: 0; } }';
+    document.head.appendChild(style);
+  }
+
+  setTimeout(() => flash.remove(), 300);
+  setTimeout(() => container.remove(), 4500);
+}
 
 function showToast(msg) {
   const t = document.getElementById('toast');
