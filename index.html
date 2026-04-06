@@ -450,6 +450,7 @@
   <button class="tab-btn" data-tab="history">&#128197; 履歴</button>
   <button class="tab-btn" data-tab="prizes">&#127873; 景品交換</button>
   <button class="tab-btn" data-tab="messages" style="position:relative;">&#128140; メッセージ<span id="msgTabBadge" class="notification-badge hidden" style="position:absolute;top:4px;right:4px;font-size:9px;min-width:14px;height:14px;line-height:14px;">0</span></button>
+  <button class="tab-btn" data-tab="buddychat" style="position:relative;">&#128172; バディ会話<span id="buddyChatBadge" class="notification-badge hidden" style="position:absolute;top:4px;right:4px;font-size:9px;min-width:14px;height:14px;line-height:14px;">0</span></button>
   <button class="tab-btn" data-tab="students">&#128100; 生徒管理</button>
   <button class="tab-btn" data-tab="matprogress">&#128230; 教材進捗</button>
   <button class="tab-btn" data-tab="routes">&#128202; 学習ルート</button>
@@ -1528,6 +1529,48 @@
     </div>
   </div>
 
+  <!-- Phase 14: バディ会話タブ -->
+  <div class="tab-content" id="tab-buddychat">
+    <div class="card" style="padding:0;height:75vh;display:flex;overflow:hidden;">
+      <!-- 左側: 生徒一覧 -->
+      <div style="width:280px;border-right:1px solid var(--border);display:flex;flex-direction:column;background:#f7fafc;">
+        <div style="padding:16px;border-bottom:1px solid var(--border);background:var(--gradient);color:#fff;">
+          <div style="font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px;">
+            <span>💬</span> アクティブな会話
+          </div>
+        </div>
+        <div id="buddyChatList" style="flex:1;overflow-y:auto;">
+          <div style="text-align:center;color:#a0aec0;padding:30px;font-size:13px;">読み込み中...</div>
+        </div>
+      </div>
+      <!-- 右側: 選択中のチャット -->
+      <div id="buddyChatPanel" style="flex:1;display:flex;flex-direction:column;">
+        <div id="buddyChatPanelEmpty" style="flex:1;display:flex;align-items:center;justify-content:center;color:#a0aec0;padding:40px;text-align:center;">
+          <div>
+            <div style="font-size:48px;margin-bottom:12px;">💬</div>
+            <div>左のリストから生徒を選んで<br>会話に参加してください</div>
+          </div>
+        </div>
+        <div id="buddyChatPanelActive" style="display:none;flex:1;flex-direction:column;">
+          <div style="padding:14px 20px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;">
+            <div>
+              <div style="font-size:15px;font-weight:700;" id="buddyChatStudentName">-</div>
+              <div style="font-size:11px;color:var(--text-light);" id="buddyChatStudentMeta">-</div>
+            </div>
+            <button class="btn btn-secondary btn-sm" onclick="closeBuddyChatPanel()">閉じる</button>
+          </div>
+          <div id="buddyChatMessages" style="flex:1;overflow-y:auto;padding:16px;background:#f0f4f8;"></div>
+          <div style="padding:12px;background:#fff;border-top:1px solid var(--border);display:flex;gap:8px;">
+            <input type="text" id="buddyChatTeacherInput" class="form-control"
+              placeholder="先生として返信..." style="flex:1;"
+              onkeydown="if(event.key==='Enter') sendTeacherMessage()">
+            <button class="btn btn-primary" onclick="sendTeacherMessage()">送信</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
 </main>
 
 <!-- Notification Drawer -->
@@ -1639,6 +1682,7 @@ function switchTab(tabId) {
     interviews: loadInterviews,
     finance: loadFinance,
     homestudy: loadHomeStudy,
+    buddychat: loadBuddyChat,
     settings: loadSettings,
     messages: loadMessages
   };
@@ -4427,6 +4471,11 @@ async function initApp() {
     await loadRanking();
     loadNotifications();
 
+    // Phase 14: バディチャットの未読バッジを常時監視
+    try {
+      ChatDB.subscribeAllChats((chats) => updateBuddyChatBadge(chats));
+    } catch(e) { console.error(e); }
+
     // コマンダーCP表示
     loadCommanderCP().then(cp => {
       const widget = document.getElementById('commanderCpWidget');
@@ -5588,6 +5637,150 @@ async function adminReject(logId) {
     if (el) el.remove();
     showToast('却下しました');
   } catch (e) { console.error(e); showToast('却下に失敗しました', 'error'); }
+}
+
+// ============================================
+// Phase 14: バディ会話タブ（リアルタイム講師チャット）
+// ============================================
+let buddyChatListUnsub = null;
+let buddyChatMsgUnsub = null;
+let buddyChatActiveStudentId = null;
+
+async function loadBuddyChat() {
+  // 既存購読を停止
+  if (buddyChatListUnsub) buddyChatListUnsub();
+
+  buddyChatListUnsub = ChatDB.subscribeAllChats((chats) => {
+    renderBuddyChatList(chats);
+    updateBuddyChatBadge(chats);
+  });
+}
+
+function updateBuddyChatBadge(chats) {
+  const total = (chats || []).reduce((sum, c) => sum + (c.unreadByTeacher || 0), 0);
+  const badge = document.getElementById('buddyChatBadge');
+  if (!badge) return;
+  if (total > 0) {
+    badge.textContent = total;
+    badge.classList.remove('hidden');
+  } else {
+    badge.classList.add('hidden');
+  }
+}
+
+function renderBuddyChatList(chats) {
+  const container = document.getElementById('buddyChatList');
+  if (!container) return;
+  if (!chats || chats.length === 0) {
+    container.innerHTML = '<div style="text-align:center;color:#a0aec0;padding:30px;font-size:13px;">まだ会話がありません</div>';
+    return;
+  }
+  container.innerHTML = chats.map(c => {
+    const isActive = c.studentId === buddyChatActiveStudentId;
+    const unreadBadge = c.unreadByTeacher > 0
+      ? `<span style="background:#fc8181;color:#fff;font-size:10px;font-weight:700;padding:2px 7px;border-radius:10px;">${c.unreadByTeacher}</span>`
+      : '';
+    const time = c.updatedAt && c.updatedAt.toDate ? c.updatedAt.toDate() : null;
+    const timeStr = time ? `${time.getMonth()+1}/${time.getDate()} ${time.getHours()}:${String(time.getMinutes()).padStart(2,'0')}` : '';
+    return `
+      <div onclick="selectBuddyChat('${c.studentId}','${escapeHtml(c.studentName||'')}')"
+        style="padding:12px 16px;border-bottom:1px solid var(--border);cursor:pointer;${isActive ? 'background:#ebf8ff;border-left:3px solid #3182ce;' : ''}">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+          <strong style="font-size:13px;">${escapeHtml(c.studentName || '不明')}</strong>
+          ${unreadBadge}
+        </div>
+        <div style="font-size:11px;color:var(--text-light);overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">
+          ${c.lastSender === 'student' ? '👦' : c.lastSender === 'teacher' ? '👨‍🏫' : '🤖'} ${escapeHtml(c.lastMessage || '')}
+        </div>
+        <div style="font-size:10px;color:#a0aec0;margin-top:2px;">${timeStr}</div>
+      </div>
+    `;
+  }).join('');
+}
+
+async function selectBuddyChat(studentId, studentName) {
+  buddyChatActiveStudentId = studentId;
+  document.getElementById('buddyChatPanelEmpty').style.display = 'none';
+  document.getElementById('buddyChatPanelActive').style.display = 'flex';
+  document.getElementById('buddyChatStudentName').textContent = studentName || '不明';
+  document.getElementById('buddyChatStudentMeta').textContent = `ID: ${studentId}`;
+
+  // 既読化
+  try { await ChatDB.markReadByTeacher(studentId); } catch(e) {}
+
+  // メッセージ購読
+  if (buddyChatMsgUnsub) buddyChatMsgUnsub();
+  buddyChatMsgUnsub = ChatDB.subscribeMessages(studentId, (messages) => {
+    renderBuddyChatMessages(messages);
+  });
+
+  // リスト再描画
+  if (buddyChatListUnsub) {
+    // 一覧も更新（current selectionを反映）
+    setTimeout(() => loadBuddyChat(), 100);
+  }
+}
+
+function renderBuddyChatMessages(messages) {
+  const body = document.getElementById('buddyChatMessages');
+  if (!body) return;
+  if (!messages || messages.length === 0) {
+    body.innerHTML = '<div style="text-align:center;color:#a0aec0;padding:30px;">まだメッセージがありません</div>';
+    return;
+  }
+  body.innerHTML = messages.map(m => {
+    const time = m.createdAt && m.createdAt.toDate ? m.createdAt.toDate() : null;
+    const timeStr = time ? `${time.getHours()}:${String(time.getMinutes()).padStart(2,'0')}` : '';
+    const align = m.sender === 'student' ? 'flex-start' : 'flex-end';
+    const bubbleStyle =
+      m.sender === 'student' ? 'background:#fff;border:1px solid var(--border);' :
+      m.sender === 'teacher' ? 'background:linear-gradient(135deg,#ffd700,#f6ad55);color:#2d3748;font-weight:600;' :
+      'background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;';
+    const senderLabel =
+      m.sender === 'student' ? '<div style="font-size:10px;color:var(--text-light);margin-bottom:2px;">👦 生徒</div>' :
+      m.sender === 'teacher' ? '<div style="font-size:10px;color:#d69e2e;margin-bottom:2px;font-weight:700;">👨‍🏫 ' + escapeHtml(m.senderName || '先生') + '</div>' :
+      '<div style="font-size:10px;color:#667eea;margin-bottom:2px;">🤖 ルカ</div>';
+    return `
+      <div style="display:flex;justify-content:${align};margin-bottom:10px;">
+        <div style="max-width:75%;">
+          ${senderLabel}
+          <div style="${bubbleStyle}padding:10px 14px;border-radius:14px;font-size:13px;line-height:1.5;word-break:break-word;">${escapeHtml(m.text)}</div>
+          <div style="font-size:9px;color:var(--text-light);margin-top:3px;">${timeStr}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  body.scrollTop = body.scrollHeight;
+}
+
+async function sendTeacherMessage() {
+  if (!buddyChatActiveStudentId) return;
+  const input = document.getElementById('buddyChatTeacherInput');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  // 講師名を取得（簡易: ログイン中のFirebase Auth ユーザー）
+  let teacherName = '先生';
+  try {
+    const user = firebase.auth().currentUser;
+    if (user) teacherName = user.displayName || user.email || '先生';
+  } catch(e) {}
+  try {
+    // studentNameを取得
+    const student = allStudents.find(s => s.id === buddyChatActiveStudentId);
+    const studentName = student ? (student.callsign || student.nickname || student.name || '') : '';
+    await ChatDB.sendMessage(buddyChatActiveStudentId, studentName, 'teacher', teacherName, text);
+  } catch(e) {
+    console.error(e);
+    showToast('送信に失敗しました', 'error');
+  }
+}
+
+function closeBuddyChatPanel() {
+  buddyChatActiveStudentId = null;
+  if (buddyChatMsgUnsub) { buddyChatMsgUnsub(); buddyChatMsgUnsub = null; }
+  document.getElementById('buddyChatPanelEmpty').style.display = 'flex';
+  document.getElementById('buddyChatPanelActive').style.display = 'none';
 }
 
 // 13. 塾設定（Zoom URL・お知らせ等）
