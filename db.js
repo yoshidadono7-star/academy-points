@@ -2852,15 +2852,20 @@ const ShiftsDB = {
     for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
       const dayKey = days[d.getDay()];
       const shift = teacher.defaultShift && teacher.defaultShift[dayKey];
-      if (!shift) continue;
       const dateStr = d.toISOString().slice(0,10);
       const docId = `${teacherId}_${dateStr}`;
-      batch.set(db.collection('shifts').doc(docId), {
-        teacherId, date: dateStr, start: shift.start, end: shift.end,
-        status: 'scheduled', checkedInAt: null, checkedOutAt: null,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
-        updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-      }, { merge: true });
+      if (shift) {
+        // シフトありの曜日: 作成 or 上書き
+        batch.set(db.collection('shifts').doc(docId), {
+          teacherId, date: dateStr, start: shift.start, end: shift.end,
+          status: 'scheduled', checkedInAt: null, checkedOutAt: null,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+          updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+        });
+      } else {
+        // シフトなしの曜日: 既存があれば削除
+        batch.delete(db.collection('shifts').doc(docId));
+      }
     }
     await batch.commit();
   }
