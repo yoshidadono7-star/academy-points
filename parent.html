@@ -605,6 +605,7 @@ function switchTab(tabId) {
 // ===== 保���者スケジュール =====
 let availCalDate = new Date();
 let availData = {};
+let availLoadedMonth = '';
 
 async function loadParentSchedule() {
   if (!currentStudent) return;
@@ -646,8 +647,8 @@ async function loadParentSchedule() {
   renderAvailCalendar();
 }
 
-function availCalPrev() { availCalDate.setMonth(availCalDate.getMonth() - 1); renderAvailCalendar(); }
-function availCalNext() { availCalDate.setMonth(availCalDate.getMonth() + 1); renderAvailCalendar(); }
+function availCalPrev() { availCalDate.setMonth(availCalDate.getMonth() - 1); availLoadedMonth = ''; renderAvailCalendar(); }
+function availCalNext() { availCalDate.setMonth(availCalDate.getMonth() + 1); availLoadedMonth = ''; renderAvailCalendar(); }
 
 async function renderAvailCalendar() {
   if (!currentStudent) return;
@@ -656,13 +657,21 @@ async function renderAvailCalendar() {
   const ym = year + '-' + String(month + 1).padStart(2, '0');
   document.getElementById('availCalMonth').textContent = year + '年' + (month + 1) + '月';
 
-  // 既存データ読み込み
-  try {
-    const saved = await AvailabilityDB.get(currentStudent.id, ym);
-    availData = (saved && saved.dates) || {};
-    if (saved && saved.note) document.getElementById('availNote').value = saved.note;
-  } catch(e) { availData = {}; }
+  // 既存データ読み込み（初回のみ、またはキャッシュされた月が違う場合）
+  if (availLoadedMonth !== ym) {
+    try {
+      const saved = await AvailabilityDB.get(currentStudent.id, ym);
+      availData = (saved && saved.dates) || {};
+      if (saved && saved.note) document.getElementById('availNote').value = saved.note;
+      else document.getElementById('availNote').value = '';
+    } catch(e) { availData = {}; }
+    availLoadedMonth = ym;
+  }
 
+  drawAvailCalendar(year, month, ym);
+}
+
+function drawAvailCalendar(year, month, ym) {
   const cal = document.getElementById('availCalendar');
   const days = ['日','月','火','水','木','金','土'];
   let html = days.map(d => '<div style="font-size:11px;font-weight:700;color:#64748b;padding:4px;">' + d + '</div>').join('');
@@ -690,7 +699,10 @@ function toggleAvail(dateStr) {
   const cycle = { '': 'ok', 'ok': 'maybe', 'maybe': 'ng', 'ng': '' };
   const next = cycle[current];
   if (next) { availData[dateStr] = next; } else { delete availData[dateStr]; }
-  renderAvailCalendar();
+  const year = availCalDate.getFullYear();
+  const month = availCalDate.getMonth();
+  const ym = year + '-' + String(month + 1).padStart(2, '0');
+  drawAvailCalendar(year, month, ym);
 }
 
 async function submitAvailability() {
