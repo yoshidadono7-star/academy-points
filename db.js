@@ -2485,6 +2485,21 @@ const AttendanceDB = {
       arrivedAt: firebase.firestore.FieldValue.serverTimestamp(),
       departedAt: null
     });
+    // scheduleSlots連動: 本日のスロットがあればattendedに更新
+    try {
+      const slots = await db.collection('scheduleSlots')
+        .where('studentId', '==', studentId)
+        .where('date', '==', today).get();
+      for (const doc of slots.docs) {
+        const s = doc.data();
+        if (s.status === 'scheduled' && s.approval === 'approved') {
+          await db.collection('scheduleSlots').doc(doc.id).update({
+            status: 'attended',
+            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+        }
+      }
+    } catch(e) { console.warn('Auto-attend sync error:', e); }
     return { id: ref.id, alreadyCheckedIn: false };
   },
   async checkOut(studentId) {
@@ -3402,5 +3417,126 @@ const ScheduleEngine = {
       }
     }
     return null;
+  }
+};
+
+// ============================================
+// スケジュール全連動ユーティリティ
+// ============================================
+const ScheduleSync = {
+  /**
+   * 講師シフト変更時の全連動
+   * 1. shifts再生成（未来分）
+   * 2. 未来のscheduleSlots整合チェック（シフト外スロットを検出）
+   */
+  async onTeacherShiftChanged(teacherId, teacher) {
+    const today = getToday();
+    // 3ヶ月先まで再生成
+    const endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + 3);
+    const endStr = endDate.toISOString().slice(0, 10);
+
+    // 1. shifts再生成
+    await ShiftsDB.generateFromDefaults(teacherId, teacher, today, endStr);
+
+    // 2. 未来のscheduleSlots整合チェック
+    const warnings = [];
+    const shifts = await ShiftsDB.getByTeacher(teacherId, today, endStr);
+    const shiftDates = {};
+    shifts.forEach(s => { shiftDates[s.date] = s; });
+
+    const snap = await db.collection('scheduleSlots')
+      .where('teacherId', '==', teacherId)
+      .where('date', '>=', today)
+      .where('date', '<=', endStr).get();
+
+    for (const doc of snap.docs) {
+      const slot = doc.data();
+      if (slot.status === 'cancelled') continue;
+      const shift = shiftDates[slot.date];
+      if (!shift) {
+        // この日にシフトがない
+        warnings.push({ slotId: doc.id, date: slot.date, startTime: slot.startTime, endTime: slot.endTime, studentId: slot.studentId, reason: 'シフト外（出勤なし）' });
+        continue;
+      }
+      // シフト時間外チェック
+      const [slotSH, slotSM] = slot.startTime.split(':').map(Number);
+      const [slotEH, slotEM] = slot.endTime.split(':').map(Number);
+      const [shiftSH, shiftSM] = shift.start.split(':').map(Number);
+      const [shiftEH, shiftEM] = shift.end.split(':').map(Number);
+      if (slotSH * 60 + slotSM < shiftSH * 60 + shiftSM || slotEH * 60 + slotEM > shiftEH * 60 + shiftEM) {
+        warnings.push({ slotId: doc.id, date: slot.date, startTime: slot.startTime, endTime: slot.endTime, studentId: slot.studentId, reason: `シフト時間外（${shift.start}-${shift.end}）` });
+      }
+    }
+    return warnings;
+  },
+
+  /**
+   * 全データ整合チェック
+   * shifts/scheduleSlots/attendance の不整合を一括検出
+   */
+  async checkIntegrity(startDate, endDate) {
+    const teachers = await TeachersDB.getAll();
+    const students = await StudentsDB.getAll();
+    const studentMap = {}; students.forEach(s => studentMap[s.id] = s);
+    const teacherMap = {}; teachers.forEach(t => teacherMap[t.id] = t);
+    const issues = [];
+
+    const d = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T00:00:00');
+    while (d <= end) {
+      const dateStr = d.toISOString().slice(0, 10);
+      const [slots, shifts, attendance] = await Promise.all([
+        ScheduleSlotsDB.getByDate(dateStr),
+        ShiftsDB.getByDate(dateStr),
+        db.collection('attendance').where('date', '==', dateStr).get().then(s => s.docs.map(dd => ({ id: dd.id, ...dd.data() })))
+      ]);
+      const shiftMap = {}; shifts.forEach(s => shiftMap[s.teacherId] = s);
+      const attendSet = new Set(attendance.map(a => a.studentId));
+
+      for (const slot of slots) {
+        if (slot.status === 'cancelled') continue;
+        // 講師シフト外チェック
+        if (slot.teacherId && !shiftMap[slot.teacherId]) {
+          const tName = teacherMap[slot.teacherId] ? teacherMap[slot.teacherId].name : '不明';
+          issues.push({ type: 'no_shift', date: dateStr, desc: `${tName}はシフトなし`, slot });
+        }
+        // 出席チェック: attendanceはあるのにslotがscheduledのまま
+        if (attendSet.has(slot.studentId) && slot.status === 'scheduled' && new Date(dateStr) < new Date(getToday())) {
+          const sName = studentMap[slot.studentId] ? studentMap[slot.studentId].name : '不明';
+          issues.push({ type: 'attend_mismatch', date: dateStr, desc: `${sName}: 入室済みだがスロット未更新`, slot });
+        }
+      }
+      d.setDate(d.getDate() + 1);
+    }
+    return issues;
+  },
+
+  /**
+   * 出席ステータス一括修復
+   * attendanceがある + scheduleSlots.status=scheduled → attendedに更新
+   */
+  async fixAttendanceStatus(startDate, endDate) {
+    let fixed = 0;
+    const d = new Date(startDate + 'T00:00:00');
+    const end = new Date(endDate + 'T00:00:00');
+    while (d <= end) {
+      const dateStr = d.toISOString().slice(0, 10);
+      const [slots, attendance] = await Promise.all([
+        ScheduleSlotsDB.getByDate(dateStr),
+        db.collection('attendance').where('date', '==', dateStr).get().then(s => s.docs.map(dd => ({ id: dd.id, ...dd.data() })))
+      ]);
+      const attendSet = new Set(attendance.map(a => a.studentId));
+      for (const slot of slots) {
+        if (slot.status === 'scheduled' && slot.approval === 'approved' && attendSet.has(slot.studentId)) {
+          await db.collection('scheduleSlots').doc(slot.id).update({
+            status: 'attended', updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+          });
+          fixed++;
+        }
+      }
+      d.setDate(d.getDate() + 1);
+    }
+    return fixed;
   }
 };
