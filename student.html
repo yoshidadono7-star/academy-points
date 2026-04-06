@@ -1306,6 +1306,10 @@ body.theme-space {
   </div>
   <div class="current-points-banner" id="prizePointsBanner">所持ポイント: 0 pt</div>
   <div id="prizeGrid" class="prize-grid"></div>
+  <div id="prizeHistorySection" style="display:none;padding:16px;">
+    <div style="font-size:14px;font-weight:700;color:#2d3748;margin-bottom:8px;">📋 交換履歴</div>
+    <div id="prizeHistoryList"></div>
+  </div>
 </div>
 
 <!-- ========== Rewards Catalog ========== -->
@@ -1903,6 +1907,7 @@ async function loadSpaceMapScreen() {
     if (hiddenByStation[st.id]) {
       for (const area of hiddenByStation[st.id]) {
         const isDiscovered = discoveredIds.includes(area.id);
+        const disc = discoveries.find(d => d.areaId === area.id);
         html += `<div class="space-hidden-node ${isDiscovered ? 'discovered' : 'undiscovered'}">
           <div class="space-hidden-icon">${isDiscovered ? area.icon : '❓'}</div>
           <div class="space-hidden-info">
@@ -1911,7 +1916,7 @@ async function loadSpaceMapScreen() {
               const labels = { comboDiscoveryCount: 'コンボ発見数', bestStreak: '最大連続日数', allTimeSubjectCount: '学習科目数', totalPomodoros: 'ポモドーロ回数', legendaryMissionCleared: '伝説ミッション', raidBossKills: 'ボス討伐数' };
               return (labels[key] || key) + ' ' + op + ' ' + val;
             })}</div>
-            ${isDiscovered && area.reward ? `<div class="space-hidden-reward">🏷️ 称号: ${area.reward.title}</div>` : ''}
+            ${isDiscovered && area.reward ? `<div class="space-hidden-reward">🏷️ 称号: ${area.reward.title}${disc && !disc.titleEquipped ? ` <button onclick="equipTitle('${disc.id}','${area.reward.title}')" style="margin-left:6px;padding:2px 8px;background:#ffd700;border:none;border-radius:4px;font-size:10px;cursor:pointer;font-weight:600;">装備</button>` : disc && disc.titleEquipped ? ' ✅装備中' : ''}</div>` : ''}
           </div>
         </div>`;
       }
@@ -1919,6 +1924,14 @@ async function loadSpaceMapScreen() {
   }
 
   container.innerHTML = html;
+}
+
+async function equipTitle(discoveryId, title) {
+  try {
+    await SpaceMapDB.equipTitle(discoveryId);
+    showToast(`🏷️ 称号「${title}」を装備しました！`);
+    loadSpaceMapScreen();
+  } catch(e) { showToast('称号の装備に失敗しました'); }
 }
 
 // リアルタイム: イベント発動バナー
@@ -3129,6 +3142,26 @@ async function loadPrizes() {
         `;
       }).join('');
     }
+    // 交換履歴
+    const history = await PrizesDB.getHistory(currentStudent.id);
+    const histSection = document.getElementById('prizeHistorySection');
+    const histList = document.getElementById('prizeHistoryList');
+    if (history.length > 0 && histSection && histList) {
+      histSection.style.display = 'block';
+      const allPrizes = await PrizesDB.getAll();
+      histList.innerHTML = history.slice(0, 10).map(h => {
+        const prize = allPrizes.find(p => p.id === h.prizeId);
+        const date = h.exchangedAt?.toDate ? h.exchangedAt.toDate().toLocaleDateString('ja-JP') : '';
+        return `<div style="display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f1f5f9;">
+          <span style="font-size:16px;">${prize ? (prize.icon || '🎁') : '🎁'}</span>
+          <div style="flex:1;font-size:13px;">${prize ? prize.name : '不明'}</div>
+          <div style="font-size:11px;color:#94a3b8;">${date}</div>
+          <div style="font-size:12px;color:#ef4444;">-${(h.cost || 0).toLocaleString()}pt</div>
+        </div>`;
+      }).join('');
+    } else if (histSection) {
+      histSection.style.display = 'none';
+    }
   } catch(e) {
     console.error(e);
     showToast('景品の読み込みに失敗しました');
@@ -3177,7 +3210,8 @@ async function loadRewards() {
     const RANK_ORDER = ['rookie', 'crew', 'senior', 'captain'];
     const currentRankIdx = RANK_ORDER.indexOf(rank);
     const filterEl = document.getElementById('rewardRankFilter');
-    filterEl.innerHTML = '<button style="padding:4px 12px;background:#667eea;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;" onclick="loadRewards()">全て</button>';
+    filterEl.innerHTML = '<button style="padding:4px 12px;background:#667eea;color:#fff;border:none;border-radius:6px;font-size:12px;font-weight:600;cursor:pointer;" onclick="loadRewards()">全て</button>'
+      + [1,2,3,4].map(l => `<button style="padding:4px 12px;background:#e0e7ff;color:#4338ca;border:none;border-radius:6px;font-size:12px;cursor:pointer;" onclick="loadRewardsByLevel(${l})">Lv.${l}</button>`).join('');
 
     if (activeRewards.length === 0) {
       container.innerHTML = '<div class="empty-state" style="grid-column:span 2"><div class="empty-icon">🎖️</div><div class="empty-text">報酬カタログはまだ登録されていません</div></div>';
@@ -3205,6 +3239,38 @@ async function loadRewards() {
     console.error(e);
     showToast('報酬カタログの読み込みに失敗しました');
   }
+  hideLoading();
+}
+
+async function loadRewardsByLevel(level) {
+  showLoading();
+  try {
+    const fresh = await StudentsDB.getById(currentStudent.id);
+    if (fresh) currentStudent = fresh;
+    const pts = currentStudent.currentPoints || 0;
+    const rank = currentStudent.rank || 'rookie';
+    const RANK_ORDER = ['rookie', 'crew', 'senior', 'captain'];
+    const currentRankIdx = RANK_ORDER.indexOf(rank);
+    const rewards = await RewardsDB.getByLevel(level);
+    const container = document.getElementById('rewardGrid');
+    const activeRewards = rewards.filter(r => r.active !== false);
+    if (activeRewards.length === 0) {
+      container.innerHTML = `<div class="empty-state" style="grid-column:span 2"><div class="empty-icon">🎖️</div><div class="empty-text">Lv.${level} の報酬はありません</div></div>`;
+    } else {
+      container.innerHTML = activeRewards.map(r => {
+        const canAfford = pts >= r.cost;
+        const inStock = r.stock === -1 || r.stock > 0;
+        const rankOk = RANK_ORDER.indexOf(r.rankRequired || 'rookie') <= currentRankIdx;
+        const available = canAfford && inStock && rankOk;
+        const CATS = { goods: '🎁', experience: '🌟', privilege: '👑', regional: '🏮' };
+        return `<div class="prize-card ${available ? '' : 'prize-unavailable'}" onclick="${available ? `exchangeReward('${r.id}','${(r.name||'').replace(/'/g,"\\'")}',${r.cost})` : ''}">
+          <div class="prize-icon">${CATS[r.category] || '🎖️'}</div>
+          <div class="prize-name">${r.name || '報酬'}</div>
+          <div class="prize-cost">${(r.cost || 0).toLocaleString()} pt</div>
+        </div>`;
+      }).join('');
+    }
+  } catch(e) { showToast('読み込みに失敗しました'); }
   hideLoading();
 }
 

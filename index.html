@@ -842,6 +842,10 @@
 
   <!-- 学習ルート管理 -->
   <div class="tab-content" id="tab-routes">
+    <div id="routeOverdueAlert" style="display:none;background:#fef2f2;border:1px solid #fecaca;border-radius:12px;padding:12px 16px;margin-bottom:16px;">
+      <div style="font-size:14px;font-weight:700;color:#dc2626;margin-bottom:6px;">⚠️ 遅延タスクあり</div>
+      <div id="routeOverdueList" style="font-size:12px;color:#991b1b;"></div>
+    </div>
     <div class="card">
       <h3>📊 学習ルート管理</h3>
       <p style="font-size:13px;color:#718096;margin-bottom:16px;">教材の章・単元を順番に並べて、ガントチャートで進捗を管理します。</p>
@@ -3804,6 +3808,23 @@ async function loadRoutes() {
       sel.appendChild(o);
     });
   }
+  // 全生徒の遅延タスクを検出
+  try {
+    const students = allStudents.length ? allStudents : await StudentsDB.getAll();
+    const allOverdue = [];
+    for (const s of students) {
+      const overdue = await RouteTasksDB.getOverdue(s.id);
+      overdue.forEach(t => allOverdue.push({ ...t, studentName: s.name, studentNickname: s.nickname }));
+    }
+    const alertEl = document.getElementById('routeOverdueAlert');
+    const listEl = document.getElementById('routeOverdueList');
+    if (allOverdue.length > 0 && alertEl && listEl) {
+      alertEl.style.display = 'block';
+      listEl.innerHTML = allOverdue.slice(0, 10).map(t =>
+        `<div style="padding:3px 0;">🔴 ${escapeHtml(t.studentNickname || t.studentName)} — <strong>${escapeHtml(t.taskName)}</strong> (期限: ${t.endDate})</div>`
+      ).join('') + (allOverdue.length > 10 ? `<div style="margin-top:4px;">...他 ${allOverdue.length - 10}件</div>` : '');
+    } else if (alertEl) { alertEl.style.display = 'none'; }
+  } catch(e) { console.warn('Overdue check error:', e); }
 }
 
 async function onRouteStudentChange() {
