@@ -1297,18 +1297,21 @@ async function renderBossPanel() {
 // ============================================
 // コマンダーバフ演出
 // ============================================
-let commanderBuffShown = false;
+let commanderBuffShown = { point: false, boss: false };
 async function checkCommanderBuff() {
   try {
-    const today = getToday();
-    const logs = await StudyLogsDB.getByDate(today);
-    // Simple CP calc: today's total logs
-    const cp = logs.length;
-    const threshold = 10; // 10 sessions today triggers commander buff
-    if (cp >= threshold && !commanderBuffShown) {
-      commanderBuffShown = true;
+    const activeBuffs = await CommanderBuffDB.getActive();
+    const pointBuff = activeBuffs.find(b => b.type === 'point_boost');
+    const bossBuff = activeBuffs.find(b => b.type === 'boss_boost');
+    if (pointBuff && !commanderBuffShown.point) {
+      commanderBuffShown.point = true;
       showCommanderBuff();
-      addFeed('⚡', 'コマンダーから支援到達！全クルーにバフ適用中！', 'special');
+      addFeed('📡', 'コマンダーから通信ブースト！全クルーのポイント+20%！', 'special');
+    }
+    if (bossBuff && !commanderBuffShown.boss) {
+      commanderBuffShown.boss = true;
+      showCommanderBuff();
+      addFeed('⚔️', 'コマンダーから総員攻撃命令！ボスダメージ×1.5発動中！', 'special');
     }
   } catch(e) {}
 }

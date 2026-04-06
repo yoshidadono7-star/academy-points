@@ -3114,12 +3114,22 @@ async function loadCommanderCP() {
     // CP = today's logs reviewed(1pt each) + messages sent today(3pt each) + bosses created(5pt each)
     const todayMessages = messages.filter(m => m.fromType === 'teacher' && m.createdAt && formatDate(m.createdAt).includes(today.replace(/-/g, '/')));
     const cp = todayLogs.length + todayMessages.length * 3 + bosses.length * 5;
-    const maxCp = 50;
+    const maxCp = 100;
     const pct = Math.min(100, (cp / maxCp) * 100);
-    const buffActive = cp >= maxCp;
+    const pointBuffActive = cp >= 50;
+    const bossBuffActive = cp >= 100;
 
-    return { cp, maxCp, pct, buffActive };
-  } catch(e) { return { cp: 0, maxCp: 50, pct: 0, buffActive: false }; }
+    // CP50到達: ポイント+20%バフ発動（30分間）
+    if (pointBuffActive) {
+      try { await CommanderBuffDB.activate('point_boost', 30); } catch(e) {}
+    }
+    // CP100到達: ボスダメージ×1.5バフ発動（60分間）
+    if (bossBuffActive) {
+      try { await CommanderBuffDB.activate('boss_boost', 60); } catch(e) {}
+    }
+
+    return { cp, maxCp, pct, buffActive: pointBuffActive, bossBuffActive };
+  } catch(e) { return { cp: 0, maxCp: 100, pct: 0, buffActive: false, bossBuffActive: false }; }
 }
 
 // ============================================

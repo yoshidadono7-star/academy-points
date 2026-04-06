@@ -1191,7 +1191,9 @@ body.theme-space {
       </div>
     </div>
     <div id="completeEventBonus" style="display:none;"></div>
+    <div id="completeCommanderBuff"></div>
     <div id="completeCombos"></div>
+    <div id="completeAllStudied"></div>
     <div id="completeBadges"></div>
     <div id="completeRaid"></div>
     <div id="completeMission" style="display:none"></div>
@@ -1447,7 +1449,11 @@ async function handleLogin() {
   hideLoading();
 }
 
-function logout() {
+async function logout() {
+  if (currentStudent) {
+    try { await AttendanceDB.checkOut(currentStudent.id); } catch(e) {}
+    try { await ActiveSessionsDB.end(currentStudent.id); } catch(e) {}
+  }
   currentStudent = null;
   localStorage.removeItem('heroAcademy_student');
   document.getElementById('loginNickname').value = '';
@@ -1761,6 +1767,7 @@ function setupEventBannerListener() {
 
 async function loadExamCountdown(student) {
   const container = document.getElementById('examCountdown');
+  if (!container) return;
   try {
     const exams = await ExamSchedulesDB.getByStudent(student.id, student);
     if (exams.length === 0) { container.style.display = 'none'; return; }
@@ -1785,11 +1792,12 @@ async function loadExamCountdown(student) {
         </div>
       </div>`;
     }).join('');
-  } catch(e) { container.style.display = 'none'; }
+  } catch(e) { if (container) container.style.display = 'none'; }
 }
 
 async function loadRouteProgressCards(student) {
   const container = document.getElementById('routeProgress');
+  if (!container) return;
   try {
     const routes = await StudyRoutesDB.getActive(student.id);
     if (routes.length === 0) { container.style.display = 'none'; return; }
@@ -1817,11 +1825,12 @@ async function loadRouteProgressCards(student) {
       container.style.display = 'block';
       container.innerHTML = cards.join('');
     } else { container.style.display = 'none'; }
-  } catch(e) { container.style.display = 'none'; }
+  } catch(e) { if (container) container.style.display = 'none'; }
 }
 
 async function loadMaterialProgressCards(student) {
   const container = document.getElementById('materialProgressCards');
+  if (!container) return;
   const mats = student.materials || [];
   if (mats.length === 0) { container.style.display = 'none'; return; }
 
@@ -2397,7 +2406,13 @@ async function stopStudy(save) {
     }
   } catch(e) { console.error('Event check error:', e); }
 
-  let points = Math.round(basePoints * eventMultiplier) + eventBonusPoints;
+  // コマンダーバフ（ポイント+20%）
+  let commanderMultiplier = 1.0;
+  try {
+    commanderMultiplier = await CommanderBuffDB.getPointMultiplier();
+  } catch(e) {}
+
+  let points = Math.round(basePoints * eventMultiplier * commanderMultiplier) + eventBonusPoints;
 
   try {
     // Save study log
@@ -2424,10 +2439,27 @@ async function stopStudy(save) {
     currentStudent = await StudentsDB.getById(currentStudent.id);
 
     // Guild points
+    let allStudiedBonus = 0;
     if (currentStudent.guildId) {
       try {
         await GuildsDB.addPoints(currentStudent.guildId, points);
       } catch(e) {}
+
+      // 一蓮托生ボーナス: ギルド全員が今日学習していたらボーナス
+      try {
+        const today = new Date().toISOString().split('T')[0];
+        const allStudied = await GuildsDB.checkAllStudiedBonus(currentStudent.guildId, today);
+        if (allStudied) {
+          const guild = await GuildsDB.getById(currentStudent.guildId);
+          const memberCount = (guild && guild.members) ? guild.members.length : 0;
+          if (memberCount > 1) {
+            allStudiedBonus = memberCount * 10;
+            await StudentsDB.addPoints(currentStudent.id, allStudiedBonus);
+            await GuildsDB.addPoints(currentStudent.guildId, allStudiedBonus);
+            points += allStudiedBonus;
+          }
+        }
+      } catch(e) { console.error('AllStudiedBonus error:', e); }
     }
 
     // Combo check
@@ -2460,6 +2492,8 @@ async function stopStudy(save) {
 
     // Raid boss damage (with new calculateBossDamage)
     let raidResults = [];
+    let commanderBossBuff = 1.0;
+    try { commanderBossBuff = await CommanderBuffDB.getBossDamageMultiplier(); } catch(e) {}
     try {
       const activeBosses = await RaidBossDB.getActive();
       const session = {
@@ -2469,7 +2503,7 @@ async function stopStudy(save) {
         _supporterBuff: supporterBuff
       };
       for (const boss of activeBosses) {
-        const damage = calculateBossDamage(session, boss, comboResults);
+        const damage = Math.round(calculateBossDamage(session, boss, comboResults) * commanderBossBuff);
         const result = await RaidBossDB.damage(boss.id, currentStudent.id, currentStudent.callsign || currentStudent.nickname || currentStudent.name, damage);
         if (result) {
           raidResults.push({
@@ -2634,6 +2668,27 @@ function showCompleteScreen(duration, points, newBadges, raidResults, comboResul
     }
   }
 
+  // コマンダーバフ表示
+  const cmdBuffEl = document.getElementById('completeCommanderBuff');
+  if (cmdBuffEl) {
+    let cmdHtml = '';
+    if (commanderMultiplier > 1) {
+      cmdHtml += `<div style="background:linear-gradient(135deg,#ffd70030,#ff880010);border:2px solid #ffd700;border-radius:12px;padding:12px;text-align:center;margin-top:8px;">
+        <div style="font-size:16px;">📡</div>
+        <div style="font-weight:700;color:#ffd700;font-size:13px;">通信ブースト発動中!</div>
+        <div style="font-size:12px;color:#e2e8f0;">ポイント ×${commanderMultiplier}</div>
+      </div>`;
+    }
+    if (commanderBossBuff > 1) {
+      cmdHtml += `<div style="background:linear-gradient(135deg,#ef444430,#ff880010);border:2px solid #ef4444;border-radius:12px;padding:12px;text-align:center;margin-top:8px;">
+        <div style="font-size:16px;">⚔️</div>
+        <div style="font-weight:700;color:#ef4444;font-size:13px;">総員攻撃命令発動中!</div>
+        <div style="font-size:12px;color:#e2e8f0;">ボスダメージ ×${commanderBossBuff}</div>
+      </div>`;
+    }
+    cmdBuffEl.innerHTML = cmdHtml;
+  }
+
   // Combos
   const comboEl = document.getElementById('completeCombos');
   if (comboResults.length > 0) {
@@ -2650,6 +2705,21 @@ function showCompleteScreen(duration, points, newBadges, raidResults, comboResul
     `).join('');
   } else {
     comboEl.innerHTML = '';
+  }
+
+  // 一蓮托生ボーナス表示
+  const allStudiedEl = document.getElementById('completeAllStudied');
+  if (allStudiedEl) {
+    if (allStudiedBonus > 0) {
+      allStudiedEl.innerHTML = `<div style="background:linear-gradient(135deg,#dcfce7,#bbf7d0);border:1px solid #86efac;border-radius:12px;padding:14px;text-align:center;margin-top:8px;">
+        <div style="font-size:28px;margin-bottom:4px;">🤝</div>
+        <div style="font-weight:700;color:#166534;font-size:14px;">一蓮托生ボーナス!</div>
+        <div style="font-size:12px;color:#166534;opacity:0.85;">ギルド全員が今日学習しました</div>
+        <div style="font-weight:700;color:#166534;font-size:16px;margin-top:4px;">+${allStudiedBonus} pt</div>
+      </div>`;
+    } else {
+      allStudiedEl.innerHTML = '';
+    }
   }
 
   // Badges

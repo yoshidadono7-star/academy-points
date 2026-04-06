@@ -2712,3 +2712,44 @@ const RouteTasksDB = {
     return all.filter(t => t.endDate && t.endDate < today && t.status !== 'completed');
   }
 };
+
+// ===== コマンダーバフ (CommanderBuff) =====
+const CommanderBuffDB = {
+  // バフ発動を記録（index.htmlから呼ばれる）
+  async activate(type, durationMinutes) {
+    // type: 'point_boost' (CP50: +20%, 30min) or 'boss_boost' (CP100: x1.5, 60min)
+    const now = new Date();
+    const expiresAt = new Date(now.getTime() + durationMinutes * 60 * 1000);
+    const today = getToday();
+    const docId = today + '_' + type;
+    await db.collection('commanderBuffs').doc(docId).set({
+      type,
+      activatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      expiresAt: firebase.firestore.Timestamp.fromDate(expiresAt),
+      date: today,
+      active: true
+    });
+    return docId;
+  },
+  // 現在有効なバフを取得（student.htmlから呼ばれる）
+  async getActive() {
+    const now = firebase.firestore.Timestamp.now();
+    const snap = await db.collection('commanderBuffs')
+      .where('active', '==', true).get();
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(b => b.expiresAt && b.expiresAt.toMillis() > now.toMillis());
+  },
+  // ポイントブースト倍率を取得（有効なら1.2、なければ1.0）
+  async getPointMultiplier() {
+    const active = await this.getActive();
+    const pointBuff = active.find(b => b.type === 'point_boost');
+    return pointBuff ? 1.2 : 1.0;
+  },
+  // ボスダメージ倍率を取得（有効なら1.5、なければ1.0）
+  async getBossDamageMultiplier() {
+    const active = await this.getActive();
+    const bossBuff = active.find(b => b.type === 'boss_boost');
+    return bossBuff ? 1.5 : 1.0;
+  }
+};
