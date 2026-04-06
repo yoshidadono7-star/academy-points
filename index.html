@@ -500,6 +500,7 @@
   <button class="tab-btn hidden-by-category" data-tab="students" data-category="master">&#128100; 生徒管理</button>
   <button class="tab-btn hidden-by-category" data-tab="teachers" data-category="master">&#128105;&#8205;&#127979; 講師管理</button>
   <button class="tab-btn hidden-by-category" data-tab="routes" data-category="master">&#128202; 学習ルート</button>
+  <button class="tab-btn hidden-by-category" data-tab="finance" data-category="master">💹 収支管理</button>
   <button class="tab-btn hidden-by-category" data-tab="settings" data-category="master">&#9881;&#65039; 塾設定</button>
 </nav>
 
@@ -1322,6 +1323,21 @@
     </div>
   </div>
 
+  <!-- ===== 収支管理 ===== -->
+  <div class="tab-content" id="tab-finance">
+    <div class="card">
+      <h3>💹 月次収支ダッシュボード</h3>
+      <div style="display:flex;gap:8px;align-items:center;margin-bottom:16px;">
+        <button class="btn btn-sm" onclick="finPrev()">◀</button>
+        <span id="finMonthLabel" style="font-weight:700;font-size:16px;"></span>
+        <button class="btn btn-sm" onclick="finNext()">▶</button>
+        <button class="btn btn-sm" onclick="finThisMonth()">今月</button>
+      </div>
+      <div id="finSummaryCards" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px;"></div>
+      <div id="finDetail"></div>
+    </div>
+  </div>
+
   <!-- ===== 塾設定 ===== -->
   <div class="tab-content" id="tab-settings">
     <div class="card">
@@ -1836,6 +1852,7 @@ function switchTab(tabId, fromCategory = false) {
     prizes: loadPrizes,
     students: loadStudents,
     teachers: loadTeachers,
+    finance: loadFinance,
     matprogress: loadMatProgress,
     routes: loadRoutes,
     guilds: loadGuilds,
@@ -7281,6 +7298,143 @@ async function runSyncAllShifts() {
     </div>`;
     loadShifts();
   } catch(e) { container.innerHTML = `<div style="color:var(--danger);">エラー: ${e.message}</div>`; console.error(e); }
+}
+
+// ============================================
+// 収支管理ダッシュボード
+// ============================================
+let finDate = new Date();
+function finPrev() { finDate.setMonth(finDate.getMonth() - 1); loadFinance(); }
+function finNext() { finDate.setMonth(finDate.getMonth() + 1); loadFinance(); }
+function finThisMonth() { finDate = new Date(); loadFinance(); }
+
+async function loadFinance() {
+  const year = finDate.getFullYear();
+  const month = finDate.getMonth() + 1;
+  const ym = `${year}-${String(month).padStart(2, '0')}`;
+  document.getElementById('finMonthLabel').textContent = `${year}年${month}月`;
+
+  const summaryEl = document.getElementById('finSummaryCards');
+  const detailEl = document.getElementById('finDetail');
+
+  try {
+    const students = allStudents || await StudentsDB.getAll();
+    const teachers = window._cachedTeachers || await TeachersDB.getAll();
+    const activeStudents = students.filter(s => s.role !== 'supporter');
+
+    // === 売上計算 ===
+    let totalRevenue = 0;
+    const revenueByStudent = [];
+    for (const s of activeStudents) {
+      const gg = getGradeGroup(s.grade, s.examCandidate);
+      const monthly = calcMonthly(gg, s.courseType, s.courseKoma);
+      if (monthly) {
+        totalRevenue += monthly;
+        revenueByStudent.push({ name: s.name, grade: s.grade, course: s.courseType, koma: s.courseKoma, monthly });
+      } else {
+        revenueByStudent.push({ name: s.name, grade: s.grade, course: s.courseType, koma: s.courseKoma, monthly: 0 });
+      }
+    }
+
+    // === 変動費計算（講師人件費） ===
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const startDate = `${ym}-01`;
+    const endDate = `${ym}-${String(daysInMonth).padStart(2, '0')}`;
+    let totalLaborCost = 0;
+    const laborByTeacher = [];
+    for (const t of teachers) {
+      if (t.role === 'manager') continue; // 教室長は固定給
+      const shifts = await ShiftsDB.getByTeacher(t.id, startDate, endDate);
+      let hours = 0;
+      for (const s of shifts) {
+        if (s.status === 'absent') continue;
+        const [sh, sm] = s.start.split(':').map(Number);
+        const [eh, em] = s.end.split(':').map(Number);
+        hours += (eh * 60 + em - sh * 60 - sm) / 60;
+      }
+      const cost = Math.round(hours * (t.hourlyRate || 1050));
+      totalLaborCost += cost;
+      laborByTeacher.push({ name: t.name, hours: Math.round(hours * 10) / 10, rate: t.hourlyRate || 1050, cost });
+    }
+
+    // === 粗利計算 ===
+    const grossProfit = totalRevenue - totalLaborCost;
+    const profitRate = totalRevenue > 0 ? Math.round(grossProfit / totalRevenue * 100) : 0;
+
+    // === サマリーカード ===
+    summaryEl.innerHTML = `
+      <div style="background:linear-gradient(135deg,#3b82f6,#2563eb);color:white;border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:11px;opacity:0.8;">月次売上</div>
+        <div style="font-size:24px;font-weight:900;">¥${totalRevenue.toLocaleString()}</div>
+        <div style="font-size:11px;opacity:0.8;">${activeStudents.length}名</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#ef4444,#dc2626);color:white;border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:11px;opacity:0.8;">講師変動費</div>
+        <div style="font-size:24px;font-weight:900;">¥${totalLaborCost.toLocaleString()}</div>
+        <div style="font-size:11px;opacity:0.8;">${laborByTeacher.length}名</div>
+      </div>
+      <div style="background:linear-gradient(135deg,${grossProfit >= 0 ? '#10b981,#059669' : '#f59e0b,#d97706'});color:white;border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:11px;opacity:0.8;">粗利（売上−変動費）</div>
+        <div style="font-size:24px;font-weight:900;">¥${grossProfit.toLocaleString()}</div>
+        <div style="font-size:11px;opacity:0.8;">粗利率 ${profitRate}%</div>
+      </div>
+      <div style="background:linear-gradient(135deg,#8b5cf6,#7c3aed);color:white;border-radius:12px;padding:16px;text-align:center;">
+        <div style="font-size:11px;opacity:0.8;">生徒単価（平均）</div>
+        <div style="font-size:24px;font-weight:900;">¥${activeStudents.length > 0 ? Math.round(totalRevenue / activeStudents.length).toLocaleString() : 0}</div>
+        <div style="font-size:11px;opacity:0.8;">/月</div>
+      </div>
+    `;
+
+    // === 詳細テーブル ===
+    let html = '<div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">';
+
+    // 売上内訳
+    html += '<div><h4 style="margin-bottom:8px;">📊 売上内訳（生徒別）</h4>';
+    html += '<table class="data-table" style="font-size:12px;"><thead><tr><th>生徒</th><th>学年</th><th>コース</th><th style="text-align:right;">月額</th></tr></thead><tbody>';
+    revenueByStudent.sort((a, b) => b.monthly - a.monthly).forEach(r => {
+      const ct = COURSE_TYPES[r.course];
+      const courseLabel = ct ? ct.icon + ' ' + ct.name.replace(/^[①-⑧]/, '') : (r.course || '未設定');
+      html += `<tr>
+        <td>${escapeHtml(r.name)}</td>
+        <td>${r.grade || '-'}</td>
+        <td style="font-size:11px;">${courseLabel}${r.course === 'standard' && r.koma ? ' ' + r.koma + 'コマ' : ''}</td>
+        <td style="text-align:right;font-weight:600;${r.monthly === 0 ? 'color:#94a3b8;' : ''}">¥${r.monthly.toLocaleString()}</td>
+      </tr>`;
+    });
+    html += `<tr style="font-weight:900;background:#f0f4ff;"><td colspan="3" style="text-align:right;">合計</td><td style="text-align:right;">¥${totalRevenue.toLocaleString()}</td></tr>`;
+    html += '</tbody></table></div>';
+
+    // 変動費内訳
+    html += '<div><h4 style="margin-bottom:8px;">💰 変動費内訳（講師別）</h4>';
+    html += '<table class="data-table" style="font-size:12px;"><thead><tr><th>講師</th><th>時給</th><th>時間</th><th style="text-align:right;">変動費</th></tr></thead><tbody>';
+    laborByTeacher.forEach(l => {
+      html += `<tr>
+        <td>${escapeHtml(l.name)}</td>
+        <td>¥${l.rate.toLocaleString()}</td>
+        <td>${l.hours}h</td>
+        <td style="text-align:right;font-weight:600;">¥${l.cost.toLocaleString()}</td>
+      </tr>`;
+    });
+    html += `<tr style="font-weight:900;background:#fef2f2;"><td colspan="3" style="text-align:right;">合計</td><td style="text-align:right;">¥${totalLaborCost.toLocaleString()}</td></tr>`;
+    html += '</tbody></table>';
+
+    // 教室長（参考）
+    const managers = teachers.filter(t => t.role === 'manager');
+    if (managers.length > 0) {
+      html += '<div style="margin-top:12px;padding:8px;background:#f8fafc;border-radius:8px;font-size:11px;color:#64748b;">';
+      html += '🏫 教室長（固定給）: ' + managers.map(m => m.name).join(', ') + ' ※変動費に含まず';
+      html += '</div>';
+    }
+    html += '</div>';
+
+    html += '</div>';
+    detailEl.innerHTML = html;
+
+  } catch(e) {
+    console.error('Finance load error:', e);
+    summaryEl.innerHTML = '<div style="grid-column:1/-1;color:var(--danger);text-align:center;padding:20px;">収支データの読み込みに失敗しました</div>';
+    detailEl.innerHTML = '';
+  }
 }
 </script>
 </body>
