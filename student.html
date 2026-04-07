@@ -4462,6 +4462,9 @@ const VoiceSystem = (() => {
     if (!('speechSynthesis' in window)) return;
     if (!voicesLoaded) loadVoices();
 
+    // 既に喋っているのを中断して新しい台詞を再生（元の動作）
+    speechSynthesis.cancel();
+
     // タグや絵文字を簡略除去
     const clean = String(text)
       .replace(/<[^>]*>/g, '')
@@ -4476,25 +4479,14 @@ const VoiceSystem = (() => {
     u.pitch = voicePitch;
     u.volume = 0.9;
     u.onerror = (e) => {
-      // canceled は正常な中断なので警告しない
       if (e.error && e.error !== 'canceled' && e.error !== 'interrupted') {
         console.warn('[VoiceSystem] speak error:', e.error);
       }
     };
-    try {
-      // cancel() は呼ばない: 自然にキューイングして順番に再生される
-      // ユーザーが明示的に止めたい場合は stop() を呼ぶ
-      speechSynthesis.speak(u);
-    } catch(e) {
-      console.warn('[VoiceSystem] speak exception:', e);
-    }
+    speechSynthesis.speak(u);
   }
 
-  // Chrome/iOS Safari の autoplay policy 対策版（速度・動作は speak と同じ）
-  // 互換性のため残す（中身は speak と同じ）
-  function speakNoCancel(text) {
-    return speak(text);
-  }
+  function speakNoCancel(text) { return speak(text); }
 
   function setEnabled(v) {
     enabled = !!v;

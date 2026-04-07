@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>Voice Test</title>
+<style>
+  body { font-family: sans-serif; padding: 30px; max-width: 600px; margin: 0 auto; }
+  button { font-size: 18px; padding: 16px 28px; margin: 10px 0; cursor: pointer; display: block; width: 100%; }
+  #log { margin-top: 20px; padding: 14px; background: #f0f0f0; border-radius: 8px; font-family: monospace; font-size: 13px; white-space: pre-wrap; min-height: 200px; }
+  h1 { font-size: 22px; }
+  h2 { font-size: 16px; margin-top: 24px; }
+</style>
+</head>
+<body>
+<h1>🎤 Web Speech API テスト</h1>
+<p>音声合成の動作確認ページ。各ボタンをタップして結果を確認してください。</p>
+
+<h2>1. 一番シンプルなテスト</h2>
+<button onclick="test1()">① テスト発話（最小コード）</button>
+
+<h2>2. 言語指定テスト</h2>
+<button onclick="test2()">② lang=ja-JP で発話</button>
+
+<h2>3. Kyoko 指定テスト</h2>
+<button onclick="test3()">③ Kyoko を明示的に指定して発話</button>
+
+<h2>4. 音声リスト表示</h2>
+<button onclick="test4()">④ 利用可能な音声を確認</button>
+
+<h2>5. 連続発話テスト</h2>
+<button onclick="test5()">⑤ 連続で3回発話</button>
+
+<div id="log">ここに結果が表示されます</div>
+
+<script>
+const log = document.getElementById('log');
+function append(msg) {
+  const time = new Date().toLocaleTimeString();
+  log.textContent = `[${time}] ${msg}\n` + log.textContent;
+}
+
+function test1() {
+  append('① 最小テスト開始');
+  if (!('speechSynthesis' in window)) { append('❌ speechSynthesis 非対応'); return; }
+  const u = new SpeechSynthesisUtterance('テスト一');
+  u.onstart = () => append('① ▶️ 再生開始 (聞こえる？)');
+  u.onend = () => append('① ✅ 再生完了');
+  u.onerror = (e) => append('① ❌ エラー: ' + e.error);
+  speechSynthesis.speak(u);
+  append('① queued: speaking=' + speechSynthesis.speaking + ' pending=' + speechSynthesis.pending);
+}
+
+function test2() {
+  append('② lang=ja-JP テスト開始');
+  const u = new SpeechSynthesisUtterance('テスト二、こんにちは');
+  u.lang = 'ja-JP';
+  u.onstart = () => append('② ▶️ 再生開始 (聞こえる？)');
+  u.onend = () => append('② ✅ 再生完了');
+  u.onerror = (e) => append('② ❌ エラー: ' + e.error);
+  speechSynthesis.speak(u);
+  append('② queued');
+}
+
+function test3() {
+  append('③ Kyoko 指定テスト開始');
+  const voices = speechSynthesis.getVoices();
+  const kyoko = voices.find(v => v.name === 'Kyoko');
+  if (!kyoko) {
+    append('③ ❌ Kyoko が見つからない (voices=' + voices.length + ')');
+    return;
+  }
+  append('③ Kyoko 発見: ' + kyoko.name + ' (' + kyoko.lang + ')');
+  const u = new SpeechSynthesisUtterance('テスト三、京子です');
+  u.voice = kyoko;
+  u.lang = 'ja-JP';
+  u.onstart = () => append('③ ▶️ 再生開始 (聞こえる？)');
+  u.onend = () => append('③ ✅ 再生完了');
+  u.onerror = (e) => append('③ ❌ エラー: ' + e.error);
+  speechSynthesis.speak(u);
+  append('③ queued');
+}
+
+function test4() {
+  const voices = speechSynthesis.getVoices();
+  append('④ 総音声数: ' + voices.length);
+  const ja = voices.filter(v => v.lang && v.lang.startsWith('ja'));
+  append('④ 日本語音声: ' + ja.length + '個');
+  ja.forEach(v => append('  - ' + v.name + (v.default ? ' [DEFAULT]' : '')));
+}
+
+function test5() {
+  append('⑤ 連続発話テスト');
+  ['一つ目', '二つ目', '三つ目'].forEach((msg, i) => {
+    const u = new SpeechSynthesisUtterance(msg);
+    u.lang = 'ja-JP';
+    u.onstart = () => append('⑤ ' + (i+1) + ' ▶️ 開始');
+    u.onend = () => append('⑤ ' + (i+1) + ' ✅ 完了');
+    u.onerror = (e) => append('⑤ ' + (i+1) + ' ❌ ' + e.error);
+    speechSynthesis.speak(u);
+  });
+  append('⑤ 3つ queued');
+}
+
+// 起動時に音声リスト準備
+if ('speechSynthesis' in window) {
+  speechSynthesis.onvoiceschanged = () => append('🔄 音声リスト更新: ' + speechSynthesis.getVoices().length + '個');
+  setTimeout(() => append('準備OK: voices=' + speechSynthesis.getVoices().length), 500);
+}
+</script>
+</body>
+</html>
