@@ -4489,19 +4489,32 @@ const VoiceSystem = (() => {
     }
   }
 
-  // iOS Safari / Chrome の autoplay policy 対策
-  // ユーザー操作の同期タイミングで一度だけ空発話を流して「ロック解除」する
-  let warmedUp = false;
-  function warmUp() {
-    if (warmedUp) return;
-    if (!('speechSynthesis' in window)) return;
+  // Chrome/iOS Safari の autoplay policy 対策版 speak
+  // ユーザー操作の同期タイミングでのみ呼ばれる前提で、cancel() を呼ばない
+  // cancel() を挟むと user activation トークンが失われて not-allowed エラーになる
+  function speakNoCancel(text) {
+    if (!('speechSynthesis' in window)) {
+      console.warn('[VoiceSystem] speechSynthesis not supported');
+      return;
+    }
+    if (!voicesLoaded) loadVoices();
+    const clean = String(text)
+      .replace(/<[^>]*>/g, '')
+      .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}]/gu, '')
+      .trim();
+    if (!clean) return;
+    const u = new SpeechSynthesisUtterance(clean);
+    u.lang = 'ja-JP';
+    if (voice) u.voice = voice;
+    u.rate = voiceRate;
+    u.pitch = voicePitch;
+    u.volume = 0.9;
+    u.onerror = (e) => console.warn('[VoiceSystem] speakNoCancel error:', e.error);
     try {
-      const u = new SpeechSynthesisUtterance(' ');
-      u.volume = 0;
-      u.rate = 10;
       speechSynthesis.speak(u);
-      warmedUp = true;
-    } catch(e) { console.warn('[VoiceSystem] warmUp failed:', e); }
+    } catch(e) {
+      console.warn('[VoiceSystem] speakNoCancel exception:', e);
+    }
   }
 
   function setEnabled(v) {
@@ -4523,7 +4536,7 @@ const VoiceSystem = (() => {
     return enabled;
   }
 
-  return { speak, setEnabled, isEnabled, toggle, setVoiceConfig, stop, warmUp };
+  return { speak, speakNoCancel, setEnabled, isEnabled, toggle, setVoiceConfig, stop };
 })();
 
 // ============================================
@@ -4893,8 +4906,9 @@ const BuddySystem = (() => {
     const duration = opts.duration || 5000;
     const emotion = opts.emotion || 'idle';
 
-    // 進行中の音声を即座に停止
-    VoiceSystem.stop();
+    // 進行中の音声を即座に停止（skipStop が指定されていない場合のみ）
+    // skipStop = true は「この say() 呼び出しは既に進行中の発話を残したい」意味
+    if (!opts.skipStop) VoiceSystem.stop();
 
     setEmotion(emotion);
     showTyping();
@@ -5107,11 +5121,14 @@ function toggleBuddyVoice() {
   const enabled = VoiceSystem.toggle();
   BuddySystem.updateVoiceButton();
   if (enabled) {
-    // iOS Safari 対策: ユーザー操作の同期タイミングでウォームアップ + 発話
-    VoiceSystem.warmUp();
-    VoiceSystem.speak('音声オンにしたよ。これからお話しするね');
-    // UI 吹き出しは表示するが音声再生はスキップ（二重再生防止）
-    BuddySystem.say('音声ONにしたよ！これからお話しするね', { emotion: 'happy', duration: 4000, skipVoice: true });
+    // Chrome/iOS Safari の autoplay policy 対策:
+    // ユーザー操作の同期タイミングで直接 speak を呼ぶ（cancel/stop は呼ばない）
+    // cancel() を挟むと user activation トークンが失われて not-allowed エラーになる
+    VoiceSystem.speakNoCancel('音声オンにしたよ。これからお話しするね');
+    // UI 吹き出しは表示するが、音声再生と stop はスキップ
+    BuddySystem.say('音声ONにしたよ！これからお話しするね', {
+      emotion: 'happy', duration: 4000, skipVoice: true, skipStop: true
+    });
   }
 }
 
