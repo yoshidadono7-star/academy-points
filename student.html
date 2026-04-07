@@ -1555,7 +1555,8 @@ body.theme-space {
     <span class="badge" id="chatTeacherBadge">!</span>
   </button>
   <input type="text" class="buddy-chat-input" id="buddyChatInput"
-    placeholder="ルカに話しかけてみよう..." onkeydown="if(event.key==='Enter') ChatUI.sendFromBar()">
+    placeholder="ルカに話しかけてみよう..."
+    onkeydown="if(event.key==='Enter'){event.preventDefault();ChatUI.sendFromBar();}">
   <button class="buddy-chat-btn" id="buddyMicBtn" onclick="ChatUI.toggleVoiceInput()" title="音声入力">🎤</button>
   <button class="buddy-chat-btn" onclick="ChatUI.sendFromBar()" title="送信">➤</button>
 </div>
@@ -1572,7 +1573,8 @@ body.theme-space {
     </div>
     <div class="chat-modal-footer">
       <input type="text" class="chat-modal-input" id="chatModalInput"
-        placeholder="メッセージを入力..." onkeydown="if(event.key==='Enter') ChatUI.sendFromModal()">
+        placeholder="メッセージを入力..."
+        onkeydown="if(event.key==='Enter'){event.preventDefault();ChatUI.sendFromModal();}">
       <button class="buddy-chat-btn" id="chatModalMicBtn" onclick="ChatUI.toggleVoiceInput('modal')">🎤</button>
       <button class="buddy-chat-btn" onclick="ChatUI.sendFromModal()">➤</button>
     </div>
@@ -1771,6 +1773,10 @@ body.theme-space {
     <button class="quick-action" onclick="navigate('messages')">
       <div class="quick-action-icon">💬</div>
       <div class="quick-action-label">メッセージ</div>
+    </button>
+    <button class="quick-action" onclick="ChatUI.openModal()">
+      <div class="quick-action-icon">🤖</div>
+      <div class="quick-action-label">バディ会話履歴</div>
     </button>
     <button class="quick-action" onclick="navigate('base')">
       <div class="quick-action-icon">🚀</div>
@@ -5357,6 +5363,8 @@ const ChatUI = (() => {
     const text = input.value.trim();
     if (!text) return;
     input.value = '';
+    input.blur();
+    setTimeout(() => { input.value = ''; }, 50);
     await sendMessage(text);
   }
 
@@ -5366,6 +5374,8 @@ const ChatUI = (() => {
     const text = input.value.trim();
     if (!text) return;
     input.value = '';
+    input.blur();
+    setTimeout(() => { input.value = ''; input.focus(); }, 50);
     await sendMessage(text);
   }
 

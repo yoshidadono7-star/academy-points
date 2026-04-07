@@ -222,6 +222,7 @@
         <button class="tab-btn" onclick="switchTab('exams')">📝 テスト</button>
         <button class="tab-btn" onclick="switchTab('badges')">🏅 バッジ</button>
         <button class="tab-btn" onclick="switchTab('messages')">💬 メッセージ</button>
+        <button class="tab-btn" onclick="switchTab('buddychat')">🤖 バディ会話</button>
         <button class="tab-btn" onclick="switchTab('schedule')">📅 スケジュール</button>
         <button class="tab-btn" onclick="switchTab('homestudy')">🏠 学習確認</button>
         <button class="tab-btn" onclick="switchTab('interviews')">💬 面談</button>
@@ -324,6 +325,15 @@
           <div class="card-title">💬 先生からのメッセージ</div>
           <p style="font-size:11px;color:#94a3b8;margin-bottom:12px;">※ メッセージの内容は閲覧のみです</p>
           <div id="messagesList"></div>
+        </div>
+      </div>
+
+      <!-- バディ会話 -->
+      <div class="tab-panel" id="panel-buddychat">
+        <div class="card">
+          <div class="card-title">🤖 バディとお子さんの会話</div>
+          <p style="font-size:11px;color:#94a3b8;margin-bottom:12px;">※ お子さんがバディと話した内容を見守れます。閲覧のみで返信はできません。</p>
+          <div id="parentBuddyChatList" style="max-height:60vh;overflow-y:auto;"></div>
         </div>
       </div>
 
@@ -459,6 +469,7 @@ async function showPortal() {
       loadParentSchedule(),
       loadParentHomeStudy(),
       loadParentInterviews(),
+      loadParentBuddyChat(),
     ]);
   } catch(e) {
     console.error('showPortal error:', e);
@@ -1110,6 +1121,52 @@ async function loadParentInterviews() {
       </div>
     `).join('');
   } catch(e) { console.error(e); }
+}
+
+// ===== バディ会話 (リアルタイム閲覧) =====
+let parentBuddyChatUnsub = null;
+async function loadParentBuddyChat() {
+  const container = document.getElementById('parentBuddyChatList');
+  if (!container || !currentStudent) return;
+  try {
+    if (parentBuddyChatUnsub) parentBuddyChatUnsub();
+    parentBuddyChatUnsub = ChatDB.subscribeMessages(currentStudent.id, (messages) => {
+      renderParentBuddyChat(messages);
+    });
+  } catch(e) { console.error(e); container.innerHTML = '<p style="color:#fc8181;">読み込みに失敗しました</p>'; }
+}
+
+function renderParentBuddyChat(messages) {
+  const container = document.getElementById('parentBuddyChatList');
+  if (!container) return;
+  if (!messages || messages.length === 0) {
+    container.innerHTML = '<p style="color:#94a3b8;text-align:center;padding:30px;">まだ会話はありません</p>';
+    return;
+  }
+  const esc = s => String(s||'').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+  container.innerHTML = messages.map(m => {
+    const t = m.createdAt && m.createdAt.toDate ? m.createdAt.toDate() : null;
+    const tStr = t ? `${t.getMonth()+1}/${t.getDate()} ${t.getHours()}:${String(t.getMinutes()).padStart(2,'0')}` : '';
+    const align = m.sender === 'student' ? 'flex-end' : 'flex-start';
+    const bgColor =
+      m.sender === 'student' ? 'background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;' :
+      m.sender === 'teacher' ? 'background:linear-gradient(135deg,#ffd700,#f6ad55);color:#2d3748;font-weight:600;' :
+      'background:#fff;border:1px solid #e2e8f0;color:#2d3748;';
+    const senderLabel =
+      m.sender === 'student' ? '<div style="font-size:10px;color:#94a3b8;margin-bottom:2px;text-align:right;">👦 ' + esc(m.senderName || 'お子さん') + '</div>' :
+      m.sender === 'teacher' ? '<div style="font-size:10px;color:#d69e2e;margin-bottom:2px;font-weight:700;">👨‍🏫 ' + esc(m.senderName || '先生') + '</div>' :
+      '<div style="font-size:10px;color:#667eea;margin-bottom:2px;">🤖 ' + esc(m.senderName || 'バディ') + '</div>';
+    return `
+      <div style="display:flex;justify-content:${align};margin-bottom:10px;">
+        <div style="max-width:80%;">
+          ${senderLabel}
+          <div style="${bgColor}padding:9px 13px;border-radius:14px;font-size:13px;line-height:1.5;word-break:break-word;box-shadow:0 2px 6px rgba(0,0,0,0.05);">${esc(m.text)}</div>
+          <div style="font-size:9px;color:#a0aec0;margin-top:3px;${m.sender==='student'?'text-align:right;':''}">${tStr}</div>
+        </div>
+      </div>
+    `;
+  }).join('');
+  container.scrollTop = container.scrollHeight;
 }
 
 // ===== 起動 =====
