@@ -144,18 +144,24 @@ body.buddy-on .buddy-panel { display: flex; align-items: center; }
   flex: 1;
   height: 100%;
   display: flex; flex-direction: column;
-  justify-content: center;
-  gap: 10px;
-  padding: 18px 8px 14px;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 14px 8px 10px;
   z-index: 2;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.3) transparent;
 }
+.buddy-conversation::-webkit-scrollbar { width: 4px; }
+.buddy-conversation::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 2px; }
 .conv-line {
   display: flex;
   max-width: 100%;
   align-items: flex-start;
   gap: 6px;
   animation: convLineIn 0.4s ease-out;
+  flex-shrink: 0;
 }
 @keyframes convLineIn {
   0% { opacity: 0; transform: translateY(8px); }
@@ -174,7 +180,12 @@ body.buddy-on .buddy-panel { display: flex; align-items: center; }
   max-width: 90%;
   word-break: break-word;
   position: relative;
+  max-height: 180px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
+.conv-bubble::-webkit-scrollbar { width: 3px; }
+.conv-bubble::-webkit-scrollbar-thumb { background: rgba(0,0,0,0.2); border-radius: 2px; }
 .conv-line.from-buddy .conv-bubble {
   border-bottom-left-radius: 4px;
 }
@@ -4853,12 +4864,22 @@ const BuddySystem = (() => {
     if (!container) return;
     const line = document.createElement('div');
     line.className = 'conv-line from-' + who;
-    // バディの吹き出しはタップで音声スキップ可能
-    const tapHandler = who === 'buddy' ? 'onclick="VoiceSystem.stop()" style="cursor:pointer;" title="タップで音声をスキップ"' : '';
+    // 長文時は履歴モーダルで全文読めることを示す
+    const rawText = String(text || '').replace(/<[^>]*>/g, '');
+    const isLong = rawText.length > 120;
+    // バディの吹き出しはタップで履歴モーダルを開く or 音声スキップ
+    const tapAction = who === 'buddy'
+      ? (isLong ? 'onclick="ChatUI.openModal(); VoiceSystem.stop();" style="cursor:pointer;" title="タップで全文を見る"'
+                : 'onclick="VoiceSystem.stop()" style="cursor:pointer;" title="タップで音声をスキップ"')
+      : '';
+    const moreHint = (who === 'buddy' && isLong)
+      ? '<div style="font-size:10px;color:#667eea;margin-top:4px;text-align:right;">📖 タップで全文</div>'
+      : '';
     line.innerHTML = `
-      <div class="conv-bubble" ${tapHandler}>
+      <div class="conv-bubble" ${tapAction}>
         <div class="conv-name">${name}</div>
         <div>${text}</div>
+        ${moreHint}
       </div>
     `;
     container.appendChild(line);
@@ -4871,6 +4892,13 @@ const BuddySystem = (() => {
     while (container.children.length > 3) {
       container.firstElementChild.remove();
     }
+    // 最新メッセージが見えるように自動スクロール
+    requestAnimationFrame(() => {
+      container.scrollTop = container.scrollHeight;
+      // 追加した吹き出し自体も先頭から見えるように
+      const bubble = line.querySelector('.conv-bubble');
+      if (bubble) bubble.scrollTop = 0;
+    });
   }
 
   function showTyping() {
