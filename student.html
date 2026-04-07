@@ -1558,8 +1558,23 @@ body.theme-space {
   <input type="text" class="buddy-chat-input" id="buddyChatInput"
     placeholder="ルカに話しかけてみよう..."
     onkeydown="if(event.key==='Enter'){event.preventDefault();ChatUI.sendFromBar();}">
+  <button class="buddy-chat-btn" onclick="document.getElementById('buddyChatPhoto').click()" title="写真を撮影">📷</button>
+  <input type="file" id="buddyChatPhoto" accept="image/*" capture="environment" style="display:none;" onchange="ChatUI.handlePhoto(event)">
   <button class="buddy-chat-btn" id="buddyMicBtn" onclick="ChatUI.toggleVoiceInput()" title="音声入力">🎤</button>
   <button class="buddy-chat-btn" onclick="ChatUI.sendFromBar()" title="送信">➤</button>
+</div>
+
+<!-- 画像プレビューモーダル -->
+<div id="photoPreviewModal" style="display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,0,0,0.85);align-items:center;justify-content:center;padding:20px;">
+  <div style="background:#fff;border-radius:14px;max-width:480px;width:100%;max-height:90vh;overflow-y:auto;padding:18px;">
+    <div style="font-size:15px;font-weight:700;margin-bottom:10px;">📷 この画像について質問する</div>
+    <img id="photoPreviewImg" src="" style="width:100%;max-height:280px;object-fit:contain;border-radius:8px;background:#f0f4f8;margin-bottom:10px;">
+    <textarea id="photoPreviewText" rows="2" placeholder="例: この問題の解き方を教えて" style="width:100%;padding:10px;border:1px solid #cbd5e0;border-radius:8px;font-size:13px;resize:vertical;"></textarea>
+    <div style="display:flex;gap:8px;margin-top:10px;">
+      <button onclick="ChatUI.cancelPhoto()" style="flex:1;padding:10px;border:1px solid #cbd5e0;background:#fff;border-radius:8px;cursor:pointer;">キャンセル</button>
+      <button onclick="ChatUI.sendPhoto()" style="flex:2;padding:10px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;">送信</button>
+    </div>
+  </div>
 </div>
 
 <!-- Phase 14: チャット履歴モーダル -->
@@ -5262,6 +5277,52 @@ ${personalityHint[buddy.personality] || personalityHint.cheerful}`;
 
   function clearHistory() { history = []; }
 
+  // 画像つきメッセージ: 履歴は汚さず、Vision対応モデル（Sonnet以上）で1往復のみ
+  async function askWithImage(userText, base64, mediaType, student) {
+    if (!config) await loadConfig();
+    if (!isEnabled()) return null;
+
+    // 画像認識は Haiku だと品質が低いため、Sonnet 以上を強制
+    let model = (student && student.aiModel) || config.model || 'claude-haiku-4-5-20251001';
+    if (model.includes('haiku')) model = 'claude-sonnet-4-6';
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': config.apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: model,
+          max_tokens: 400,
+          system: buildSystemPrompt(student),
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image', source: { type: 'base64', media_type: mediaType || 'image/jpeg', data: base64 } },
+              { type: 'text', text: userText || 'この画像について教えて' }
+            ]
+          }]
+        })
+      });
+      const data = await res.json();
+      if (data.error) {
+        console.error('[AIBuddy.askWithImage] API error:', data.error);
+        return null;
+      }
+      if (data.content && data.content[0] && data.content[0].text) {
+        return data.content[0].text.trim();
+      }
+      return null;
+    } catch(e) {
+      console.error('[AIBuddy.askWithImage] error:', e);
+      return null;
+    }
+  }
+
   // 自動発話用: イベント内容を1往復だけAIに投げて反応文を返す（履歴を汚さない）
   async function reactToEvent(eventDescription, student) {
     if (!config) await loadConfig();
@@ -5309,7 +5370,7 @@ ${personalityHint[buddy.personality] || personalityHint.cheerful}`;
     }
   }
 
-  return { loadConfig, isEnabled, ask, reactToEvent, clearHistory };
+  return { loadConfig, isEnabled, ask, askWithImage, reactToEvent, clearHistory };
 })();
 
 // ============================================
@@ -5620,9 +5681,96 @@ const ChatUI = (() => {
     lastTeacherMessageId = null;
   }
 
+  // ===== カメラ・画像入力 =====
+  let pendingPhotoBase64 = null;
+  let pendingPhotoMediaType = 'image/jpeg';
+
+  // 画像をリサイズして base64 化（幅 800px に縮小）
+  function resizeImage(file) {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const img = new Image();
+        img.onload = () => {
+          const maxW = 800;
+          const scale = Math.min(1, maxW / img.width);
+          const w = Math.round(img.width * scale);
+          const h = Math.round(img.height * scale);
+          const canvas = document.createElement('canvas');
+          canvas.width = w; canvas.height = h;
+          const ctx = canvas.getContext('2d');
+          ctx.drawImage(img, 0, 0, w, h);
+          const dataUrl = canvas.toDataURL('image/jpeg', 0.8);
+          resolve(dataUrl);
+        };
+        img.onerror = reject;
+        img.src = e.target.result;
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(file);
+    });
+  }
+
+  async function handlePhoto(event) {
+    const file = event.target.files && event.target.files[0];
+    if (!file) return;
+    try {
+      const dataUrl = await resizeImage(file);
+      // dataUrl の prefix を除いた base64 部分だけ保存
+      const m = dataUrl.match(/^data:(image\/\w+);base64,(.+)$/);
+      if (!m) throw new Error('invalid image data');
+      pendingPhotoMediaType = m[1];
+      pendingPhotoBase64 = m[2];
+      document.getElementById('photoPreviewImg').src = dataUrl;
+      document.getElementById('photoPreviewText').value = '';
+      document.getElementById('photoPreviewModal').style.display = 'flex';
+    } catch(e) {
+      console.error('handlePhoto error:', e);
+      alert('画像を読み込めませんでした');
+    } finally {
+      event.target.value = '';
+    }
+  }
+
+  function cancelPhoto() {
+    pendingPhotoBase64 = null;
+    document.getElementById('photoPreviewModal').style.display = 'none';
+  }
+
+  async function sendPhoto() {
+    if (!pendingPhotoBase64 || !currentStudent) return;
+    const text = (document.getElementById('photoPreviewText').value || '').trim() || 'この画像について教えて';
+    const base64 = pendingPhotoBase64;
+    const mediaType = pendingPhotoMediaType;
+    cancelPhoto();
+
+    const studentName = currentStudent.callsign || currentStudent.nickname || currentStudent.name;
+    BuddySystem.sayStudent('📷 ' + text);
+
+    try {
+      // 画像付きメッセージはチャット履歴にはテキストだけ保存
+      await ChatDB.sendMessage(currentStudent.id, studentName, 'student', studentName, '📷 ' + text);
+      BuddySystem.setEmotion('thinking');
+
+      let reply = null;
+      if (AIBuddy.isEnabled()) {
+        reply = await AIBuddy.askWithImage(text, base64, mediaType, currentStudent);
+      }
+      if (!reply) {
+        reply = '画像を読むには Claude AI を有効にする必要があるよ。先生に伝えてね';
+      }
+      await ChatDB.sendMessage(currentStudent.id, studentName, 'buddy', 'ルカ', reply);
+      BuddySystem.say(reply, { emotion: 'happy', duration: 9000 });
+    } catch(e) {
+      console.error('sendPhoto error:', e);
+      BuddySystem.say('画像をうまく読み取れなかった...もう一度試してくれる？', { emotion: 'sad' });
+    }
+  }
+
   return {
     sendFromBar, sendFromModal, sendMessage, openModal, closeModal,
-    toggleVoiceInput, startSubscription, stopSubscription
+    toggleVoiceInput, startSubscription, stopSubscription,
+    handlePhoto, sendPhoto, cancelPhoto
   };
 })();
 
