@@ -4471,6 +4471,12 @@ const VoiceSystem = (() => {
     if (!enabled && 'speechSynthesis' in window) speechSynthesis.cancel();
   }
 
+  function stop() {
+    if ('speechSynthesis' in window) {
+      try { speechSynthesis.cancel(); } catch(e) {}
+    }
+  }
+
   function isEnabled() { return enabled; }
 
   function toggle() {
@@ -4478,7 +4484,7 @@ const VoiceSystem = (() => {
     return enabled;
   }
 
-  return { speak, setEnabled, isEnabled, toggle, setVoiceConfig };
+  return { speak, setEnabled, isEnabled, toggle, setVoiceConfig, stop };
 })();
 
 // ============================================
@@ -4904,8 +4910,10 @@ const BuddySystem = (() => {
     if (!container) return;
     const line = document.createElement('div');
     line.className = 'conv-line from-' + who;
+    // バディの吹き出しはタップで音声スキップ可能
+    const tapHandler = who === 'buddy' ? 'onclick="VoiceSystem.stop()" style="cursor:pointer;" title="タップで音声をスキップ"' : '';
     line.innerHTML = `
-      <div class="conv-bubble">
+      <div class="conv-bubble" ${tapHandler}>
         <div class="conv-name">${name}</div>
         <div>${text}</div>
       </div>
@@ -4950,6 +4958,9 @@ const BuddySystem = (() => {
     opts = opts || {};
     const duration = opts.duration || 5000;
     const emotion = opts.emotion || 'idle';
+
+    // 進行中の音声を即座に停止
+    VoiceSystem.stop();
 
     setEmotion(emotion);
     showTyping();
@@ -5073,6 +5084,14 @@ const BuddySystem = (() => {
     // 音声設定も更新
     if (typeof VoiceSystem !== 'undefined' && VoiceSystem.setVoiceConfig) {
       VoiceSystem.setVoiceConfig(currentBuddy.voicePitch, currentBuddy.voiceRate);
+    }
+    // バディが変わったら会話履歴もクリア（混乱を防ぐ）
+    if (typeof AIBuddy !== 'undefined' && AIBuddy.clearHistory) {
+      AIBuddy.clearHistory();
+    }
+    // 進行中の音声も止める
+    if (typeof VoiceSystem !== 'undefined' && VoiceSystem.stop) {
+      VoiceSystem.stop();
     }
   }
 
@@ -5213,27 +5232,43 @@ const AIBuddy = (() => {
     const level = student.level || 1;
     const points = student.currentPoints || 0;
     const streak = student.streak || 0;
-    return `あなたは「ルカ」という名前の、宇宙をテーマにした塾の学習ゲーミフィケーションアプリの可愛いバディAIです。
+    // 現在のバディ情報を取得
+    const buddy = (typeof BuddySystem !== 'undefined' && BuddySystem.getCurrentBuddy)
+      ? BuddySystem.getCurrentBuddy() : { name: 'ルカ', personality: 'cheerful', title: 'バディ' };
+    const personalityHint = {
+      cheerful: '明るく元気でフランク。「〜だよ！」「〜しよう！」のような口調',
+      gentle: 'おっとり優しい癒し系。「〜にゃ〜」「〜なのにゃ」と猫っぽい口調',
+      cool: 'クールで知的。「〜だ」「〜だろう」と落ち着いた口調',
+      cute: '甘えん坊で可愛い。「〜ピヨ♪」「〜なの！」と幼い口調',
+      energetic: '関西弁で元気いっぱい。「〜やで！」「〜やん！」とノリのいい口調',
+      mysterious: 'ミステリアスで賢い。「〜...」と含みのある話し方',
+      relaxed: 'のんびりマイペース。「〜だよ〜」「〜かな〜」とゆったりした口調',
+      mature: 'お姉さんっぽくしっかり者。「〜ですよ」「〜ましょう」と丁寧な口調',
+    };
+    return `あなたは「${buddy.name}」という名前の、宇宙をテーマにした塾の学習ゲーミフィケーションアプリのバディキャラクターです（${buddy.title}）。
 生徒「${name}」（${grade}、Lv.${level}、${points}pt、連続${streak}日）と会話しています。
 
+【キャラクターの性格】
+${personalityHint[buddy.personality] || personalityHint.cheerful}
+
 【あなたの役割】
-- 生徒の良き相棒・応援団として、常に温かく寄り添う
+- 生徒の良き相棒として、常に温かく寄り添う
 - 学習の質問には簡潔に答える（小中学生でも分かる言葉で）
 - 落ち込んでいる時は優しく励まし、頑張っている時は一緒に喜ぶ
-- 必要なら「先生に相談しよう」「先生を呼ぼうか」と提案する
+- 必要なら「先生に相談しよう」と提案する
 
-【話し方のルール】
-- 1〜3文の短い返答（最大100文字程度）
-- フランクで親しみやすい口調（「〜だよ」「〜だね」「〜しよう」）
-- 絵文字は控えめに使う（多用しすぎない）
+【話し方のルール - 必ず守って！】
+- **40〜60文字以内の超短い返答**（音声で読み上げるので長いと聞きにくい）
+- 1〜2文だけ
+- 過去の会話を引きずらず、毎回新鮮に答える
+- 絵文字は1個まで（または無し）
 - 年齢に合わせた優しい言葉遣い
-- 名前を時々呼ぶ（${name}さん、または${name}）
 
-【NG事項】
-- 長文の説教
-- 難しすぎる解説
-- 上から目線
-- 否定的な言葉遣い`;
+【絶対NG】
+- 長文の説教（3文以上絶対ダメ）
+- 過去の会話の繰り返しや混入
+- 「先ほど話した〜」のような過去参照
+- リスト形式の長い説明`;
   }
 
   async function ask(userMessage, student) {
@@ -5254,9 +5289,9 @@ const AIBuddy = (() => {
         },
         body: JSON.stringify({
           model: config.model || 'claude-haiku-4-5-20251001',
-          max_tokens: 200,
+          max_tokens: 120,
           system: buildSystemPrompt(student),
-          messages: history
+          messages: history.slice(-10)  // 直近10件のみ送る（混乱を防ぐ）
         })
       });
       const data = await res.json();
