@@ -5100,54 +5100,14 @@ function toggleBuddyVoice() {
   const enabled = VoiceSystem.toggle();
   BuddySystem.updateVoiceButton();
   if (enabled) {
-    // デバッグ情報を画面に表示
-    showVoiceDebug();
-    // 直接 speak（ユーザー操作の同期コンテキスト）
+    // ⚠️ alert() は呼ばない！Mac Chrome では alert 表示中に speechSynthesis がキャンセルされる
+    // ユーザー操作の同期コンテキストで直接 speak を呼ぶ
     VoiceSystem.speakNoCancel('音声オンにしたよ。これからお話しするね');
-    // UI 吹き出し
+    // UI 吹き出し（音声再生はスキップ、二重再生防止）
     BuddySystem.say('音声ONにしたよ！これからお話しするね', {
       emotion: 'happy', duration: 4000, skipVoice: true
     });
   }
-}
-
-// 音声デバッグ情報を画面に表示（音声トラブル診断用）
-function showVoiceDebug() {
-  let info = '=== 音声デバッグ ===\n';
-  if (!('speechSynthesis' in window)) {
-    info += '❌ speechSynthesis 非対応ブラウザ';
-    alert(info); return;
-  }
-  const allVoices = speechSynthesis.getVoices();
-  info += `見つかった音声総数: ${allVoices.length}\n`;
-  const ja = allVoices.filter(v => v.lang && v.lang.startsWith('ja'));
-  info += `日本語音声: ${ja.length}個\n`;
-  if (ja.length > 0) {
-    info += '日本語音声の名前:\n';
-    ja.forEach(v => { info += `  - ${v.name} (${v.lang})${v.default ? ' [DEFAULT]' : ''}\n`; });
-  } else {
-    info += '⚠️ 日本語音声が見つかりません\n';
-    info += '\n総音声リスト（最初の10個）:\n';
-    allVoices.slice(0, 10).forEach(v => { info += `  - ${v.name} (${v.lang})\n`; });
-  }
-  info += `\nspeechSynthesis.speaking: ${speechSynthesis.speaking}\n`;
-  info += `speechSynthesis.pending: ${speechSynthesis.pending}\n`;
-  info += `speechSynthesis.paused: ${speechSynthesis.paused}\n`;
-
-  // 直接シンプルな発話テストを試す
-  try {
-    const u = new SpeechSynthesisUtterance('テスト');
-    u.lang = 'ja-JP';
-    u.volume = 1.0;
-    u.onstart = () => alert('🔊 音声が再生開始しました。聞こえましたか？');
-    u.onerror = (e) => alert('❌ エラー: ' + e.error + '\n\n' + info);
-    u.onend = () => console.log('音声終了');
-    speechSynthesis.speak(u);
-    info += '\n→ "テスト" の発話を queue しました';
-  } catch(e) {
-    info += '\n❌ 発話エラー: ' + e.message;
-  }
-  alert(info);
 }
 
 // ============================================
