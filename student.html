@@ -4459,15 +4459,8 @@ const VoiceSystem = (() => {
 
   function speak(text) {
     if (!enabled) return;
-    if (!('speechSynthesis' in window)) {
-      console.warn('[VoiceSystem] speechSynthesis not supported');
-      return;
-    }
+    if (!('speechSynthesis' in window)) return;
     if (!voicesLoaded) loadVoices();
-
-    console.log('[VoiceSystem] speak() called with:', text, 'from:', new Error().stack.split('\n').slice(2,5).join(' | '));
-    // 既に喋っているのを中断して新しい台詞を再生
-    speechSynthesis.cancel();
 
     // タグや絵文字を簡略除去
     const clean = String(text)
@@ -4482,43 +4475,25 @@ const VoiceSystem = (() => {
     u.rate = voiceRate;
     u.pitch = voicePitch;
     u.volume = 0.9;
-    u.onerror = (e) => console.warn('[VoiceSystem] speak error:', e.error);
+    u.onerror = (e) => {
+      // canceled は正常な中断なので警告しない
+      if (e.error && e.error !== 'canceled' && e.error !== 'interrupted') {
+        console.warn('[VoiceSystem] speak error:', e.error);
+      }
+    };
     try {
+      // cancel() は呼ばない: 自然にキューイングして順番に再生される
+      // ユーザーが明示的に止めたい場合は stop() を呼ぶ
       speechSynthesis.speak(u);
     } catch(e) {
       console.warn('[VoiceSystem] speak exception:', e);
     }
   }
 
-  // Chrome/iOS Safari の autoplay policy 対策版 speak
-  // ユーザー操作の同期タイミングでのみ呼ばれる前提で、cancel() を呼ばない
-  // cancel() を挟むと user activation トークンが失われて not-allowed エラーになる
+  // Chrome/iOS Safari の autoplay policy 対策版（速度・動作は speak と同じ）
+  // 互換性のため残す（中身は speak と同じ）
   function speakNoCancel(text) {
-    if (!('speechSynthesis' in window)) {
-      console.warn('[VoiceSystem] speechSynthesis not supported');
-      return;
-    }
-    if (!voicesLoaded) loadVoices();
-    const clean = String(text)
-      .replace(/<[^>]*>/g, '')
-      .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}]/gu, '')
-      .trim();
-    if (!clean) return;
-    const u = new SpeechSynthesisUtterance(clean);
-    u.lang = 'ja-JP';
-    if (voice) u.voice = voice;
-    u.rate = voiceRate;
-    u.pitch = voicePitch;
-    u.volume = 0.9;
-    u.onerror = (e) => console.warn('[VoiceSystem] speakNoCancel error:', e.error);
-    u.onstart = () => console.log('[VoiceSystem] speakNoCancel started:', clean);
-    u.onend = () => console.log('[VoiceSystem] speakNoCancel ended');
-    try {
-      speechSynthesis.speak(u);
-      console.log('[VoiceSystem] speakNoCancel queued:', clean);
-    } catch(e) {
-      console.warn('[VoiceSystem] speakNoCancel exception:', e);
-    }
+    return speak(text);
   }
 
   function setEnabled(v) {
@@ -4529,7 +4504,6 @@ const VoiceSystem = (() => {
 
   function stop() {
     if ('speechSynthesis' in window) {
-      console.log('[VoiceSystem] stop() called from:', new Error().stack.split('\n').slice(1,4).join(' | '));
       try { speechSynthesis.cancel(); } catch(e) {}
     }
   }
@@ -4911,9 +4885,9 @@ const BuddySystem = (() => {
     const duration = opts.duration || 5000;
     const emotion = opts.emotion || 'idle';
 
-    // 進行中の音声を即座に停止（skipStop が指定されていない場合のみ）
-    // skipStop = true は「この say() 呼び出しは既に進行中の発話を残したい」意味
-    if (!opts.skipStop) VoiceSystem.stop();
+    // 注意: VoiceSystem.stop() は呼ばない。
+    // 複数のメッセージはキューイングされて順番に再生される。
+    // ユーザーが手動で止めたい時は吹き出しタップで stop() が呼ばれる。
 
     setEmotion(emotion);
     showTyping();
