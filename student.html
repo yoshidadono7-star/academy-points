@@ -539,16 +539,17 @@ body.buddy-on .buddy-panel { display: flex; align-items: center; }
   border-bottom: 1px solid rgba(255,215,0,0.2);
   z-index: 89;
   align-items: center;
-  padding: 0 12px;
-  gap: 8px;
+  padding: 0 8px;
+  gap: 6px;
 }
 body.buddy-on .buddy-chatbar { display: flex; }
 .buddy-chat-input {
   flex: 1;
+  min-width: 0;
   background: rgba(255,255,255,0.1);
   border: 1px solid rgba(255,255,255,0.2);
   border-radius: 20px;
-  padding: 8px 16px;
+  padding: 8px 14px;
   color: #fff;
   font-size: 14px;
   outline: none;
@@ -562,11 +563,12 @@ body.buddy-on .buddy-chatbar { display: flex; }
   width: 36px; height: 36px;
   border-radius: 50%;
   color: #fff;
-  font-size: 16px;
+  font-size: 15px;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   transition: all 0.2s;
+  padding: 0;
 }
 .buddy-chat-btn:active { transform: scale(0.92); }
 .buddy-chat-btn.recording {
@@ -583,11 +585,12 @@ body.buddy-on .buddy-chatbar { display: flex; }
   width: 36px; height: 36px;
   border-radius: 50%;
   color: #fff;
-  font-size: 16px;
+  font-size: 15px;
   cursor: pointer;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   position: relative;
+  padding: 0;
 }
 .buddy-chat-history-btn .badge {
   position: absolute; top: -3px; right: -3px;
@@ -597,6 +600,22 @@ body.buddy-on .buddy-chatbar { display: flex; }
   font-weight: 700;
 }
 .buddy-chat-history-btn .badge.show { display: flex; }
+
+/* 狭いスマホ画面対応: ボタンとフォント縮小 */
+@media (max-width: 420px) {
+  .buddy-chatbar { padding: 0 6px; gap: 4px; }
+  .buddy-chat-btn, .buddy-chat-history-btn {
+    width: 32px; height: 32px; font-size: 14px;
+  }
+  .buddy-chat-input { padding: 7px 12px; font-size: 13px; }
+}
+@media (max-width: 360px) {
+  .buddy-chatbar { padding: 0 4px; gap: 3px; }
+  .buddy-chat-btn, .buddy-chat-history-btn {
+    width: 30px; height: 30px; font-size: 13px;
+  }
+  .buddy-chat-input { padding: 6px 10px; font-size: 12px; }
+}
 
 /* チャット履歴モーダル */
 .chat-modal {
@@ -5306,6 +5325,35 @@ ${personalityHint[buddy.personality] || personalityHint.cheerful}`;
   function clearHistory() { history = []; }
 
   // 画像つきメッセージ: 履歴は汚さず、Vision対応モデル（Sonnet以上）で1往復のみ
+  // 画像解析用のシステムプロンプト（通常の超短い返答制約を外す）
+  function buildImageSystemPrompt(student) {
+    const name = (student && (student.callsign || student.nickname || student.name)) || '冒険者';
+    const grade = (student && student.grade) || '不明';
+    const buddy = (typeof BuddySystem !== 'undefined' && BuddySystem.getCurrentBuddy)
+      ? BuddySystem.getCurrentBuddy() : { name: 'ルカ', personality: 'cheerful', title: 'バディ' };
+    const isTutor = student && student.currentLearningMode === 'tutor';
+
+    return `あなたは「${buddy.name}」という名前の塾のバディキャラクターです。生徒「${name}」（${grade}）が画像を送って質問しています。
+
+【画像解析モード - 重要】
+- 画像を**じっくり観察**して、写っているもの・書かれている文字・問題の内容を読み取ってください
+- 教科書や問題集の問題なら、その問題を**忠実に読み取って**から回答してください
+- ノートや手書きなら、書かれた内容を理解してから返答してください
+- 「画像が見えない」「先生に聞いて」と安易に逃げるのは禁止です。**必ず画像を読み取る努力をしてください**
+
+【返答スタイル】
+- ${isTutor ? '**学習モード**: 答えを直接言わず、ヒントや質問で生徒の思考を導いてください。段階的にヒントを出してください。' : '**通常モード**: 内容を分かりやすく説明し、必要なら解き方も示してください。'}
+- 200〜400文字程度で具体的に
+- 小中学生にも分かる言葉で
+- バディキャラ「${buddy.name}」の口調を維持
+- 数式は読みやすく書く（例: 2x + 5 = 11）
+
+【絶対NG】
+- 画像を読まずに「先生に聞いて」と言うこと
+- 「画像がよく見えません」と諦めること（最善を尽くして読み取る）
+- 関係ない話に逸れること`;
+  }
+
   async function askWithImage(userText, base64, mediaType, student) {
     if (!config) await loadConfig();
     if (!isEnabled()) return null;
@@ -5325,8 +5373,8 @@ ${personalityHint[buddy.personality] || personalityHint.cheerful}`;
         },
         body: JSON.stringify({
           model: model,
-          max_tokens: 400,
-          system: buildSystemPrompt(student),
+          max_tokens: 800,
+          system: buildImageSystemPrompt(student),
           messages: [{
             role: 'user',
             content: [
@@ -5337,13 +5385,14 @@ ${personalityHint[buddy.personality] || personalityHint.cheerful}`;
         })
       });
       const data = await res.json();
-      if (data.error) {
-        console.error('[AIBuddy.askWithImage] API error:', data.error);
+      if (!res.ok || data.error) {
+        console.error('[AIBuddy.askWithImage] API error:', res.status, data.error || data);
         return null;
       }
       if (data.content && data.content[0] && data.content[0].text) {
         return data.content[0].text.trim();
       }
+      console.warn('[AIBuddy.askWithImage] empty response:', data);
       return null;
     } catch(e) {
       console.error('[AIBuddy.askWithImage] error:', e);
