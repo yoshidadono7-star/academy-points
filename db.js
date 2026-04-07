@@ -54,6 +54,10 @@ const StudentsDB = {
       targetQualifications: data.targetQualifications || [], // [{name, memo}] 目標資格（社会人用）
       role: data.role || 'student',             // 'student' | 'supporter'(私立合格後)
       missionStreak: data.missionStreak || 0,   // デイリーミッション連続達成数
+      // --- AI バディ設定 ---
+      aiModel: data.aiModel || null,            // null=デフォルト, 'claude-haiku-4-5-20251001'|'claude-sonnet-4-6'|'claude-opus-4-6'
+      learningModeControl: data.learningModeControl || 'both',  // 'student'|'teacher'|'both' 学習モード切替権限
+      currentLearningMode: data.currentLearningMode || 'normal', // 'normal'|'tutor' 現在のモード
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     return ref.id;

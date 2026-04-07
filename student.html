@@ -5170,7 +5170,7 @@ ${personalityHint[buddy.personality] || personalityHint.cheerful}
           'content-type': 'application/json'
         },
         body: JSON.stringify({
-          model: config.model || 'claude-haiku-4-5-20251001',
+          model: (student && student.aiModel) || config.model || 'claude-haiku-4-5-20251001',
           max_tokens: 120,
           system: buildSystemPrompt(student),
           messages: history.slice(-10)  // 直近10件のみ送る（混乱を防ぐ）
@@ -5221,7 +5221,7 @@ ${personalityHint[buddy.personality] || personalityHint.cheerful}
           'content-type': 'application/json'
         },
         body: JSON.stringify({
-          model: config.model || 'claude-haiku-4-5-20251001',
+          model: (student && student.aiModel) || config.model || 'claude-haiku-4-5-20251001',
           max_tokens: 80,
           system: systemPrompt,
           messages: [{ role: 'user', content: eventDescription }]
