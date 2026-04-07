@@ -117,49 +117,48 @@
       cursor: pointer; text-decoration: underline;
     }
 
-    /* Tab Navigation */
+    /* Tab Navigation (2段タブ) */
     .tab-nav {
-      display: flex; background: white;
+      background: white;
       border-bottom: 1px solid var(--border);
-      padding: 0 8px; gap: 4px;
-      position: relative; z-index: 100;
+    }
+    .tab-cat-row {
+      display: flex; gap: 0;
+      padding: 0 8px;
+      background: linear-gradient(135deg, #f8fafc, #f0f4ff);
+      border-bottom: 2px solid #e2e8f0;
       overflow-x: auto;
+      scrollbar-width: none;
+    }
+    .tab-cat-row::-webkit-scrollbar { display: none; }
+    .tab-sub-row {
+      display: flex; overflow-x: auto; padding: 0 8px; gap: 2px;
       -webkit-overflow-scrolling: touch;
       scrollbar-width: none;
     }
-    .tab-nav::-webkit-scrollbar { display: none; }
-    .tab-category { position: relative; }
+    .tab-sub-row::-webkit-scrollbar { display: none; }
     .tab-cat-btn {
-      flex-shrink: 0; padding: 14px 18px; border: none; background: none;
-      font-size: 14px; font-weight: 600; color: var(--text);
+      flex-shrink: 0; padding: 14px 22px; border: none; background: none;
+      font-size: 14px; font-weight: 700; color: var(--text-light);
       cursor: pointer; white-space: nowrap;
-      border-bottom: 3px solid transparent; transition: all 0.2s;
+      border-bottom: 3px solid transparent; transition: all 0.15s;
     }
-    .tab-cat-btn:hover { background: rgba(102,126,234,0.06); color: var(--primary); }
-    .tab-category.has-active .tab-cat-btn {
+    .tab-cat-btn:hover { color: var(--primary); background: rgba(102,126,234,0.05); }
+    .tab-cat-btn.active {
       color: var(--primary); border-bottom-color: var(--primary);
+      background: white;
     }
-    .tab-category.open .tab-cat-btn { background: rgba(102,126,234,0.08); }
-    .tab-cat-menu {
-      display: none; position: absolute; top: 100%; left: 0;
-      background: white; min-width: 230px;
-      box-shadow: 0 10px 30px rgba(0,0,0,0.18);
-      border-radius: 10px; padding: 6px;
-      border: 1px solid var(--border);
-    }
-    .tab-category.open .tab-cat-menu { display: block; }
+    .tab-sub-group { display: none; gap: 2px; }
+    .tab-sub-group.active { display: flex; }
     .tab-btn {
-      flex-shrink: 0; padding: 10px 14px; border: none; background: none;
+      flex-shrink: 0; padding: 12px 14px; border: none; background: none;
       font-size: 13px; font-weight: 500; color: var(--text-light);
       cursor: pointer; white-space: nowrap;
-      border-radius: 6px; transition: all 0.2s;
-      display: block; width: 100%; text-align: left;
-      position: relative;
+      border-bottom: 2px solid transparent; transition: all 0.2s;
     }
-    .tab-btn:hover { background: rgba(102,126,234,0.08); color: var(--primary); }
+    .tab-btn:hover { color: var(--primary); }
     .tab-btn.active {
-      background: linear-gradient(135deg, var(--primary), #764ba2);
-      color: white; font-weight: 700;
+      color: var(--primary); border-bottom-color: var(--primary); font-weight: 700;
     }
 
     /* Main Content */
@@ -466,21 +465,24 @@
   <span id="adminNarrationText"></span>
 </div>
 
-<!-- Tab Navigation (カテゴリ別ドロップダウン) -->
+<!-- Tab Navigation (2段: カテゴリ行 + サブタブ行) -->
 <nav class="tab-nav" id="tabNav">
-  <div class="tab-category has-active" data-cat="daily">
-    <button class="tab-cat-btn">&#128200; 日常 &#9662;</button>
-    <div class="tab-cat-menu">
+  <div class="tab-cat-row">
+    <button class="tab-cat-btn active" data-cat="daily">&#128200; 日常</button>
+    <button class="tab-cat-btn" data-cat="students">&#128101; 生徒</button>
+    <button class="tab-cat-btn" data-cat="game">&#127918; ゲーム</button>
+    <button class="tab-cat-btn" data-cat="analytics">&#128200; 分析</button>
+    <button class="tab-cat-btn" data-cat="operation">&#9881;&#65039; 運営</button>
+  </div>
+  <div class="tab-sub-row">
+    <div class="tab-sub-group active" data-cat="daily">
       <button class="tab-btn active" data-tab="plans">&#128640; 今日のプラン</button>
-      <button class="tab-btn" data-tab="buddychat" style="position:relative;">&#128172; バディ会話<span id="buddyChatBadge" class="notification-badge hidden" style="position:absolute;top:8px;right:8px;font-size:9px;min-width:14px;height:14px;line-height:14px;">0</span></button>
+      <button class="tab-btn" data-tab="buddychat" style="position:relative;background:linear-gradient(135deg,rgba(102,126,234,0.15),rgba(118,75,162,0.15));">&#128172; バディ会話<span id="buddyChatBadge" class="notification-badge hidden" style="position:absolute;top:4px;right:4px;font-size:9px;min-width:14px;height:14px;line-height:14px;">0</span></button>
       <button class="tab-btn" data-tab="monitor">&#128202; 学習モニター</button>
       <button class="tab-btn" data-tab="condition">&#128154; コンディション</button>
-      <button class="tab-btn" data-tab="messages" style="position:relative;">&#128140; メッセージ<span id="msgTabBadge" class="notification-badge hidden" style="position:absolute;top:8px;right:8px;font-size:9px;min-width:14px;height:14px;line-height:14px;">0</span></button>
+      <button class="tab-btn" data-tab="messages" style="position:relative;">&#128140; メッセージ<span id="msgTabBadge" class="notification-badge hidden" style="position:absolute;top:4px;right:4px;font-size:9px;min-width:14px;height:14px;line-height:14px;">0</span></button>
     </div>
-  </div>
-  <div class="tab-category" data-cat="students">
-    <button class="tab-cat-btn">&#128101; 生徒 &#9662;</button>
-    <div class="tab-cat-menu">
+    <div class="tab-sub-group" data-cat="students">
       <button class="tab-btn" data-tab="students">&#128100; 生徒管理</button>
       <button class="tab-btn" data-tab="matprogress">&#128230; 教材進捗</button>
       <button class="tab-btn" data-tab="routes">&#128202; 学習ルート</button>
@@ -488,10 +490,7 @@
       <button class="tab-btn" data-tab="exams">&#128221; テスト結果</button>
       <button class="tab-btn" data-tab="interviews">&#128172; 面談記録</button>
     </div>
-  </div>
-  <div class="tab-category" data-cat="game">
-    <button class="tab-cat-btn">&#127918; ゲーム &#9662;</button>
-    <div class="tab-cat-menu">
+    <div class="tab-sub-group" data-cat="game">
       <button class="tab-btn" data-tab="ranking">&#127942; ランキング</button>
       <button class="tab-btn" data-tab="guilds">&#9876;&#65039; ギルド</button>
       <button class="tab-btn" data-tab="raidboss">&#128121; レイドボス</button>
@@ -501,18 +500,12 @@
       <button class="tab-btn" data-tab="tasks">&#128203; タスク管理</button>
       <button class="tab-btn" data-tab="prizes">&#127873; 景品交換</button>
     </div>
-  </div>
-  <div class="tab-category" data-cat="analytics">
-    <button class="tab-cat-btn">&#128200; 分析 &#9662;</button>
-    <div class="tab-cat-menu">
+    <div class="tab-sub-group" data-cat="analytics">
       <button class="tab-btn" data-tab="coaching">&#127891; コーチング分析</button>
       <button class="tab-btn" data-tab="anomaly">&#128269; アノマリー</button>
       <button class="tab-btn" data-tab="risk">&#9888;&#65039; 離脱リスク</button>
     </div>
-  </div>
-  <div class="tab-category" data-cat="operation">
-    <button class="tab-cat-btn">&#9881;&#65039; 運営 &#9662;</button>
-    <div class="tab-cat-menu">
+    <div class="tab-sub-group" data-cat="operation">
       <button class="tab-btn" data-tab="schedule">&#128197; スケジュール</button>
       <button class="tab-btn" data-tab="teachers">&#128104;&#8205;&#127979; 講師管理</button>
       <button class="tab-btn" data-tab="economy">&#128176; ポイント経済</button>
@@ -1731,29 +1724,22 @@ function escapeHtml(str) {
 }
 
 // ============================================
-// タブ切り替え（カテゴリ別ドロップダウン方式）
+// タブ切り替え（2段タブ方式）
 // ============================================
 document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    switchTab(btn.dataset.tab);
-  });
+  btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
 
-// カテゴリボタンクリックで開閉
+// カテゴリ行クリック → サブタブグループを切替（コンテンツは変えない）
 document.querySelectorAll('.tab-cat-btn').forEach(btn => {
-  btn.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const cat = btn.closest('.tab-category');
-    const wasOpen = cat.classList.contains('open');
-    document.querySelectorAll('.tab-category.open').forEach(c => c.classList.remove('open'));
-    if (!wasOpen) cat.classList.add('open');
+  btn.addEventListener('click', () => {
+    const cat = btn.dataset.cat;
+    document.querySelectorAll('.tab-cat-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+    document.querySelectorAll('.tab-sub-group').forEach(g => g.classList.remove('active'));
+    const group = document.querySelector(`.tab-sub-group[data-cat="${cat}"]`);
+    if (group) group.classList.add('active');
   });
-});
-
-// 画面のどこかをクリックしたらドロップダウンを閉じる
-document.addEventListener('click', () => {
-  document.querySelectorAll('.tab-category.open').forEach(c => c.classList.remove('open'));
 });
 
 function switchTab(tabId) {
@@ -1764,14 +1750,17 @@ function switchTab(tabId) {
   const content = document.getElementById(`tab-${tabId}`);
   if (content) content.classList.add('active');
 
-  // 親カテゴリをアクティブ表示にし、ドロップダウンを閉じる
-  document.querySelectorAll('.tab-category').forEach(c => {
-    c.classList.remove('has-active');
-    c.classList.remove('open');
-  });
+  // サブタブが属するカテゴリ行も同期してアクティブにする
   if (btn) {
-    const parentCat = btn.closest('.tab-category');
-    if (parentCat) parentCat.classList.add('has-active');
+    const parentGroup = btn.closest('.tab-sub-group');
+    if (parentGroup) {
+      const cat = parentGroup.dataset.cat;
+      document.querySelectorAll('.tab-cat-btn').forEach(b => b.classList.remove('active'));
+      const catBtn = document.querySelector(`.tab-cat-btn[data-cat="${cat}"]`);
+      if (catBtn) catBtn.classList.add('active');
+      document.querySelectorAll('.tab-sub-group').forEach(g => g.classList.remove('active'));
+      parentGroup.classList.add('active');
+    }
   }
 
   // タブ切替時にデータロード
