@@ -4459,7 +4459,10 @@ const VoiceSystem = (() => {
 
   function speak(text) {
     if (!enabled) return;
-    if (!('speechSynthesis' in window)) return;
+    if (!('speechSynthesis' in window)) {
+      console.warn('[VoiceSystem] speechSynthesis not supported');
+      return;
+    }
     if (!voicesLoaded) loadVoices();
 
     // 既に喋っているのを中断して新しい台詞を再生
@@ -4478,7 +4481,27 @@ const VoiceSystem = (() => {
     u.rate = voiceRate;
     u.pitch = voicePitch;
     u.volume = 0.9;
-    speechSynthesis.speak(u);
+    u.onerror = (e) => console.warn('[VoiceSystem] speak error:', e.error);
+    try {
+      speechSynthesis.speak(u);
+    } catch(e) {
+      console.warn('[VoiceSystem] speak exception:', e);
+    }
+  }
+
+  // iOS Safari / Chrome の autoplay policy 対策
+  // ユーザー操作の同期タイミングで一度だけ空発話を流して「ロック解除」する
+  let warmedUp = false;
+  function warmUp() {
+    if (warmedUp) return;
+    if (!('speechSynthesis' in window)) return;
+    try {
+      const u = new SpeechSynthesisUtterance(' ');
+      u.volume = 0;
+      u.rate = 10;
+      speechSynthesis.speak(u);
+      warmedUp = true;
+    } catch(e) { console.warn('[VoiceSystem] warmUp failed:', e); }
   }
 
   function setEnabled(v) {
@@ -4500,7 +4523,7 @@ const VoiceSystem = (() => {
     return enabled;
   }
 
-  return { speak, setEnabled, isEnabled, toggle, setVoiceConfig, stop };
+  return { speak, setEnabled, isEnabled, toggle, setVoiceConfig, stop, warmUp };
 })();
 
 // ============================================
@@ -4879,7 +4902,7 @@ const BuddySystem = (() => {
     setTimeout(() => {
       removeTyping();
       pushConvLine('buddy', currentBuddy.name, escapeMsg(message));
-      VoiceSystem.speak(message);
+      if (!opts.skipVoice) VoiceSystem.speak(message);
     }, 600);
 
     isShowing = true;
@@ -5084,7 +5107,11 @@ function toggleBuddyVoice() {
   const enabled = VoiceSystem.toggle();
   BuddySystem.updateVoiceButton();
   if (enabled) {
-    BuddySystem.say('音声ONにしたよ！これからお話しするね', { emotion: 'happy', duration: 4000 });
+    // iOS Safari 対策: ユーザー操作の同期タイミングでウォームアップ + 発話
+    VoiceSystem.warmUp();
+    VoiceSystem.speak('音声オンにしたよ。これからお話しするね');
+    // UI 吹き出しは表示するが音声再生はスキップ（二重再生防止）
+    BuddySystem.say('音声ONにしたよ！これからお話しするね', { emotion: 'happy', duration: 4000, skipVoice: true });
   }
 }
 
