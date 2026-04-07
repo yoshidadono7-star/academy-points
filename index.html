@@ -1593,7 +1593,10 @@
               <div style="font-size:15px;font-weight:700;" id="buddyChatStudentName">-</div>
               <div style="font-size:11px;color:var(--text-light);" id="buddyChatStudentMeta">-</div>
             </div>
-            <button class="btn btn-secondary btn-sm" onclick="closeBuddyChatPanel()">閉じる</button>
+            <div style="display:flex;gap:8px;align-items:center;">
+              <button id="buddyChatModeBtn" class="btn btn-sm" onclick="toggleStudentLearningMode()" style="display:none;" title="学習モード切替">💬 通常</button>
+              <button class="btn btn-secondary btn-sm" onclick="closeBuddyChatPanel()">閉じる</button>
+            </div>
           </div>
           <div id="buddyChatMessages" style="flex:1;overflow-y:auto;padding:16px;background:#f0f4f8;"></div>
           <div style="padding:12px;background:#fff;border-top:1px solid var(--border);display:flex;gap:8px;">
@@ -5764,6 +5767,8 @@ async function selectBuddyChat(studentId, studentName) {
   document.getElementById('buddyChatPanelActive').style.display = 'flex';
   document.getElementById('buddyChatStudentName').textContent = studentName || '不明';
   document.getElementById('buddyChatStudentMeta').textContent = `ID: ${studentId}`;
+  // 学習モードボタンの状態を更新
+  await refreshBuddyChatModeButton();
 
   // 既読化
   try { await ChatDB.markReadByTeacher(studentId); } catch(e) {}
@@ -5841,6 +5846,44 @@ function closeBuddyChatPanel() {
   if (buddyChatMsgUnsub) { buddyChatMsgUnsub(); buddyChatMsgUnsub = null; }
   document.getElementById('buddyChatPanelEmpty').style.display = 'flex';
   document.getElementById('buddyChatPanelActive').style.display = 'none';
+}
+
+// 学習モードボタンの状態を更新（講師側）
+async function refreshBuddyChatModeButton() {
+  const btn = document.getElementById('buddyChatModeBtn');
+  if (!btn || !buddyChatActiveStudentId) return;
+  try {
+    const student = await StudentsDB.getById(buddyChatActiveStudentId);
+    if (!student) { btn.style.display = 'none'; return; }
+    const ctrl = student.learningModeControl || 'both';
+    // 生徒のみ権限の場合は講師側ではボタン非表示
+    if (ctrl === 'student') {
+      btn.style.display = 'none';
+      return;
+    }
+    btn.style.display = '';
+    const mode = student.currentLearningMode || 'normal';
+    btn.textContent = mode === 'tutor' ? '🎓 学習モード' : '💬 通常モード';
+    btn.className = mode === 'tutor' ? 'btn btn-sm btn-primary' : 'btn btn-sm btn-secondary';
+  } catch(e) {
+    console.error('refreshBuddyChatModeButton error:', e);
+  }
+}
+
+// 講師から生徒の学習モードを切替
+async function toggleStudentLearningMode() {
+  if (!buddyChatActiveStudentId) return;
+  try {
+    const student = await StudentsDB.getById(buddyChatActiveStudentId);
+    if (!student) return;
+    const newMode = student.currentLearningMode === 'tutor' ? 'normal' : 'tutor';
+    await StudentsDB.update(buddyChatActiveStudentId, { currentLearningMode: newMode });
+    showToast(newMode === 'tutor' ? '学習モードに切替えました' : '通常モードに戻しました');
+    await refreshBuddyChatModeButton();
+  } catch(e) {
+    console.error('toggleStudentLearningMode error:', e);
+    showToast('切替に失敗しました', 'error');
+  }
 }
 
 // 13. 塾設定（Zoom URL・お知らせ等）

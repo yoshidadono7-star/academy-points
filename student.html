@@ -1525,6 +1525,7 @@ body.theme-space {
     <div class="buddy-status-item" id="buddyStatusPoints"><span class="icon">💎</span>0pt</div>
     <div class="buddy-status-item" id="buddyStatusStreak"><span class="icon">🔥</span>0</div>
     <button id="buddyVoiceBtn" class="buddy-status-item" onclick="toggleBuddyVoice()" style="cursor:pointer;border:1px solid rgba(255,255,255,0.2);">🔇 OFF</button>
+    <button id="buddyModeBtn" class="buddy-status-item" onclick="toggleLearningMode()" style="cursor:pointer;border:1px solid rgba(255,255,255,0.2);display:none;" title="学習モード切替">💬 通常</button>
   </div>
   <!-- 左: バディ -->
   <div class="buddy-character">
@@ -2221,6 +2222,7 @@ async function handleLogin() {
     ChatUI.startSubscription();
     AIBuddy.loadConfig();
     BuddyMemory.rebuild(student);
+    updateLearningModeButton();
     const isFirstLogin = !student.seenBuddy;
     const hasNoBuddy = !student.buddyId;
     const studentName = student.callsign || student.nickname || student.name;
@@ -2280,6 +2282,7 @@ async function tryAutoLogin() {
       ChatUI.startSubscription();
       AIBuddy.loadConfig();
       BuddyMemory.rebuild(student);
+      updateLearningModeButton();
       const studentName = student.callsign || student.nickname || student.name;
       setTimeout(() => {
         const hour = new Date().getHours();
@@ -5008,6 +5011,44 @@ const BuddySystem = (() => {
   };
 })();
 
+// 学習モード切替（ボタンから呼ばれる）
+async function toggleLearningMode() {
+  if (!currentStudent) return;
+  const ctrl = currentStudent.learningModeControl || 'both';
+  if (ctrl === 'teacher') {
+    BuddySystem.say('このモードは講師の先生だけが切り替えられるよ', { emotion: 'idle', duration: 4000 });
+    return;
+  }
+  const newMode = currentStudent.currentLearningMode === 'tutor' ? 'normal' : 'tutor';
+  currentStudent.currentLearningMode = newMode;
+  try {
+    await StudentsDB.update(currentStudent.id, { currentLearningMode: newMode });
+  } catch(e) { console.error('learning mode save error:', e); }
+  updateLearningModeButton();
+  // バディの会話履歴をクリアして新モードで再開
+  if (typeof AIBuddy !== 'undefined' && AIBuddy.clearHistory) AIBuddy.clearHistory();
+  if (newMode === 'tutor') {
+    BuddySystem.say('学習モードに入ったよ！じっくり一緒に考えていこう', { emotion: 'thinking', duration: 5000 });
+  } else {
+    BuddySystem.say('通常モードに戻ったよ！何でも聞いてね', { emotion: 'happy', duration: 4000 });
+  }
+}
+
+function updateLearningModeButton() {
+  const btn = document.getElementById('buddyModeBtn');
+  if (!btn || !currentStudent) return;
+  const ctrl = currentStudent.learningModeControl || 'both';
+  // 講師のみ権限の場合は生徒側ではボタン非表示
+  if (ctrl === 'teacher') {
+    btn.style.display = 'none';
+    return;
+  }
+  btn.style.display = '';
+  const mode = currentStudent.currentLearningMode || 'normal';
+  btn.textContent = mode === 'tutor' ? '🎓 学習' : '💬 通常';
+  btn.style.background = mode === 'tutor' ? 'rgba(99,102,241,0.5)' : '';
+}
+
 // 音声ON/OFFトグル（ボタンから呼ばれる）
 function toggleBuddyVoice() {
   const enabled = VoiceSystem.toggle();
@@ -5127,11 +5168,37 @@ const AIBuddy = (() => {
       relaxed: 'のんびりマイペース。「〜だよ〜」「〜かな〜」とゆったりした口調',
       mature: 'お姉さんっぽくしっかり者。「〜ですよ」「〜ましょう」と丁寧な口調',
     };
-    return `あなたは「${buddy.name}」という名前の、宇宙をテーマにした塾の学習ゲーミフィケーションアプリのバディキャラクターです（${buddy.title}）。
+    const isTutorMode = student.currentLearningMode === 'tutor';
+    const baseHeader = `あなたは「${buddy.name}」という名前の、宇宙をテーマにした塾の学習ゲーミフィケーションアプリのバディキャラクターです（${buddy.title}）。
 生徒「${name}」（${grade}、Lv.${level}、${points}pt、連続${streak}日）と会話しています。
 
 【キャラクターの性格】
-${personalityHint[buddy.personality] || personalityHint.cheerful}
+${personalityHint[buddy.personality] || personalityHint.cheerful}`;
+
+    if (isTutorMode) {
+      // 学習モード（家庭教師モード）: ソクラテス式で答えを直接言わない
+      return baseHeader + `
+
+【現在: 学習モード（家庭教師モード）】
+あなたは今、家庭教師として生徒を指導しています。
+
+【絶対のルール】
+- **答えを直接言ってはいけません**（生徒が3回以上自分で考えるまで）
+- ヒントを段階的に出す（1つ目: ふんわり / 2つ目: もう少し具体的 / 3つ目: ほぼ答え）
+- 「どう思う？」「どこから手をつけたい？」「何が分からない？」と問いかける
+- 生徒が答えを出してから、正誤と理由を伝える
+- 励ましながら考える時間を作る
+- 計算ミスなどは「もう一度見直してみて」と促す
+
+【話し方】
+- バディキャラとしての口調を維持（${personalityHint[buddy.personality] || ''}）
+- 80文字以内、1〜2文
+- 絵文字は1個まで`;
+    }
+
+    return baseHeader + `
+
+【現在: 通常会話モード】
 
 【あなたの役割】
 - 生徒の良き相棒として、常に温かく寄り添う
