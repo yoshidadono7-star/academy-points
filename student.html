@@ -3127,11 +3127,11 @@ function resumeTimer() {
     const elapsedSec = timerState.elapsed % 60;
     if (elapsedSec === 0 && elapsedMin > 0) {
       try {
-        if (elapsedMin === 5) BuddySystem.react('studyCheering5');
-        else if (elapsedMin === 10) BuddySystem.react('studyCheering10');
-        else if (elapsedMin === 15) BuddySystem.react('studyCheering15');
-        else if (elapsedMin === 25) BuddySystem.react('studyCheering25');
-        else if (elapsedMin > 25 && elapsedMin % 15 === 0) BuddySystem.react('encourage');
+        if (elapsedMin === 5 || elapsedMin === 10 || elapsedMin === 15 || elapsedMin === 25) {
+          BuddySystem.react('studyCheering', { minutes: elapsedMin });
+        } else if (elapsedMin > 25 && elapsedMin % 15 === 0) {
+          BuddySystem.react('studyCheering', { minutes: elapsedMin });
+        }
       } catch(e) {}
     }
 
@@ -3573,27 +3573,24 @@ function showCompleteScreen(duration, points, newBadges, raidResults, comboResul
   // Phase 14d: 学習完了でメモリを再構築
   BuddyMemory.rebuild(currentStudent);
 
-  // ボス討伐があれば最優先
+  // 学習完了イベントは複合データにまとめてAIに1回だけ渡す
+  // （ボス討伐・バッジ獲得・レベルアップが同時発生し得るため）
   const bossDefeated = (raidResults || []).find(r => r.defeated);
+  let extras = '';
   if (bossDefeated) {
-    setTimeout(() => BuddySystem.react('bossDefeat', {
-      name: studentName,
-      boss: bossDefeated.bossName || 'ボス'
-    }), 1500);
-  } else if (newBadges && newBadges.length > 0) {
+    extras += `さらにレイドボス「${bossDefeated.bossName || 'ボス'}」を討伐しました。`;
+  }
+  if (newBadges && newBadges.length > 0) {
     const badgeId = newBadges[0];
     const badgeDef = (typeof BADGE_DEFINITIONS !== 'undefined') ? BADGE_DEFINITIONS.find(b => b.id === badgeId) : null;
-    setTimeout(() => BuddySystem.react('badge', {
-      name: studentName,
-      badge: badgeDef ? badgeDef.name : badgeId
-    }), 1500);
-  } else {
-    setTimeout(() => BuddySystem.react('studyComplete', {
-      name: studentName,
-      minutes: duration,
-      points: points
-    }), 1500);
+    extras += `さらに新バッジ「${badgeDef ? badgeDef.name : badgeId}」を獲得しました。`;
   }
+  setTimeout(() => BuddySystem.react('studyComplete', {
+    name: studentName,
+    minutes: duration,
+    points: points,
+    extras: extras
+  }), 1500);
 }
 
 // ============================================
@@ -4759,136 +4756,31 @@ const BuddySystem = (() => {
   let currentBuddy = BUDDY_CATALOG[0]; // デフォルト: ルカ
   let messageQueue = [];
   let isShowing = false;
-  let idleTimer = null;
-  let lastIdleTime = 0;
+  let lastReactionAt = 0;
+  let isReacting = false;
 
-  // 状況別セリフ集
-  const DIALOGUES = {
-    welcome: [
-      'おかえり、{name}！今日も一緒にがんばろう！',
-      'こんにちは、{name}！宇宙の冒険を続けようか',
-      'やっと来てくれた！待ってたよ、{name}！',
-    ],
-    welcome_first: [
-      'はじめまして、{name}！僕の名前はルカ。これから君のバディだよ！',
-      '一緒に学びの宇宙を旅しよう！困ったらいつでも聞いてね',
-    ],
-    morning: [
-      'おはよう、{name}！朝の集中タイムは効果バツグンだよ！',
-      'いい朝だね。今日も最高の1日にしよう！',
-    ],
-    evening: [
-      'お疲れさま、{name}。今日もよくがんばったね',
-      '夜の学習は記憶に残りやすいんだって。あと少し！',
-    ],
-    studyStart: [
-      'よし、集中タイム開始！僕も応援してるよ',
-      '{subject}か、いいね！その調子！',
-      '深呼吸して、集中しよう。君ならできる！',
-    ],
-    studyComplete: [
-      'お疲れさま！{minutes}分の集中、すごいよ！',
-      'やったね！{points}ポイントゲット！',
-      '完璧！この調子でレベルアップしようぜ',
-    ],
-    levelUp: [
-      'うわぁ！レベルアップだ！{level}に到達したよ！',
-      'すごい！{name}、レベル{level}おめでとう！🎉',
-      '新しい力が目覚めたね！レベル{level}！',
-    ],
-    bossDefeat: [
-      'やったぁ！{boss}を倒したよ！{name}、最高！',
-      '勝った！{boss}討伐成功だ！🏆',
-      '{boss}を撃破！君の力、本物だね！',
-    ],
-    badge: [
-      '新しいバッジゲット！{badge}だよ！',
-      'すごい！{badge}を獲得したね！コレクション増えていく〜',
-    ],
-    streak: [
-      '{streak}日連続！継続は力なり、だね！',
-      'ストリーク{streak}日突破！この勢い止まらない！',
-    ],
-    encourage: [
-      '焦らなくていいよ。少しずつでいいんだ',
-      '一歩一歩が大事だよ。一緒に進もう',
-      '完璧じゃなくていい。やってみることが大事',
-      '深呼吸して、リラックス。また明日も来るからね',
-    ],
-    studyCheering5: [
-      'いいぞ！その調子！',
-      '集中してる！すごい！',
-      '5分突破！順調だよ',
-      'ナイス集中！',
-    ],
-    studyCheering10: [
-      '10分達成！君は本気だね',
-      '素晴らしい集中力！',
-      '10分継続中、最高だよ！',
-      'リズム来てるね',
-    ],
-    studyCheering15: [
-      '15分突破！君すごすぎ',
-      'もう15分も集中できてる！',
-      'ここまでやれば後は流れだ',
-    ],
-    studyCheering25: [
-      '25分達成！1ポモドーロ完走相当！',
-      '25分突破！プロ級の集中力',
-      'すごい！25分の壁を超えた',
-    ],
-    pomodoroComplete: [
-      'ポモドーロ完了！素晴らしい！',
-      '1セットお疲れさま！短い休憩を',
-      'ナイスポモドーロ！この調子！',
-    ],
-    pomodoroBreak: [
-      '休憩中も水分補給忘れずに！',
-      'ちょっと立ち上がって伸びをしよう',
-      '目を休ませてね',
-    ],
-    idle: [
-      '今日は何を勉強する？',
-      '何か質問ある？',
-      'ちょっと休憩する？',
-      '宇宙マップを見てみる？面白いよ',
-      'クエスト掲示板チェックした？',
-      '...zzz... あ、起きてた！',
-      '集中力って筋肉と同じ。鍛えれば伸びるよ',
-      '小さな習慣が大きな成果になるんだ',
-    ],
-    questAccept: [
-      '受注完了！このクエストは{name}に任せた！',
-      'いいクエスト選んだね！期待してるよ',
-    ],
-    appLaunch: [
-      'システム起動！...準備OK！',
-      'バディシステム、オンライン！',
-    ],
+  // イベント種別 → AIへ渡す説明と感情
+  const EVENT_DESCRIPTIONS = {
+    welcome:         { desc: '生徒がログインしました。自然に挨拶してください', emotion: 'happy', duration: 5000 },
+    welcome_first:   { desc: '初めてのログインです。自己紹介して歓迎してください', emotion: 'excited', duration: 6000 },
+    morning:         { desc: '朝にログインしました。元気な挨拶をしてください', emotion: 'happy', duration: 5000 },
+    evening:         { desc: '夕方〜夜にログインしました。優しく迎えてください', emotion: 'idle', duration: 5000 },
+    studyStart:      { desc: '{subject}の学習を始めます。集中できるよう励ましてください', emotion: 'thinking', duration: 5000 },
+    studyComplete:   { desc: '{minutes}分の学習を完了し、{points}pt獲得しました。{extras}一緒に喜んでください', emotion: 'happy', duration: 7000 },
+    studyCheering:   { desc: '生徒は今、学習開始から{minutes}分経過しました。継続を褒めてください', emotion: 'happy', duration: 5000 },
+    pomodoroComplete:{ desc: 'ポモドーロを完走しました！褒めてください', emotion: 'excited', duration: 5000 },
+    pomodoroBreak:   { desc: 'ポモドーロ休憩に入りました。リラックスを促してください', emotion: 'idle', duration: 5000 },
+    levelUp:         { desc: 'レベルが{level}に上がりました！盛大に祝ってください', emotion: 'excited', duration: 8000 },
+    bossDefeat:      { desc: 'レイドボス「{boss}」を倒しました！一緒に喜んでください', emotion: 'excited', duration: 8000 },
+    badge:           { desc: '新バッジ「{badge}」を獲得しました。称賛してください', emotion: 'happy', duration: 6000 },
+    questAccept:     { desc: 'クエスト「{quest}」を受注しました。期待を伝えてください', emotion: 'happy', duration: 5000 },
+    missionComplete: { desc: 'デイリーミッションを達成しました！褒めてください', emotion: 'excited', duration: 5000 },
+    encourage:       { desc: '生徒がバディに話しかけてきました。優しく応援してください', emotion: 'idle', duration: 5000 },
   };
 
-  function rand(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
-
-  function format(template, vars) {
-    return template.replace(/\{(\w+)\}/g, (_, k) => vars[k] || '');
-  }
-
-  // バディの話し方に変換
-  function applyStyle(text) {
-    if (!currentBuddy.speechStyle) return text;
-    const style = currentBuddy.speechStyle;
-    // 文末に suffix を追加（既に同じ文字で終わっていなければ）
-    let result = text;
-    if (style.suffix && !result.endsWith(style.suffix)) {
-      // 「！」「？」「。」で終わっている場合はその前に挿入
-      if (/[！？。]$/.test(result)) {
-        result = result.slice(0, -1) + style.suffix + result.slice(-1);
-      } else {
-        result += style.suffix;
-      }
-    }
-    return result;
-  }
+  // ハードコードされたセリフ集 (DIALOGUES) は完全削除。
+  // すべての自動発話は AIBuddy.reactToEvent() で AI が動的に生成する。
+  // AI が無効/エラー時は無音。
 
   function show() {
     document.body.classList.add('buddy-on');
@@ -4972,7 +4864,6 @@ const BuddySystem = (() => {
     }, 600);
 
     isShowing = true;
-    lastIdleTime = Date.now();
 
     setTimeout(() => {
       setEmotion('idle');
@@ -5009,46 +4900,45 @@ const BuddySystem = (() => {
     av.style.background = getAvatarColorGradient(student.avatarColor || 'gold');
   }
 
-  // イベント別ヘルパー
-  function react(eventKey, vars) {
-    vars = vars || {};
-    const lines = DIALOGUES[eventKey];
-    if (!lines) return;
-    const line = applyStyle(format(rand(lines), vars));
+  // テンプレ展開: {key} を vars[key] に置換
+  function _formatDesc(template, vars) {
+    return template.replace(/\{(\w+)\}/g, (_, k) => (vars && vars[k] != null) ? vars[k] : '');
+  }
 
-    const emotionMap = {
-      welcome: 'happy',
-      welcome_first: 'excited',
-      morning: 'happy',
-      evening: 'idle',
-      studyStart: 'thinking',
-      studyComplete: 'happy',
-      levelUp: 'excited',
-      bossDefeat: 'excited',
-      badge: 'happy',
-      streak: 'happy',
-      encourage: 'idle',
-      idle: 'idle',
-      questAccept: 'happy',
-      appLaunch: 'thinking',
-      studyCheering5: 'happy',
-      studyCheering10: 'happy',
-      studyCheering15: 'excited',
-      studyCheering25: 'excited',
-      pomodoroComplete: 'excited',
-      pomodoroBreak: 'idle',
-    };
-    const duration = (eventKey === 'levelUp' || eventKey === 'bossDefeat') ? 8000 : 5000;
-    say(line, { emotion: emotionMap[eventKey] || 'idle', duration });
+  // イベント別ヘルパー: AI に反応を生成させる
+  async function react(eventKey, vars) {
+    vars = vars || {};
+    const def = EVENT_DESCRIPTIONS[eventKey];
+    if (!def) {
+      console.warn('[BuddySystem.react] unknown event:', eventKey);
+      return;
+    }
+    // レート制限: 直前の反応から3秒以内、または別の反応生成中なら無視
+    const now = Date.now();
+    if (isReacting || (now - lastReactionAt < 3000)) return;
+    lastReactionAt = now;
+
+    // AI が利用不可なら無音
+    if (typeof AIBuddy === 'undefined' || !AIBuddy.reactToEvent) return;
+
+    isReacting = true;
+    try {
+      const description = _formatDesc(def.desc, vars);
+      const reply = await AIBuddy.reactToEvent(description, currentStudent);
+      if (reply) {
+        say(reply, { emotion: def.emotion || 'idle', duration: def.duration || 5000 });
+      }
+      // reply が null の場合は無音（フォールバックなし）
+    } catch(e) {
+      console.error('[BuddySystem.react] error:', e);
+    } finally {
+      isReacting = false;
+    }
   }
 
   function tap() {
-    // バディがタップされたとき
-    if (Math.random() < 0.5) {
-      react('idle');
-    } else {
-      react('encourage');
-    }
+    // バディがタップされたとき: AIに「話しかけられた」と伝える
+    react('encourage');
   }
 
   function updateStatus(student) {
@@ -5062,18 +4952,10 @@ const BuddySystem = (() => {
     updateStudentAvatar(student);
   }
 
-  function startIdleChatter() {
-    if (idleTimer) clearInterval(idleTimer);
-    idleTimer = setInterval(() => {
-      if (!isShowing && Date.now() - lastIdleTime > 30000) {
-        react('idle');
-      }
-    }, 45000); // 45秒ごとにチェック
-  }
-
-  function stopIdleChatter() {
-    if (idleTimer) { clearInterval(idleTimer); idleTimer = null; }
-  }
+  // 旧45秒独り言タイマーは削除済み（AI主導化により独り言を廃止）。
+  // 互換性のため空関数だけ残す（呼び出し側削除予定）
+  function startIdleChatter() { /* removed */ }
+  function stopIdleChatter() { /* removed */ }
 
   function setBuddy(buddyId) {
     const found = getBuddyById(buddyId);
@@ -5102,8 +4984,8 @@ const BuddySystem = (() => {
   function init() {
     show();
     updateVoiceButton();
-    react('appLaunch');
-    startIdleChatter();
+    // 旧 appLaunch / startIdleChatter は廃止。
+    // 起動時の挨拶は handleLogin / tryAutoLogin の welcome イベントで AI が生成する。
   }
 
   function updateVoiceButton() {
@@ -5313,7 +5195,54 @@ ${personalityHint[buddy.personality] || personalityHint.cheerful}
 
   function clearHistory() { history = []; }
 
-  return { loadConfig, isEnabled, ask, clearHistory };
+  // 自動発話用: イベント内容を1往復だけAIに投げて反応文を返す（履歴を汚さない）
+  async function reactToEvent(eventDescription, student) {
+    if (!config) await loadConfig();
+    if (!isEnabled()) return null;
+    if (!student) return null;
+
+    const systemPrompt = buildSystemPrompt(student) + `
+
+【イベント反応モード - 必ず守って！】
+- これはあなたのバディとしての自発的なリアクションです
+- 30〜50文字以内の超短い1文
+- 過去の会話は一切引きずらない
+- 「先ほど」「さっき」など過去参照は絶対NG
+- 絵文字は1個まで
+- 直接生徒に話しかける口調で`;
+
+    try {
+      const res = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'x-api-key': config.apiKey,
+          'anthropic-version': '2023-06-01',
+          'anthropic-dangerous-direct-browser-access': 'true',
+          'content-type': 'application/json'
+        },
+        body: JSON.stringify({
+          model: config.model || 'claude-haiku-4-5-20251001',
+          max_tokens: 80,
+          system: systemPrompt,
+          messages: [{ role: 'user', content: eventDescription }]
+        })
+      });
+      const data = await res.json();
+      if (data.error) {
+        console.error('[AIBuddy.reactToEvent] API error:', data.error);
+        return null;
+      }
+      if (data.content && data.content[0] && data.content[0].text) {
+        return data.content[0].text.trim();
+      }
+      return null;
+    } catch(e) {
+      console.error('[AIBuddy.reactToEvent] error:', e);
+      return null;
+    }
+  }
+
+  return { loadConfig, isEnabled, ask, reactToEvent, clearHistory };
 })();
 
 // ============================================
