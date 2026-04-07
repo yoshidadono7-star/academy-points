@@ -4486,7 +4486,6 @@ const VoiceSystem = (() => {
     speechSynthesis.speak(u);
   }
 
-  function speakNoCancel(text) { return speak(text); }
 
   function setEnabled(v) {
     enabled = !!v;
@@ -4507,7 +4506,7 @@ const VoiceSystem = (() => {
     return enabled;
   }
 
-  return { speak, speakNoCancel, setEnabled, isEnabled, toggle, setVoiceConfig, stop };
+  return { speak, setEnabled, isEnabled, toggle, setVoiceConfig, stop };
 })();
 
 // ============================================
@@ -5094,7 +5093,7 @@ function toggleBuddyVoice() {
   if (enabled) {
     // ⚠️ alert() は呼ばない！Mac Chrome では alert 表示中に speechSynthesis がキャンセルされる
     // ユーザー操作の同期コンテキストで直接 speak を呼ぶ
-    VoiceSystem.speakNoCancel('音声オンにしたよ。これからお話しするね');
+    VoiceSystem.speak('音声オンにしたよ。これからお話しするね');
     // UI 吹き出し（音声再生はスキップ、二重再生防止）
     BuddySystem.say('音声ONにしたよ！これからお話しするね', {
       emotion: 'happy', duration: 4000, skipVoice: true
