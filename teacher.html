@@ -66,15 +66,42 @@ body {
 /* Main content */
 .main-content { display: none; }
 .tabs {
-  display: flex; overflow-x: auto; background: white; border-bottom: 1px solid var(--border);
-  padding: 0 12px;
+  display: flex; background: white; border-bottom: 1px solid var(--border);
+  padding: 0 12px; gap: 4px; position: relative; z-index: 100;
+  overflow-x: auto;
 }
+.tab-category { position: relative; }
+.tab-cat-btn {
+  padding: 14px 18px; border: none; background: none;
+  font-size: 14px; font-weight: 600; color: var(--text);
+  cursor: pointer; white-space: nowrap;
+  border-bottom: 3px solid transparent; transition: all 0.2s;
+}
+.tab-cat-btn:hover { background: rgba(102,126,234,0.06); color: var(--primary); }
+.tab-category.has-active .tab-cat-btn {
+  color: var(--primary); border-bottom-color: var(--primary);
+}
+.tab-category.open .tab-cat-btn { background: rgba(102,126,234,0.08); }
+.tab-cat-menu {
+  display: none; position: absolute; top: 100%; left: 0;
+  background: white; min-width: 220px;
+  box-shadow: 0 10px 30px rgba(0,0,0,0.18);
+  border-radius: 10px; padding: 6px;
+  border: 1px solid var(--border);
+}
+.tab-category.open .tab-cat-menu { display: block; }
 .tab-btn {
-  padding: 12px 16px; border: none; background: none; color: var(--text-light);
-  font-size: 13px; font-weight: 600; cursor: pointer; white-space: nowrap;
-  border-bottom: 3px solid transparent;
+  padding: 10px 14px; border: none; background: none;
+  color: var(--text-light);
+  font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap;
+  border-radius: 6px; display: block; width: 100%; text-align: left;
+  position: relative;
 }
-.tab-btn.active { color: var(--primary); border-bottom-color: var(--primary); }
+.tab-btn:hover { background: rgba(102,126,234,0.08); color: var(--primary); }
+.tab-btn.active {
+  background: linear-gradient(135deg, var(--primary), #764ba2);
+  color: white; font-weight: 700;
+}
 .tab-content { display: none; padding: 16px; }
 .tab-content.active { display: block; }
 
@@ -169,12 +196,27 @@ body {
   </div>
 
   <div class="tabs">
-    <button class="tab-btn active" data-tab="today">今日のスケジュール</button>
-    <button class="tab-btn" data-tab="buddychat" style="position:relative;">💬 バディ会話<span id="teacherBuddyChatBadge" style="display:none;position:absolute;top:4px;right:4px;background:#fc8181;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;">0</span></button>
-    <button class="tab-btn" data-tab="approval">家庭学習承認</button>
-    <button class="tab-btn" data-tab="comment">生徒コメント</button>
-    <button class="tab-btn" data-tab="shifts">シフト確認</button>
-    <button class="tab-btn" data-tab="stats">統計</button>
+    <div class="tab-category has-active" data-cat="daily">
+      <button class="tab-cat-btn">📈 日常 ▾</button>
+      <div class="tab-cat-menu">
+        <button class="tab-btn active" data-tab="today">📅 今日のスケジュール</button>
+        <button class="tab-btn" data-tab="buddychat" style="position:relative;">💬 バディ会話<span id="teacherBuddyChatBadge" style="display:none;position:absolute;top:8px;right:8px;background:#fc8181;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;">0</span></button>
+        <button class="tab-btn" data-tab="comment">📝 生徒コメント</button>
+      </div>
+    </div>
+    <div class="tab-category" data-cat="analytics">
+      <button class="tab-cat-btn">📊 分析 ▾</button>
+      <div class="tab-cat-menu">
+        <button class="tab-btn" data-tab="stats">📊 統計</button>
+      </div>
+    </div>
+    <div class="tab-category" data-cat="operation">
+      <button class="tab-cat-btn">⚙️ 運営 ▾</button>
+      <div class="tab-cat-menu">
+        <button class="tab-btn" data-tab="approval">🏠 家庭学習承認</button>
+        <button class="tab-btn" data-tab="shifts">📅 シフト確認</button>
+      </div>
+    </div>
   </div>
 
   <!-- 今日のスケジュール -->
@@ -358,14 +400,24 @@ function teacherLogout() {
   document.getElementById('teacherPin').value = '';
 }
 
-// --- Tab Navigation ---
+// --- Tab Navigation (カテゴリ別ドロップダウン) ---
 document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     btn.classList.add('active');
     const tab = btn.dataset.tab;
     document.getElementById(`tab-${tab}`).classList.add('active');
+
+    // 親カテゴリをアクティブにしてドロップダウンを閉じる
+    document.querySelectorAll('.tab-category').forEach(c => {
+      c.classList.remove('has-active');
+      c.classList.remove('open');
+    });
+    const parentCat = btn.closest('.tab-category');
+    if (parentCat) parentCat.classList.add('has-active');
+
     const loaders = {
       today: loadTodaySchedule,
       approval: loadPendingApprovals,
@@ -376,6 +428,20 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     };
     if (loaders[tab]) loaders[tab]();
   });
+});
+
+document.querySelectorAll('.tab-cat-btn').forEach(btn => {
+  btn.addEventListener('click', (e) => {
+    e.stopPropagation();
+    const cat = btn.closest('.tab-category');
+    const wasOpen = cat.classList.contains('open');
+    document.querySelectorAll('.tab-category.open').forEach(c => c.classList.remove('open'));
+    if (!wasOpen) cat.classList.add('open');
+  });
+});
+
+document.addEventListener('click', () => {
+  document.querySelectorAll('.tab-category.open').forEach(c => c.classList.remove('open'));
 });
 
 // --- バディ会話（リアルタイム） ---
