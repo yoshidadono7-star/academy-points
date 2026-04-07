@@ -601,20 +601,27 @@ body.buddy-on .buddy-chatbar { display: flex; }
 }
 .buddy-chat-history-btn .badge.show { display: flex; }
 
-/* 狭いスマホ画面対応: ボタンとフォント縮小 */
-@media (max-width: 420px) {
+/* スマホ画面対応: ボタンとフォント縮小 */
+@media (max-width: 500px) {
   .buddy-chatbar { padding: 0 6px; gap: 4px; }
   .buddy-chat-btn, .buddy-chat-history-btn {
     width: 32px; height: 32px; font-size: 14px;
   }
   .buddy-chat-input { padding: 7px 12px; font-size: 13px; }
 }
-@media (max-width: 360px) {
+@media (max-width: 400px) {
   .buddy-chatbar { padding: 0 4px; gap: 3px; }
   .buddy-chat-btn, .buddy-chat-history-btn {
     width: 30px; height: 30px; font-size: 13px;
   }
   .buddy-chat-input { padding: 6px 10px; font-size: 12px; }
+}
+@media (max-width: 360px) {
+  .buddy-chatbar { padding: 0 3px; gap: 2px; }
+  .buddy-chat-btn, .buddy-chat-history-btn {
+    width: 28px; height: 28px; font-size: 12px;
+  }
+  .buddy-chat-input { padding: 5px 8px; font-size: 11px; }
 }
 
 /* チャット履歴モーダル */
