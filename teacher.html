@@ -8,6 +8,7 @@
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 <style>
 :root {
   --primary: #667eea;
@@ -473,17 +474,34 @@ function renderTeacherChatMessages(messages) {
       m.sender === 'student' ? '<div style="font-size:10px;color:var(--text-light);margin-bottom:2px;">👦 生徒</div>' :
       m.sender === 'teacher' ? '<div style="font-size:10px;color:#d69e2e;margin-bottom:2px;font-weight:700;">👨‍🏫 ' + esc(m.senderName || '先生') + '</div>' :
       '<div style="font-size:10px;color:#667eea;margin-bottom:2px;">🤖 ルカ</div>';
+    const imageHtml = m.imageUrl
+      ? `<img src="${esc(m.imageUrl)}" onclick="openTeacherImageViewer('${encodeURI(m.imageUrl)}')" style="max-width:220px;max-height:220px;border-radius:10px;margin-top:6px;cursor:pointer;display:block;object-fit:cover;">`
+      : '';
     return `
       <div style="display:flex;justify-content:${align};margin-bottom:10px;">
         <div style="max-width:75%;">
           ${senderLabel}
           <div style="${bubbleStyle}padding:9px 13px;border-radius:14px;font-size:13px;line-height:1.5;word-break:break-word;">${esc(m.text)}</div>
+          ${imageHtml}
           <div style="font-size:9px;color:var(--text-light);margin-top:3px;">${tStr}</div>
         </div>
       </div>
     `;
   }).join('');
   body.scrollTop = body.scrollHeight;
+}
+
+function openTeacherImageViewer(url) {
+  if (!url) return;
+  let viewer = document.getElementById('teacherImageViewerOverlay');
+  if (!viewer) {
+    viewer = document.createElement('div');
+    viewer.id = 'teacherImageViewerOverlay';
+    viewer.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.95);display:flex;align-items:center;justify-content:center;padding:20px;cursor:pointer;';
+    viewer.onclick = () => viewer.remove();
+    document.body.appendChild(viewer);
+  }
+  viewer.innerHTML = `<img src="${url}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;"><div style="position:absolute;top:14px;right:18px;color:#fff;font-size:28px;font-weight:700;">×</div>`;
 }
 
 async function sendTeacherChat() {

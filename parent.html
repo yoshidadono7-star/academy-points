@@ -368,6 +368,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script>
 
@@ -1156,17 +1157,34 @@ function renderParentBuddyChat(messages) {
       m.sender === 'student' ? '<div style="font-size:10px;color:#94a3b8;margin-bottom:2px;text-align:right;">👦 ' + esc(m.senderName || 'お子さん') + '</div>' :
       m.sender === 'teacher' ? '<div style="font-size:10px;color:#d69e2e;margin-bottom:2px;font-weight:700;">👨‍🏫 ' + esc(m.senderName || '先生') + '</div>' :
       '<div style="font-size:10px;color:#667eea;margin-bottom:2px;">🤖 ' + esc(m.senderName || 'バディ') + '</div>';
+    const imageHtml = m.imageUrl
+      ? `<img src="${esc(m.imageUrl)}" onclick="openParentImageViewer('${encodeURI(m.imageUrl)}')" style="max-width:220px;max-height:220px;border-radius:10px;margin-top:6px;cursor:pointer;display:block;object-fit:cover;">`
+      : '';
     return `
       <div style="display:flex;justify-content:${align};margin-bottom:10px;">
         <div style="max-width:80%;">
           ${senderLabel}
           <div style="${bgColor}padding:9px 13px;border-radius:14px;font-size:13px;line-height:1.5;word-break:break-word;box-shadow:0 2px 6px rgba(0,0,0,0.05);">${esc(m.text)}</div>
+          ${imageHtml}
           <div style="font-size:9px;color:#a0aec0;margin-top:3px;${m.sender==='student'?'text-align:right;':''}">${tStr}</div>
         </div>
       </div>
     `;
   }).join('');
   container.scrollTop = container.scrollHeight;
+}
+
+function openParentImageViewer(url) {
+  if (!url) return;
+  let viewer = document.getElementById('parentImageViewerOverlay');
+  if (!viewer) {
+    viewer = document.createElement('div');
+    viewer.id = 'parentImageViewerOverlay';
+    viewer.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.95);display:flex;align-items:center;justify-content:center;padding:20px;cursor:pointer;';
+    viewer.onclick = () => viewer.remove();
+    document.body.appendChild(viewer);
+  }
+  viewer.innerHTML = `<img src="${url}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;"><div style="position:absolute;top:14px;right:18px;color:#fff;font-size:28px;font-weight:700;">×</div>`;
 }
 
 // ===== 起動 =====

@@ -3136,17 +3136,20 @@ const ReportLogsDB = {
 //   sender: 'student' | 'buddy' | 'teacher'
 //   type: 'text' | 'voice'
 const ChatDB = {
-  async sendMessage(studentId, studentName, sender, senderName, text, type) {
+  async sendMessage(studentId, studentName, sender, senderName, text, type, extra) {
     if (!studentId || !text) return;
     type = type || 'text';
+    extra = extra || {};
+    const messageData = {
+      sender,
+      senderName: senderName || '',
+      text,
+      type,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    };
+    if (extra.imageUrl) messageData.imageUrl = extra.imageUrl;
     const messageRef = await db.collection('chats').doc(studentId)
-      .collection('messages').add({
-        sender,
-        senderName: senderName || '',
-        text,
-        type,
-        createdAt: firebase.firestore.FieldValue.serverTimestamp()
-      });
+      .collection('messages').add(messageData);
     // 親ドキュメント更新
     const update = {
       studentId,

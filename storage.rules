@@ -8,6 +8,13 @@ service firebase.storage {
                    && request.resource.contentType.matches('image/.*');
     }
 
+    // チャット画像（バディに質問する際の撮影画像）: 誰でもアップロード・閲覧可能
+    match /chatImages/{allPaths=**} {
+      allow read: if true;
+      allow write: if request.resource.size < 5 * 1024 * 1024
+                   && request.resource.contentType.matches('image/.*');
+    }
+
     // その他はデフォルト拒否
     match /{allPaths=**} {
       allow read, write: if false;

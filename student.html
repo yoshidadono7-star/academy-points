@@ -2105,6 +2105,7 @@ body.theme-space {
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="db.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
@@ -5026,6 +5027,20 @@ const BuddySystem = (() => {
   };
 })();
 
+// 画像フルスクリーン表示（履歴の画像タップ時）
+function openImageViewer(url) {
+  if (!url) return;
+  let viewer = document.getElementById('imageViewerOverlay');
+  if (!viewer) {
+    viewer = document.createElement('div');
+    viewer.id = 'imageViewerOverlay';
+    viewer.style.cssText = 'position:fixed;inset:0;z-index:10000;background:rgba(0,0,0,0.95);display:flex;align-items:center;justify-content:center;padding:20px;cursor:pointer;';
+    viewer.onclick = () => viewer.remove();
+    document.body.appendChild(viewer);
+  }
+  viewer.innerHTML = `<img src="${url}" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px;"><div style="position:absolute;top:14px;right:18px;color:#fff;font-size:28px;font-weight:700;">×</div>`;
+}
+
 // 学習モード切替（ボタンから呼ばれる）
 async function toggleLearningMode() {
   if (!currentStudent) return;
@@ -5630,11 +5645,15 @@ const ChatUI = (() => {
       const senderName = m.sender === 'student' ? '' :
         m.sender === 'teacher' ? `<div class="chat-message-sender">👨‍🏫 ${m.senderName || '先生'}</div>` :
         '<div class="chat-message-sender">🤖 ルカ</div>';
+      const imageHtml = m.imageUrl
+        ? `<img src="${escapeChatHtml(m.imageUrl)}" onclick="openImageViewer('${encodeURI(m.imageUrl)}')" style="max-width:200px;max-height:200px;border-radius:10px;margin-top:6px;cursor:pointer;display:block;object-fit:cover;">`
+        : '';
       return `
         <div class="chat-message ${m.sender}">
           <div>
             ${senderName}
             <div class="chat-message-bubble">${escapeChatHtml(m.text)}</div>
+            ${imageHtml}
             <div class="chat-message-meta">${timeStr}</div>
           </div>
         </div>
@@ -5684,6 +5703,18 @@ const ChatUI = (() => {
   // ===== カメラ・画像入力 =====
   let pendingPhotoBase64 = null;
   let pendingPhotoMediaType = 'image/jpeg';
+  let pendingPhotoDataUrl = null;  // Storage アップロード用（base64 + プレフィックス）
+
+  // 画像を Firebase Storage にアップロードしてダウンロードURLを返す
+  async function uploadChatImage(studentId, dataUrl) {
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    const ts = Date.now();
+    const path = `chatImages/${studentId}/${ts}.jpg`;
+    const ref = firebase.storage().ref(path);
+    await ref.put(blob, { contentType: 'image/jpeg' });
+    return await ref.getDownloadURL();
+  }
 
   // 画像をリサイズして base64 化（幅 800px に縮小）
   function resizeImage(file) {
@@ -5721,6 +5752,7 @@ const ChatUI = (() => {
       if (!m) throw new Error('invalid image data');
       pendingPhotoMediaType = m[1];
       pendingPhotoBase64 = m[2];
+      pendingPhotoDataUrl = dataUrl;
       document.getElementById('photoPreviewImg').src = dataUrl;
       document.getElementById('photoPreviewText').value = '';
       document.getElementById('photoPreviewModal').style.display = 'flex';
@@ -5734,6 +5766,7 @@ const ChatUI = (() => {
 
   function cancelPhoto() {
     pendingPhotoBase64 = null;
+    pendingPhotoDataUrl = null;
     document.getElementById('photoPreviewModal').style.display = 'none';
   }
 
@@ -5742,28 +5775,48 @@ const ChatUI = (() => {
     const text = (document.getElementById('photoPreviewText').value || '').trim() || 'この画像について教えて';
     const base64 = pendingPhotoBase64;
     const mediaType = pendingPhotoMediaType;
+    const dataUrl = pendingPhotoDataUrl;
     cancelPhoto();
 
     const studentName = currentStudent.callsign || currentStudent.nickname || currentStudent.name;
     BuddySystem.sayStudent('📷 ' + text);
 
-    try {
-      // 画像付きメッセージはチャット履歴にはテキストだけ保存
-      await ChatDB.sendMessage(currentStudent.id, studentName, 'student', studentName, '📷 ' + text);
-      BuddySystem.setEmotion('thinking');
+    // ① AI 送信と ② Storage アップロードを並行実行
+    const aiPromise = AIBuddy.isEnabled()
+      ? AIBuddy.askWithImage(text, base64, mediaType, currentStudent).catch(e => {
+          console.error('askWithImage error:', e);
+          return null;
+        })
+      : Promise.resolve(null);
 
-      let reply = null;
-      if (AIBuddy.isEnabled()) {
-        reply = await AIBuddy.askWithImage(text, base64, mediaType, currentStudent);
-      }
+    const uploadPromise = uploadChatImage(currentStudent.id, dataUrl).catch(e => {
+      console.error('uploadChatImage error:', e);
+      return null;
+    });
+
+    BuddySystem.setEmotion('thinking');
+
+    try {
+      // Storage アップロード完了を先に待って imageUrl を取得
+      const imageUrl = await uploadPromise;
+      // 生徒メッセージを imageUrl 付きで保存（アップロード失敗時は text のみ）
+      await ChatDB.sendMessage(
+        currentStudent.id, studentName, 'student', studentName,
+        '📷 ' + text, 'text', imageUrl ? { imageUrl } : {}
+      );
+
+      // AI 回答を待機
+      let reply = await aiPromise;
       if (!reply) {
-        reply = '画像を読むには Claude AI を有効にする必要があるよ。先生に伝えてね';
+        reply = AIBuddy.isEnabled()
+          ? '画像をうまく読み取れなかった...もう一度試してくれる？'
+          : '画像を読むには Claude AI を有効にする必要があるよ。先生に伝えてね';
       }
       await ChatDB.sendMessage(currentStudent.id, studentName, 'buddy', 'ルカ', reply);
       BuddySystem.say(reply, { emotion: 'happy', duration: 9000 });
     } catch(e) {
       console.error('sendPhoto error:', e);
-      BuddySystem.say('画像をうまく読み取れなかった...もう一度試してくれる？', { emotion: 'sad' });
+      BuddySystem.say('画像の送信に失敗したよ。もう一度試してくれる？', { emotion: 'sad' });
     }
   }
 
