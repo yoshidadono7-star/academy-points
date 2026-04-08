@@ -6699,15 +6699,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.appendChild(btn);
   }
 
-  // 開発者向け: ブラウザ Console から自分を owner に昇格できるヘルパー
-  // 使い方: makeMeOwner()
-  window.makeMeOwner = async function() {
-    const user = firebase.auth().currentUser;
-    if (!user) { console.log('ログインしてください'); return; }
-    if (typeof UsersDB === 'undefined') { console.log('UsersDB が未定義'); return; }
-    await UsersDB.setRole(user.uid, 'owner');
-    console.log('✅ あなたを owner に昇格しました。リロードしてください。');
-  };
+  // 本番セキュリティ強化 (2026-04): 以前ここに window.makeMeOwner という
+  // Console バックドアがあったが、誰でも DevTools Console から昇格できる問題を塞ぐため削除。
+  // オーナー昇格は Firebase Console の Firestore > users/{uid}.role = 'owner' で手動設定する運用に変更。
 
   firebase.auth().onAuthStateChanged(user => {
     const loginScreen = document.getElementById('adminLoginScreen');

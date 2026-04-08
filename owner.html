@@ -282,7 +282,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
       rec = await UsersDB.getByUid(user.uid);
     }
     if (rec.role !== 'owner') {
-      alert('オーナー権限がありません。\n\n管理画面 (index.html) からまず admin としてログインし、\nDevTools Console で makeMeOwner() を実行してください。');
+      alert('オーナー権限がありません。\n\nこの画面は塾長専用です。アクセスが必要な場合は塾長にご連絡ください。');
       firebase.auth().signOut();
       window.location.href = '/index.html';
       return;
