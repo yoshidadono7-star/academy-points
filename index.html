@@ -1407,7 +1407,14 @@
           <option value="claude-sonnet-4-6">Claude Sonnet 4.6（バランス）</option>
           <option value="claude-opus-4-6">Claude Opus 4.6（高品質・高価）</option>
         </select>
-        <small style="color:var(--text-light);">生徒ごとに個別指定がない場合のデフォルト</small>
+        <small style="color:var(--text-light);display:block;margin-top:6px;line-height:1.6;">
+          生徒ごとに個別指定がない場合のデフォルト<br>
+          <strong>📝 モデル別の特徴:</strong><br>
+          ・<strong>Haiku</strong>: 軽量・安価。短い会話向け。写真解析は自動でSonnet昇格<br>
+          ・<strong>Sonnet</strong>: バランス型。画像理解と教育に最適（推奨）<br>
+          ・<strong>Opus</strong>: 最高品質。複雑な問題の深い理解、精密な数学・科学の説明<br>
+          ⚠️ <strong>どのモデルも画像の「生成」はできません</strong>。図表示は Mermaid/数式機能で対応します。
+        </small>
       </div>
       <div class="form-group">
         <label>返答の長さ（全体デフォルト）</label>
