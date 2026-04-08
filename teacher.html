@@ -721,7 +721,12 @@ async function approveLog(logId, basePoints, studentId, hasPhoto, parentConfirme
     let totalBonus = basePoints;
     if (hasPhoto) totalBonus += 5;
     if (parentConfirmed) totalBonus += 3;
-    await StudentsDB.addPoints(studentId, totalBonus);
+    const bonusDesc = `自宅学習承認: ${basePoints}pt` + (hasPhoto ? ' + 写真5pt' : '') + (parentConfirmed ? ' + 保護者3pt' : '');
+    await StudentsDB.addPoints(studentId, totalBonus, {
+      category: 'session',
+      description: bonusDesc,
+      grantedBy: 'teacher',
+    });
     document.getElementById(`approval-${logId}`).remove();
     const remaining = document.querySelectorAll('.approval-item').length;
     document.getElementById('pendingCount').textContent =

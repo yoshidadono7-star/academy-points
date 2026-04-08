@@ -85,16 +85,45 @@ const StudentsDB = {
   async delete(id) {
     await db.collection('students').doc(id).delete();
   },
-  async addPoints(id, points) {
+  // Feature 11 Phase F1: meta 引数で監査ログ (coins コレクション) に自動記録する
+  // meta = { category, description, grantedBy, eventId, type } を任意で渡せる。
+  // 未指定なら category='unknown', grantedBy='system' で記録する。
+  async addPoints(id, points, meta = null) {
     await db.collection('students').doc(id).update({
       totalPoints: firebase.firestore.FieldValue.increment(points),
       currentPoints: firebase.firestore.FieldValue.increment(points)
     });
+    // 監査ログ書き込み（失敗しても本体は継続）
+    try {
+      if (typeof CoinsDB !== 'undefined' && points !== 0) {
+        await CoinsDB.addTransaction({
+          studentId: id,
+          amount: points,
+          type: (meta && meta.type) || (points > 0 ? 'earn' : 'spend'),
+          category: (meta && meta.category) || 'unknown',
+          description: (meta && meta.description) || '',
+          grantedBy: (meta && meta.grantedBy) || 'system',
+          eventId: (meta && meta.eventId) || null,
+        });
+      }
+    } catch (e) { console.warn('[addPoints] coin log failed:', e); }
   },
-  async spendPoints(id, points) {
+  async spendPoints(id, points, meta = null) {
     await db.collection('students').doc(id).update({
       currentPoints: firebase.firestore.FieldValue.increment(-points)
     });
+    try {
+      if (typeof CoinsDB !== 'undefined' && points !== 0) {
+        await CoinsDB.addTransaction({
+          studentId: id,
+          amount: -Math.abs(points),
+          type: 'spend',
+          category: (meta && meta.category) || 'spend',
+          description: (meta && meta.description) || '',
+          grantedBy: (meta && meta.grantedBy) || 'system',
+        });
+      }
+    } catch (e) { console.warn('[spendPoints] coin log failed:', e); }
   }
 };
 
@@ -1060,13 +1089,11 @@ const RewardsDB = {
       rewardId, studentId, studentName, cost,
       exchangedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    // ポイント消費
-    await StudentsDB.spendPoints(studentId, cost);
-    // 取引履歴に記録
-    await CoinsDB.addTransaction({
-      studentId, amount: -cost, type: 'spend',
-      category: 'reward', description: `報酬交換`,
-      grantedBy: 'system'
+    // ポイント消費 + coins 監査ログ (spendPoints が自動記録)
+    await StudentsDB.spendPoints(studentId, cost, {
+      category: 'reward',
+      description: '報酬交換',
+      grantedBy: 'system',
     });
   }
 };
@@ -1745,7 +1772,11 @@ const DailyMissionsDB = {
         completed: true,
         completedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-      await StudentsDB.addPoints(studentId, mission.points);
+      await StudentsDB.addPoints(studentId, mission.points, {
+        category: 'mission',
+        description: `デイリーミッション: ${mission.title || mission.id || ''}`,
+        grantedBy: 'system',
+      });
       // missionStreak更新
       await StudentsDB.update(studentId, {
         missionStreak: firebase.firestore.FieldValue.increment(1)
@@ -1764,7 +1795,11 @@ const DailyMissionsDB = {
     await db.collection('dailyMissionDraws').doc(drawId).update({
       completed: true, completedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    if (mission) await StudentsDB.addPoints(draw.studentId, mission.points);
+    if (mission) await StudentsDB.addPoints(draw.studentId, mission.points, {
+      category: 'mission',
+      description: `デイリーミッション達成: ${mission.title || mission.id || ''}`,
+      grantedBy: 'system',
+    });
   },
 
   async getHistory(studentId, days = 30) {
@@ -1924,7 +1959,11 @@ const StoryDB = {
     if (route && route.reward && route.reward.points) {
       const students = await StudentsDB.getAll();
       for (const st of students) {
-        await StudentsDB.addPoints(st.id, route.reward.points);
+        await StudentsDB.addPoints(st.id, route.reward.points, {
+          category: 'story',
+          description: `ストーリー報酬: ${chapter.title || ''} (${route.name || ''})`,
+          grantedBy: 'system',
+        });
       }
     }
 
@@ -2208,7 +2247,11 @@ const SupportFleetDB = {
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     // サポーター自身にもポイント付与
-    await StudentsDB.addPoints(supporterId, points);
+    await StudentsDB.addPoints(supporterId, points, {
+      category: 'support',
+      description: `サポート行動: ${actionType}`,
+      grantedBy: 'teacher',
+    });
     return points;
   },
 };

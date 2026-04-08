@@ -2944,7 +2944,11 @@ async function completeSpeedReading() {
     material: srjPhase.material || null,
     materialName: srjMatInfo ? srjMatInfo.name : null
   });
-  await StudentsDB.addPoints(currentStudent.id, points);
+  await StudentsDB.addPoints(currentStudent.id, points, {
+    category: 'session',
+    description: '速読学習完了',
+    grantedBy: 'system',
+  });
   currentStudent = await StudentsDB.getById(currentStudent.id);
 
   showToast(`📚 速読完了！ +${points}pt`);
@@ -3069,7 +3073,11 @@ async function doCompleteTask(taskId, points) {
   showLoading();
   try {
     await TasksDB.complete(taskId, currentStudent.id, currentStudent.callsign || currentStudent.nickname || currentStudent.name);
-    await StudentsDB.addPoints(currentStudent.id, points);
+    await StudentsDB.addPoints(currentStudent.id, points, {
+      category: 'task',
+      description: 'タスク完了',
+      grantedBy: 'system',
+    });
 
     // Guild points
     if (currentStudent.guildId) {
@@ -3334,7 +3342,13 @@ async function stopStudy(save) {
 
     // 塾/Zoom: 即時ポイント付与, 自宅: 承認後に付与
     if (isImmediate) {
-      await StudentsDB.addPoints(currentStudent.id, points);
+      const studyDesc = `${studySession.subject || '学習'}${duration}分` + (timerState.pomodoroCount > 0 ? ` (🍅x${timerState.pomodoroCount})` : '') + (appliedEvent ? ` [${appliedEvent.name}]` : '');
+      await StudentsDB.addPoints(currentStudent.id, points, {
+        category: appliedEvent ? 'event' : 'session',
+        description: studyDesc,
+        grantedBy: 'system',
+        eventId: appliedEvent ? appliedEvent.id : null,
+      });
     }
 
     // Update streak
@@ -3364,7 +3378,11 @@ async function stopStudy(save) {
       // Award combo points
       for (const combo of comboResults) {
         if (combo.reward && combo.reward.points) {
-          await StudentsDB.addPoints(currentStudent.id, combo.reward.points);
+          await StudentsDB.addPoints(currentStudent.id, combo.reward.points, {
+            category: 'combo',
+            description: `コンボ: ${combo.name || combo.id}`,
+            grantedBy: 'system',
+          });
           points += combo.reward.points;
         }
       }
@@ -3402,7 +3420,11 @@ async function stopStudy(save) {
             specialAbility: boss.specialAbility
           });
           if (result.defeated) {
-            await StudentsDB.addPoints(currentStudent.id, result.reward);
+            await StudentsDB.addPoints(currentStudent.id, result.reward, {
+              category: 'raid',
+              description: `${boss.name} 撃破報酬`,
+              grantedBy: 'system',
+            });
             await BadgesDB.award(currentStudent.id, 'raid_killer');
           }
         }

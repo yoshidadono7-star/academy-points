@@ -1247,8 +1247,10 @@
           </select>
         </div>
       </div>
-      <div id="economyLogTableWrap" style="max-height:460px;overflow-y:auto;">
-        <p style="color:var(--text-light);font-size:12px;">読み込み中...</p>
+      <!-- サマリーバー (フィルタ結果の合計。常に表示) -->
+      <div id="economyLogSummaryBar"></div>
+      <div id="economyLogTableWrap" style="max-height:460px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;">
+        <p style="color:var(--text-light);font-size:12px;padding:14px;">読み込み中...</p>
       </div>
       <div id="economyLogFooter" style="font-size:11px;color:var(--text-light);margin-top:6px;"></div>
     </div>
@@ -5405,9 +5407,25 @@ async function loadEconomyStudentRanking(year, month) {
 // 発行ログビューア
 async function loadEconomyLog() {
   const wrap = document.getElementById('economyLogTableWrap');
+  const summaryBar = document.getElementById('economyLogSummaryBar');
   const footer = document.getElementById('economyLogFooter');
   if (!wrap) return;
-  wrap.innerHTML = '<p style="color:var(--text-light);font-size:12px;">読み込み中...</p>';
+  wrap.innerHTML = '<p style="color:var(--text-light);font-size:12px;padding:14px;">読み込み中...</p>';
+
+  // サマリーバー初期化
+  const setSummary = (plus, minus, count, note) => {
+    if (summaryBar) {
+      summaryBar.innerHTML = `
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 14px;background:linear-gradient(135deg,#f0f7ff,#e6f0ff);border:1px solid #667eea33;border-radius:8px;margin-bottom:10px;font-size:13px;">
+          <div><span style="color:var(--text-light);">発行合計 </span><strong style="color:var(--primary);font-size:16px;">+${plus.toLocaleString()}</strong><span style="color:var(--text-light);"> pt</span></div>
+          <div><span style="color:var(--text-light);">消費合計 </span><strong style="color:var(--danger);font-size:16px;">-${minus.toLocaleString()}</strong><span style="color:var(--text-light);"> pt</span></div>
+          <div><span style="color:var(--text-light);">純増減 </span><strong style="color:${(plus-minus)>=0?'var(--primary)':'var(--danger)'};font-size:16px;">${(plus-minus)>=0?'+':''}${(plus-minus).toLocaleString()}</strong><span style="color:var(--text-light);"> pt</span></div>
+          <div style="margin-left:auto;color:var(--text-light);">${count} 件${note||''}</div>
+        </div>
+      `;
+    }
+    if (footer) footer.textContent = '';
+  };
 
   try {
     const range = document.getElementById('economyLogRange').value;
@@ -5415,22 +5433,29 @@ async function loadEconomyLog() {
     const granterFilter = document.getElementById('economyLogGranter').value;
     const dirFilter = document.getElementById('economyLogDirection').value;
 
+    // Feature 11 Phase F1 Fix: ローカル時刻ベースで日付範囲を計算
+    // (旧バージョンは toISOString() を使っていて、JST 早朝アクセス時に前日を指す UTC バグがあった)
     const now = new Date();
-    let startDate, endDate;
+    let startTs, endTs;
     if (range === 'today') {
-      startDate = now.toISOString().split('T')[0];
-      endDate = startDate;
+      startTs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      endTs   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
     } else if (range === 'week') {
-      const s = new Date(now); s.setDate(s.getDate() - 6);
-      startDate = s.toISOString().split('T')[0];
-      endDate = now.toISOString().split('T')[0];
+      startTs = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0, 0);
+      endTs   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
     } else {
-      startDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
-      const endDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
-      endDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(endDay).padStart(2,'0')}`;
+      startTs = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      endTs   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
     }
 
-    let txns = await CoinsDB.getByDateRange(startDate, endDate);
+    // 直接 Firestore クエリ (Date オブジェクトで渡すことで UTC 問題を回避)
+    const snap = await db.collection('coins')
+      .where('timestamp', '>=', startTs)
+      .where('timestamp', '<=', endTs)
+      .orderBy('timestamp', 'desc')
+      .get();
+    let txns = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
     txns = txns.filter(t => t.approvalStatus !== 'rejected');
     if (catFilter) txns = txns.filter(t => t.category === catFilter);
     if (granterFilter) txns = txns.filter(t => t.grantedBy === granterFilter);
@@ -5442,8 +5467,16 @@ async function loadEconomyLog() {
     students.forEach(s => { sMap[s.id] = s; });
 
     if (txns.length === 0) {
-      wrap.innerHTML = '<p style="color:var(--text-light);font-size:12px;padding:14px;">該当する取引はありません</p>';
-      footer.textContent = '';
+      setSummary(0, 0, 0);
+      // 該当期間全体の coins 件数を確認してヘルプメッセージを出す
+      const allSnap = await db.collection('coins').limit(1).get();
+      const hasAnyCoins = !allSnap.empty;
+      wrap.innerHTML = `
+        <div style="padding:20px;text-align:center;color:var(--text-light);font-size:12px;">
+          <div style="font-size:32px;opacity:0.3;margin-bottom:8px;">📭</div>
+          <p style="margin-bottom:6px;">該当する取引はありません</p>
+          ${!hasAnyCoins ? '<p style="font-size:11px;max-width:500px;margin:8px auto;padding:10px;background:#fffbeb;border:1px solid #fbd38d;border-radius:6px;color:#92400e;text-align:left;">💡 <strong>ヒント</strong>: coins コレクション自体が空です。従来は自動付与（学習セッション・ミッション等）が coins に記録されていませんでした。Feature 11 Phase F1 の修正により、以降の新しい付与は全てここに記録されます。生徒画面で学習を完了すると新しいログが現れます。</p>' : '<p style="font-size:11px;">フィルタ条件を変えると結果が変わるかもしれません</p>'}
+        </div>`;
       return;
     }
 
@@ -5451,6 +5484,9 @@ async function loadEconomyLog() {
     const rows = txns.slice(0, maxRows);
     let totalPlus = 0, totalMinus = 0;
     txns.forEach(t => { if (t.amount > 0) totalPlus += t.amount; else totalMinus += Math.abs(t.amount); });
+
+    const truncNote = txns.length > maxRows ? ` (最新 ${maxRows} 件を表示)` : '';
+    setSummary(totalPlus, totalMinus, txns.length, truncNote);
 
     const html = `
       <table style="width:100%;border-collapse:collapse;font-size:12px;">
@@ -5487,11 +5523,10 @@ async function loadEconomyLog() {
         </tbody>
       </table>`;
     wrap.innerHTML = html;
-    const truncNote = txns.length > maxRows ? ` / ${txns.length} 件中 最新 ${maxRows} 件を表示` : '';
-    footer.innerHTML = `合計発行 <strong style="color:var(--primary)">+${totalPlus.toLocaleString()}</strong> pt / 合計消費 <strong style="color:var(--danger)">-${totalMinus.toLocaleString()}</strong> pt / ${txns.length} 件${truncNote}`;
   } catch (e) {
     console.error('[economyLog] error:', e);
-    wrap.innerHTML = '<p style="color:var(--danger);font-size:12px;">ログの読み込みに失敗しました: ' + escapeHtml(e.message || '') + '</p>';
+    setSummary(0, 0, 0);
+    wrap.innerHTML = '<p style="color:var(--danger);font-size:12px;padding:14px;">ログの読み込みに失敗しました: ' + escapeHtml(e.message || '') + '</p>';
   }
 }
 
@@ -5602,13 +5637,13 @@ async function grantCoin() {
   }
 
   try {
-    await CoinsDB.addTransaction({
-      studentId, amount, type: 'earn',
+    // addPoints に meta を渡すと coins 監査ログを自動記録 (Feature 11 Phase F1)
+    await StudentsDB.addPoints(studentId, amount, {
       category: category === 'manual' ? 'manual' : category,
       description: note || category,
-      grantedBy: 'coach'
+      grantedBy: 'coach',
+      type: 'earn',
     });
-    await StudentsDB.addPoints(studentId, amount);
     showToast(`${amount}ポイントを付与しました`);
     document.getElementById('coinNote').value = '';
     if (category === 'manual') document.getElementById('manualCoinAmount').value = '';
