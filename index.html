@@ -1156,6 +1156,103 @@
       </div>
       <div id="economySummary"></div>
     </div>
+
+    <!-- Phase F1: 日次推移グラフ -->
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128200;</span> 日次発行・消費推移（今月）</div>
+      <div style="position:relative;height:280px;max-width:100%;">
+        <canvas id="economyDailyChart"></canvas>
+      </div>
+      <div style="font-size:11px;color:var(--text-light);margin-top:8px;">
+        青 = 発行ポイント、オレンジ = 消費ポイント。日毎の推移が見えるので、イベント直前直後や週末の変化がわかります。
+      </div>
+    </div>
+
+    <!-- Phase F1: カテゴリ別 + 発行者別 内訳 -->
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128203;</span> 今月の発行内訳</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-light);margin-bottom:8px;">カテゴリ別</div>
+          <div style="position:relative;height:220px;">
+            <canvas id="economyCategoryChart"></canvas>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-light);margin-bottom:8px;">発行者別</div>
+          <div style="position:relative;height:220px;">
+            <canvas id="economyGranterChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase F1: 生徒別ランキング -->
+    <div class="card">
+      <div class="card-title"><span class="icon">&#127942;</span> 今月の獲得ランキング TOP10</div>
+      <div id="economyStudentRanking" style="font-size:13px;">読み込み中...</div>
+    </div>
+
+    <!-- Phase F1: 発行ログビューア -->
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128269;</span> 発行ログビューア</div>
+      <div class="form-row" style="margin-bottom:10px;">
+        <div class="form-group">
+          <label>期間</label>
+          <select class="form-control" id="economyLogRange" onchange="loadEconomyLog()">
+            <option value="today">今日</option>
+            <option value="week">直近 7 日</option>
+            <option value="month" selected>今月</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>カテゴリ</label>
+          <select class="form-control" id="economyLogCategory" onchange="loadEconomyLog()">
+            <option value="">全て</option>
+            <option value="attendance">通塾</option>
+            <option value="pomodoro">ポモドーロ</option>
+            <option value="pomodoro_triple">ポモ3連続</option>
+            <option value="review">振り返り</option>
+            <option value="review_plan">振り返り+計画</option>
+            <option value="ai_10">AI教材</option>
+            <option value="teaching">教え合い</option>
+            <option value="new_support">新入生サポート</option>
+            <option value="trial_support">体験授業サポート</option>
+            <option value="manual">手動</option>
+            <option value="session">学習セッション</option>
+            <option value="mission">ミッション</option>
+            <option value="event">イベント</option>
+            <option value="streak">ストリーク</option>
+            <option value="reward">報酬消費</option>
+            <option value="gift">ギフト</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>付与者</label>
+          <select class="form-control" id="economyLogGranter" onchange="loadEconomyLog()">
+            <option value="">全て</option>
+            <option value="coach">コーチ (手動)</option>
+            <option value="system">システム (自動)</option>
+            <option value="teacher">講師</option>
+            <option value="commander">艦長</option>
+            <option value="owner">オーナー</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>方向</label>
+          <select class="form-control" id="economyLogDirection" onchange="loadEconomyLog()">
+            <option value="all">全て</option>
+            <option value="earn">発行 (+)</option>
+            <option value="spend">消費 (-)</option>
+          </select>
+        </div>
+      </div>
+      <div id="economyLogTableWrap" style="max-height:460px;overflow-y:auto;">
+        <p style="color:var(--text-light);font-size:12px;">読み込み中...</p>
+      </div>
+      <div id="economyLogFooter" style="font-size:11px;color:var(--text-light);margin-top:6px;"></div>
+    </div>
+
     <div class="card">
       <div class="card-title"><span class="icon">&#128202;</span> ポイント付与ルール一覧</div>
       <div class="table-wrap">
@@ -5148,6 +5245,256 @@ function startEventTimerDisplay(ev) {
 // ============================================
 // ポイント経済ダッシュボード
 // ============================================
+// ============================================
+// Phase F1: ポイント経済ガバナンス 可視化基盤
+// ============================================
+
+// カテゴリ日本語ラベル
+const ECONOMY_CATEGORY_LABELS = {
+  attendance: '通塾', pomodoro: 'ポモドーロ', pomodoro_triple: 'ポモ3連続',
+  review: '振り返り', review_plan: '振り返り+計画', ai_10: 'AI教材',
+  teaching: '教え合い', new_support: '新入生サポート', trial_support: '体験授業サポート',
+  manual: '手動', session: '学習セッション', mission: 'ミッション',
+  event: 'イベント', streak: 'ストリーク', reward: '報酬消費',
+  gift: 'ギフト', task: 'タスク', combo: 'コンボ', raid: 'レイド',
+  story: 'ストーリー', bonus: 'ボーナス', support: 'サポート行動',
+};
+
+// 発行者日本語ラベル
+const ECONOMY_GRANTER_LABELS = {
+  coach: 'コーチ (手動)', system: 'システム (自動)',
+  teacher: '講師', commander: '艦長', owner: 'オーナー',
+};
+
+// カテゴリ用カラーパレット
+const ECONOMY_COLORS = [
+  '#667eea', '#f6ad55', '#48bb78', '#f56565', '#9f7aea',
+  '#38b2ac', '#ed8936', '#ecc94b', '#4299e1', '#e53e3e',
+  '#805ad5', '#319795', '#dd6b20', '#d69e2e', '#3182ce',
+];
+
+function economyCategoryLabel(key) {
+  return ECONOMY_CATEGORY_LABELS[key] || key || '不明';
+}
+function economyGranterLabel(key) {
+  return ECONOMY_GRANTER_LABELS[key] || key || '不明';
+}
+
+// 日次推移グラフ: 今月の発行量と消費量を日別に
+async function loadEconomyDailyChart(year, month) {
+  try {
+    const startDate = `${year}-${String(month).padStart(2,'0')}-01`;
+    const endDay = new Date(year, month, 0).getDate();
+    const endDate = `${year}-${String(month).padStart(2,'0')}-${endDay}`;
+    const txns = await CoinsDB.getByDateRange(startDate, endDate);
+    const confirmed = txns.filter(t => t.approvalStatus === 'confirmed');
+
+    // 日別に集計
+    const daily = {};
+    for (let d = 1; d <= endDay; d++) {
+      const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      daily[key] = { issued: 0, spent: 0 };
+    }
+    confirmed.forEach(t => {
+      const ts = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+      const key = `${ts.getFullYear()}-${String(ts.getMonth()+1).padStart(2,'0')}-${String(ts.getDate()).padStart(2,'0')}`;
+      if (!daily[key]) return;
+      if (t.amount > 0) daily[key].issued += t.amount;
+      else daily[key].spent += Math.abs(t.amount);
+    });
+    const labels = Object.keys(daily).map(k => k.slice(-2) + '日');
+    const issuedArr = Object.values(daily).map(d => d.issued);
+    const spentArr = Object.values(daily).map(d => d.spent);
+
+    renderChart('economyDailyChart', 'bar', {
+      labels,
+      datasets: [
+        { label: '発行', data: issuedArr, backgroundColor: 'rgba(102,126,234,0.7)' },
+        { label: '消費', data: spentArr, backgroundColor: 'rgba(246,173,85,0.7)' }
+      ]
+    }, {
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+      plugins: { legend: { position: 'top' } }
+    });
+  } catch (e) { console.error('[economyDaily] error:', e); }
+}
+
+// カテゴリ別 + 発行者別 の円グラフ
+async function loadEconomyBreakdown(year, month) {
+  try {
+    const startDate = `${year}-${String(month).padStart(2,'0')}-01`;
+    const endDay = new Date(year, month, 0).getDate();
+    const endDate = `${year}-${String(month).padStart(2,'0')}-${endDay}`;
+    const txns = await CoinsDB.getByDateRange(startDate, endDate);
+    const confirmed = txns.filter(t => t.approvalStatus === 'confirmed' && t.amount > 0);
+
+    // カテゴリ別集計
+    const byCategory = {};
+    confirmed.forEach(t => {
+      const k = t.category || '不明';
+      byCategory[k] = (byCategory[k] || 0) + t.amount;
+    });
+    const catEntries = Object.entries(byCategory).sort((a,b) => b[1] - a[1]);
+    renderChart('economyCategoryChart', 'doughnut', {
+      labels: catEntries.map(([k]) => economyCategoryLabel(k)),
+      datasets: [{
+        data: catEntries.map(([,v]) => v),
+        backgroundColor: catEntries.map((_,i) => ECONOMY_COLORS[i % ECONOMY_COLORS.length]),
+      }]
+    }, {
+      plugins: { legend: { position: 'right', labels: { font: { size: 10 } } } }
+    });
+
+    // 発行者別集計
+    const byGranter = {};
+    confirmed.forEach(t => {
+      const k = t.grantedBy || 'system';
+      byGranter[k] = (byGranter[k] || 0) + t.amount;
+    });
+    const grEntries = Object.entries(byGranter).sort((a,b) => b[1] - a[1]);
+    renderChart('economyGranterChart', 'doughnut', {
+      labels: grEntries.map(([k]) => economyGranterLabel(k)),
+      datasets: [{
+        data: grEntries.map(([,v]) => v),
+        backgroundColor: grEntries.map((_,i) => ECONOMY_COLORS[(i+3) % ECONOMY_COLORS.length]),
+      }]
+    }, {
+      plugins: { legend: { position: 'right', labels: { font: { size: 10 } } } }
+    });
+  } catch (e) { console.error('[economyBreakdown] error:', e); }
+}
+
+// 生徒別ランキング（TOP10）
+async function loadEconomyStudentRanking(year, month) {
+  try {
+    const startDate = `${year}-${String(month).padStart(2,'0')}-01`;
+    const endDay = new Date(year, month, 0).getDate();
+    const endDate = `${year}-${String(month).padStart(2,'0')}-${endDay}`;
+    const txns = await CoinsDB.getByDateRange(startDate, endDate);
+    const confirmed = txns.filter(t => t.approvalStatus === 'confirmed' && t.amount > 0);
+
+    const byStudent = {};
+    confirmed.forEach(t => {
+      const sid = t.studentId || 'unknown';
+      byStudent[sid] = (byStudent[sid] || 0) + t.amount;
+    });
+    const sorted = Object.entries(byStudent).sort((a,b) => b[1] - a[1]).slice(0, 10);
+
+    const students = await StudentsDB.getAll();
+    const sMap = {};
+    students.forEach(s => { sMap[s.id] = s; });
+
+    if (sorted.length === 0) {
+      document.getElementById('economyStudentRanking').innerHTML = '<p style="color:var(--text-light);font-size:12px;">今月のデータはありません</p>';
+      return;
+    }
+    const html = sorted.map(([sid, pts], i) => {
+      const s = sMap[sid];
+      const name = s ? escapeHtml(s.callsign || s.nickname || s.name) : '(削除済み)';
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-bottom:1px solid var(--border);">
+        <span style="width:34px;font-weight:700;">${medal}</span>
+        <span style="flex:1;">${name}</span>
+        <span style="font-weight:700;color:var(--primary);font-family:monospace;">+${pts.toLocaleString()} pt</span>
+      </div>`;
+    }).join('');
+    document.getElementById('economyStudentRanking').innerHTML = html;
+  } catch (e) { console.error('[economyRanking] error:', e); }
+}
+
+// 発行ログビューア
+async function loadEconomyLog() {
+  const wrap = document.getElementById('economyLogTableWrap');
+  const footer = document.getElementById('economyLogFooter');
+  if (!wrap) return;
+  wrap.innerHTML = '<p style="color:var(--text-light);font-size:12px;">読み込み中...</p>';
+
+  try {
+    const range = document.getElementById('economyLogRange').value;
+    const catFilter = document.getElementById('economyLogCategory').value;
+    const granterFilter = document.getElementById('economyLogGranter').value;
+    const dirFilter = document.getElementById('economyLogDirection').value;
+
+    const now = new Date();
+    let startDate, endDate;
+    if (range === 'today') {
+      startDate = now.toISOString().split('T')[0];
+      endDate = startDate;
+    } else if (range === 'week') {
+      const s = new Date(now); s.setDate(s.getDate() - 6);
+      startDate = s.toISOString().split('T')[0];
+      endDate = now.toISOString().split('T')[0];
+    } else {
+      startDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-01`;
+      const endDay = new Date(now.getFullYear(), now.getMonth()+1, 0).getDate();
+      endDate = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(endDay).padStart(2,'0')}`;
+    }
+
+    let txns = await CoinsDB.getByDateRange(startDate, endDate);
+    txns = txns.filter(t => t.approvalStatus !== 'rejected');
+    if (catFilter) txns = txns.filter(t => t.category === catFilter);
+    if (granterFilter) txns = txns.filter(t => t.grantedBy === granterFilter);
+    if (dirFilter === 'earn') txns = txns.filter(t => t.amount > 0);
+    if (dirFilter === 'spend') txns = txns.filter(t => t.amount < 0);
+
+    const students = await StudentsDB.getAll();
+    const sMap = {};
+    students.forEach(s => { sMap[s.id] = s; });
+
+    if (txns.length === 0) {
+      wrap.innerHTML = '<p style="color:var(--text-light);font-size:12px;padding:14px;">該当する取引はありません</p>';
+      footer.textContent = '';
+      return;
+    }
+
+    const maxRows = 500; // パフォーマンス保護
+    const rows = txns.slice(0, maxRows);
+    let totalPlus = 0, totalMinus = 0;
+    txns.forEach(t => { if (t.amount > 0) totalPlus += t.amount; else totalMinus += Math.abs(t.amount); });
+
+    const html = `
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead style="position:sticky;top:0;background:#f7fafc;z-index:1;">
+          <tr>
+            <th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--border);">日時</th>
+            <th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--border);">生徒</th>
+            <th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--border);">カテゴリ</th>
+            <th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--border);">付与者</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:2px solid var(--border);">ポイント</th>
+            <th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--border);">メモ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(t => {
+            const ts = t.timestamp?.toDate ? t.timestamp.toDate() : (t.timestamp ? new Date(t.timestamp) : null);
+            const tsStr = ts ? `${String(ts.getMonth()+1).padStart(2,'0')}/${String(ts.getDate()).padStart(2,'0')} ${String(ts.getHours()).padStart(2,'0')}:${String(ts.getMinutes()).padStart(2,'0')}` : '-';
+            const st = sMap[t.studentId];
+            const studentName = st ? escapeHtml(st.callsign || st.nickname || st.name) : '(不明)';
+            const catLabel = economyCategoryLabel(t.category);
+            const grLabel = economyGranterLabel(t.grantedBy);
+            const amtColor = t.amount > 0 ? 'var(--primary)' : 'var(--danger)';
+            const amtSign = t.amount > 0 ? '+' : '';
+            const pending = t.approvalStatus === 'pending' ? ' <span style="font-size:10px;color:#b45309;background:#fef3c7;padding:1px 6px;border-radius:3px;">承認待ち</span>' : '';
+            return `<tr style="border-bottom:1px solid #edf2f7;">
+              <td style="padding:5px 8px;white-space:nowrap;color:var(--text-light);font-family:monospace;font-size:11px;">${tsStr}</td>
+              <td style="padding:5px 8px;">${studentName}</td>
+              <td style="padding:5px 8px;">${escapeHtml(catLabel)}${pending}</td>
+              <td style="padding:5px 8px;color:var(--text-light);">${escapeHtml(grLabel)}</td>
+              <td style="padding:5px 8px;text-align:right;color:${amtColor};font-weight:700;font-family:monospace;">${amtSign}${t.amount}</td>
+              <td style="padding:5px 8px;color:var(--text-light);font-size:11px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(t.description || '')}">${escapeHtml(t.description || '')}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+    wrap.innerHTML = html;
+    const truncNote = txns.length > maxRows ? ` / ${txns.length} 件中 最新 ${maxRows} 件を表示` : '';
+    footer.innerHTML = `合計発行 <strong style="color:var(--primary)">+${totalPlus.toLocaleString()}</strong> pt / 合計消費 <strong style="color:var(--danger)">-${totalMinus.toLocaleString()}</strong> pt / ${txns.length} 件${truncNote}`;
+  } catch (e) {
+    console.error('[economyLog] error:', e);
+    wrap.innerHTML = '<p style="color:var(--danger);font-size:12px;">ログの読み込みに失敗しました: ' + escapeHtml(e.message || '') + '</p>';
+  }
+}
+
 async function loadEconomy() {
   try {
     const monthInput = document.getElementById('economyMonth');
@@ -5156,6 +5503,14 @@ async function loadEconomy() {
       monthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2,'0')}`;
     }
     const [year, month] = monthInput.value.split('-').map(Number);
+
+    // Phase F1: 並行で各ダッシュボードをロード
+    Promise.all([
+      loadEconomyDailyChart(year, month),
+      loadEconomyBreakdown(year, month),
+      loadEconomyStudentRanking(year, month),
+      loadEconomyLog(),
+    ]).catch(e => console.warn('[economy dashboards]', e));
 
     // 月間サマリー
     const summary = await CoinsDB.getMonthlySummary(year, month);
