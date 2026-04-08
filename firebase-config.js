@@ -27,3 +27,34 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 2000); // 画面描画を優先するため少し遅延
   }
 });
+
+// --- Feature 9 緊急修正 #4: Service Worker 自動更新 ---
+// 新しいバージョンの sw.js がデプロイされたら、ユーザーが何もしなくても
+// 自動的に新 SW を install → active → ページリロードまで実行する。
+// これにより「キャッシュで古い画面が見え続ける」問題が永久に解消される。
+if ('serviceWorker' in navigator) {
+  // updateViaCache: 'none' → ブラウザが sw.js 自体をキャッシュしないので
+  // 毎回ネットワークから最新を取得できる
+  navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' })
+    .then(reg => {
+      // 起動時に明示的にチェック
+      reg.update().catch(() => {});
+      // タブが visible になるたびにもチェック（バックグラウンド復帰時）
+      document.addEventListener('visibilitychange', () => {
+        if (document.visibilityState === 'visible') {
+          reg.update().catch(() => {});
+        }
+      });
+    })
+    .catch(e => console.log('[sw-autoupdate] register failed:', e));
+
+  // 新しい SW が active になった瞬間に1回だけリロード
+  // → ユーザーは何もしなくても自動で新画面を見られる
+  let __swRefreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (__swRefreshing) return;
+    __swRefreshing = true;
+    console.log('[sw-autoupdate] new version active, reloading...');
+    window.location.reload();
+  });
+}
