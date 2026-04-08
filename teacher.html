@@ -213,6 +213,8 @@ body {
         <button class="tab-btn active" data-tab="today">📅 今日のスケジュール</button>
         <button class="tab-btn" data-tab="buddychat" style="position:relative;">💬 バディ会話<span id="teacherBuddyChatBadge" style="display:none;position:absolute;top:4px;right:4px;background:#fc8181;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;">0</span></button>
         <button class="tab-btn" data-tab="comment">📝 生徒コメント</button>
+        <button class="tab-btn" data-tab="aibuddy">🤖 AI相談</button>
+        <button class="tab-btn" data-tab="handoff" style="position:relative;">📬 申し送り<span id="handoffBadge" style="display:none;position:absolute;top:4px;right:4px;background:#fc8181;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;">0</span></button>
       </div>
       <div class="tab-sub-group" data-cat="analytics">
         <button class="tab-btn" data-tab="stats">📊 統計</button>
@@ -306,6 +308,41 @@ body {
     </div>
   </div>
 
+  <!-- AI 相談 (講師バディ / 教室長バディ) -->
+  <div class="tab-content" id="tab-aibuddy">
+    <div class="card" style="height:75vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
+      <div style="padding:14px 18px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,#f8fafc,#f0f4ff);">
+        <div style="font-size:16px;font-weight:700;color:#2d3748;">🤖 <span id="aiBuddyTitle">AI バディ</span></div>
+        <div style="font-size:12px;color:var(--text-light);margin-top:2px;" id="aiBuddySubtitle">あなた専属のコーチング AI</div>
+      </div>
+      <div id="aiBuddyMessages" style="flex:1;overflow-y:auto;padding:16px;background:#f7fafc;">
+        <div class="empty-state" style="padding:30px 20px;color:#718096;font-size:13px;line-height:1.7;text-align:center;">
+          下のメッセージ欄から相談を始めよう。<br>
+          例:「今日の◯◯くん、どう接したらいい？」<br>
+          「新人講師として何に気をつければ？」<br><br>
+          AI が担当生徒の最近のコメント・宿題状況を踏まえて答えてくれます。
+        </div>
+      </div>
+      <div style="padding:12px;background:#fff;border-top:1px solid var(--border);display:flex;gap:8px;align-items:flex-end;">
+        <textarea id="aiBuddyInput" placeholder="生徒のことや授業のことを相談..."
+          style="flex:1;padding:10px 14px;border:1px solid var(--border);border-radius:18px;font-size:14px;outline:none;resize:none;height:42px;max-height:120px;font-family:inherit;line-height:1.4;"
+          onkeydown="if(event.key==='Enter' && !event.shiftKey) { event.preventDefault(); sendAIBuddyMessage(); }"></textarea>
+        <button onclick="sendAIBuddyMessage()" id="aiBuddySendBtn"
+          style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:21px;padding:10px 22px;font-weight:700;cursor:pointer;height:42px;flex-shrink:0;">送信</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- 申し送り Inbox -->
+  <div class="tab-content" id="tab-handoff">
+    <div class="card">
+      <h3 style="display:flex;align-items:center;gap:8px;">📬 申し送り Inbox <span style="font-size:11px;font-weight:normal;color:var(--text-light);">あなたに関係する情報を一覧で</span></h3>
+      <div id="handoffInboxList">
+        <div class="empty-state">読み込み中...</div>
+      </div>
+    </div>
+  </div>
+
   <!-- シフト確認 -->
   <div class="tab-content" id="tab-shifts">
     <div class="card">
@@ -371,6 +408,8 @@ body {
 const db = firebase.firestore();
 </script>
 <script src="db.js"></script>
+<script src="js/student-context.js"></script>
+<script src="js/teacher-context.js"></script>
 <script>
 let currentTeacher = null;
 
@@ -395,6 +434,12 @@ async function teacherLogin() {
     loadStudentList();
     // バディ会話の未読バッジを常時監視
     try { ChatDB.subscribeAllChats((chats) => updateTeacherBuddyBadge(chats)); } catch(e) {}
+    // 申し送り Inbox の未読バッジを取得
+    refreshHandoffBadgeOnLogin();
+    // ロール別タイトル（教室長なら表示変更）
+    if (teacher.role === 'director') {
+      document.getElementById('teacherNameDisplay').textContent = teacher.name + '（教室長）';
+    }
   } catch (e) {
     console.error(e);
     showLoginError('ログインに失敗しました');
@@ -440,7 +485,9 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
       comment: loadRecentComments,
       shifts: loadWeekShifts,
       stats: loadTeacherStats,
-      buddychat: loadTeacherBuddyChat
+      buddychat: loadTeacherBuddyChat,
+      aibuddy: loadAIBuddyChat,
+      handoff: loadHandoffInbox
     };
     if (loaders[tab]) loaders[tab]();
   });
@@ -854,6 +901,342 @@ async function loadTeacherStats() {
     document.getElementById('statComments').textContent = myComments.length;
   } catch (e) {
     console.error(e);
+  }
+}
+
+// ============================================
+// Phase 2: AI バディ相談 (講師バディ / 教室長バディ)
+// ============================================
+const AIBuddyTeacher = (() => {
+  let config = null;
+  let history = [];
+  let cachedContext = null;
+  let cachedAt = 0;
+  const CONTEXT_TTL_MS = 5 * 60 * 1000; // 5分
+
+  async function loadConfig() {
+    try {
+      const doc = await db.collection('settings').doc('claudeAi').get();
+      config = doc.exists ? doc.data() : {};
+    } catch (e) {
+      console.error('[AIBuddyTeacher] config load failed:', e);
+      config = {};
+    }
+  }
+
+  function isEnabled() {
+    return config && config.apiKey && config.enabled !== false;
+  }
+
+  async function getContextForRole() {
+    if (!currentTeacher) return { role: 'teacher', text: '' };
+    const role = currentTeacher.role === 'director' ? 'director' : 'teacher';
+    if (cachedContext && cachedContext.role === role && Date.now() - cachedAt < CONTEXT_TTL_MS) {
+      return cachedContext;
+    }
+    let text = '';
+    try {
+      if (role === 'director') {
+        const ctx = await TeacherContext.getDirectorContext(currentTeacher.id);
+        text = TeacherContext.formatDirectorContextForPrompt(ctx);
+      } else {
+        const ctx = await TeacherContext.getTeacherContext(currentTeacher.id);
+        text = TeacherContext.formatTeacherContextForPrompt(ctx);
+      }
+    } catch (e) {
+      console.warn('[AIBuddyTeacher] context fetch failed:', e);
+    }
+    cachedContext = { role, text };
+    cachedAt = Date.now();
+    return cachedContext;
+  }
+
+  // STATIC ガイド（プロンプトキャッシュ対象）
+  function buildStaticGuide() {
+    return `あなたは「Hero's Academy」という塾の講師バディAIです。
+以下は全講師向け共通のコーチング方針です。具体的な状況情報は次のブロックに続きます。
+
+【あなたの基本姿勢】
+- 講師は教育の専門家。あなたは「もう一人の講師仲間」として相談に乗る
+- 答えを断定せず、選択肢を示す
+- 「この生徒、こういう傾向があるので、◯◯のように声かけしてみては？」のスタイル
+- 個人情報の扱いに注意。生徒に直接伝えるべきでないことは明示
+- 才能を褒めず過程を褒める（成長マインドセット）
+- 新人講師でも自信を持って指導できるよう、具体的な声かけ例を示す
+
+【よくある相談タイプと対応の指針】
+1. 「この生徒どう接したら？」→ 過去のコメント・態度・理解度から推察し、具体的な声かけ例を1-2個提示
+2. 「次の授業で何やる？」→ 未完了タスクや弱点を踏まえて提案
+3. 「保護者にどう伝える？」→ 事実と解釈を分けて、ポジティブな面から始める言い回しを提示
+4. 「シフト・運営の相談（教室長向け）」→ データを根拠に複数の選択肢を提示
+5. 「自分の指導が合っているか不安」→ 振り返りを促し、否定しない
+
+【教室長 (director) 向けの追加責務】
+- 講師の人事・シフト管理を意識した助言
+- 全生徒の進捗・継続率・出席率などの教室 KPI を意識
+- 「困った」相談には、より上位の判断（保護者連絡、面談、退会防止など）を提示
+- オーナー（経営者）への申し送りが必要そうなら明示
+
+【返答のスタイル】
+- 200-400 文字程度を目安に
+- 箇条書きを活用して読みやすく
+- 押し付けがましくしない、選択肢を示す姿勢
+- 生徒名は callsign / nickname を優先（本名はプライバシー配慮）`;
+  }
+
+  function buildDynamicSystemPrompt(role, contextText) {
+    const t = currentTeacher;
+    const roleLabel = role === 'director' ? '教室長' : '講師';
+    const handoffInstruction = (typeof StudentContext !== 'undefined' && StudentContext.getHandoffInstructionForRole)
+      ? StudentContext.getHandoffInstructionForRole(role === 'director' ? 'director' : 'teacher')
+      : '';
+    const subjects = (t.subjects && t.subjects.length) ? t.subjects.join(', ') : '指定なし';
+    return `【あなたが今支援している人】
+名前: ${t.name}
+役割: ${roleLabel}
+担当科目: ${subjects}
+
+${contextText || '（現場情報の取得に失敗しました）'}
+
+${handoffInstruction}`;
+  }
+
+  async function ask(userMessage) {
+    if (!config) await loadConfig();
+    if (!isEnabled()) {
+      throw new Error('Claude AI が無効です。管理画面で API キーを設定してください。');
+    }
+    if (!currentTeacher) {
+      throw new Error('講師としてログインしてください');
+    }
+
+    history.push({ role: 'user', content: userMessage });
+    if (history.length > 20) history = history.slice(-20);
+
+    const ctxResult = await getContextForRole();
+    const role = ctxResult.role;
+    const contextText = ctxResult.text;
+
+    // ロール別モデル選択（無ければデフォルト or sonnet）
+    let model = config.model || 'claude-sonnet-4-6';
+    if (config.models) {
+      if (role === 'director' && config.models.director) model = config.models.director;
+      else if (role === 'teacher' && config.models.teacher) model = config.models.teacher;
+    }
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': config.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: model,
+        max_tokens: 1024,
+        system: [
+          { type: 'text', text: buildStaticGuide(), cache_control: { type: 'ephemeral' } },
+          { type: 'text', text: buildDynamicSystemPrompt(role, contextText) }
+        ],
+        messages: history.slice(-10)
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok || data.error) {
+      console.error('[AIBuddyTeacher] API error:', data.error || data);
+      throw new Error(data.error?.message || 'API エラー');
+    }
+    if (data.usage) {
+      console.log('[AIBuddyTeacher] usage:', {
+        input: data.usage.input_tokens,
+        cacheRead: data.usage.cache_read_input_tokens || 0,
+        cacheWrite: data.usage.cache_creation_input_tokens || 0,
+        output: data.usage.output_tokens,
+        model: model
+      });
+    }
+    if (data.content && data.content[0] && data.content[0].text) {
+      let reply = data.content[0].text.trim();
+
+      // <<HANDOFF>> を抽出して HandoffLogDB へ
+      if (typeof StudentContext !== 'undefined' && StudentContext.parseAndStripHandoffs) {
+        const parsed = StudentContext.parseAndStripHandoffs(reply);
+        reply = parsed.cleanText;
+        if (parsed.handoffs.length > 0) {
+          StudentContext.writeHandoffs(parsed.handoffs, {
+            studentId: null,
+            studentName: '',
+            sourceRole: role === 'director' ? 'director-buddy' : 'teacher-buddy',
+            sourceId: currentTeacher.id,
+            sourceName: currentTeacher.name,
+          }).catch(e => console.warn('[writeHandoffs] failed:', e));
+        }
+      }
+
+      history.push({ role: 'assistant', content: reply });
+      return reply;
+    }
+    return null;
+  }
+
+  function clearHistory() { history = []; cachedContext = null; }
+  function refreshContext() { cachedContext = null; }
+
+  return { loadConfig, isEnabled, ask, clearHistory, refreshContext };
+})();
+
+// --- AI バディ チャット UI ---
+function loadAIBuddyChat() {
+  if (!currentTeacher) return;
+  const role = currentTeacher.role === 'director' ? 'director' : 'teacher';
+  const titleEl = document.getElementById('aiBuddyTitle');
+  const subtitleEl = document.getElementById('aiBuddySubtitle');
+  if (titleEl) titleEl.textContent = role === 'director' ? '教室長バディ AI' : '講師バディ AI';
+  if (subtitleEl) subtitleEl.textContent = role === 'director'
+    ? '教室全体の運営判断・人材管理を一緒に考える'
+    : '担当生徒への接し方・声かけを一緒に考える';
+  // 設定をプリロード
+  AIBuddyTeacher.loadConfig().catch(() => {});
+}
+
+function pushBuddyMessage(sender, text) {
+  const container = document.getElementById('aiBuddyMessages');
+  if (!container) return null;
+  const empty = container.querySelector('.empty-state');
+  if (empty) empty.remove();
+
+  const wrap = document.createElement('div');
+  wrap.style.cssText = 'margin-bottom:12px;display:flex;' + (sender === 'user' ? 'justify-content:flex-end;' : 'justify-content:flex-start;');
+
+  const bubble = document.createElement('div');
+  bubble.style.cssText = `max-width:85%;padding:10px 14px;border-radius:14px;font-size:13.5px;line-height:1.55;white-space:pre-wrap;word-wrap:break-word;` + (sender === 'user'
+    ? 'background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border-bottom-right-radius:4px;'
+    : 'background:#fff;color:#2d3748;box-shadow:0 1px 4px rgba(0,0,0,0.08);border-bottom-left-radius:4px;');
+  bubble.textContent = text;
+  wrap.appendChild(bubble);
+  container.appendChild(wrap);
+  container.scrollTop = container.scrollHeight;
+  return bubble;
+}
+
+async function sendAIBuddyMessage() {
+  const input = document.getElementById('aiBuddyInput');
+  const sendBtn = document.getElementById('aiBuddySendBtn');
+  if (!input) return;
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  pushBuddyMessage('user', text);
+  const typing = pushBuddyMessage('buddy', '考え中…');
+  if (typing) typing.style.opacity = '0.6';
+  if (sendBtn) sendBtn.disabled = true;
+  try {
+    const reply = await AIBuddyTeacher.ask(text);
+    if (typing && typing.parentElement) typing.parentElement.remove();
+    if (reply) {
+      pushBuddyMessage('buddy', reply);
+    } else {
+      pushBuddyMessage('buddy', '（返答が取得できませんでした）');
+    }
+  } catch (e) {
+    if (typing && typing.parentElement) typing.parentElement.remove();
+    pushBuddyMessage('buddy', `エラー: ${e.message}`);
+  } finally {
+    if (sendBtn) sendBtn.disabled = false;
+    input.focus();
+  }
+}
+
+// ============================================
+// Phase 2: 申し送り Inbox
+// ============================================
+async function loadHandoffInbox() {
+  if (!currentTeacher) return;
+  const container = document.getElementById('handoffInboxList');
+  if (!container) return;
+  container.innerHTML = '<div class="empty-state">読み込み中...</div>';
+  try {
+    const role = currentTeacher.role === 'director' ? 'director' : 'teacher';
+    if (typeof HandoffLogDB === 'undefined' || !HandoffLogDB.getRecent) {
+      container.innerHTML = '<div class="empty-state">HandoffLogDB が読み込まれていません</div>';
+      return;
+    }
+    const entries = await HandoffLogDB.getRecent(role, 30);
+    if (entries.length === 0) {
+      container.innerHTML = '<div class="empty-state">申し送りはまだありません</div>';
+      updateHandoffBadge(0);
+      return;
+    }
+    const unreadCount = entries.filter(e => !(e.read && e.read[role])).length;
+    updateHandoffBadge(unreadCount);
+
+    container.innerHTML = entries.map(e => {
+      const isUnread = !(e.read && e.read[role]);
+      let timeStr = '';
+      if (e.createdAt && e.createdAt.toDate) {
+        const d = e.createdAt.toDate();
+        timeStr = `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      }
+      const typeIcon = { alert: '🚨', observation: '👁', request: '🙏', decision: '✅' }[e.type] || '📝';
+      const sourceLabel = {
+        'student-buddy': '生徒バディ', 'teacher-buddy': '講師バディ', 'director-buddy': '教室長バディ',
+        'owner-buddy': 'オーナーバディ', 'teacher-manual': '講師手動', 'director-manual': '教室長手動'
+      }[e.sourceRole] || e.sourceRole || '';
+      return `
+        <div style="padding:14px;border-bottom:1px solid var(--border);${isUnread ? 'background:#fef5f5;border-left:4px solid #fc8181;' : ''}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px;">
+            <div style="flex:1;min-width:0;">
+              <div style="font-size:14px;font-weight:600;color:#2d3748;line-height:1.5;">
+                ${typeIcon} ${(e.summary || '').replace(/</g, '&lt;')}
+              </div>
+              ${e.studentName ? '<div style="font-size:12px;color:#667eea;margin-top:4px;">👤 ' + e.studentName + '</div>' : ''}
+              <div style="font-size:11px;color:var(--text-light);margin-top:5px;">
+                ${timeStr} / ${sourceLabel}${e.sourceName ? '（' + e.sourceName + '）' : ''}
+              </div>
+            </div>
+            ${isUnread ? `<button onclick="markHandoffRead('${e.id}')" style="background:#48bb78;color:#fff;border:none;border-radius:14px;padding:6px 14px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;">既読</button>` : ''}
+          </div>
+        </div>`;
+    }).join('');
+  } catch (e) {
+    console.error('[loadHandoffInbox] failed:', e);
+    container.innerHTML = '<div class="empty-state">読み込みに失敗しました: ' + e.message + '</div>';
+  }
+}
+
+async function markHandoffRead(id) {
+  if (!currentTeacher) return;
+  const role = currentTeacher.role === 'director' ? 'director' : 'teacher';
+  try {
+    await HandoffLogDB.markRead(id, role);
+    loadHandoffInbox();
+  } catch (e) {
+    console.error('[markHandoffRead] failed:', e);
+  }
+}
+
+function updateHandoffBadge(count) {
+  const badge = document.getElementById('handoffBadge');
+  if (!badge) return;
+  if (count > 0) {
+    badge.textContent = String(count);
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+// ログイン直後にバッジ件数を取得（非同期）
+async function refreshHandoffBadgeOnLogin() {
+  if (!currentTeacher || typeof HandoffLogDB === 'undefined') return;
+  try {
+    const role = currentTeacher.role === 'director' ? 'director' : 'teacher';
+    const entries = await HandoffLogDB.getUnread(role, 30);
+    updateHandoffBadge(entries.length);
+  } catch (e) {
+    console.warn('[refreshHandoffBadgeOnLogin] failed:', e);
   }
 }
 </script>
