@@ -31,6 +31,13 @@ body {
   height: 100vh;
 }
 
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
 /* ヘッダー */
 .header {
   background: linear-gradient(135deg, var(--bg-panel), #0d1240);
@@ -242,7 +249,9 @@ body {
   grid-template-rows: 1fr 1fr;
   gap: 12px;
   padding: 12px;
-  height: calc(100vh - 70px - 130px);
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
 }
 
 /* パネル共通 */
@@ -814,6 +823,7 @@ body {
     grid-template-rows: auto;
   }
   .mission-panel { grid-column: 1 / 2; }
+  .commander-bubble { max-width: calc(100vw - 240px); }
 }
 @media (max-width: 1024px) {
   .main {
@@ -821,6 +831,68 @@ body {
     grid-template-rows: auto;
   }
   .mission-panel { grid-column: 1 / -1; }
+  .commander-briefing {
+    gap: 14px;
+    padding: 12px 16px;
+    min-height: 110px;
+  }
+  .commander-portrait {
+    flex: 0 0 84px;
+    width: 84px;
+    height: 84px;
+  }
+  .commander-bubble {
+    font-size: 14px;
+    padding: 10px 14px;
+    max-width: calc(100vw - 200px);
+  }
+  .commander-name { font-size: 11px; letter-spacing: 2px; }
+}
+@media (max-width: 768px) {
+  .commander-briefing {
+    gap: 10px;
+    padding: 10px 12px;
+    min-height: 96px;
+  }
+  .commander-portrait {
+    flex: 0 0 64px;
+    width: 64px;
+    height: 64px;
+  }
+  .commander-portrait .ring { inset: -4px; }
+  .commander-bubble {
+    font-size: 13px;
+    padding: 8px 12px;
+    min-height: 40px;
+    max-width: calc(100vw - 160px);
+  }
+  .commander-bubble::after { top: 14px; }
+  .commander-name {
+    font-size: 10px;
+    gap: 6px;
+    margin-bottom: 4px;
+  }
+  .commander-name .rank,
+  .commander-name .source-tag { font-size: 9px; padding: 1px 6px; }
+  .commander-controls button {
+    padding: 5px 8px;
+    font-size: 10px;
+  }
+  .commander-controls button .refresh-label { display: none; }
+}
+@media (max-width: 520px) {
+  .commander-briefing {
+    flex-wrap: wrap;
+    row-gap: 8px;
+    min-height: auto;
+  }
+  .commander-bubble { max-width: 100%; }
+  .commander-controls {
+    flex-direction: row;
+    order: 3;
+    width: 100%;
+    justify-content: flex-end;
+  }
 }
 @keyframes eventGlow {
   0%, 100% { box-shadow: 0 0 10px rgba(255,136,0,0.3); }
@@ -922,7 +994,7 @@ body {
       </div>
     </div>
     <div class="commander-controls">
-      <button id="commanderRefreshBtn" title="AI でメッセージを再生成">🔄 更新</button>
+      <button id="commanderRefreshBtn" title="AI でメッセージを再生成"><span class="refresh-icon">🔄</span><span class="refresh-label"> 更新</span></button>
     </div>
   </div>
 
