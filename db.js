@@ -2,6 +2,21 @@
 // データ層 - Firestore CRUD
 // ============================================
 
+// --- 現在の教室ID（マルチ教室土台） ---
+// 将来的に複数教室を切り替える想定。現状は 'default' を返す。
+// オーナーが owner.html から教室切替すると localStorage.currentClassroomId が変わる。
+function currentClassroomId() {
+  try {
+    const saved = (typeof localStorage !== 'undefined') ? localStorage.getItem('currentClassroomId') : null;
+    return saved || 'default';
+  } catch (e) {
+    return 'default';
+  }
+}
+if (typeof window !== 'undefined') {
+  window.currentClassroomId = currentClassroomId;
+}
+
 // --- 生徒 ---
 const StudentsDB = {
   async getAll() {
@@ -22,6 +37,7 @@ const StudentsDB = {
   async add(data) {
     const ref = await db.collection('students').add({
       ...data,
+      classroomId: data.classroomId || currentClassroomId(),
       totalPoints: data.totalPoints || 0,
       currentPoints: data.currentPoints || 0,
       totalEarned: data.totalEarned || 0,
@@ -89,6 +105,7 @@ const StudyLogsDB = {
     // 塾/Zoom = confirmed(即時付与), 自宅 = pending(講師承認待ち)
     const approvalStatus = (location === '塾' || location === 'Zoom') ? 'confirmed' : 'pending';
     const ref = await db.collection('studyLogs').add({
+      classroomId: data.classroomId || currentClassroomId(),
       studentId: data.studentId,
       studentName: data.studentName || '',
       subject: data.subject,
@@ -181,6 +198,7 @@ const TasksDB = {
   },
   async add(data) {
     const ref = await db.collection('tasks').add({
+      classroomId: data.classroomId || currentClassroomId(),
       title: data.title,
       description: data.description || '',
       points: data.points || 10,
@@ -365,6 +383,7 @@ const BadgesDB = {
 const MessagesDB = {
   async send(data) {
     const ref = await db.collection('messages').add({
+      classroomId: data.classroomId || currentClassroomId(),
       fromType: data.fromType || 'teacher', // teacher/student
       toStudentId: data.toStudentId,
       toStudentName: data.toStudentName || '',
@@ -374,6 +393,13 @@ const MessagesDB = {
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     return ref.id;
+  },
+  async getByStudentRecent(studentId, limit = 5) {
+    const snap = await db.collection('messages')
+      .where('toStudentId', '==', studentId)
+      .orderBy('createdAt', 'desc')
+      .limit(limit).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
   },
   async getByStudent(studentId) {
     const snap = await db.collection('messages')
@@ -2793,6 +2819,7 @@ const TeachersDB = {
   },
   async add(data) {
     const ref = await db.collection('teachers').add({
+      classroomId: data.classroomId || currentClassroomId(),
       name: data.name,
       email: data.email || '',
       phone: data.phone || '',
@@ -2843,6 +2870,7 @@ const ShiftsDB = {
   },
   async add(data) {
     const ref = await db.collection('shifts').add({
+      classroomId: data.classroomId || currentClassroomId(),
       teacherId: data.teacherId,
       teacherName: data.teacherName || '',
       date: data.date,
@@ -2894,6 +2922,7 @@ const ScheduleTemplatesDB = {
   },
   async add(data) {
     const ref = await db.collection('scheduleTemplates').add({
+      classroomId: data.classroomId || currentClassroomId(),
       name: data.name || '',
       dayOfWeek: data.dayOfWeek,   // 0=日, 1=月, ..., 6=土
       timeSlot: data.timeSlot,     // "16:00-17:00"
@@ -2942,6 +2971,7 @@ const ScheduleSlotsDB = {
   },
   async add(data) {
     const ref = await db.collection('scheduleSlots').add({
+      classroomId: data.classroomId || currentClassroomId(),
       date: data.date,
       timeSlot: data.timeSlot,         // "16:00-17:00"
       studentId: data.studentId || null,
@@ -2952,6 +2982,7 @@ const ScheduleSlotsDB = {
       status: data.status || 'scheduled', // scheduled/completed/cancelled/absent
       templateId: data.templateId || null,
       memo: data.memo || '',
+      memoBuddyVisible: data.memoBuddyVisible || false, // メモを生徒バディに共有するか
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     return ref.id;
@@ -3048,6 +3079,7 @@ const TeacherCommentsDB = {
   },
   async add(data) {
     const ref = await db.collection('teacherComments').add({
+      classroomId: data.classroomId || currentClassroomId(),
       studentId: data.studentId,
       studentName: data.studentName || '',
       teacherId: data.teacherId || '',
@@ -3057,6 +3089,7 @@ const TeacherCommentsDB = {
       understanding: data.understanding || '', // 理解度
       note: data.note || '',               // 特記事項
       subjects: data.subjects || [],
+      buddyVisible: data.buddyVisible || false, // 生徒バディ（ルカ）にこのコメントを共有するか
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     return ref.id;
@@ -3369,3 +3402,197 @@ const BasesDB = {
     return { defense, attack, radar, lab, total: defense + attack + radar + lab };
   }
 };
+
+// ============================================
+// Feature 9: 階層型コーチングシステム
+// ============================================
+
+// --- 教室（マルチテナント土台） ---
+const ClassroomsDB = {
+  async getAll() {
+    const snap = await db.collection('classrooms').orderBy('createdAt', 'asc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getById(id) {
+    const doc = await db.collection('classrooms').doc(id).get();
+    return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  },
+  async ensureDefault() {
+    // default 教室が存在しなければ作成（起動時に呼ぶ）
+    const ref = db.collection('classrooms').doc('default');
+    const doc = await ref.get();
+    if (!doc.exists) {
+      await ref.set({
+        name: '本校',
+        ownerId: null,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+      });
+    }
+    return 'default';
+  },
+  async add(data) {
+    const ref = db.collection('classrooms').doc(data.id || undefined);
+    const docRef = data.id
+      ? (await ref.set({
+          name: data.name || '新規教室',
+          ownerId: data.ownerId || null,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        }), ref)
+      : (await db.collection('classrooms').add({
+          name: data.name || '新規教室',
+          ownerId: data.ownerId || null,
+          createdAt: firebase.firestore.FieldValue.serverTimestamp()
+        }));
+    return docRef.id;
+  },
+  async update(id, data) {
+    await db.collection('classrooms').doc(id).update(data);
+  }
+};
+
+// --- 申し送り（階層間の情報伝達） ---
+// 各バディ（生徒/講師/教室長/オーナー）が話した内容・決定事項をここに記録
+// 全ロールが自分宛のエントリを読み、夕会等でアクションする
+const HandoffLogDB = {
+  async add(data) {
+    const ref = await db.collection('handoffLog').add({
+      classroomId: data.classroomId || currentClassroomId(),
+      studentId: data.studentId || null,           // 生徒固有なら ID、教室全体なら null
+      studentName: data.studentName || '',
+      sourceRole: data.sourceRole || 'unknown',     // 'student-buddy'|'teacher-buddy'|'director-buddy'|'owner-buddy'|'teacher-manual'|'director-manual'
+      sourceId: data.sourceId || '',                // teacher/student ID
+      sourceName: data.sourceName || '',
+      type: data.type || 'observation',             // 'observation'|'decision'|'request'|'alert'
+      summary: data.summary || '',
+      details: data.details || '',
+      decidedActions: data.decidedActions || [],    // [{who, what}]
+      visibleTo: data.visibleTo || ['teacher', 'director'], // ['student-buddy'|'teacher'|'director'|'owner']
+      read: data.read || {},                        // {teacher: false, director: false, owner: false}
+      actionTaken: false,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp()
+    });
+    return ref.id;
+  },
+  async getByStudent(studentId, limitCount = 10) {
+    const snap = await db.collection('handoffLog')
+      .where('studentId', '==', studentId)
+      .orderBy('createdAt', 'desc')
+      .limit(limitCount).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getRecent(role, limitCount = 20) {
+    // 自ロールが visibleTo に含まれるものを取得（orderBy のために全件取得してからフィルタ）
+    const snap = await db.collection('handoffLog')
+      .where('classroomId', '==', currentClassroomId())
+      .orderBy('createdAt', 'desc')
+      .limit(limitCount * 2).get();
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(e => Array.isArray(e.visibleTo) && e.visibleTo.includes(role))
+      .slice(0, limitCount);
+  },
+  async getUnread(role, limitCount = 20) {
+    const recent = await HandoffLogDB.getRecent(role, limitCount * 2);
+    return recent.filter(e => !(e.read && e.read[role])).slice(0, limitCount);
+  },
+  async markRead(id, role) {
+    const ref = db.collection('handoffLog').doc(id);
+    const doc = await ref.get();
+    if (!doc.exists) return;
+    const read = doc.data().read || {};
+    read[role] = true;
+    await ref.update({ read });
+  },
+  async markActionTaken(id) {
+    await db.collection('handoffLog').doc(id).update({ actionTaken: true });
+  },
+  async delete(id) {
+    await db.collection('handoffLog').doc(id).delete();
+  }
+};
+
+// --- ユーザー（Firebase Auth ユーザーのロール管理） ---
+// owner / admin の区別のため。既存の admin ログインは継続。
+const UsersDB = {
+  async getByUid(uid) {
+    const doc = await db.collection('users').doc(uid).get();
+    return doc.exists ? { uid: doc.id, ...doc.data() } : null;
+  },
+  async upsert(uid, data) {
+    await db.collection('users').doc(uid).set({
+      email: data.email || '',
+      displayName: data.displayName || '',
+      role: data.role || 'admin',                  // 'owner' | 'admin'
+      classroomIds: data.classroomIds || ['default'],
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+    }, { merge: true });
+  },
+  async setRole(uid, role) {
+    await db.collection('users').doc(uid).update({ role });
+  },
+  async getAll() {
+    const snap = await db.collection('users').get();
+    return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
+  }
+};
+
+// --- マイグレーション: 既存データに classroomId を付与 ---
+// 起動時に1回だけ実行（settings/migrations で完了フラグ管理）
+async function migrateClassroomId() {
+  try {
+    const flagRef = db.collection('settings').doc('migrations');
+    const flagDoc = await flagRef.get();
+    if (flagDoc.exists && flagDoc.data().classroomIdAdded) {
+      return { skipped: true };
+    }
+
+    // default 教室を保証
+    await ClassroomsDB.ensureDefault();
+
+    // マイグレーション対象コレクション
+    const targets = [
+      'students', 'teachers', 'studyLogs', 'tasks', 'taskCompletions',
+      'shifts', 'scheduleTemplates', 'scheduleSlots', 'teacherComments',
+      'messages', 'badges', 'conditions', 'examResults', 'examSchedules',
+      'prizes', 'purchases', 'interviewRecords', 'operationTasks', 'reportLogs'
+    ];
+
+    let migrated = 0;
+    for (const coll of targets) {
+      try {
+        const snap = await db.collection(coll).get();
+        const batch = db.batch();
+        let batchCount = 0;
+        for (const doc of snap.docs) {
+          if (!doc.data().classroomId) {
+            batch.update(doc.ref, { classroomId: 'default' });
+            batchCount++;
+            migrated++;
+            // Firestore バッチは500件まで
+            if (batchCount >= 400) {
+              await batch.commit();
+              batchCount = 0;
+            }
+          }
+        }
+        if (batchCount > 0) await batch.commit();
+      } catch (e) {
+        console.warn('[migrateClassroomId] collection skipped:', coll, e.message);
+      }
+    }
+
+    await flagRef.set({ classroomIdAdded: true, migratedCount: migrated, migratedAt: firebase.firestore.FieldValue.serverTimestamp() }, { merge: true });
+    console.log(`[migrateClassroomId] completed: ${migrated} documents migrated`);
+    return { migrated };
+  } catch (e) {
+    console.error('[migrateClassroomId] failed:', e);
+    return { error: e.message };
+  }
+}
+
+if (typeof window !== 'undefined') {
+  window.ClassroomsDB = ClassroomsDB;
+  window.HandoffLogDB = HandoffLogDB;
+  window.UsersDB = UsersDB;
+  window.migrateClassroomId = migrateClassroomId;
+}

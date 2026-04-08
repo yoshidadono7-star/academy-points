@@ -275,6 +275,15 @@ body {
           <label>特記事項</label>
           <textarea id="commentNote" placeholder="今日の学習で気づいたこと、保護者に伝えたいことなど"></textarea>
         </div>
+        <div style="padding:10px;background:rgba(102,126,234,0.08);border-radius:8px;border-left:3px solid #667eea;">
+          <label style="display:flex;align-items:flex-start;gap:8px;cursor:pointer;font-weight:normal;">
+            <input type="checkbox" id="commentBuddyVisible" style="margin-top:3px;flex-shrink:0;">
+            <span>
+              <strong>🤖 生徒バディ（ルカ）に共有する</strong><br>
+              <small style="color:#666;">チェックすると、生徒がバディと会話した時にこのコメントがヒントとして使われます。<br>家庭の事情・進路相談の機微など、生徒に直接見せたくない内容はチェックを外してください。</small>
+            </span>
+          </label>
+        </div>
         <button class="btn-primary" onclick="submitComment()">コメントを保存</button>
       </div>
     </div>
@@ -716,10 +725,12 @@ async function submitComment() {
       subjects: [document.getElementById('commentSubject').value],
       attitude: document.getElementById('commentAttitude').value,
       understanding: document.getElementById('commentUnderstanding').value,
-      note: document.getElementById('commentNote').value
+      note: document.getElementById('commentNote').value,
+      buddyVisible: document.getElementById('commentBuddyVisible').checked
     });
     alert('コメントを保存しました');
     document.getElementById('commentNote').value = '';
+    document.getElementById('commentBuddyVisible').checked = false;
     loadRecentComments();
   } catch (e) {
     console.error(e);
