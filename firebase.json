@@ -23,7 +23,9 @@
       "phase1-plan.html",
       "storytelling-phase1.html",
       "annual-plan.html",
-      "*.docx"
+      "STAFF_GUIDE_Feature9.html",
+      "*.docx",
+      "*.pdf"
     ],
     "rewrites": [
       {
