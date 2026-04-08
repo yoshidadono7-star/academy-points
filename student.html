@@ -5542,9 +5542,28 @@ ${contextText ? `
 【あなたが把握している${name}の今の状況】
 ${contextText}
 
-これらの情報を踏まえて、「今日は何やればいい？」「次の授業いつ？」のような質問には具体的に答えること。
-ただしプライバシー配慮として、生徒本人が話題にしていない情報を突然見せびらかさない。
-聞かれたら答える、あるいはさりげなく示唆するスタイルで。` : ''}${handoffInstruction}`;
+【超重要: 直接質問への回答ルール】
+${name}が自分のことを直接聞いてきた場合は、上記の状況情報を使って**必ず具体的に答えること**。
+曖昧に返したり「先生に聞いて」と逃げたりしない。以下は良い/悪い例:
+
+❌ 悪い例（逃げ腰）:
+- 生徒「最近どう？」→ バディ「うーん、いい質問だね。先生に聞いてみる？」
+- 生徒「苦手科目教えて」→ バディ「先生を呼ぼうか？」
+- 生徒「次の授業いつ？」→ バディ「一緒に考えようね」
+
+✅ 良い例（具体的）:
+- 生徒「最近どう？」→ バディ「最近は${streak}日連続で頑張ってるにゃ！先生からも○○を頑張ろうってコメント来てるよ」
+  （状況情報の「最近の講師コメント」を1行で要約）
+- 生徒「苦手科目教えて」→ バディ「${name}は${weakSubject || '特に指定なし'}が苦手って聞いてるにゃ。一緒に克服してこう！」
+- 生徒「次の授業いつ？」→ バディ「状況情報の「今日/今週の授業」を見て、次の日時と科目と先生名を答える」
+- 生徒「今日何やればいい？」→ バディ「状況情報の宿題・講師コメントから具体的なタスク名を答える」
+
+【プライバシー配慮（補足）】
+- 生徒が**自分のこと**を聞いてきた場合 → 上の情報を使って具体的に答える（これが基本）
+- 生徒が**他の人のこと**を聞いてきた場合 → 「それは○○さん本人に聞いてみようね」で OK
+- 講師コメントの中で「家庭事情」「心の健康」など機微な内容は、本人が話題にしていなければ触れない
+
+情報はあなたの武器です。${name}のために使ってください。` : ''}${handoffInstruction}`;
   }
 
   // 後方互換: 単一文字列で返す版（reactToEvent 等で使用）
@@ -5593,12 +5612,16 @@ ${contextText}
         })
       };
       let res;
-      for (let attempt = 0; attempt < 3; attempt++) {
+      const maxRetries = 4;
+      for (let attempt = 0; attempt < maxRetries; attempt++) {
         res = await fetch('https://api.anthropic.com/v1/messages', fetchOpts);
-        if (res.status !== 529 && res.status !== 503) break;
-        if (attempt < 2) {
-          const delay = 1500 * (attempt + 1); // 1.5s, 3s
-          console.warn(`[AIBuddy.ask] Anthropic ${res.status} overloaded, retrying in ${delay}ms (${attempt+1}/2)`);
+        if (res.status !== 529 && res.status !== 503 && res.status !== 429) break;
+        if (attempt < maxRetries - 1) {
+          // 指数バックオフ + ジッター: 1.5s, 3s, 6s（ランダム ±30%）
+          const base = 1500 * Math.pow(2, attempt);
+          const jitter = base * (0.7 + Math.random() * 0.6);
+          const delay = Math.floor(jitter);
+          console.warn(`[AIBuddy.ask] Anthropic ${res.status} overloaded, retrying in ${delay}ms (${attempt+1}/${maxRetries-1})`);
           await new Promise(r => setTimeout(r, delay));
         }
       }
