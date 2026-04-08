@@ -5517,7 +5517,8 @@ ${VISUAL_TOOLS_GUIDE}`;
       : '';
 
     return `あなたの現在の名前は「${buddy.name}」（${buddy.title}）です。
-今あなたが支援している生徒: 「${name}」（${grade}、Lv.${level}、${points}pt、連続${streak}日${weakSubject ? '、苦手: ' + weakSubject : ''}）
+今あなたが支援している生徒: 「${name}」（${grade}、Lv.${level}、${points}pt、連続${streak}日）
+苦手科目: ${weakSubject || '未設定（システムにまだ登録されていない）'}
 
 【キャラクター口調】
 ${personalityHint}
@@ -5546,17 +5547,25 @@ ${contextText}
 ${name}が自分のことを直接聞いてきた場合は、上記の状況情報を使って**必ず具体的に答えること**。
 曖昧に返したり「先生に聞いて」と逃げたりしない。以下は良い/悪い例:
 
-❌ 悪い例（逃げ腰）:
+❌ 悪い例（逃げ腰・話題そらし）:
 - 生徒「最近どう？」→ バディ「うーん、いい質問だね。先生に聞いてみる？」
-- 生徒「苦手科目教えて」→ バディ「先生を呼ぼうか？」
-- 生徒「次の授業いつ？」→ バディ「一緒に考えようね」
+- 生徒「苦手科目教えて」→ バディ「何を教えてほしい？先生を呼ぼうか？」
+- 生徒「次の授業いつ？」→ バディ「一緒に考えようね」「どの科目がしんどい？」（← 話題そらし禁止）
 
-✅ 良い例（具体的）:
-- 生徒「最近どう？」→ バディ「最近は${streak}日連続で頑張ってるにゃ！先生からも○○を頑張ろうってコメント来てるよ」
+✅ 良い例（具体的 or 正直）:
+- 生徒「最近どう？」→ バディ「最近は${streak}日連続で頑張ってるにゃ！先生からも○○ってコメント来てるよ」
   （状況情報の「最近の講師コメント」を1行で要約）
-- 生徒「苦手科目教えて」→ バディ「${name}は${weakSubject || '特に指定なし'}が苦手って聞いてるにゃ。一緒に克服してこう！」
-- 生徒「次の授業いつ？」→ バディ「状況情報の「今日/今週の授業」を見て、次の日時と科目と先生名を答える」
+- 生徒「苦手科目教えて」:
+    ・weakSubject 登録あり → 「${name}は○○が苦手って聞いてるにゃ〜。一緒に克服してこう！」
+    ・**weakSubject 未登録の場合** → 「今はまだ登録されてないにゃ〜！自分ではどの科目がしんどく感じる？教えてくれたら一緒に整理できるよ」
+- 生徒「次の授業いつ？」:
+    ・スケジュールあり → 「次は [日付] [時間] [科目] で [先生名] 先生だよ」
+    ・**スケジュール未登録の場合** → 「まだ今日以降の授業予定が登録されてないみたいにゃ。先生に確認してみて」
 - 生徒「今日何やればいい？」→ バディ「状況情報の宿題・講師コメントから具体的なタスク名を答える」
+
+【データ欠損時の鉄則】
+情報が無い時は **話題を変えずに** 「まだ登録されていない」と正直に言って、次のアクション（先生に聞く等）を提案する。
+別の質問で話をそらさない。生徒が聞いたことにちゃんと応答する。
 
 【プライバシー配慮（補足）】
 - 生徒が**自分のこと**を聞いてきた場合 → 上の情報を使って具体的に答える（これが基本）
@@ -6009,6 +6018,18 @@ const ChatUI = (() => {
     // 即座に生徒の発言を会話エリアに表示（消えない）
     BuddySystem.sayStudent(text);
 
+    // Feature 9: 長時間待機時の UX フィードバック（Anthropic 529 リトライ対策）
+    // 4秒: 「混み合ってる」/ 10秒: 「もうちょっと…」
+    let replyReceived = false;
+    const waitTimer1 = setTimeout(() => {
+      if (replyReceived) return;
+      BuddySystem.say('ちょっと混み合ってるみたい、もう少し待ってね〜☕', { emotion: 'thinking', duration: 30000 });
+    }, 4000);
+    const waitTimer2 = setTimeout(() => {
+      if (replyReceived) return;
+      BuddySystem.say('もうちょっとだけ…考え中にゃ…🌀', { emotion: 'thinking', duration: 30000 });
+    }, 10000);
+
     try {
       // 生徒メッセージを保存
       await ChatDB.sendMessage(currentStudent.id, studentName, 'student', studentName, text);
@@ -6027,9 +6048,16 @@ const ChatUI = (() => {
         reply = generateReply(text, currentStudent);
       }
 
+      replyReceived = true;
+      clearTimeout(waitTimer1);
+      clearTimeout(waitTimer2);
+
       await ChatDB.sendMessage(currentStudent.id, studentName, 'buddy', 'ルカ', reply);
       BuddySystem.say(reply, { emotion: 'happy', duration: 8000 });
     } catch(e) {
+      replyReceived = true;
+      clearTimeout(waitTimer1);
+      clearTimeout(waitTimer2);
       console.error('Chat send error:', e);
       BuddySystem.say('うーん、うまく聞こえなかった...もう一度言ってくれる？', { emotion: 'sad' });
     }
