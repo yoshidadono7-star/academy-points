@@ -56,6 +56,7 @@ const StudentsDB = {
       missionStreak: data.missionStreak || 0,   // デイリーミッション連続達成数
       // --- AI バディ設定 ---
       aiModel: data.aiModel || null,            // null=デフォルト, 'claude-haiku-4-5-20251001'|'claude-sonnet-4-6'|'claude-opus-4-6'
+      responseLength: data.responseLength || null, // null=デフォルト, 'short'|'medium'|'long' 返答の長さ
       learningModeControl: data.learningModeControl || 'both',  // 'student'|'teacher'|'both' 学習モード切替権限
       currentLearningMode: data.currentLearningMode || 'normal', // 'normal'|'tutor' 現在のモード
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
