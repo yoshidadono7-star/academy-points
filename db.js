@@ -3474,20 +3474,26 @@ const HandoffLogDB = {
     return ref.id;
   },
   async getByStudent(studentId, limitCount = 10) {
+    // composite index 回避: orderBy のみで取得 → JS で studentId フィルタ
+    // (where + orderBy の組み合わせは Firestore の複合インデックスが必要だが、
+    //  handoffLog は小規模コレクションなので JS フィルタで十分)
     const snap = await db.collection('handoffLog')
-      .where('studentId', '==', studentId)
       .orderBy('createdAt', 'desc')
-      .limit(limitCount).get();
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
-  },
-  async getRecent(role, limitCount = 20) {
-    // 自ロールが visibleTo に含まれるものを取得（orderBy のために全件取得してからフィルタ）
-    const snap = await db.collection('handoffLog')
-      .where('classroomId', '==', currentClassroomId())
-      .orderBy('createdAt', 'desc')
-      .limit(limitCount * 2).get();
+      .limit(200).get();
     return snap.docs
       .map(d => ({ id: d.id, ...d.data() }))
+      .filter(e => e.studentId === studentId)
+      .slice(0, limitCount);
+  },
+  async getRecent(role, limitCount = 20) {
+    // composite index 回避: orderBy のみで取得 → JS で classroomId + visibleTo フィルタ
+    const snap = await db.collection('handoffLog')
+      .orderBy('createdAt', 'desc')
+      .limit(limitCount * 4).get();
+    const currentClass = currentClassroomId();
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .filter(e => !e.classroomId || e.classroomId === currentClass)
       .filter(e => Array.isArray(e.visibleTo) && e.visibleTo.includes(role))
       .slice(0, limitCount);
   },
