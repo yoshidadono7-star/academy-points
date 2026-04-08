@@ -5904,29 +5904,34 @@ const RichContent = (() => {
 const ChatUI = (() => {
   let recognition = null;
   let isRecording = false;
+  let wantRecording = false;    // ユーザー意図: 常時マイクモードを継続したいか
+  let lastProcessedResultIndex = 0;  // 処理済み result index（重複送信防止）
   let activeInputId = 'buddyChatInput';
   let chatUnsubscribe = null;
   let lastTeacherMessageId = null;
+  let recordingStartedAt = 0;
+  const MAX_RECORDING_DURATION_MS = 5 * 60 * 1000; // 5分で強制停止（誤爆防止）
+  let autoStopTimer = null;
 
-  // Web Speech API SpeechRecognition セットアップ（元の動作確認済み版）
+  // Web Speech API SpeechRecognition セットアップ（常時マイクモード版）
   function initRecognition() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) {
       console.error('[Mic] SpeechRecognition API not available in this browser');
       return null;
     }
-    console.log('[Mic] initRecognition: creating new SpeechRecognition instance');
+    console.log('[Mic] initRecognition: creating new SpeechRecognition instance (continuous mode)');
     const r = new SR();
     r.lang = 'ja-JP';
-    r.continuous = false;
-    r.interimResults = false;
+    r.continuous = true;        // ← 常時マイクモード: 発話ごとに止まらない
+    r.interimResults = false;   // 中間結果は使わない（final だけ処理）
     r.maxAlternatives = 1;
 
     r.onstart = () => {
       console.log('[Mic] recognition.onstart fired (listening...)');
-      // 聞いてる状態を明示的にバディ吹き出しで知らせる
-      if (typeof BuddySystem !== 'undefined' && BuddySystem.say) {
-        BuddySystem.say('🎤 聞いてるよ！話してみて〜', { emotion: 'thinking', duration: 8000 });
+      // 最初の start 時だけ吹き出しで知らせる（自動再開時は鬱陶しいので出さない）
+      if (!restartCount && typeof BuddySystem !== 'undefined' && BuddySystem.say) {
+        BuddySystem.say('🎤 聞いてるよ！話してみて〜', { emotion: 'thinking', duration: 6000 });
       }
     };
     r.onaudiostart = () => console.log('[Mic] onaudiostart (mic opened)');
@@ -5934,60 +5939,92 @@ const ChatUI = (() => {
     r.onspeechend = () => console.log('[Mic] onspeechend (silence detected)');
 
     r.onresult = (e) => {
-      const text = e.results[0][0].transcript;
-      console.log('[Mic] onresult:', text);
-      const input = document.getElementById(activeInputId);
-      if (input) input.value = text;
-      stopRecording();
-      // 自動送信
-      setTimeout(() => {
-        if (activeInputId === 'chatModalInput') sendFromModal();
-        else sendFromBar();
-      }, 200);
+      // continuous モードでは e.results に過去の結果も含まれるので、
+      // 未処理の final 結果だけを取り出す
+      for (let i = lastProcessedResultIndex; i < e.results.length; i++) {
+        if (e.results[i].isFinal) {
+          const text = (e.results[i][0].transcript || '').trim();
+          lastProcessedResultIndex = i + 1;
+          if (!text) continue;
+          console.log('[Mic] onresult (final):', text);
+          const input = document.getElementById(activeInputId);
+          if (input) input.value = text;
+          // 送信（録音は止めない！）
+          setTimeout(() => {
+            if (activeInputId === 'chatModalInput') sendFromModal();
+            else sendFromBar();
+          }, 200);
+        }
+      }
     };
     r.onend = () => {
-      console.log('[Mic] onend');
-      stopRecording();
+      console.log('[Mic] onend (wantRecording=' + wantRecording + ')');
+      // ユーザーがまだマイクオフにしていなくて、最大時間も超えていなければ自動再開
+      if (wantRecording && Date.now() - recordingStartedAt < MAX_RECORDING_DURATION_MS) {
+        restartCount++;
+        if (restartCount > 50) {
+          // 過剰な再起動ループ防止
+          console.warn('[Mic] too many restarts, giving up');
+          finalizeStopRecording();
+          return;
+        }
+        console.log('[Mic] auto-restarting... (restart #' + restartCount + ')');
+        try {
+          // 少し待ってから再開（即 start だと InvalidStateError になることがある）
+          setTimeout(() => {
+            if (wantRecording) {
+              try { r.start(); } catch (err) {
+                console.error('[Mic] restart failed:', err);
+                finalizeStopRecording();
+              }
+            }
+          }, 200);
+        } catch (err) {
+          console.error('[Mic] restart failed:', err);
+          finalizeStopRecording();
+        }
+      } else {
+        finalizeStopRecording();
+      }
     };
     r.onerror = (e) => {
       console.error('[Mic] SpeechRecognition error:', e.error, e);
-      // no-speech は正常な無音タイムアウト、aborted はユーザー停止
       if (e.error === 'no-speech') {
-        // alert より吹き出しで親切に案内
-        if (typeof BuddySystem !== 'undefined' && BuddySystem.say) {
-          BuddySystem.say('あれ？聞こえなかったみたい…🎤\nMacのマイクが正しく選ばれてるか確認してみてね', { emotion: 'sad', duration: 10000 });
-        }
-        stopRecording();
+        // no-speech は continuous モードでは通常起きないが、起きても無視して再開を待つ
         return;
       }
       if (e.error === 'aborted') {
-        stopRecording();
         return;
       }
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
         alert('マイクの使用が許可されていません。ブラウザのアドレスバー左の鍵アイコンをクリックして、マイクを「許可」に変更してください。');
+        wantRecording = false;
+        finalizeStopRecording();
       } else if (e.error === 'network') {
-        alert('ネットワークエラー: 音声認識サービスに接続できませんでした。オンライン状態を確認してください。');
+        alert('ネットワークエラー: 音声認識サービスに接続できませんでした。');
+        wantRecording = false;
+        finalizeStopRecording();
       } else {
         if (typeof BuddySystem !== 'undefined' && BuddySystem.say) {
-          BuddySystem.say('音声認識がうまくいかなかったにゃ…😢\n(' + e.error + ')', { emotion: 'sad', duration: 6000 });
+          BuddySystem.say('音声認識がうまくいかなかったにゃ…😢\n(' + e.error + ')', { emotion: 'sad', duration: 5000 });
         }
+        wantRecording = false;
+        finalizeStopRecording();
       }
-      stopRecording();
     };
     return r;
   }
 
+  let restartCount = 0;
+
   async function startRecording(targetInput) {
     console.log('[Mic] startRecording called, target=', targetInput);
 
-    // マイク権限を明示的に事前取得（一度 getUserMedia で granted 状態にする）
-    // これで SpeechRecognition が確実に動く
+    // マイク権限を明示的に事前取得
     if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
       try {
         const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
         console.log('[Mic] getUserMedia OK, tracks:', stream.getAudioTracks().length);
-        // 取得したストリームはすぐ閉じる（SpeechRecognition が自分で別のを開く）
         stream.getTracks().forEach(t => t.stop());
       } catch (permErr) {
         console.error('[Mic] getUserMedia failed:', permErr.name, permErr.message);
@@ -5995,15 +6032,13 @@ const ChatUI = (() => {
           alert('マイクの使用が拒否されています。\n\nブラウザのアドレスバー左の鍵アイコンをクリックして、マイクを「許可」に変更してください。\nその後ページをリロードしてください。');
           return;
         } else if (permErr.name === 'NotFoundError') {
-          alert('マイクが接続されていません。');
+          alert('マイクが接続されていません。Mac のシステム設定 → サウンド → 入力で、接続済みのマイクが選ばれているか確認してください。');
           return;
         } else {
           alert('マイクにアクセスできません: ' + permErr.message);
           return;
         }
       }
-    } else {
-      console.warn('[Mic] navigator.mediaDevices.getUserMedia not available');
     }
 
     if (!recognition) recognition = initRecognition();
@@ -6012,6 +6047,21 @@ const ChatUI = (() => {
       return;
     }
     activeInputId = targetInput || 'buddyChatInput';
+    lastProcessedResultIndex = 0;
+    restartCount = 0;
+    recordingStartedAt = Date.now();
+    wantRecording = true;
+
+    // 5 分で自動停止タイマー
+    if (autoStopTimer) clearTimeout(autoStopTimer);
+    autoStopTimer = setTimeout(() => {
+      console.log('[Mic] auto-stop after max duration');
+      if (wantRecording && typeof BuddySystem !== 'undefined' && BuddySystem.say) {
+        BuddySystem.say('マイクをしばらく使ってないみたい。一旦オフにしたにゃ〜🎤', { emotion: 'thinking', duration: 5000 });
+      }
+      stopRecording();
+    }, MAX_RECORDING_DURATION_MS);
+
     try {
       recognition.start();
       isRecording = true;
@@ -6019,21 +6069,30 @@ const ChatUI = (() => {
       console.log('[Mic] recognition.start() called OK');
     } catch(e) {
       console.error('[Mic] start error:', e);
-      // 既に開始中のエラーは無視して UI だけ更新
       if (String(e).includes('already started')) {
         isRecording = true;
         updateMicButtons(true);
       } else {
+        wantRecording = false;
         alert('音声認識の開始に失敗しました: ' + e.message);
       }
     }
   }
 
+  // ユーザーが明示的に停止する（🎤 ボタンをもう一度押した時）
   function stopRecording() {
+    wantRecording = false;
+    if (autoStopTimer) { clearTimeout(autoStopTimer); autoStopTimer = null; }
     if (recognition && isRecording) {
       try { recognition.stop(); } catch(e) {}
     }
+    // 実際の UI クリアは onend → finalizeStopRecording で行う
+  }
+
+  // 内部用: 実際に停止状態になった時の後始末
+  function finalizeStopRecording() {
     isRecording = false;
+    if (autoStopTimer) { clearTimeout(autoStopTimer); autoStopTimer = null; }
     updateMicButtons(false);
   }
 
@@ -6048,6 +6107,10 @@ const ChatUI = (() => {
     console.log('[Mic] toggleVoiceInput called, target=', target, 'isRecording=', isRecording);
     if (isRecording) {
       stopRecording();
+      // ユーザーにフィードバック
+      if (typeof BuddySystem !== 'undefined' && BuddySystem.say) {
+        BuddySystem.say('マイクオフにしたにゃ〜🎤', { emotion: 'happy', duration: 3000 });
+      }
     } else {
       startRecording(target === 'modal' ? 'chatModalInput' : 'buddyChatInput');
     }
