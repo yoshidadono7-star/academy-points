@@ -522,6 +522,28 @@
   <!-- ===== ランキング ===== -->
   <!-- 今日のプラン管理 -->
   <div class="tab-content active" id="tab-plans">
+
+    <!-- 艦長マイケル - ブリーフィング上書き -->
+    <div class="card" id="commanderOverrideCard" style="background:linear-gradient(135deg,rgba(0,212,255,0.08),rgba(136,102,255,0.08));border:1px solid rgba(0,212,255,0.3);">
+      <h3 style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:24px;">🧑‍✈️</span>
+        艦長マイケルの「今日のメッセージ」
+        <span id="commanderStatusBadge" style="font-size:11px;padding:2px 10px;border-radius:10px;background:rgba(136,102,255,0.2);color:#8866ff;margin-left:auto;">AI 自動</span>
+      </h3>
+      <p style="font-size:12px;color:#718096;margin-bottom:12px;">
+        ブリーフィング画面（教室モニター）の上部で艦長マイケルが語るメッセージです。
+        空欄のままにすると AI が毎日自動生成します。
+        何か特別なメッセージがある日だけここに入力してください（例: 「今日は期末テスト対策最終日だ！」）。
+      </p>
+      <textarea id="commanderManualInput" rows="2" placeholder="例: 諸君、本日は期末テスト対策最終日だ。全クルー、全力で挑め！"
+        style="width:100%;padding:10px 12px;border:1px solid #cbd5e0;border-radius:8px;font-size:14px;resize:vertical;font-family:inherit;"></textarea>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;">
+        <button id="commanderManualSaveBtn" class="btn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:8px 18px;border:none;border-radius:6px;cursor:pointer;font-weight:600;">💾 保存</button>
+        <button id="commanderManualClearBtn" class="btn" style="background:#e2e8f0;color:#4a5568;padding:8px 18px;border:none;border-radius:6px;cursor:pointer;">🗑️ クリア（AI 自動に戻す）</button>
+        <span id="commanderManualStatus" style="font-size:12px;color:#718096;"></span>
+      </div>
+    </div>
+
     <div class="card">
       <h3>🚀 今日のプラン管理</h3>
       <p style="font-size:13px;color:#718096;margin-bottom:16px;">各生徒の本日の学習プランを設定します。プランがある生徒は、生徒画面でワンタップで学習を開始できます。</p>
@@ -4662,6 +4684,92 @@ function toggleAllPlanChecks(checked) {
   document.querySelectorAll('.plan-student-check').forEach(c => c.checked = checked);
 }
 
+// ============================================
+// 艦長マイケルのブリーフィング手動上書き
+// ============================================
+async function initCommanderOverridePanel() {
+  const input = document.getElementById('commanderManualInput');
+  const saveBtn = document.getElementById('commanderManualSaveBtn');
+  const clearBtn = document.getElementById('commanderManualClearBtn');
+  const status = document.getElementById('commanderManualStatus');
+  const badge = document.getElementById('commanderStatusBadge');
+  if (!input || !saveBtn) return;
+
+  const today = getToday();
+  const docRef = db.collection('dailyBriefing').doc(today);
+
+  // 現在値を読み込み
+  async function refresh() {
+    try {
+      const snap = await docRef.get();
+      if (snap.exists) {
+        const d = snap.data();
+        if (d.manualOverride) {
+          input.value = d.manualOverride;
+          if (badge) {
+            badge.textContent = '手動上書き中';
+            badge.style.background = 'rgba(0,255,136,0.2)';
+            badge.style.color = '#00a064';
+          }
+        } else {
+          input.value = '';
+          if (badge) {
+            badge.textContent = d.aiMessage ? 'AI 自動（本日生成済み）' : 'AI 自動';
+            badge.style.background = 'rgba(136,102,255,0.2)';
+            badge.style.color = '#8866ff';
+          }
+        }
+      } else {
+        input.value = '';
+        if (badge) {
+          badge.textContent = 'AI 自動';
+          badge.style.background = 'rgba(136,102,255,0.2)';
+          badge.style.color = '#8866ff';
+        }
+      }
+    } catch(e) { console.warn('[commanderOverride] refresh failed:', e); }
+  }
+
+  saveBtn.addEventListener('click', async () => {
+    const text = input.value.trim();
+    if (!text) { status.textContent = '⚠️ 何か入力してください'; setTimeout(() => status.textContent = '', 3000); return; }
+    status.textContent = '保存中...';
+    try {
+      await docRef.set({
+        manualOverride: text,
+        manualOverrideAt: firebase.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+      status.textContent = '✅ 保存しました（ブリーフィング画面をリロードすると反映）';
+      await refresh();
+      setTimeout(() => status.textContent = '', 5000);
+    } catch(e) {
+      console.error('[commanderOverride] save failed:', e);
+      status.textContent = '❌ 保存失敗: ' + (e.message || e);
+    }
+  });
+
+  clearBtn.addEventListener('click', async () => {
+    if (!confirm('手動メッセージを削除して AI 自動生成に戻しますか？')) return;
+    status.textContent = '削除中...';
+    try {
+      // manualOverride フィールドを削除
+      await docRef.set({
+        manualOverride: firebase.firestore.FieldValue.delete(),
+        manualOverrideAt: firebase.firestore.FieldValue.delete(),
+      }, { merge: true });
+      input.value = '';
+      status.textContent = '✅ AI 自動に戻しました';
+      await refresh();
+      setTimeout(() => status.textContent = '', 5000);
+    } catch(e) {
+      console.error('[commanderOverride] clear failed:', e);
+      status.textContent = '❌ 削除失敗: ' + (e.message || e);
+    }
+  });
+
+  await refresh();
+}
+
 async function initApp() {
   // ダッシュボードを初期化（認証後に呼ぶ）
   try {
@@ -4672,6 +4780,9 @@ async function initApp() {
     start.setDate(start.getDate() - 7);
     document.getElementById('historyEnd').value = end.toISOString().split('T')[0];
     document.getElementById('historyStart').value = start.toISOString().split('T')[0];
+
+    // 艦長マイケルのブリーフィング上書きパネル初期化
+    initCommanderOverridePanel().catch(e => console.warn('[commander override init]', e));
 
     // データロード
     await loadPlanStatus();

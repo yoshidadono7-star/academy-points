@@ -84,6 +84,157 @@ body {
   color: var(--accent-green);
 }
 
+/* 艦長マイケル ブリーフィング */
+.commander-briefing {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 14px 24px;
+  background: linear-gradient(90deg, rgba(0,212,255,0.08), rgba(136,102,255,0.1), rgba(0,212,255,0.08));
+  border-bottom: 1px solid rgba(0,212,255,0.3);
+  box-shadow: inset 0 -1px 20px rgba(0,212,255,0.05);
+  min-height: 130px;
+  position: relative;
+  overflow: hidden;
+}
+.commander-briefing::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 15% 50%, rgba(0,212,255,0.12), transparent 45%);
+  pointer-events: none;
+}
+.commander-portrait {
+  flex: 0 0 100px;
+  width: 100px;
+  height: 100px;
+  position: relative;
+  z-index: 1;
+  filter: drop-shadow(0 0 16px rgba(0,212,255,0.45));
+}
+.commander-portrait svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+.commander-portrait .ring {
+  position: absolute;
+  inset: -6px;
+  border-radius: 50%;
+  border: 2px solid rgba(0,212,255,0.5);
+  animation: commanderRingSpin 8s linear infinite;
+  pointer-events: none;
+}
+.commander-portrait .ring::before,
+.commander-portrait .ring::after {
+  content: '';
+  position: absolute;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent-blue);
+  box-shadow: 0 0 10px var(--accent-blue);
+}
+.commander-portrait .ring::before { top: -4px; left: 50%; transform: translateX(-50%); }
+.commander-portrait .ring::after  { bottom: -4px; left: 50%; transform: translateX(-50%); }
+@keyframes commanderRingSpin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+.commander-speech {
+  flex: 1;
+  min-width: 0;
+  position: relative;
+  z-index: 1;
+}
+.commander-name {
+  font-family: 'Orbitron', monospace;
+  font-size: 12px;
+  letter-spacing: 3px;
+  color: var(--accent-blue);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.commander-name .rank {
+  background: rgba(0,212,255,0.15);
+  border: 1px solid rgba(0,212,255,0.4);
+  border-radius: 4px;
+  padding: 1px 8px;
+  font-size: 10px;
+}
+.commander-name .source-tag {
+  background: rgba(136,102,255,0.15);
+  border: 1px solid rgba(136,102,255,0.4);
+  color: var(--accent-purple);
+  border-radius: 4px;
+  padding: 1px 8px;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+.commander-bubble {
+  position: relative;
+  background: rgba(10,14,39,0.7);
+  border: 1px solid rgba(0,212,255,0.35);
+  border-radius: 10px;
+  padding: 12px 16px;
+  font-size: 15px;
+  line-height: 1.55;
+  color: var(--text-primary);
+  font-weight: 500;
+  min-height: 52px;
+  max-width: calc(100vw - 260px);
+}
+.commander-bubble::after {
+  content: '';
+  position: absolute;
+  left: -10px;
+  top: 20px;
+  width: 0;
+  height: 0;
+  border-top: 8px solid transparent;
+  border-bottom: 8px solid transparent;
+  border-right: 10px solid rgba(0,212,255,0.35);
+}
+.commander-bubble .cursor {
+  display: inline-block;
+  width: 8px;
+  height: 15px;
+  background: var(--accent-blue);
+  margin-left: 2px;
+  vertical-align: text-bottom;
+  animation: commanderCursor 0.9s steps(2) infinite;
+}
+@keyframes commanderCursor {
+  50% { opacity: 0; }
+}
+.commander-controls {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  position: relative;
+  z-index: 1;
+}
+.commander-controls button {
+  background: rgba(0,212,255,0.1);
+  border: 1px solid rgba(0,212,255,0.4);
+  color: var(--accent-blue);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 11px;
+  cursor: pointer;
+  font-family: 'Orbitron', monospace;
+  letter-spacing: 1px;
+  transition: all 0.2s;
+}
+.commander-controls button:hover {
+  background: rgba(0,212,255,0.2);
+  box-shadow: 0 0 12px rgba(0,212,255,0.3);
+}
+
 /* メインレイアウト */
 .main {
   display: grid;
@@ -91,7 +242,7 @@ body {
   grid-template-rows: 1fr 1fr;
   gap: 12px;
   padding: 12px;
-  height: calc(100vh - 70px);
+  height: calc(100vh - 70px - 130px);
 }
 
 /* パネル共通 */
@@ -697,10 +848,87 @@ body {
     </div>
   </div>
 
-  <!-- ナレーション -->
-  <div id="briefingNarration" style="background:rgba(0,212,255,0.08);border-bottom:1px solid rgba(0,212,255,0.2);padding:8px 24px;font-size:13px;line-height:1.6;color:var(--text-secondary);">
-    <span style="color:var(--accent-blue);margin-right:6px;">📖</span>
-    <span id="briefingNarrationText">航海日誌を読み込んでいます...</span>
+  <!-- 艦長マイケル ブリーフィング -->
+  <div id="commanderBriefing" class="commander-briefing">
+    <div class="commander-portrait">
+      <div class="ring"></div>
+      <!-- 艦長マイケル: 口髭の宇宙艦長 SVG -->
+      <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <radialGradient id="capBg" cx="50%" cy="50%" r="50%">
+            <stop offset="0%" stop-color="#1a2460"/>
+            <stop offset="60%" stop-color="#0d1439"/>
+            <stop offset="100%" stop-color="#050817"/>
+          </radialGradient>
+          <linearGradient id="capHat" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#1c2250"/>
+            <stop offset="100%" stop-color="#0b0f30"/>
+          </linearGradient>
+          <linearGradient id="capGold" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#ffd966"/>
+            <stop offset="100%" stop-color="#c9972b"/>
+          </linearGradient>
+          <radialGradient id="capSkin" cx="50%" cy="45%" r="55%">
+            <stop offset="0%" stop-color="#f4cfa4"/>
+            <stop offset="100%" stop-color="#c89370"/>
+          </radialGradient>
+        </defs>
+        <!-- 背景円 -->
+        <circle cx="60" cy="60" r="58" fill="url(#capBg)" stroke="#00d4ff" stroke-width="1.5" stroke-opacity="0.6"/>
+        <!-- 星 -->
+        <circle cx="22" cy="30" r="0.8" fill="#fff"/>
+        <circle cx="95" cy="25" r="1.2" fill="#fff"/>
+        <circle cx="100" cy="70" r="0.8" fill="#fff"/>
+        <circle cx="18" cy="85" r="1" fill="#fff"/>
+        <!-- 顔 -->
+        <ellipse cx="60" cy="66" rx="26" ry="30" fill="url(#capSkin)"/>
+        <!-- 帽子（艦長キャップ） -->
+        <path d="M 30 52 Q 60 32 90 52 L 90 58 Q 60 48 30 58 Z" fill="url(#capHat)" stroke="#ffd966" stroke-width="0.8"/>
+        <!-- 帽子つば -->
+        <ellipse cx="60" cy="58" rx="32" ry="4" fill="#0a0e27" stroke="#ffd966" stroke-width="0.6"/>
+        <!-- 金の帯 -->
+        <rect x="30" y="54" width="60" height="2.5" fill="url(#capGold)"/>
+        <!-- 帽章（星マーク） -->
+        <path d="M 60 40 L 61.5 44 L 66 44.5 L 62.5 47.5 L 63.5 52 L 60 49.5 L 56.5 52 L 57.5 47.5 L 54 44.5 L 58.5 44 Z" fill="url(#capGold)" stroke="#fff" stroke-width="0.3"/>
+        <!-- 目 -->
+        <ellipse cx="51" cy="68" rx="2.2" ry="2.8" fill="#0a0e27"/>
+        <ellipse cx="69" cy="68" rx="2.2" ry="2.8" fill="#0a0e27"/>
+        <circle cx="51.5" cy="67" r="0.7" fill="#fff"/>
+        <circle cx="69.5" cy="67" r="0.7" fill="#fff"/>
+        <!-- 眉 -->
+        <path d="M 46 62 Q 51 60 56 62" stroke="#3a2416" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+        <path d="M 64 62 Q 69 60 74 62" stroke="#3a2416" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+        <!-- 鼻 -->
+        <path d="M 60 70 Q 58 76 60 79 Q 62 80 63 78" stroke="#a07050" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+        <!-- 口髭（マイケルの特徴） -->
+        <path d="M 48 84 Q 54 82 60 85 Q 66 82 72 84 Q 68 88 60 87 Q 52 88 48 84 Z" fill="#3a2416"/>
+        <!-- 口 -->
+        <path d="M 55 89 Q 60 91 65 89" stroke="#6a3020" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+        <!-- 襟 -->
+        <path d="M 32 108 Q 45 96 60 100 Q 75 96 88 108 L 88 120 L 32 120 Z" fill="#1c2250" stroke="#ffd966" stroke-width="0.8"/>
+        <!-- 肩章 -->
+        <rect x="35" y="100" width="6" height="4" fill="url(#capGold)"/>
+        <rect x="79" y="100" width="6" height="4" fill="url(#capGold)"/>
+      </svg>
+    </div>
+    <div class="commander-speech">
+      <div class="commander-name">
+        <span>CAPT. MICHAEL</span>
+        <span class="rank">艦長</span>
+        <span class="source-tag" id="commanderSourceTag" style="display:none"></span>
+      </div>
+      <div class="commander-bubble">
+        <span id="commanderMessage">ミッション状況を解析中<span class="cursor"></span></span>
+      </div>
+    </div>
+    <div class="commander-controls">
+      <button id="commanderRefreshBtn" title="AI でメッセージを再生成">🔄 更新</button>
+    </div>
+  </div>
+
+  <!-- 旧ナレーション（互換用・非表示） -->
+  <div id="briefingNarration" style="display:none">
+    <span id="briefingNarrationText"></span>
   </div>
 
   <!-- メインパネル -->
@@ -1326,52 +1554,249 @@ function showCommanderBuff() {
   }, 4000);
 }
 
-// 初期化
-async function generateBriefingNarration() {
-  try {
-    const students = await StudentsDB.getAll();
-    const today = new Date().toISOString().split('T')[0];
-    const todayLogs = await StudyLogsDB.getByDate(today);
-    const bosses = await RaidBossDB.getActive();
-    const boss = bosses.length > 0 ? bosses[0] : null;
-    const story = await StoryDB.getActive();
+// ============================================
+// 艦長マイケル - ブリーフィングメッセージ生成
+// ============================================
+// データソース優先順位:
+//   1. 手動上書き (Firestore: dailyBriefing/{YYYY-MM-DD}.manualOverride)
+//   2. AI 生成キャッシュ (Firestore: dailyBriefing/{YYYY-MM-DD}.aiMessage)
+//   3. Claude API で新規生成 → 上記にキャッシュ
+//   4. ルールベースのフォールバック（API エラー時）
+// ============================================
 
-    const totalCrew = students.length;
-    const activeCrew = new Set(todayLogs.map(l => l.studentId)).size;
-    const todayMinutes = todayLogs.reduce((s, l) => s + (l.duration || 0), 0);
+let commanderTypewriterTimer = null;
 
-    const parts = [];
-    const hour = new Date().getHours();
-
-    // 宇宙艦隊の状況報告
-    if (hour < 12) parts.push('航海日誌 — 本日の航海が始動。');
-    else if (hour < 17) parts.push('航海日誌 — 午後の探索フェーズ。');
-    else parts.push('航海日誌 — 本日の航海は終盤を迎えている。');
-
-    parts.push(`全${totalCrew}名のクルーのうち${activeCrew}名が任務中。`);
-
-    if (todayMinutes > 0) {
-      parts.push(`艦隊の総学習時間は${Math.floor(todayMinutes / 60)}時間${todayMinutes % 60}分。`);
+function commanderSetMessage(text, source) {
+  const el = document.getElementById('commanderMessage');
+  const tag = document.getElementById('commanderSourceTag');
+  if (!el) return;
+  // タイプライター演出
+  if (commanderTypewriterTimer) { clearInterval(commanderTypewriterTimer); commanderTypewriterTimer = null; }
+  el.innerHTML = '';
+  const cursor = '<span class="cursor"></span>';
+  let i = 0;
+  const chars = Array.from(text); // サロゲートペア対応
+  commanderTypewriterTimer = setInterval(() => {
+    if (i >= chars.length) {
+      clearInterval(commanderTypewriterTimer);
+      commanderTypewriterTimer = null;
+      el.innerHTML = chars.join('') + cursor;
+      return;
+    }
+    i++;
+    el.innerHTML = chars.slice(0, i).join('') + cursor;
+  }, 35);
+  // ソースタグ
+  if (tag) {
+    if (source === 'manual') {
+      tag.textContent = '手動';
+      tag.style.display = 'inline-block';
+      tag.style.background = 'rgba(0,255,136,0.15)';
+      tag.style.borderColor = 'rgba(0,255,136,0.4)';
+      tag.style.color = 'var(--accent-green)';
+    } else if (source === 'ai') {
+      tag.textContent = 'AI';
+      tag.style.display = 'inline-block';
+      tag.style.background = 'rgba(136,102,255,0.15)';
+      tag.style.borderColor = 'rgba(136,102,255,0.4)';
+      tag.style.color = 'var(--accent-purple)';
+    } else if (source === 'fallback') {
+      tag.textContent = '自動';
+      tag.style.display = 'inline-block';
+      tag.style.background = 'rgba(0,212,255,0.15)';
+      tag.style.borderColor = 'rgba(0,212,255,0.4)';
+      tag.style.color = 'var(--accent-blue)';
     } else {
-      parts.push('まだ本日の学習記録はない。');
+      tag.style.display = 'none';
     }
-
-    if (boss) {
-      const hpPct = Math.round((boss.currentHp / boss.maxHp) * 100);
-      if (hpPct <= 25) parts.push(`${boss.icon || '👹'}${boss.name}は瀕死！ 討伐の好機だ。`);
-      else if (hpPct <= 50) parts.push(`${boss.icon || '👹'}${boss.name}のHP${hpPct}%。攻勢を維持せよ。`);
-      else parts.push(`前方に${boss.icon || '👹'}${boss.name}を確認。HP${hpPct}%。`);
-    }
-
-    if (story) {
-      const weekNum = Math.min(4, Math.ceil(new Date().getDate() / 7));
-      const weekText = story.weeklyTexts && story.weeklyTexts[weekNum - 1];
-      if (weekText) parts.push(weekText);
-    }
-
-    document.getElementById('briefingNarrationText').textContent = parts.join(' ');
-  } catch(e) { console.error('Briefing narration error:', e); }
+  }
+  // 旧ナレーション互換
+  const legacy = document.getElementById('briefingNarrationText');
+  if (legacy) legacy.textContent = text;
 }
+
+// 今日のブリーフィング状況を Firestore から取得
+async function commanderFetchContext() {
+  const students = await StudentsDB.getAll();
+  const today = new Date().toISOString().split('T')[0];
+  const todayLogs = await StudyLogsDB.getByDate(today);
+  let boss = null;
+  try {
+    const bosses = await RaidBossDB.getActive();
+    boss = bosses.length > 0 ? bosses[0] : null;
+  } catch(e) {}
+  let story = null;
+  try { story = await StoryDB.getActive(); } catch(e) {}
+
+  const totalCrew = students.length;
+  const activeCrew = new Set(todayLogs.map(l => l.studentId)).size;
+  const todayMinutes = todayLogs.reduce((s, l) => s + (l.duration || 0), 0);
+
+  // 今日誕生日の生徒
+  const todayMMDD = today.slice(5); // "MM-DD"
+  const birthdayStudents = students.filter(s => {
+    if (!s.birthday) return false;
+    const b = String(s.birthday).slice(-5);
+    return b === todayMMDD;
+  }).map(s => s.callsign || s.nickname || s.name);
+
+  return { students, todayLogs, boss, story, totalCrew, activeCrew, todayMinutes, birthdayStudents, today };
+}
+
+// ルールベースのフォールバックメッセージ（AI エラー時のみ使用）
+function commanderBuildFallback(ctx) {
+  const parts = [];
+  const hour = new Date().getHours();
+  if (hour < 12) parts.push('おはよう、諸君。本日の航海が始動した。');
+  else if (hour < 17) parts.push('諸君、午後の探索フェーズに入った。');
+  else parts.push('諸君、本日の航海も終盤だ。');
+
+  parts.push(`全${ctx.totalCrew}名のクルーのうち${ctx.activeCrew}名が任務中。`);
+
+  if (ctx.todayMinutes > 0) {
+    parts.push(`艦隊の総学習時間は${Math.floor(ctx.todayMinutes / 60)}時間${ctx.todayMinutes % 60}分。`);
+  }
+
+  if (ctx.birthdayStudents.length > 0) {
+    parts.push(`本日は ${ctx.birthdayStudents.join('、')} の誕生日だ。おめでとう！`);
+  }
+
+  if (ctx.boss) {
+    const hpPct = Math.round((ctx.boss.currentHp / ctx.boss.maxHp) * 100);
+    if (hpPct <= 25) parts.push(`${ctx.boss.icon || '👹'}${ctx.boss.name}は瀕死！ 総攻撃の好機だ。`);
+    else if (hpPct <= 50) parts.push(`${ctx.boss.icon || '👹'}${ctx.boss.name}のHP${hpPct}%。攻勢を維持せよ。`);
+    else parts.push(`前方に${ctx.boss.icon || '👹'}${ctx.boss.name}を確認。HP${hpPct}%。`);
+  }
+
+  return parts.join(' ');
+}
+
+// Claude API でブリーフィングメッセージを生成
+async function commanderGenerateWithAI(ctx) {
+  // 既存の AI 設定を流用
+  let config;
+  try {
+    const doc = await db.collection('settings').doc('claudeAi').get();
+    if (doc.exists) config = doc.data();
+  } catch(e) {}
+  if (!config || !config.apiKey || config.enabled === false) {
+    throw new Error('Claude API 未設定');
+  }
+
+  const hour = new Date().getHours();
+  const timeWord = hour < 12 ? '朝' : (hour < 17 ? '昼過ぎ' : '夕方');
+  const bossText = ctx.boss
+    ? `レイドボス「${ctx.boss.name}」HP ${Math.round((ctx.boss.currentHp / ctx.boss.maxHp) * 100)}%`
+    : 'レイドボスなし';
+  const birthdayText = ctx.birthdayStudents.length > 0
+    ? `今日誕生日: ${ctx.birthdayStudents.join('、')}`
+    : '今日誕生日の生徒はいない';
+  const storyText = ctx.story && ctx.story.currentChapter
+    ? `ストーリー「${ctx.story.currentChapter.title || ctx.story.title || ''}」進行中`
+    : '';
+
+  const systemPrompt = `あなたは学習塾 HERO'S ACADEMY の宇宙戦艦「ミッションコントロール」の艦長マイケル。` +
+    `教室の大型モニターに常時表示されるブリーフィング画面の上部で、一日のメインメッセージをクルー（生徒）に向けて語る役目。` +
+    `キャラクター像: 歴戦の宇宙艦長、口髭の紳士、威厳と温かさを併せ持つ、時々ジョークを交える、生徒を「諸君」「クルー」と呼ぶ。` +
+    `制約: 必ず 80 文字以内の日本語 1〜2 文。絵文字は最大 2 個まで。宇宙・航海の比喩を交える。質問や対話形式は禁止、一方的な宣言のみ。`;
+
+  const userPrompt = `現在の艦隊状況:\n` +
+    `- 時間帯: ${timeWord}\n` +
+    `- 全クルー: ${ctx.totalCrew}名\n` +
+    `- 任務中クルー: ${ctx.activeCrew}名\n` +
+    `- 本日の総学習時間: ${Math.floor(ctx.todayMinutes / 60)}時間${ctx.todayMinutes % 60}分\n` +
+    `- ${bossText}\n` +
+    `- ${birthdayText}\n` +
+    (storyText ? `- ${storyText}\n` : '') +
+    `\n上記を踏まえて、今日のメインメッセージを 80 文字以内で 1〜2 文、艦長マイケルらしい口調で述べよ。`;
+
+  const res = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': config.apiKey,
+      'anthropic-version': '2023-06-01',
+      'anthropic-dangerous-direct-browser-access': 'true',
+      'content-type': 'application/json'
+    },
+    body: JSON.stringify({
+      model: config.model || 'claude-haiku-4-5-20251001',
+      max_tokens: 250,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }]
+    })
+  });
+
+  if (!res.ok) throw new Error(`Claude API ${res.status}`);
+  const data = await res.json();
+  const text = (data.content && data.content[0] && data.content[0].text || '').trim();
+  if (!text) throw new Error('空レスポンス');
+  return text;
+}
+
+// メインの初期化 / 更新関数
+async function generateBriefingNarration(forceAI) {
+  try {
+    const ctx = await commanderFetchContext();
+    const today = ctx.today;
+
+    // 1. Firestore から今日のブリーフィングドキュメントを取得
+    let briefingDoc = null;
+    try {
+      const snap = await db.collection('dailyBriefing').doc(today).get();
+      if (snap.exists) briefingDoc = snap.data();
+    } catch(e) { console.warn('[commander] dailyBriefing fetch failed:', e); }
+
+    // 2. 手動上書きがあれば最優先
+    if (briefingDoc && briefingDoc.manualOverride && !forceAI) {
+      commanderSetMessage(briefingDoc.manualOverride, 'manual');
+      return;
+    }
+
+    // 3. AI キャッシュが今日のものとしてあれば流用（forceAI=true なら無視）
+    if (briefingDoc && briefingDoc.aiMessage && !forceAI) {
+      commanderSetMessage(briefingDoc.aiMessage, 'ai');
+      return;
+    }
+
+    // 4. Claude API で新規生成
+    try {
+      const msg = await commanderGenerateWithAI(ctx);
+      // Firestore にキャッシュ
+      try {
+        await db.collection('dailyBriefing').doc(today).set({
+          aiMessage: msg,
+          generatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+          context: {
+            totalCrew: ctx.totalCrew,
+            activeCrew: ctx.activeCrew,
+            todayMinutes: ctx.todayMinutes,
+          }
+        }, { merge: true });
+      } catch(e) { console.warn('[commander] cache write failed:', e); }
+      commanderSetMessage(msg, 'ai');
+      return;
+    } catch(e) {
+      console.warn('[commander] AI generate failed, using fallback:', e);
+    }
+
+    // 5. フォールバック
+    commanderSetMessage(commanderBuildFallback(ctx), 'fallback');
+  } catch(e) {
+    console.error('Briefing narration error:', e);
+    commanderSetMessage('通信エラー。ミッションコントロールの再起動を試みよ。', 'fallback');
+  }
+}
+
+// 更新ボタン
+document.addEventListener('DOMContentLoaded', () => {
+  const btn = document.getElementById('commanderRefreshBtn');
+  if (btn) {
+    btn.addEventListener('click', () => {
+      commanderSetMessage('艦長マイケルが通信中...', null);
+      generateBriefingNarration(true);
+    });
+  }
+});
 
 // ギルド進捗表示
 async function renderGuildProgress() {
