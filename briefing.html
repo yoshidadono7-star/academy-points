@@ -924,7 +924,7 @@ body {
   <div id="commanderBriefing" class="commander-briefing">
     <div class="commander-portrait">
       <div class="ring"></div>
-      <!-- 艦長マイケル: 口髭の宇宙艦長 SVG -->
+      <!-- 艦長マイケル: 四角顔 + 黒縁メガネ + 口髭 の宇宙艦長 SVG -->
       <svg viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg">
         <defs>
           <radialGradient id="capBg" cx="50%" cy="50%" r="50%">
@@ -940,7 +940,7 @@ body {
             <stop offset="0%" stop-color="#ffd966"/>
             <stop offset="100%" stop-color="#c9972b"/>
           </linearGradient>
-          <radialGradient id="capSkin" cx="50%" cy="45%" r="55%">
+          <radialGradient id="capSkin" cx="50%" cy="40%" r="65%">
             <stop offset="0%" stop-color="#f4cfa4"/>
             <stop offset="100%" stop-color="#c89370"/>
           </radialGradient>
@@ -952,9 +952,11 @@ body {
         <circle cx="95" cy="25" r="1.2" fill="#fff"/>
         <circle cx="100" cy="70" r="0.8" fill="#fff"/>
         <circle cx="18" cy="85" r="1" fill="#fff"/>
-        <!-- 顔 -->
-        <ellipse cx="60" cy="66" rx="26" ry="30" fill="url(#capSkin)"/>
-        <!-- 帽子（艦長キャップ） -->
+        <!-- 顔（四角顔・角丸 rect） -->
+        <rect x="36" y="54" width="48" height="54" rx="8" ry="8" fill="url(#capSkin)"/>
+        <!-- 顎のシャドウ（四角感を強調） -->
+        <path d="M 36 96 Q 60 104 84 96 L 84 108 L 36 108 Z" fill="#0a0e27" fill-opacity="0.12"/>
+        <!-- 帽子（艦長キャップ・顔の上に重ねる） -->
         <path d="M 30 52 Q 60 32 90 52 L 90 58 Q 60 48 30 58 Z" fill="url(#capHat)" stroke="#ffd966" stroke-width="0.8"/>
         <!-- 帽子つば -->
         <ellipse cx="60" cy="58" rx="32" ry="4" fill="#0a0e27" stroke="#ffd966" stroke-width="0.6"/>
@@ -962,25 +964,38 @@ body {
         <rect x="30" y="54" width="60" height="2.5" fill="url(#capGold)"/>
         <!-- 帽章（星マーク） -->
         <path d="M 60 40 L 61.5 44 L 66 44.5 L 62.5 47.5 L 63.5 52 L 60 49.5 L 56.5 52 L 57.5 47.5 L 54 44.5 L 58.5 44 Z" fill="url(#capGold)" stroke="#fff" stroke-width="0.3"/>
-        <!-- 目 -->
-        <ellipse cx="51" cy="68" rx="2.2" ry="2.8" fill="#0a0e27"/>
-        <ellipse cx="69" cy="68" rx="2.2" ry="2.8" fill="#0a0e27"/>
-        <circle cx="51.5" cy="67" r="0.7" fill="#fff"/>
-        <circle cx="69.5" cy="67" r="0.7" fill="#fff"/>
         <!-- 眉 -->
-        <path d="M 46 62 Q 51 60 56 62" stroke="#3a2416" stroke-width="1.8" fill="none" stroke-linecap="round"/>
-        <path d="M 64 62 Q 69 60 74 62" stroke="#3a2416" stroke-width="1.8" fill="none" stroke-linecap="round"/>
+        <path d="M 44 66 Q 50 64 56 66" stroke="#3a2416" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <path d="M 64 66 Q 70 64 76 66" stroke="#3a2416" stroke-width="2" fill="none" stroke-linecap="round"/>
+        <!-- 目 -->
+        <ellipse cx="50" cy="74" rx="1.8" ry="2.3" fill="#0a0e27"/>
+        <ellipse cx="70" cy="74" rx="1.8" ry="2.3" fill="#0a0e27"/>
+        <circle cx="50.5" cy="73" r="0.6" fill="#fff"/>
+        <circle cx="70.5" cy="73" r="0.6" fill="#fff"/>
+        <!-- 黒縁メガネ（マイケル v2 の特徴） -->
+        <!-- 左レンズ枠 -->
+        <rect x="43" y="69" width="14" height="11" rx="2.5" ry="2.5" fill="#ffffff" fill-opacity="0.06" stroke="#0a0e27" stroke-width="1.8"/>
+        <!-- 右レンズ枠 -->
+        <rect x="63" y="69" width="14" height="11" rx="2.5" ry="2.5" fill="#ffffff" fill-opacity="0.06" stroke="#0a0e27" stroke-width="1.8"/>
+        <!-- ブリッジ -->
+        <line x1="57" y1="73" x2="63" y2="73" stroke="#0a0e27" stroke-width="1.8" stroke-linecap="round"/>
+        <!-- レンズ内の光の反射 -->
+        <path d="M 45 71 L 49 71 L 45 75 Z" fill="#ffffff" fill-opacity="0.35"/>
+        <path d="M 65 71 L 69 71 L 65 75 Z" fill="#ffffff" fill-opacity="0.35"/>
+        <!-- テンプル（つるの端っこが見える部分） -->
+        <line x1="43" y1="71" x2="38" y2="72" stroke="#0a0e27" stroke-width="1.6" stroke-linecap="round"/>
+        <line x1="77" y1="71" x2="82" y2="72" stroke="#0a0e27" stroke-width="1.6" stroke-linecap="round"/>
         <!-- 鼻 -->
-        <path d="M 60 70 Q 58 76 60 79 Q 62 80 63 78" stroke="#a07050" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+        <path d="M 60 81 Q 58 86 60 89 Q 62 90 63 88" stroke="#a07050" stroke-width="1.2" fill="none" stroke-linecap="round"/>
         <!-- 口髭（マイケルの特徴） -->
-        <path d="M 48 84 Q 54 82 60 85 Q 66 82 72 84 Q 68 88 60 87 Q 52 88 48 84 Z" fill="#3a2416"/>
+        <path d="M 48 91 Q 54 89 60 92 Q 66 89 72 91 Q 68 95 60 94 Q 52 95 48 91 Z" fill="#3a2416"/>
         <!-- 口 -->
-        <path d="M 55 89 Q 60 91 65 89" stroke="#6a3020" stroke-width="1.2" fill="none" stroke-linecap="round"/>
+        <path d="M 55 96 Q 60 98 65 96" stroke="#6a3020" stroke-width="1.2" fill="none" stroke-linecap="round"/>
         <!-- 襟 -->
-        <path d="M 32 108 Q 45 96 60 100 Q 75 96 88 108 L 88 120 L 32 120 Z" fill="#1c2250" stroke="#ffd966" stroke-width="0.8"/>
+        <path d="M 32 114 Q 45 104 60 106 Q 75 104 88 114 L 88 120 L 32 120 Z" fill="#1c2250" stroke="#ffd966" stroke-width="0.8"/>
         <!-- 肩章 -->
-        <rect x="35" y="100" width="6" height="4" fill="url(#capGold)"/>
-        <rect x="79" y="100" width="6" height="4" fill="url(#capGold)"/>
+        <rect x="35" y="108" width="6" height="4" fill="url(#capGold)"/>
+        <rect x="79" y="108" width="6" height="4" fill="url(#capGold)"/>
       </svg>
     </div>
     <div class="commander-speech">
