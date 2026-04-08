@@ -24,6 +24,12 @@
       "storytelling-phase1.html",
       "annual-plan.html",
       "STAFF_GUIDE_Feature9.html",
+      "STAFF_GUIDE_Feature9_owner.html",
+      "STAFF_GUIDE_Feature9_staff.html",
+      "NEXT_SESSION_NOTES.md",
+      "HANDOFF_v4.md",
+      "HANDOFF_v5_continuation.md",
+      "DEPLOY.md",
       "*.docx",
       "*.pdf"
     ],

@@ -4,7 +4,8 @@ node_modules/
 # Firebase
 .firebase/
 firebase-debug.log
-.firebaserc
+# Note: .firebaserc is committed (contains only the public project ID "hero-s-points")
+# so that `firebase deploy` works without --project flag on every developer's machine.
 
 # OS files
 .DS_Store
