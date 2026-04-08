@@ -498,7 +498,8 @@ ${contextText || '（取得失敗）'}
     const contextText = await buildContext();
     let model = (config.models && config.models.owner) || config.model || 'claude-opus-4-6';
 
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    // 529/503 自動リトライ
+    const fetchOpts = {
       method: 'POST',
       headers: {
         'x-api-key': config.apiKey,
@@ -515,7 +516,17 @@ ${contextText || '（取得失敗）'}
         ],
         messages: history.slice(-10)
       })
-    });
+    };
+    let res;
+    for (let attempt = 0; attempt < 3; attempt++) {
+      res = await fetch('https://api.anthropic.com/v1/messages', fetchOpts);
+      if (res.status !== 529 && res.status !== 503) break;
+      if (attempt < 2) {
+        const delay = 1500 * (attempt + 1);
+        console.warn(`[AIBuddyOwner] Anthropic ${res.status} overloaded, retrying in ${delay}ms (${attempt+1}/2)`);
+        await new Promise(r => setTimeout(r, delay));
+      }
+    }
     const data = await res.json();
     if (!res.ok || data.error) throw new Error(data.error?.message || 'API エラー');
     if (data.usage) {

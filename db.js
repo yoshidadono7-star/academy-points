@@ -3066,11 +3066,19 @@ const InterviewRecordsDB = {
 // --- 講師コメント（レポート用） ---
 const TeacherCommentsDB = {
   async getByStudent(studentId, limit = 20) {
+    // composite index 回避: studentId で where し、orderBy は JS で行う
+    // (Firestore の複合インデックス未登録のため)
     const snap = await db.collection('teacherComments')
       .where('studentId', '==', studentId)
-      .orderBy('createdAt', 'desc')
-      .limit(limit).get();
-    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      .limit(limit * 3).get();
+    return snap.docs
+      .map(d => ({ id: d.id, ...d.data() }))
+      .sort((a, b) => {
+        const ta = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+        const tb = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+        return tb - ta;
+      })
+      .slice(0, limit);
   },
   async getByDate(date) {
     const snap = await db.collection('teacherComments')

@@ -57,6 +57,14 @@
       ]
     },
     {
+      "collectionGroup": "teacherComments",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "studentId", "order": "ASCENDING" },
+        { "fieldPath": "createdAt", "order": "DESCENDING" }
+      ]
+    },
+    {
       "collectionGroup": "examResults",
       "queryScope": "COLLECTION",
       "fields": [

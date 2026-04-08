@@ -3,6 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="theme-color" content="#667eea">
@@ -5570,7 +5571,8 @@ ${contextText}
     }
 
     try {
-      const res = await fetch('https://api.anthropic.com/v1/messages', {
+      // Feature 9 緊急修正 #8: Anthropic 529 (overloaded) / 503 を自動リトライ
+      const fetchOpts = {
         method: 'POST',
         headers: {
           'x-api-key': config.apiKey,
@@ -5589,7 +5591,17 @@ ${contextText}
           ],
           messages: history.slice(-10)  // 直近10件のみ送る（混乱を防ぐ）
         })
-      });
+      };
+      let res;
+      for (let attempt = 0; attempt < 3; attempt++) {
+        res = await fetch('https://api.anthropic.com/v1/messages', fetchOpts);
+        if (res.status !== 529 && res.status !== 503) break;
+        if (attempt < 2) {
+          const delay = 1500 * (attempt + 1); // 1.5s, 3s
+          console.warn(`[AIBuddy.ask] Anthropic ${res.status} overloaded, retrying in ${delay}ms (${attempt+1}/2)`);
+          await new Promise(r => setTimeout(r, delay));
+        }
+      }
       const data = await res.json();
       if (data.error) {
         console.error('Claude API error:', data.error);
