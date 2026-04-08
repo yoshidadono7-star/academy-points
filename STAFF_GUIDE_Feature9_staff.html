@@ -2,7 +2,7 @@
 <html lang="ja">
 <head>
 <meta charset="UTF-8">
-<title>HERO'S ACADEMY スタッフご案内 (Feature 9)</title>
+<title>HERO'S ACADEMY スタッフご案内 (Feature 9 + 10)</title>
 <style>
   @page {
     size: A4;
@@ -251,14 +251,14 @@
 <h1 class="cover">HERO'S ACADEMY</h1>
 <p class="subtitle">ゲーミフィケーション学習管理システム</p>
 <div style="text-align: center;">
-  <span class="cover-badge">Feature 9: 階層型 AI コーチング</span>
+  <span class="cover-badge">Feature 9: 階層型 AI コーチング + Feature 10: 艦長マイケル</span>
 </div>
 
 <div style="text-align: center; margin-top: 40pt; font-size: 20pt; color: #2d3748; font-weight: bold;">
   スタッフ共有資料
 </div>
 <div style="text-align: center; font-size: 13pt; color: #718096; margin-top: 8pt;">
-  新機能のご紹介（Feature 9 + Feature 8a 再挑戦）
+  新機能のご紹介（Feature 9 + Feature 8a + Feature 10）
 </div>
 
 <div class="cover-meta">
@@ -274,14 +274,14 @@
 <h1>目次</h1>
 <div class="toc">
   <ol>
-    <li>6つの画面とアクセス先（URL + ログイン情報）</li>
+    <li>5つの画面とアクセス先（URL + ログイン情報）</li>
     <li>今回の目玉: 階層型 AI コーチングシステム</li>
     <li>ルカ（生徒バディ）の進化</li>
     <li>講師バディ AI（新規）</li>
     <li>教室長バディ AI（新規）</li>
     <li>申し送り Inbox（新規）</li>
-    <li>オーナーダッシュボード（新規）</li>
     <li>音声入力の常時マイクモード</li>
+    <li>艦長マイケルのブリーフィング（新規・Feature 10）</li>
     <li>スタッフ向け運用メモ</li>
     <li>トラブルシューティング</li>
   </ol>
@@ -289,9 +289,9 @@
 
 <div class="page-break"></div>
 
-<!-- 1. 6画面のアクセス情報 -->
-<h1>1. 6つの画面とアクセス先</h1>
-<p>これまでの5画面に加えて、新たに <strong>「オーナー画面」</strong> が追加され、6画面になりました。<br>
+<!-- 1. 5画面のアクセス情報 -->
+<h1>1. 5つの画面とアクセス先</h1>
+<p>HERO'S ACADEMY には 5 つの画面があります。<br>
 各画面の URL（青い文字）をクリックすると、直接その画面が開きます。</p>
 
 <div class="warning">
@@ -347,20 +347,6 @@
     <span class="row"><span class="label">役割判定</span> 講師 or 教室長（management 画面で role を設定）</span>
   </div>
   <p class="small">例: 黒木先生 → PIN「1234」。role=director の講師は教室長バディが有効になります</p>
-</div>
-
-<!-- オーナー画面 -->
-<div class="login-box">
-  <div class="screen-name">👑 オーナー画面 <span class="badge new">NEW</span></div>
-  <a class="url" href="https://hero-s-points.web.app/owner">https://hero-s-points.web.app/owner</a>
-  <p>経営者用ダッシュボード。複数教室（将来）の KPI 一覧、オーナー専用 AI（Opus 4.6）との経営相談、教室長からの申し送り確認。</p>
-  <div class="creds">
-    <span class="row"><span class="label">ログイン方式</span> Firebase Auth + role=owner</span>
-    <span class="row"><span class="label">メールアドレス</span> <span class="value">admin@heros.jp</span></span>
-    <span class="row"><span class="label">パスワード</span> <span class="value">0070heros</span></span>
-    <span class="row"><span class="label">オーナー昇格（初回のみ）</span> 管理画面で Console: <code>makeMeOwner()</code></span>
-  </div>
-  <p class="small">初回は管理画面でログインして DevTools Console に <code>makeMeOwner()</code> と入力してリロード。右下に👑ボタンが出現します。</p>
 </div>
 
 <!-- 教室モニター -->
@@ -569,52 +555,9 @@ AI のプロンプトも教室運営視点のものに変わります。</p>
 
 <div class="page-break"></div>
 
-<!-- 7. オーナー画面 -->
-<h1>7. オーナーダッシュボード <span class="badge new">NEW</span></h1>
-<p>経営者（塾長）専用の画面が追加されました。<a href="https://hero-s-points.web.app/owner">https://hero-s-points.web.app/owner</a></p>
 
-<h2>🎯 何ができるか</h2>
-<ul>
-  <li><strong>KPI ダッシュボード</strong>: 教室数・総生徒数・総講師数・未読申し送り数</li>
-  <li><strong>教室一覧</strong>: 複数教室を運営する将来のため（現状は1教室）</li>
-  <li><strong>オーナーバディ AI（Opus 4.6）</strong>: 経営判断を一緒に考える最高性能 AI</li>
-  <li><strong>教室長からの申し送り一覧</strong>: owner 向け HandoffLog をまとめて確認</li>
-</ul>
-
-<h2>💰 オーナーバディ AI の特徴</h2>
-<p>モデルは Claude Opus 4.6（最高性能）を使用。他のバディより思考が深く、経営判断に適した返答をします。</p>
-<ul>
-  <li>教室全体の KPI を踏まえて助言</li>
-  <li>教室長から上がった申し送りを要約・優先順位付け</li>
-  <li>採用・撤退・拡張・カリキュラム改訂の意思決定支援</li>
-  <li>短期の打ち手と中長期の戦略を分けて提示</li>
-</ul>
-
-<h2>🔐 初回のオーナー昇格手順（重要）</h2>
-<p>オーナー画面は誰でも入れるわけではありません。初回だけ以下の手順で昇格が必要です:</p>
-<ol>
-  <li>管理画面 <a href="https://hero-s-points.web.app/">https://hero-s-points.web.app/</a> を開く</li>
-  <li>Firebase Auth でログイン（メール admin@heros.jp / パスワード 0070heros）</li>
-  <li>キーボード <strong>Cmd + Option + J</strong>（Mac） または <strong>F12</strong>（Windows）で DevTools を開く</li>
-  <li>「コンソール」タブを選ぶ</li>
-  <li>コンソールに <strong><code>makeMeOwner()</code></strong> と入力して Enter</li>
-  <li>「あなたを owner に昇格しました」と表示される</li>
-  <li>ページをリロード（Cmd+R）</li>
-  <li>画面右下に <strong>👑 オレンジの丸いボタン</strong>が出現</li>
-  <li>クリック → オーナー画面へ</li>
-</ol>
-
-<div class="info">
-  <strong>💡 オーナー昇格は初回のみ</strong><br>
-  一度昇格すると、次回以降は管理画面を開くだけで👑ボタンが自動表示されます。
-  各デバイス（スマホ・他の PC 等）ごとに初回昇格作業が必要なわけではなく、Firebase Auth アカウントごとに 1 回だけです。
-</div>
-
-<div class="page-break"></div>
-
-
-<!-- 8. 音声入力 -->
-<h1>8. 音声入力の常時マイクモード <span class="badge improved">IMPROVED</span></h1>
+<!-- 7. 音声入力（元 8 章） -->
+<h1>7. 音声入力の常時マイクモード <span class="badge improved">IMPROVED</span></h1>
 <p>生徒画面のバディ会話機能で、<strong>マイクを 1 回押したらずっと話し続けられる</strong>ようになりました。</p>
 
 <h2>📝 使い方</h2>
@@ -652,7 +595,53 @@ AI のプロンプトも教室運営視点のものに変わります。</p>
 
 <div class="page-break"></div>
 
-<!-- 9. 運用メモ -->
+<!-- 8. 艦長マイケル（元 9 章） -->
+<h1>8. 艦長マイケルのブリーフィング <span class="badge new">NEW (Feature 10)</span></h1>
+<p>教室モニター（<a href="https://hero-s-points.web.app/briefing">https://hero-s-points.web.app/briefing</a>）の画面上部に、新キャラクター <strong>「艦長マイケル」</strong> が登場しました。宇宙艦隊ミッションコントロールの艦長役として、その日のメインメッセージをクルー（生徒）に向けて一方的に語る情報表示領域です。</p>
+
+<div class="feature-card">
+  <h3>🧑‍✈️ 艦長マイケルとは</h3>
+  <ul>
+    <li>宇宙艦長風の SVG キャラクター（口髭・艦長帽・金の階級章）</li>
+    <li>教室モニター画面の上部に常駐し、その日のメインメッセージを吹き出しで表示</li>
+    <li>タイプライター演出 + 回転する通信リング付きで、モニターの存在感 UP</li>
+    <li>質問・対話機能はなし。一方的にメッセージを語るだけの情報表示</li>
+  </ul>
+</div>
+
+<h2>📝 メッセージの仕組み（ハイブリッド方式）</h2>
+<p>艦長マイケルのセリフは 2 系統のデータソースをハイブリッドで扱います:</p>
+<ol>
+  <li><strong>AI 自動生成（デフォルト）</strong>: 1 日 1 回、Claude API（Haiku 4.5）が以下の情報から艦長セリフを自動生成します。生成結果は Firestore <code>dailyBriefing/{日付}</code> にキャッシュされるので同じ日に何度開いても追加コストはかかりません。
+    <ul>
+      <li>時間帯（朝 / 昼 / 夕方）</li>
+      <li>今日の出撃中クルー数・総学習時間</li>
+      <li>今日誕生日の生徒</li>
+      <li>レイドボスの HP 状況</li>
+      <li>進行中ストーリー</li>
+    </ul>
+  </li>
+  <li><strong>手動上書き（特別な日だけ）</strong>: 管理画面の「🚀 今日のプラン管理」タブ先頭に 「🧑‍✈️ 艦長マイケルの『今日のメッセージ』」 カードがあります。そこに入力して「💾 保存」を押すと、その日のメッセージが塾長が書いた内容で上書きされます（ブリーフィング画面には「手動」タグが表示）。</li>
+</ol>
+
+<h2>💡 使い方のコツ</h2>
+<ul>
+  <li>普段は何もしなくて OK。空欄のままなら AI が毎日自動で気の利いたメッセージを生成します。</li>
+  <li>期末テスト前・大型イベント・進学説明会など「特別な一言を伝えたい日」だけ手動入力。</li>
+  <li>手動メッセージは「艦長マイケルになりきった口調」で書くと世界観が崩れません（例:「諸君、本日は期末テスト対策最終日だ。全クルー、全力で挑め！」）。</li>
+  <li>手動メッセージを消して AI 自動に戻すには「🗑️ クリア」ボタン。</li>
+  <li>AI メッセージが気に入らない日は、ブリーフィング画面の艦長横にある「🔄 更新」ボタンで再生成できます。</li>
+</ul>
+
+<div class="info">
+  <strong>💰 API コストの目安</strong><br>
+  1 日 1 回の生成 + キャッシュ方式なので、Claude Haiku のコストで月数十円以下。
+  手動更新ボタンを連打しない限り、追加料金はほぼ発生しません。
+</div>
+
+<div class="page-break"></div>
+
+<!-- 9. 運用メモ（元 10 章） -->
 <h1>9. スタッフ向け運用メモ</h1>
 
 <h2>🎯 1 日の流れイメージ</h2>
@@ -737,7 +726,7 @@ AI のプロンプトも教室運営視点のものに変わります。</p>
 
 <h2>音声入力（🎤）を押しても無反応</h2>
 <div class="info">
-  <strong>対策</strong>: 第 8 章の「マイクが反応しない時」を参照。特に:
+  <strong>対策</strong>: 第 7 章の「マイクが反応しない時」を参照。特に:
   <ul>
     <li>システム設定 → サウンド → 入力で、使いたいマイクが選ばれているか</li>
     <li>Mac クラムシェル時は外部マイク必須</li>
@@ -749,12 +738,6 @@ AI のプロンプトも教室運営視点のものに変わります。</p>
 <div class="info">
   <strong>原因</strong>: まだ誰も申し送りを書き込んでいない or 生徒バディがアラートを自動生成するような会話をしていない<br>
   <strong>確認方法</strong>: 生徒画面でルカに感情的な話（家庭・悩み）をしてみる。その後に教室長として /teacher の Inbox を確認 → alert が追加されているはず。
-</div>
-
-<h2>オーナー画面に入れない</h2>
-<div class="info">
-  <strong>症状</strong>: 「オーナー権限がありません」と言われて管理画面に戻される<br>
-  <strong>対策</strong>: 管理画面に先にログインして、DevTools Console で <code>makeMeOwner()</code> を実行 → リロード → 右下の 👑 ボタンから入る。第 7 章の手順を参照。
 </div>
 
 <h2>Claude API エラー（Anthropic 529）</h2>
