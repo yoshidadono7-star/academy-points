@@ -5911,15 +5911,27 @@ const ChatUI = (() => {
   // Web Speech API SpeechRecognition セットアップ（元の動作確認済み版）
   function initRecognition() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return null;
+    if (!SR) {
+      console.error('[Mic] SpeechRecognition API not available in this browser');
+      return null;
+    }
+    console.log('[Mic] initRecognition: creating new SpeechRecognition instance');
     const r = new SR();
     r.lang = 'ja-JP';
     r.continuous = false;
     r.interimResults = false;
     r.maxAlternatives = 1;
 
+    r.onstart = () => {
+      console.log('[Mic] recognition.onstart fired (listening...)');
+    };
+    r.onaudiostart = () => console.log('[Mic] onaudiostart (mic opened)');
+    r.onspeechstart = () => console.log('[Mic] onspeechstart (voice detected)');
+    r.onspeechend = () => console.log('[Mic] onspeechend (silence detected)');
+
     r.onresult = (e) => {
       const text = e.results[0][0].transcript;
+      console.log('[Mic] onresult:', text);
       const input = document.getElementById(activeInputId);
       if (input) input.value = text;
       stopRecording();
@@ -5929,23 +5941,62 @@ const ChatUI = (() => {
         else sendFromBar();
       }, 200);
     };
-    r.onend = () => stopRecording();
+    r.onend = () => {
+      console.log('[Mic] onend');
+      stopRecording();
+    };
     r.onerror = (e) => {
+      console.error('[Mic] SpeechRecognition error:', e.error, e);
       // no-speech は正常な無音タイムアウト、aborted はユーザー停止
-      if (e.error === 'no-speech' || e.error === 'aborted') {
+      if (e.error === 'no-speech') {
+        alert('マイクから音声を検出できませんでした。もう一度お試しください。');
         stopRecording();
         return;
       }
-      console.error('SpeechRecognition error:', e.error);
+      if (e.error === 'aborted') {
+        stopRecording();
+        return;
+      }
       if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-        alert('マイクの使用が許可されていません。ブラウザ設定でマイクを有効にしてください。');
+        alert('マイクの使用が許可されていません。ブラウザのアドレスバー左の鍵アイコンをクリックして、マイクを「許可」に変更してください。');
+      } else if (e.error === 'network') {
+        alert('ネットワークエラー: 音声認識サービスに接続できませんでした。オンライン状態を確認してください。');
+      } else {
+        alert('音声認識エラー: ' + e.error);
       }
       stopRecording();
     };
     return r;
   }
 
-  function startRecording(targetInput) {
+  async function startRecording(targetInput) {
+    console.log('[Mic] startRecording called, target=', targetInput);
+
+    // マイク権限を明示的に事前取得（一度 getUserMedia で granted 状態にする）
+    // これで SpeechRecognition が確実に動く
+    if (navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+      try {
+        const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+        console.log('[Mic] getUserMedia OK, tracks:', stream.getAudioTracks().length);
+        // 取得したストリームはすぐ閉じる（SpeechRecognition が自分で別のを開く）
+        stream.getTracks().forEach(t => t.stop());
+      } catch (permErr) {
+        console.error('[Mic] getUserMedia failed:', permErr.name, permErr.message);
+        if (permErr.name === 'NotAllowedError' || permErr.name === 'PermissionDeniedError') {
+          alert('マイクの使用が拒否されています。\n\nブラウザのアドレスバー左の鍵アイコンをクリックして、マイクを「許可」に変更してください。\nその後ページをリロードしてください。');
+          return;
+        } else if (permErr.name === 'NotFoundError') {
+          alert('マイクが接続されていません。');
+          return;
+        } else {
+          alert('マイクにアクセスできません: ' + permErr.message);
+          return;
+        }
+      }
+    } else {
+      console.warn('[Mic] navigator.mediaDevices.getUserMedia not available');
+    }
+
     if (!recognition) recognition = initRecognition();
     if (!recognition) {
       alert('お使いのブラウザは音声認識に対応していません。Chrome をお試しください。');
@@ -5956,12 +6007,15 @@ const ChatUI = (() => {
       recognition.start();
       isRecording = true;
       updateMicButtons(true);
+      console.log('[Mic] recognition.start() called OK');
     } catch(e) {
       console.error('[Mic] start error:', e);
       // 既に開始中のエラーは無視して UI だけ更新
       if (String(e).includes('already started')) {
         isRecording = true;
         updateMicButtons(true);
+      } else {
+        alert('音声認識の開始に失敗しました: ' + e.message);
       }
     }
   }
@@ -5982,6 +6036,7 @@ const ChatUI = (() => {
   }
 
   function toggleVoiceInput(target) {
+    console.log('[Mic] toggleVoiceInput called, target=', target, 'isRecording=', isRecording);
     if (isRecording) {
       stopRecording();
     } else {
