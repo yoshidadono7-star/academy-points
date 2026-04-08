@@ -4,10 +4,12 @@
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js');
 
-const CACHE_NAME = 'academy-points-v3';
+// v4: HTML は network-first 戦略に変更（更新が即反映されるように）
+const CACHE_NAME = 'academy-points-v4';
 const urlsToCache = [
   '/index.html',
   '/student.html',
+  '/teacher.html',
   '/db.js',
   '/firebase-config.js',
   '/manifest.json'
@@ -43,6 +45,28 @@ self.addEventListener('fetch', event => {
       url.includes('jsdelivr.net')) {
     return;
   }
+
+  // HTML / JS は network-first（最新を優先、失敗時のみキャッシュ）
+  // → デプロイした修正が即反映される
+  const isHtmlOrJs = url.endsWith('.html') || url.endsWith('.js') ||
+                     url.endsWith('/student') || url.endsWith('/teacher') ||
+                     url.endsWith('/parent') || url.endsWith('/owner') ||
+                     url.endsWith('/briefing') || url.endsWith('/classroom') ||
+                     /\/$/.test(new URL(url).pathname);
+
+  if (isHtmlOrJs) {
+    event.respondWith(
+      fetch(event.request).then(res => {
+        if (!res || res.status !== 200 || res.type !== 'basic') return res;
+        const responseToCache = res.clone();
+        caches.open(CACHE_NAME).then(cache => cache.put(event.request, responseToCache));
+        return res;
+      }).catch(() => caches.match(event.request).then(r => r || caches.match('/student.html')))
+    );
+    return;
+  }
+
+  // それ以外（画像・CSS 等）は cache-first
   event.respondWith(
     caches.match(event.request).then(response => {
       if (response) return response;
