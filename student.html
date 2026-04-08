@@ -5793,137 +5793,71 @@ const ChatUI = (() => {
   let activeInputId = 'buddyChatInput';
   let chatUnsubscribe = null;
   let lastTeacherMessageId = null;
-  let micPermissionGranted = false;
-  let silenceTimer = null;
-  let lastSpeechAt = 0;
-  let accumulatedTranscript = '';
 
-  // 事前にマイク権限を取得（navigator.mediaDevices.getUserMedia）
-  // これにより以降の SpeechRecognition.start() でポップアップが出ない
-  async function ensureMicPermission() {
-    if (micPermissionGranted) return true;
-    if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
-      return false;
-    }
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      // ストリーム自体は不要なので即停止
-      stream.getTracks().forEach(t => t.stop());
-      micPermissionGranted = true;
-      return true;
-    } catch(e) {
-      console.warn('[Mic] permission denied or failed:', e);
-      return false;
-    }
-  }
-
-  // Web Speech API SpeechRecognition セットアップ（continuous モード）
+  // Web Speech API SpeechRecognition セットアップ（元の動作確認済み版）
   function initRecognition() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SR) return null;
     const r = new SR();
     r.lang = 'ja-JP';
-    r.continuous = true;       // 継続録音モード: 1回の start() で長時間録音
-    r.interimResults = true;   // 中間結果も受け取る（UX向上）
+    r.continuous = false;
+    r.interimResults = false;
     r.maxAlternatives = 1;
 
     r.onresult = (e) => {
-      // 中間 + 確定結果をまとめてテキスト化
-      let finalText = '';
-      let interimText = '';
-      for (let i = e.resultIndex; i < e.results.length; i++) {
-        const transcript = e.results[i][0].transcript;
-        if (e.results[i].isFinal) {
-          finalText += transcript;
-        } else {
-          interimText += transcript;
-        }
-      }
-      if (finalText) {
-        accumulatedTranscript += finalText;
-        lastSpeechAt = Date.now();
-      }
-      // 入力欄にリアルタイム表示
-      const input = document.getElementById(activeInputId);
-      if (input) input.value = accumulatedTranscript + interimText;
-    };
-
-    r.onend = () => {
-      // ユーザーが明示的に停止した場合のみ止める
-      // 継続録音中に onend が発火したら（30秒アイドル等）自動でリスタート
-      if (isRecording && micPermissionGranted) {
-        try { r.start(); } catch(e) { /* already started or stopped */ }
-      } else {
-        finishRecording();
-      }
-    };
-
-    r.onerror = (e) => {
-      // no-speech は正常（音声未検出）なので無視
-      if (e.error === 'no-speech' || e.error === 'aborted') return;
-      console.error('SpeechRecognition error:', e.error);
-      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
-        alert('マイクの使用が許可されていません。ブラウザ設定でマイクを有効にしてください。');
-        stopRecording();
-      }
-    };
-    return r;
-  }
-
-  async function startRecording(targetInput) {
-    // 事前にマイク権限確保
-    const granted = await ensureMicPermission();
-    if (!granted) {
-      alert('マイクの使用を許可してください。');
-      return;
-    }
-    if (!recognition) recognition = initRecognition();
-    if (!recognition) {
-      alert('お使いのブラウザは音声認識に対応していません。');
-      return;
-    }
-    activeInputId = targetInput || 'buddyChatInput';
-    accumulatedTranscript = '';
-    lastSpeechAt = Date.now();
-    try {
-      recognition.start();
-      isRecording = true;
-      updateMicButtons(true);
-      // 30秒無音で自動停止（バッテリ対策）
-      if (silenceTimer) clearInterval(silenceTimer);
-      silenceTimer = setInterval(() => {
-        if (Date.now() - lastSpeechAt > 30000) {
-          console.log('[Mic] 30秒無音で自動停止');
-          stopRecording();
-        }
-      }, 2000);
-    } catch(e) {
-      console.error('[Mic] start error:', e);
-    }
-  }
-
-  function stopRecording() {
-    isRecording = false;  // 先にフラグを落として onend でのリスタートを防ぐ
-    if (silenceTimer) { clearInterval(silenceTimer); silenceTimer = null; }
-    if (recognition) {
-      try { recognition.stop(); } catch(e) {}
-    }
-    finishRecording();
-  }
-
-  function finishRecording() {
-    updateMicButtons(false);
-    // 録音完了時に自動送信（テキストが溜まっていれば）
-    const text = (accumulatedTranscript || '').trim();
-    if (text) {
+      const text = e.results[0][0].transcript;
       const input = document.getElementById(activeInputId);
       if (input) input.value = text;
+      stopRecording();
+      // 自動送信
       setTimeout(() => {
         if (activeInputId === 'chatModalInput') sendFromModal();
         else sendFromBar();
       }, 200);
+    };
+    r.onend = () => stopRecording();
+    r.onerror = (e) => {
+      // no-speech は正常な無音タイムアウト、aborted はユーザー停止
+      if (e.error === 'no-speech' || e.error === 'aborted') {
+        stopRecording();
+        return;
+      }
+      console.error('SpeechRecognition error:', e.error);
+      if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+        alert('マイクの使用が許可されていません。ブラウザ設定でマイクを有効にしてください。');
+      }
+      stopRecording();
+    };
+    return r;
+  }
+
+  function startRecording(targetInput) {
+    if (!recognition) recognition = initRecognition();
+    if (!recognition) {
+      alert('お使いのブラウザは音声認識に対応していません。Chrome をお試しください。');
+      return;
     }
-    accumulatedTranscript = '';
+    activeInputId = targetInput || 'buddyChatInput';
+    try {
+      recognition.start();
+      isRecording = true;
+      updateMicButtons(true);
+    } catch(e) {
+      console.error('[Mic] start error:', e);
+      // 既に開始中のエラーは無視して UI だけ更新
+      if (String(e).includes('already started')) {
+        isRecording = true;
+        updateMicButtons(true);
+      }
+    }
+  }
+
+  function stopRecording() {
+    if (recognition && isRecording) {
+      try { recognition.stop(); } catch(e) {}
+    }
+    isRecording = false;
+    updateMicButtons(false);
   }
 
   function updateMicButtons(recording) {
@@ -5933,11 +5867,11 @@ const ChatUI = (() => {
     if (btn2) btn2.classList.toggle('recording', recording);
   }
 
-  async function toggleVoiceInput(target) {
+  function toggleVoiceInput(target) {
     if (isRecording) {
       stopRecording();
     } else {
-      await startRecording(target === 'modal' ? 'chatModalInput' : 'buddyChatInput');
+      startRecording(target === 'modal' ? 'chatModalInput' : 'buddyChatInput');
     }
   }
 
