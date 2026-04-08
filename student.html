@@ -6019,13 +6019,9 @@ const ChatUI = (() => {
     BuddySystem.sayStudent(text);
 
     // Feature 9: 長時間待機時の UX フィードバック（Anthropic 529 リトライ対策）
-    // 4秒: 「混み合ってる」/ 10秒: 「もうちょっと…」
+    // 10秒以上かかる時だけ控えめに知らせる（4秒はウザいので撤廃）
     let replyReceived = false;
-    const waitTimer1 = setTimeout(() => {
-      if (replyReceived) return;
-      BuddySystem.say('ちょっと混み合ってるみたい、もう少し待ってね〜☕', { emotion: 'thinking', duration: 30000 });
-    }, 4000);
-    const waitTimer2 = setTimeout(() => {
+    const waitTimer = setTimeout(() => {
       if (replyReceived) return;
       BuddySystem.say('もうちょっとだけ…考え中にゃ…🌀', { emotion: 'thinking', duration: 30000 });
     }, 10000);
@@ -6049,15 +6045,13 @@ const ChatUI = (() => {
       }
 
       replyReceived = true;
-      clearTimeout(waitTimer1);
-      clearTimeout(waitTimer2);
+      clearTimeout(waitTimer);
 
       await ChatDB.sendMessage(currentStudent.id, studentName, 'buddy', 'ルカ', reply);
       BuddySystem.say(reply, { emotion: 'happy', duration: 8000 });
     } catch(e) {
       replyReceived = true;
-      clearTimeout(waitTimer1);
-      clearTimeout(waitTimer2);
+      clearTimeout(waitTimer);
       console.error('Chat send error:', e);
       BuddySystem.say('うーん、うまく聞こえなかった...もう一度言ってくれる？', { emotion: 'sad' });
     }
