@@ -437,7 +437,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
     const loaders = {
       today: loadTodaySchedule,
       approval: loadPendingApprovals,
-      comment: () => {},
+      comment: loadRecentComments,
       shifts: loadWeekShifts,
       stats: loadTeacherStats,
       buddychat: loadTeacherBuddyChat
@@ -755,17 +755,38 @@ async function loadRecentComments() {
   try {
     const today = new Date().toISOString().split('T')[0];
     const comments = await TeacherCommentsDB.getByDate(today);
-    const mine = comments.filter(c => c.teacherId === currentTeacher.id);
+    // 自分のコメントだけ + 新着順
+    const mine = comments
+      .filter(c => c.teacherId === currentTeacher.id)
+      .sort((a, b) => {
+        const ta = a.createdAt && a.createdAt.toMillis ? a.createdAt.toMillis() : 0;
+        const tb = b.createdAt && b.createdAt.toMillis ? b.createdAt.toMillis() : 0;
+        return tb - ta;
+      });
     if (mine.length === 0) {
       container.innerHTML = '<div class="empty-state">今日のコメントはまだありません</div>';
       return;
     }
-    container.innerHTML = mine.map(c => `
-      <div style="padding:10px;border-bottom:1px solid var(--border);">
-        <strong>${c.studentName}</strong> - ${(c.subjects||[]).join(', ')}
-        <div style="font-size:13px;color:var(--text-light);margin-top:4px;">${c.note || '(メモなし)'}</div>
-      </div>
-    `).join('');
+    container.innerHTML = mine.map(c => {
+      // 時刻 HH:MM 抽出
+      let timeStr = '';
+      if (c.createdAt && c.createdAt.toDate) {
+        const d = c.createdAt.toDate();
+        timeStr = `${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      }
+      const buddyIcon = c.buddyVisible
+        ? '<span title="生徒バディに共有" style="color:#667eea;">🤖</span>'
+        : '<span title="講師のみ" style="color:#cbd5e0;">🔒</span>';
+      return `
+        <div style="padding:10px;border-bottom:1px solid var(--border);">
+          <div style="display:flex;justify-content:space-between;align-items:center;">
+            <div><strong>${c.studentName}</strong> - ${(c.subjects||[]).join(', ')} ${buddyIcon}</div>
+            <div style="font-size:11px;color:var(--text-light);">${timeStr}</div>
+          </div>
+          <div style="font-size:13px;color:var(--text-light);margin-top:4px;">${c.note || '(メモなし)'}</div>
+        </div>
+      `;
+    }).join('');
   } catch (e) {
     console.error(e);
   }
