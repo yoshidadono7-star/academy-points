@@ -1,0 +1,595 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HERO'S ACADEMY - オーナーダッシュボード</title>
+<link rel="manifest" href="manifest.json">
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+<style>
+:root {
+  --primary: #f6ad55;
+  --primary-dark: #ed8936;
+  --gradient: linear-gradient(135deg, #f6ad55 0%, #ed8936 50%, #dd6b20 100%);
+  --bg: #faf7f2;
+  --card: #ffffff;
+  --text: #2d3748;
+  --text-light: #718096;
+  --success: #48bb78;
+  --warning: #ecc94b;
+  --danger: #fc8181;
+  --border: #e2e8f0;
+  --radius: 14px;
+  --shadow: 0 6px 20px rgba(237, 137, 54, 0.15);
+}
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Hiragino Kaku Gothic ProN', sans-serif;
+  background: var(--bg); color: var(--text); min-height: 100vh;
+}
+.header {
+  background: var(--gradient); color: white; padding: 0 24px; height: 64px;
+  display: flex; align-items: center; justify-content: space-between;
+  position: sticky; top: 0; z-index: 100;
+  box-shadow: 0 4px 16px rgba(237, 137, 54, 0.3);
+}
+.header h1 { font-size: 19px; font-weight: 800; letter-spacing: 0.02em; }
+.header-right { display: flex; align-items: center; gap: 14px; font-size: 13px; }
+.header-right a, .header-right button {
+  background: rgba(255,255,255,0.22); border: none; color: white;
+  padding: 7px 16px; border-radius: 20px; font-size: 13px; cursor: pointer;
+  text-decoration: none;
+}
+.header-right a:hover, .header-right button:hover { background: rgba(255,255,255,0.32); }
+
+.login-screen {
+  display: flex; align-items: center; justify-content: center; min-height: 100vh;
+  background: var(--gradient);
+}
+.login-card {
+  background: white; border-radius: 18px; padding: 44px; width: 90%; max-width: 420px;
+  box-shadow: 0 30px 80px rgba(0,0,0,0.3); text-align: center;
+}
+.login-card h2 { color: var(--primary-dark); margin-bottom: 8px; font-size: 24px; }
+.login-card p { color: var(--text-light); margin-bottom: 22px; font-size: 14px; }
+.login-card input {
+  width: 100%; padding: 12px 16px; border: 2px solid var(--border); border-radius: 10px;
+  font-size: 15px; margin-bottom: 12px; outline: none;
+}
+.login-card input:focus { border-color: var(--primary); }
+.login-card button {
+  width: 100%; padding: 13px; background: var(--gradient); color: white;
+  border: none; border-radius: 10px; font-size: 16px; font-weight: 700; cursor: pointer;
+}
+.login-error { color: var(--danger); font-size: 13px; margin-top: 12px; min-height: 18px; }
+
+.main-content { display: none; padding: 24px; max-width: 1280px; margin: 0 auto; }
+
+.kpi-grid {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 14px; margin-bottom: 24px;
+}
+.kpi-card {
+  background: var(--card); border-radius: var(--radius); padding: 20px;
+  box-shadow: var(--shadow); position: relative; overflow: hidden;
+}
+.kpi-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  background: var(--gradient);
+}
+.kpi-label { font-size: 12px; color: var(--text-light); margin-bottom: 6px; font-weight: 600; }
+.kpi-value { font-size: 32px; font-weight: 800; color: var(--text); }
+.kpi-sub { font-size: 12px; color: var(--text-light); margin-top: 4px; }
+
+.section {
+  background: var(--card); border-radius: var(--radius); padding: 22px;
+  margin-bottom: 20px; box-shadow: var(--shadow);
+}
+.section h2 {
+  font-size: 17px; margin-bottom: 14px; color: var(--text);
+  display: flex; align-items: center; gap: 8px;
+}
+
+.classroom-list {
+  display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  gap: 14px;
+}
+.classroom-card {
+  border: 2px solid var(--border); border-radius: 12px; padding: 16px;
+  cursor: pointer; transition: all 0.15s;
+  background: linear-gradient(135deg, #fff, #faf7f2);
+}
+.classroom-card:hover { border-color: var(--primary); transform: translateY(-2px); }
+.classroom-card.active { border-color: var(--primary); background: linear-gradient(135deg, #fff7ed, #fef3e2); }
+.classroom-name { font-size: 16px; font-weight: 700; margin-bottom: 8px; color: var(--text); }
+.classroom-meta { font-size: 12px; color: var(--text-light); line-height: 1.6; }
+.classroom-id { font-size: 10px; color: var(--text-light); font-family: monospace; margin-top: 6px; }
+
+.handoff-list { max-height: 480px; overflow-y: auto; }
+.handoff-item {
+  padding: 14px; border-bottom: 1px solid var(--border);
+  display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;
+}
+.handoff-item.unread { background: #fffbeb; border-left: 4px solid var(--warning); }
+.handoff-summary { font-size: 14px; font-weight: 600; line-height: 1.5; }
+.handoff-meta { font-size: 11px; color: var(--text-light); margin-top: 5px; }
+.handoff-student { font-size: 12px; color: var(--primary-dark); margin-top: 3px; }
+
+/* Owner Buddy Chat */
+.buddy-chat-container {
+  background: var(--card); border-radius: var(--radius); box-shadow: var(--shadow);
+  display: flex; flex-direction: column; height: 65vh;
+  margin-bottom: 20px; overflow: hidden;
+}
+.buddy-chat-header {
+  padding: 16px 20px; border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, #fff7ed, #fef3e2);
+}
+.buddy-chat-title { font-size: 16px; font-weight: 700; color: var(--text); }
+.buddy-chat-subtitle { font-size: 12px; color: var(--text-light); margin-top: 2px; }
+.buddy-chat-messages { flex: 1; overflow-y: auto; padding: 18px; background: #faf7f2; }
+.buddy-msg-wrap { margin-bottom: 12px; display: flex; }
+.buddy-msg-wrap.user { justify-content: flex-end; }
+.buddy-msg-wrap.buddy { justify-content: flex-start; }
+.buddy-msg-bubble {
+  max-width: 80%; padding: 11px 16px; border-radius: 16px;
+  font-size: 14px; line-height: 1.55; white-space: pre-wrap; word-wrap: break-word;
+}
+.buddy-msg-wrap.user .buddy-msg-bubble {
+  background: var(--gradient); color: #fff; border-bottom-right-radius: 5px;
+}
+.buddy-msg-wrap.buddy .buddy-msg-bubble {
+  background: #fff; color: var(--text); box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+  border-bottom-left-radius: 5px;
+}
+.buddy-chat-input-row {
+  padding: 14px; background: #fff; border-top: 1px solid var(--border);
+  display: flex; gap: 10px; align-items: flex-end;
+}
+.buddy-chat-input-row textarea {
+  flex: 1; padding: 11px 16px; border: 1px solid var(--border); border-radius: 22px;
+  font-size: 14px; outline: none; resize: none; height: 46px; max-height: 140px;
+  font-family: inherit; line-height: 1.4;
+}
+.buddy-chat-input-row button {
+  background: var(--gradient); color: #fff; border: none; border-radius: 23px;
+  padding: 11px 26px; font-weight: 700; cursor: pointer; height: 46px;
+}
+
+.empty-state { text-align: center; padding: 40px; color: var(--text-light); font-size: 14px; }
+.loading { color: var(--text-light); font-size: 13px; padding: 16px; text-align: center; }
+</style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-card">
+    <h2>👑 HERO'S ACADEMY</h2>
+    <p>オーナーダッシュボード</p>
+    <input type="email" id="loginEmail" placeholder="メールアドレス" autocomplete="email">
+    <input type="password" id="loginPassword" placeholder="パスワード" autocomplete="current-password"
+           onkeydown="if(event.key==='Enter')ownerLogin()">
+    <button onclick="ownerLogin()">ログイン</button>
+    <div class="login-error" id="loginError"></div>
+    <p style="margin-top:18px;font-size:11px;color:#a0aec0;">
+      管理者ロールは index.html、オーナーロールはここから
+    </p>
+  </div>
+</div>
+
+<!-- Main Content -->
+<div class="header" id="topHeader" style="display:none;">
+  <h1>👑 オーナーダッシュボード</h1>
+  <div class="header-right">
+    <span id="ownerEmailLabel"></span>
+    <a href="/index.html">📊 管理画面</a>
+    <button onclick="ownerLogout()">ログアウト</button>
+  </div>
+</div>
+
+<div class="main-content" id="mainContent">
+
+  <!-- KPI -->
+  <div class="kpi-grid" id="kpiGrid">
+    <div class="kpi-card"><div class="kpi-label">教室数</div><div class="kpi-value" id="kpiClassroomCount">-</div></div>
+    <div class="kpi-card"><div class="kpi-label">総生徒数</div><div class="kpi-value" id="kpiStudentCount">-</div></div>
+    <div class="kpi-card"><div class="kpi-label">総講師数</div><div class="kpi-value" id="kpiTeacherCount">-</div></div>
+    <div class="kpi-card"><div class="kpi-label">未読の申し送り</div><div class="kpi-value" id="kpiUnreadHandoffs">-</div></div>
+  </div>
+
+  <!-- 教室一覧 -->
+  <div class="section">
+    <h2>🏛 教室一覧 <span style="font-size:11px;font-weight:normal;color:var(--text-light);">クリックで切替（localStorage に保存）</span></h2>
+    <div class="classroom-list" id="classroomList">
+      <div class="loading">読み込み中...</div>
+    </div>
+  </div>
+
+  <!-- オーナーバディ -->
+  <div class="buddy-chat-container">
+    <div class="buddy-chat-header">
+      <div class="buddy-chat-title">👑 オーナーバディ AI</div>
+      <div class="buddy-chat-subtitle">複数教室を統括するオーナーの右腕として経営判断を支援</div>
+    </div>
+    <div class="buddy-chat-messages" id="ownerBuddyMessages">
+      <div class="empty-state">
+        下のメッセージ欄から相談を始めよう。<br>
+        例:「今週のハイライトは？」「最近気になる教室は？」「次に採用すべき講師像は？」
+      </div>
+    </div>
+    <div class="buddy-chat-input-row">
+      <textarea id="ownerBuddyInput" placeholder="経営判断を相談..."
+        onkeydown="if(event.key==='Enter' && !event.shiftKey){event.preventDefault();sendOwnerBuddyMessage();}"></textarea>
+      <button onclick="sendOwnerBuddyMessage()" id="ownerBuddySendBtn">送信</button>
+    </div>
+  </div>
+
+  <!-- 教室長からの最近の申し送り -->
+  <div class="section">
+    <h2>📬 教室長からの最近の申し送り</h2>
+    <div class="handoff-list" id="ownerHandoffList">
+      <div class="loading">読み込み中...</div>
+    </div>
+  </div>
+
+</div>
+
+<script src="firebase-config.js"></script>
+<script src="db.js"></script>
+<script src="js/student-context.js"></script>
+<script src="js/teacher-context.js"></script>
+<script>
+// ===== オーナーログイン =====
+async function ownerLogin() {
+  const email = document.getElementById('loginEmail').value.trim();
+  const password = document.getElementById('loginPassword').value;
+  const errEl = document.getElementById('loginError');
+  errEl.textContent = '';
+  if (!email || !password) {
+    errEl.textContent = 'メールとパスワードを入力してください';
+    return;
+  }
+  try {
+    await firebase.auth().signInWithEmailAndPassword(email, password);
+  } catch (e) {
+    console.error(e);
+    errEl.textContent = 'ログインに失敗しました: ' + (e.message || '');
+  }
+}
+
+function ownerLogout() {
+  firebase.auth().signOut();
+}
+
+let currentOwnerRecord = null;
+
+firebase.auth().onAuthStateChanged(async (user) => {
+  if (!user) {
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('topHeader').style.display = 'none';
+    document.getElementById('mainContent').style.display = 'none';
+    return;
+  }
+
+  // ロール確認: owner でなければ index.html へ戻る
+  try {
+    let rec = await UsersDB.getByUid(user.uid);
+    if (!rec) {
+      await UsersDB.upsert(user.uid, { email: user.email || '', role: 'admin', classroomIds: ['default'] });
+      rec = await UsersDB.getByUid(user.uid);
+    }
+    if (rec.role !== 'owner') {
+      alert('オーナー権限がありません。\n\n管理画面 (index.html) からまず admin としてログインし、\nDevTools Console で makeMeOwner() を実行してください。');
+      firebase.auth().signOut();
+      window.location.href = '/index.html';
+      return;
+    }
+    currentOwnerRecord = rec;
+  } catch (e) {
+    console.warn('[role check] failed, proceeding anyway:', e);
+  }
+
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('topHeader').style.display = 'flex';
+  document.getElementById('mainContent').style.display = 'block';
+  document.getElementById('ownerEmailLabel').textContent = user.email;
+  initOwnerDashboard();
+});
+
+// ===== ダッシュボード初期化 =====
+async function initOwnerDashboard() {
+  await loadKpis();
+  await loadClassrooms();
+  await loadOwnerHandoffs();
+  AIBuddyOwner.loadConfig().catch(() => {});
+}
+
+async function loadKpis() {
+  try {
+    const [classrooms, students, teachers, handoffs] = await Promise.all([
+      ClassroomsDB.getAll().catch(() => []),
+      StudentsDB.getAll().catch(() => []),
+      TeachersDB.getActive().catch(() => []),
+      HandoffLogDB.getUnread('owner', 50).catch(() => []),
+    ]);
+    document.getElementById('kpiClassroomCount').textContent = classrooms.length || 1;
+    document.getElementById('kpiStudentCount').textContent = students.length;
+    document.getElementById('kpiTeacherCount').textContent = teachers.length;
+    document.getElementById('kpiUnreadHandoffs').textContent = handoffs.length;
+  } catch (e) {
+    console.error('[loadKpis] failed:', e);
+  }
+}
+
+async function loadClassrooms() {
+  const container = document.getElementById('classroomList');
+  try {
+    const classrooms = await ClassroomsDB.getAll();
+    if (!classrooms || classrooms.length === 0) {
+      // default 教室がまだ無ければ作る
+      await ClassroomsDB.ensureDefault();
+      const def = await ClassroomsDB.getAll();
+      renderClassrooms(def);
+      return;
+    }
+    renderClassrooms(classrooms);
+  } catch (e) {
+    container.innerHTML = '<div class="empty-state">読み込みに失敗しました</div>';
+    console.error('[loadClassrooms] failed:', e);
+  }
+}
+
+function renderClassrooms(classrooms) {
+  const container = document.getElementById('classroomList');
+  const currentId = (typeof currentClassroomId === 'function') ? currentClassroomId() : 'default';
+  container.innerHTML = classrooms.map(c => `
+    <div class="classroom-card ${c.id === currentId ? 'active' : ''}" onclick="switchClassroom('${c.id}')">
+      <div class="classroom-name">${c.name || '無名の教室'}</div>
+      <div class="classroom-meta">${c.id === currentId ? '✅ 現在選択中' : 'クリックで切替'}</div>
+      <div class="classroom-id">${c.id}</div>
+    </div>
+  `).join('');
+}
+
+function switchClassroom(id) {
+  try {
+    localStorage.setItem('currentClassroomId', id);
+    alert(`教室を「${id}」に切替えました。\n\n管理画面・講師画面・生徒画面を開くと、その教室のデータが表示されます。`);
+    renderClassrooms([{ id, name: id === 'default' ? '本校' : id }]); // 仮
+    loadClassrooms();
+  } catch (e) {
+    console.error(e);
+  }
+}
+
+async function loadOwnerHandoffs() {
+  const container = document.getElementById('ownerHandoffList');
+  try {
+    const entries = await HandoffLogDB.getRecent('owner', 30);
+    if (entries.length === 0) {
+      container.innerHTML = '<div class="empty-state">教室長からの申し送りはまだありません</div>';
+      return;
+    }
+    container.innerHTML = entries.map(e => {
+      const isUnread = !(e.read && e.read.owner);
+      let timeStr = '';
+      if (e.createdAt && e.createdAt.toDate) {
+        const d = e.createdAt.toDate();
+        timeStr = `${String(d.getMonth()+1).padStart(2,'0')}/${String(d.getDate()).padStart(2,'0')} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+      }
+      const typeIcon = { alert: '🚨', observation: '👁', request: '🙏', decision: '✅' }[e.type] || '📝';
+      const sourceLabel = {
+        'student-buddy': '生徒バディ', 'teacher-buddy': '講師バディ', 'director-buddy': '教室長バディ',
+        'owner-buddy': 'オーナーバディ', 'teacher-manual': '講師', 'director-manual': '教室長'
+      }[e.sourceRole] || e.sourceRole || '';
+      return `
+        <div class="handoff-item ${isUnread ? 'unread' : ''}">
+          <div style="flex:1;min-width:0;">
+            <div class="handoff-summary">${typeIcon} ${(e.summary || '').replace(/</g, '&lt;')}</div>
+            ${e.studentName ? '<div class="handoff-student">👤 ' + e.studentName + '</div>' : ''}
+            <div class="handoff-meta">${timeStr} / ${sourceLabel}${e.sourceName ? '（' + e.sourceName + '）' : ''}</div>
+          </div>
+          ${isUnread ? `<button onclick="markOwnerHandoffRead('${e.id}')" style="background:#48bb78;color:#fff;border:none;border-radius:14px;padding:6px 14px;font-size:11px;font-weight:700;cursor:pointer;flex-shrink:0;">既読</button>` : ''}
+        </div>`;
+    }).join('');
+  } catch (e) {
+    container.innerHTML = '<div class="empty-state">読み込みに失敗しました: ' + e.message + '</div>';
+    console.error('[loadOwnerHandoffs] failed:', e);
+  }
+}
+
+async function markOwnerHandoffRead(id) {
+  try {
+    await HandoffLogDB.markRead(id, 'owner');
+    loadOwnerHandoffs();
+    loadKpis();
+  } catch (e) { console.error(e); }
+}
+
+// ============================================
+// AIBuddyOwner: オーナー専属バディ AI
+// ============================================
+const AIBuddyOwner = (() => {
+  let config = null;
+  let history = [];
+
+  async function loadConfig() {
+    try {
+      const doc = await db.collection('settings').doc('claudeAi').get();
+      config = doc.exists ? doc.data() : {};
+    } catch (e) { config = {}; }
+  }
+  function isEnabled() { return config && config.apiKey && config.enabled !== false; }
+
+  async function buildContext() {
+    try {
+      const [classrooms, students, teachers, recentHandoffs, pendingLogs] = await Promise.all([
+        ClassroomsDB.getAll().catch(() => []),
+        StudentsDB.getAll().catch(() => []),
+        TeachersDB.getActive().catch(() => []),
+        HandoffLogDB.getRecent('owner', 15).catch(() => []),
+        StudyLogsDB.getPending().catch(() => []),
+      ]);
+      const lines = [];
+      lines.push(`【教室全体の状況 (${new Date().toISOString().split('T')[0]})】`);
+      lines.push(`  教室数: ${classrooms.length}`);
+      lines.push(`  総生徒数: ${students.length}`);
+      lines.push(`  総講師数: ${teachers.length}`);
+      lines.push(`  家庭学習の承認待ち: ${pendingLogs.length}件`);
+      if (classrooms.length > 0) {
+        lines.push('');
+        lines.push('【教室一覧】');
+        classrooms.forEach(c => lines.push(`  ・${c.name || c.id}`));
+      }
+      if (recentHandoffs.length > 0) {
+        lines.push('');
+        lines.push('【教室長から上がってきた最近の申し送り】');
+        recentHandoffs.slice(0, 10).forEach(h => {
+          const isUnread = !(h.read && h.read.owner);
+          lines.push(`  ${isUnread ? '🆕' : ' '} [${h.type || '?'}] ${h.summary || ''}${h.studentName ? '（' + h.studentName + '）' : ''}`);
+        });
+      }
+      return lines.join('\n');
+    } catch (e) {
+      console.warn('[AIBuddyOwner.buildContext] failed:', e);
+      return '';
+    }
+  }
+
+  function buildStaticGuide() {
+    return `あなたは「Hero's Academy」のオーナー直属 AI バディです。
+オーナー（経営者）の右腕として経営判断を支援します。
+
+【あなたの役割】
+- 複数教室を統括するオーナーの相談相手
+- 各教室の KPI を比較し、ボトルネックを指摘
+- 教室長から上がってきた申し送り（HandoffLog）を要約・優先順位付け
+- 採用・撤退・拡張・カリキュラム改訂の意思決定支援
+- 短期の打ち手と中長期の戦略を分けて提示
+
+【スタンス】
+- データドリブンで助言する。憶測と事実を分ける
+- 「私はこう見る」と意見を持ちつつ、決定は必ずオーナーに委ねる
+- 楽観・悲観どちらにも偏らない
+- 成長機会と同時にリスクも明示する
+
+【返答の長さ】
+- 300-600 文字程度
+- 重要な数字は太字や箇条書きで強調
+- 最後に「次のアクション提案」を 1-3 個まとめる`;
+  }
+
+  function buildDynamicPrompt(contextText) {
+    return `【現在の経営状況】
+${contextText || '（取得失敗）'}
+
+ユーザー（オーナー）の質問に答えるとき、上記の状況を必ず参照してください。`;
+  }
+
+  async function ask(userMessage) {
+    if (!config) await loadConfig();
+    if (!isEnabled()) throw new Error('Claude AI が無効です。管理画面で API キーを設定してください。');
+    history.push({ role: 'user', content: userMessage });
+    if (history.length > 20) history = history.slice(-20);
+
+    const contextText = await buildContext();
+    let model = (config.models && config.models.owner) || config.model || 'claude-opus-4-6';
+
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'x-api-key': config.apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true',
+        'content-type': 'application/json'
+      },
+      body: JSON.stringify({
+        model: model,
+        max_tokens: 1500,
+        system: [
+          { type: 'text', text: buildStaticGuide(), cache_control: { type: 'ephemeral' } },
+          { type: 'text', text: buildDynamicPrompt(contextText) }
+        ],
+        messages: history.slice(-10)
+      })
+    });
+    const data = await res.json();
+    if (!res.ok || data.error) throw new Error(data.error?.message || 'API エラー');
+    if (data.usage) {
+      console.log('[AIBuddyOwner] usage:', {
+        input: data.usage.input_tokens,
+        cacheRead: data.usage.cache_read_input_tokens || 0,
+        cacheWrite: data.usage.cache_creation_input_tokens || 0,
+        output: data.usage.output_tokens,
+        model: model
+      });
+    }
+    if (data.content && data.content[0] && data.content[0].text) {
+      let reply = data.content[0].text.trim();
+      if (typeof StudentContext !== 'undefined' && StudentContext.parseAndStripHandoffs) {
+        const parsed = StudentContext.parseAndStripHandoffs(reply);
+        reply = parsed.cleanText;
+        if (parsed.handoffs.length > 0) {
+          StudentContext.writeHandoffs(parsed.handoffs, {
+            sourceRole: 'owner-buddy',
+            sourceId: firebase.auth().currentUser?.uid || '',
+            sourceName: 'オーナー'
+          }).catch(e => console.warn('[writeHandoffs] failed:', e));
+        }
+      }
+      history.push({ role: 'assistant', content: reply });
+      return reply;
+    }
+    return null;
+  }
+
+  return { loadConfig, isEnabled, ask };
+})();
+
+function pushOwnerMsg(sender, text) {
+  const container = document.getElementById('ownerBuddyMessages');
+  const empty = container.querySelector('.empty-state');
+  if (empty) empty.remove();
+  const wrap = document.createElement('div');
+  wrap.className = 'buddy-msg-wrap ' + sender;
+  const bubble = document.createElement('div');
+  bubble.className = 'buddy-msg-bubble';
+  bubble.textContent = text;
+  wrap.appendChild(bubble);
+  container.appendChild(wrap);
+  container.scrollTop = container.scrollHeight;
+  return bubble;
+}
+
+async function sendOwnerBuddyMessage() {
+  const input = document.getElementById('ownerBuddyInput');
+  const sendBtn = document.getElementById('ownerBuddySendBtn');
+  const text = input.value.trim();
+  if (!text) return;
+  input.value = '';
+  pushOwnerMsg('user', text);
+  const typing = pushOwnerMsg('buddy', '考え中…');
+  if (typing) typing.style.opacity = '0.6';
+  if (sendBtn) sendBtn.disabled = true;
+  try {
+    const reply = await AIBuddyOwner.ask(text);
+    if (typing && typing.parentElement) typing.parentElement.remove();
+    if (reply) {
+      pushOwnerMsg('buddy', reply);
+    } else {
+      pushOwnerMsg('buddy', '（返答が取得できませんでした）');
+    }
+  } catch (e) {
+    if (typing && typing.parentElement) typing.parentElement.remove();
+    pushOwnerMsg('buddy', `エラー: ${e.message}`);
+  } finally {
+    if (sendBtn) sendBtn.disabled = false;
+    input.focus();
+  }
+}
+</script>
+</body>
+</html>

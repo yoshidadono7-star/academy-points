@@ -296,5 +296,31 @@ service cloud.firestore {
     match /bases/{studentId} {
       allow read, write: if true;
     }
+
+    // === Feature 9: 階層型コーチングシステム ===
+    // classrooms: 教室マスタ。誰でも read（生徒画面のロード時に必要）。書き込みは管理者のみ。
+    match /classrooms/{classroomId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // users: Firebase Auth uid に対応するロール管理。
+    // 自分のレコードは自分で読み書き可能。他人のレコードの書き込みは admin のみ。
+    match /users/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow create: if request.auth != null && request.auth.uid == uid;
+      allow update: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow delete: if isAdmin();
+    }
+
+    // handoffLog: 階層間の申し送り（生徒バディ → 講師 → 教室長 → オーナー）。
+    // 講師ポータル/オーナーポータルから書き込み（PIN ログインなのでクライアントから自由に）。
+    // 将来的に Firestore Rules で role ベースの絞り込みを検討。
+    match /handoffLog/{entryId} {
+      allow read: if true;
+      allow create: if true;
+      allow update: if true;        // markRead 等
+      allow delete: if isAdmin();
+    }
   }
 }

@@ -43,6 +43,10 @@
         "destination": "/teacher.html"
       },
       {
+        "source": "/owner",
+        "destination": "/owner.html"
+      },
+      {
         "source": "/classroom",
         "destination": "/briefing.html"
       },

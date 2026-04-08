@@ -4,15 +4,19 @@
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js');
 
-// v4: HTML は network-first 戦略に変更（更新が即反映されるように）
-const CACHE_NAME = 'academy-points-v4';
+// v5: owner.html を追加 + js/ ヘルパーを追加
+const CACHE_NAME = 'academy-points-v5';
 const urlsToCache = [
   '/index.html',
   '/student.html',
   '/teacher.html',
+  '/owner.html',
+  '/parent.html',
   '/db.js',
   '/firebase-config.js',
-  '/manifest.json'
+  '/manifest.json',
+  '/js/student-context.js',
+  '/js/teacher-context.js'
 ];
 
 // ===== キャッシュ =====

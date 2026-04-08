@@ -1425,6 +1425,54 @@
         </select>
         <small style="color:var(--text-light);">生徒ごとに個別指定がない場合のデフォルト返答長</small>
       </div>
+
+      <!-- Feature 9: ロール別モデル選択 -->
+      <div class="form-group" style="border-top:1px solid var(--border);padding-top:14px;margin-top:14px;">
+        <label style="font-weight:700;">🎭 ロール別モデル（Feature 9: 階層型コーチング）</label>
+        <small style="color:var(--text-light);display:block;margin-bottom:10px;">
+          講師バディ・教室長バディ・オーナーバディ用にモデルを個別指定できます。<br>
+          上段（生徒バディ）の設定とは別に動きます。空欄なら全体デフォルトを使います。
+        </small>
+        <div style="display:grid;gap:10px;">
+          <div>
+            <label style="font-size:12px;color:var(--text-light);">👨‍🎓 生徒バディ（ルカ）</label>
+            <select class="form-control" id="settingClaudeModelStudent">
+              <option value="">（全体デフォルトを使う）</option>
+              <option value="claude-haiku-4-5-20251001">Haiku 4.5（高速・安価・推奨）</option>
+              <option value="claude-sonnet-4-6">Sonnet 4.6</option>
+              <option value="claude-opus-4-6">Opus 4.6</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--text-light);">👨‍🏫 講師バディ（指導コーチング）</label>
+            <select class="form-control" id="settingClaudeModelTeacher">
+              <option value="">（全体デフォルトを使う）</option>
+              <option value="claude-haiku-4-5-20251001">Haiku 4.5</option>
+              <option value="claude-sonnet-4-6" selected>Sonnet 4.6（推奨）</option>
+              <option value="claude-opus-4-6">Opus 4.6</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--text-light);">🏛 教室長バディ（運営判断）</label>
+            <select class="form-control" id="settingClaudeModelDirector">
+              <option value="">（全体デフォルトを使う）</option>
+              <option value="claude-haiku-4-5-20251001">Haiku 4.5</option>
+              <option value="claude-sonnet-4-6" selected>Sonnet 4.6（推奨）</option>
+              <option value="claude-opus-4-6">Opus 4.6</option>
+            </select>
+          </div>
+          <div>
+            <label style="font-size:12px;color:var(--text-light);">👑 オーナーバディ（経営判断）</label>
+            <select class="form-control" id="settingClaudeModelOwner">
+              <option value="">（全体デフォルトを使う）</option>
+              <option value="claude-haiku-4-5-20251001">Haiku 4.5</option>
+              <option value="claude-sonnet-4-6">Sonnet 4.6</option>
+              <option value="claude-opus-4-6" selected>Opus 4.6（推奨）</option>
+            </select>
+          </div>
+        </div>
+      </div>
+
       <div class="form-group">
         <label>
           <input type="checkbox" id="settingClaudeEnabled"> Claude AIを有効にする
@@ -6025,6 +6073,13 @@ async function loadClaudeSettings() {
       if (d.model) document.getElementById('settingClaudeModel').value = d.model;
       if (d.defaultResponseLength) document.getElementById('settingClaudeDefaultLength').value = d.defaultResponseLength;
       document.getElementById('settingClaudeEnabled').checked = !!d.enabled;
+      // Feature 9: ロール別モデル
+      const models = d.models || {};
+      const setIfExists = (id, val) => { const el = document.getElementById(id); if (el && val !== undefined) el.value = val || ''; };
+      setIfExists('settingClaudeModelStudent', models.student);
+      setIfExists('settingClaudeModelTeacher', models.teacher);
+      setIfExists('settingClaudeModelDirector', models.director);
+      setIfExists('settingClaudeModelOwner', models.owner);
     }
   } catch(e) { console.error(e); }
 }
@@ -6034,11 +6089,19 @@ async function saveClaudeSettings() {
   const model = document.getElementById('settingClaudeModel').value;
   const defaultResponseLength = document.getElementById('settingClaudeDefaultLength').value || 'medium';
   const enabled = document.getElementById('settingClaudeEnabled').checked;
+  // Feature 9: ロール別モデル
+  const getVal = id => { const el = document.getElementById(id); return el ? el.value : ''; };
+  const models = {
+    student: getVal('settingClaudeModelStudent') || null,
+    teacher: getVal('settingClaudeModelTeacher') || null,
+    director: getVal('settingClaudeModelDirector') || null,
+    owner: getVal('settingClaudeModelOwner') || null,
+  };
   try {
     await db.collection('settings').doc('claudeAi').set({
-      apiKey, model, defaultResponseLength, enabled,
+      apiKey, model, defaultResponseLength, enabled, models,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    }, { merge: true });
     showToast('Claude設定を保存しました');
   } catch(e) {
     console.error(e);
@@ -6581,6 +6644,71 @@ document.addEventListener('DOMContentLoaded', () => {
   document.querySelector('.tab-nav') && (document.querySelector('.tab-nav').style.display = 'none');
   document.querySelector('.main') && (document.querySelector('.main').style.display = 'none');
 
+  // ============================================
+  // Feature 9: users コレクション + ロール判定
+  // ============================================
+  // Firebase Auth ログインユーザーの role を Firestore の users コレクションから引く。
+  // 初回ログイン時はレコードが無いので 'admin' で作成。
+  // role='owner' なら画面右上に「👑 オーナー画面を開く」ボタンを表示。
+  async function ensureUserRoleAndShowOwnerLink(user) {
+    if (!user || typeof UsersDB === 'undefined') return;
+    try {
+      let userRec = await UsersDB.getByUid(user.uid);
+      if (!userRec) {
+        // 初回ログイン: admin で作成
+        await UsersDB.upsert(user.uid, {
+          email: user.email || '',
+          displayName: user.displayName || '',
+          role: 'admin',
+          classroomIds: ['default'],
+        });
+        userRec = await UsersDB.getByUid(user.uid);
+      }
+      // role を window に保存して他のスクリプトから参照可能に
+      window.currentUserRole = userRec.role || 'admin';
+      window.currentUserRecord = userRec;
+      console.log('[role]', userRec.role, userRec.classroomIds);
+
+      // owner ロールならフローティングボタンを表示
+      if (userRec.role === 'owner') {
+        showOwnerFloatingButton();
+      }
+    } catch (e) {
+      console.warn('[ensureUserRole] failed:', e);
+    }
+  }
+
+  function showOwnerFloatingButton() {
+    if (document.getElementById('ownerFloatBtn')) return;
+    const btn = document.createElement('a');
+    btn.id = 'ownerFloatBtn';
+    btn.href = '/owner.html';
+    btn.title = 'オーナー画面を開く';
+    btn.innerHTML = '👑';
+    btn.style.cssText = `
+      position: fixed; bottom: 20px; right: 20px; z-index: 9999;
+      width: 56px; height: 56px; border-radius: 50%;
+      background: linear-gradient(135deg, #f6ad55, #ed8936);
+      color: #fff; font-size: 28px; line-height: 56px; text-align: center;
+      box-shadow: 0 6px 20px rgba(237, 137, 54, 0.45);
+      text-decoration: none; cursor: pointer;
+      transition: transform 0.15s;
+    `;
+    btn.addEventListener('mouseenter', () => btn.style.transform = 'scale(1.1)');
+    btn.addEventListener('mouseleave', () => btn.style.transform = 'scale(1)');
+    document.body.appendChild(btn);
+  }
+
+  // 開発者向け: ブラウザ Console から自分を owner に昇格できるヘルパー
+  // 使い方: makeMeOwner()
+  window.makeMeOwner = async function() {
+    const user = firebase.auth().currentUser;
+    if (!user) { console.log('ログインしてください'); return; }
+    if (typeof UsersDB === 'undefined') { console.log('UsersDB が未定義'); return; }
+    await UsersDB.setRole(user.uid, 'owner');
+    console.log('✅ あなたを owner に昇格しました。リロードしてください。');
+  };
+
   firebase.auth().onAuthStateChanged(user => {
     const loginScreen = document.getElementById('adminLoginScreen');
     const riskBanner = document.querySelector('.risk-banner');
@@ -6601,6 +6729,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (emailLabel) { emailLabel.textContent = user.email; emailLabel.style.display = 'inline'; }
       const logoutBtn = document.getElementById('adminLogoutBtn');
       if (logoutBtn) logoutBtn.style.display = 'inline-block';
+
+      // Feature 9: ロール判定 + オーナーリンク表示
+      ensureUserRoleAndShowOwnerLink(user).catch(e => console.warn('[role] failed:', e));
 
       initApp();
     } else {
