@@ -5924,6 +5924,10 @@ const ChatUI = (() => {
 
     r.onstart = () => {
       console.log('[Mic] recognition.onstart fired (listening...)');
+      // 聞いてる状態を明示的にバディ吹き出しで知らせる
+      if (typeof BuddySystem !== 'undefined' && BuddySystem.say) {
+        BuddySystem.say('🎤 聞いてるよ！話してみて〜', { emotion: 'thinking', duration: 8000 });
+      }
     };
     r.onaudiostart = () => console.log('[Mic] onaudiostart (mic opened)');
     r.onspeechstart = () => console.log('[Mic] onspeechstart (voice detected)');
@@ -5949,7 +5953,10 @@ const ChatUI = (() => {
       console.error('[Mic] SpeechRecognition error:', e.error, e);
       // no-speech は正常な無音タイムアウト、aborted はユーザー停止
       if (e.error === 'no-speech') {
-        alert('マイクから音声を検出できませんでした。もう一度お試しください。');
+        // alert より吹き出しで親切に案内
+        if (typeof BuddySystem !== 'undefined' && BuddySystem.say) {
+          BuddySystem.say('あれ？聞こえなかったみたい…🎤\nMacのマイクが正しく選ばれてるか確認してみてね', { emotion: 'sad', duration: 10000 });
+        }
         stopRecording();
         return;
       }
@@ -5962,7 +5969,9 @@ const ChatUI = (() => {
       } else if (e.error === 'network') {
         alert('ネットワークエラー: 音声認識サービスに接続できませんでした。オンライン状態を確認してください。');
       } else {
-        alert('音声認識エラー: ' + e.error);
+        if (typeof BuddySystem !== 'undefined' && BuddySystem.say) {
+          BuddySystem.say('音声認識がうまくいかなかったにゃ…😢\n(' + e.error + ')', { emotion: 'sad', duration: 6000 });
+        }
       }
       stopRecording();
     };
