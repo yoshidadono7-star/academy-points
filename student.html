@@ -1842,6 +1842,13 @@ body.theme-space {
   <div class="home-section-title">🏫 教室の集団目標</div>
   <div id="homeCollectiveGoals" style="margin-bottom:16px;"></div>
 
+  <!-- Phase X1: 個人目標 (今週の目標) -->
+  <div class="home-section-title" style="display:flex;align-items:center;gap:10px;">
+    🎯 今週の目標
+    <button onclick="openCreatePersonalGoalModal()" style="margin-left:auto;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:16px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;">+ 目標を立てる</button>
+  </div>
+  <div id="homePersonalGoals" style="margin-bottom:16px;"></div>
+
   <div class="home-section-title">最近の学習</div>
   <div id="homeRecentLogs"></div>
 </div>
@@ -2599,6 +2606,205 @@ async function executeContribution(goalId) {
   }
 }
 
+// ============================================
+// Phase X1: 個人目標 (生徒画面)
+// ============================================
+
+// 目標タイプの日本語ラベル
+const PERSONAL_GOAL_TYPE_LABELS = {
+  time: '⏱ 学習時間',
+  pomodoro: '🍅 ポモドーロ回数',
+  sessions: '📚 学習セッション数',
+  task: '✅ タスク達成',
+  custom: '📝 自由目標',
+};
+
+const PERSONAL_GOAL_STATUS_LABELS = {
+  pending_approval: '⏳ 承認待ち',
+  active: '🎯 進行中',
+  achieved: '🎉 達成',
+  missed: '😢 未達成',
+  cancelled: '❌ 却下',
+};
+
+async function loadHomePersonalGoals() {
+  const container = document.getElementById('homePersonalGoals');
+  if (!container) return;
+  try {
+    const goals = await PersonalGoalsDB.getCurrentWeekByStudent(currentStudent.id);
+    if (goals.length === 0) {
+      container.innerHTML = `
+        <div style="padding:18px;background:#f7fafc;border-radius:12px;text-align:center;color:#718096;font-size:13px;border:2px dashed #cbd5e0;">
+          <div style="font-size:32px;opacity:0.4;margin-bottom:6px;">🎯</div>
+          今週の目標をまだ立てていません。<br>
+          <strong>自分で目標を立てる</strong>ことで、達成時にボーナスポイントがもらえます！
+        </div>`;
+      return;
+    }
+
+    // 各目標の進捗を計算
+    const withProgress = await Promise.all(goals.map(async g => {
+      const prog = await PersonalGoalsDB.calculateProgress(g);
+      return { ...g, _progress: prog };
+    }));
+
+    container.innerHTML = withProgress.map(g => {
+      const rawPct = g._progress.pct || 0;
+      const pct = Math.min(100, rawPct);
+      const pctLabel = rawPct <= 0 ? '0%' : rawPct < 1 ? '< 1%' : rawPct < 10 ? (Math.round(rawPct * 10) / 10) + '%' : rawPct >= 100 ? '100%' : Math.round(rawPct) + '%';
+      const barColor = g.status === 'achieved' ? '#48bb78' : g.status === 'missed' ? '#e53e3e' : pct >= 100 ? '#48bb78' : pct >= 70 ? '#ed8936' : '#667eea';
+      const typeLabel = PERSONAL_GOAL_TYPE_LABELS[g.type] || g.type;
+      const statusLabel = PERSONAL_GOAL_STATUS_LABELS[g.status] || g.status;
+      const bgColor = g.status === 'pending_approval' ? '#fffbeb' : g.status === 'achieved' ? '#f0fff4' : g.status === 'missed' ? '#fff5f5' : '#f0f7ff';
+      const borderColor = g.status === 'pending_approval' ? '#fbd38d' : g.status === 'achieved' ? '#9ae6b4' : g.status === 'missed' ? '#fc8181' : '#90cdf4';
+
+      const statusExtra = g.status === 'pending_approval'
+        ? '<div style="font-size:11px;color:#92400e;margin-top:4px;">教室長の承認待ちです</div>'
+        : g.status === 'missed' && g.penaltyApplied > 0
+        ? `<div style="font-size:11px;color:#c53030;margin-top:4px;">ペナルティ: -${g.penaltyApplied} pt</div>`
+        : '';
+
+      return `
+        <div style="background:${bgColor};border:2px solid ${borderColor};border-radius:12px;padding:14px;margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
+            <div style="font-size:14px;font-weight:700;flex:1;">${escapeHtml(g.title || typeLabel)}</div>
+            <span style="font-size:10px;color:#718096;white-space:nowrap;">${statusLabel}</span>
+          </div>
+          <div style="font-size:11px;color:#4a5568;margin-bottom:8px;">${escapeHtml(typeLabel)}${g.description ? ' · ' + escapeHtml(g.description) : ''}</div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;">
+            <span>進捗 ${pctLabel}</span>
+            <span style="font-family:monospace;font-weight:700;">${(Math.round(g._progress.current * 10) / 10).toLocaleString()} / ${g.target.toLocaleString()} ${g.unit || ''}</span>
+          </div>
+          <div style="background:rgba(0,0,0,0.06);border-radius:4px;height:10px;overflow:hidden;margin-bottom:6px;">
+            <div style="background:${barColor};height:10px;width:${Math.max(pct, rawPct > 0 ? 1 : 0)}%;transition:width 0.4s;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:#718096;">
+            <span>達成時: <strong style="color:#48bb78;">+${g.reward} pt</strong></span>
+            <span>未達時: <strong style="color:#e53e3e;">-${g.penalty} pt</strong></span>
+          </div>
+          ${statusExtra}
+        </div>
+      `;
+    }).join('');
+  } catch(e) {
+    console.error('[homePersonalGoals]', e);
+    container.innerHTML = '<div style="color:#e53e3e;font-size:12px;padding:14px;background:#fff5f5;border:1px solid #fc8181;border-radius:8px;">読み込み失敗: ' + (e && e.message ? e.message : String(e)) + '</div>';
+  }
+}
+
+// 目標作成モーダル
+function openCreatePersonalGoalModal() {
+  const level = calcLevel(currentStudent.totalPoints || 0);
+  const suggestedReward = PersonalGoalsDB.calcRewardByLevel(level);
+  const suggestedPenalty = PersonalGoalsDB.calcPenaltyByLevel(level);
+
+  const modal = document.createElement('div');
+  modal.id = 'createGoalModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:22px;max-width:420px;width:100%;max-height:90vh;overflow-y:auto;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+      <div style="font-size:20px;font-weight:700;margin-bottom:6px;">🎯 今週の目標を立てる</div>
+      <div style="font-size:12px;color:#718096;margin-bottom:16px;">目標を達成するとボーナスポイントがもらえます。逆に達成できないと少しペナルティがあります (Lv${level})。</div>
+
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px;font-weight:700;display:block;margin-bottom:6px;">目標のタイプ</label>
+        <select id="goalType" onchange="onGoalTypeChange()" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;">
+          <option value="time">⏱ 学習時間 (時間)</option>
+          <option value="pomodoro">🍅 ポモドーロ回数</option>
+          <option value="sessions">📚 学習セッション数</option>
+          <option value="custom">📝 自由目標 (講師が判定)</option>
+        </select>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px;font-weight:700;display:block;margin-bottom:6px;">タイトル</label>
+        <input type="text" id="goalTitle" placeholder="例: 今週は数学を集中的に" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;">
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px;font-weight:700;display:block;margin-bottom:6px;">目標値 <span id="goalUnit" style="font-weight:normal;color:#718096;">(時間)</span></label>
+        <input type="number" id="goalTarget" min="0.5" step="0.5" value="5" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:14px;">
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px;font-weight:700;display:block;margin-bottom:6px;">補足説明 (任意)</label>
+        <textarea id="goalDescription" rows="2" placeholder="目標を立てた理由や詳細" style="width:100%;padding:10px;border:2px solid #e2e8f0;border-radius:8px;font-size:13px;"></textarea>
+      </div>
+
+      <div style="background:#f7fafc;padding:12px;border-radius:8px;margin-bottom:14px;">
+        <div style="font-size:12px;font-weight:700;margin-bottom:8px;color:#4a5568;">📊 ポイント設定 (レベル${level}の推奨値)</div>
+        <div style="display:flex;gap:10px;">
+          <div style="flex:1;">
+            <label style="font-size:11px;color:#48bb78;font-weight:700;">達成ボーナス (+)</label>
+            <input type="number" id="goalReward" min="0" step="10" value="${suggestedReward}" style="width:100%;padding:6px 10px;border:1px solid #c6f6d5;border-radius:6px;font-size:13px;color:#22543d;font-weight:700;">
+          </div>
+          <div style="flex:1;">
+            <label style="font-size:11px;color:#e53e3e;font-weight:700;">未達ペナルティ (-)</label>
+            <input type="number" id="goalPenalty" min="0" step="10" value="${suggestedPenalty}" style="width:100%;padding:6px 10px;border:1px solid #fed7d7;border-radius:6px;font-size:13px;color:#742a2a;font-weight:700;">
+          </div>
+        </div>
+        <div style="font-size:10px;color:#718096;margin-top:6px;">
+          ${level <= 2 ? '🛡 Lv1-2 は初心者保護のため、実際には未達ペナルティは発動しません' : `3 週連続未達で最大 ${suggestedPenalty} pt 減少。1 週目は警告のみ。`}
+        </div>
+      </div>
+
+      <div id="createGoalResult" style="font-size:12px;margin-bottom:10px;"></div>
+
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" style="flex:1;" onclick="document.getElementById('createGoalModal').remove()">キャンセル</button>
+        <button class="btn btn-primary" style="flex:1;" onclick="submitPersonalGoal()">✉️ 教室長に申請</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+function onGoalTypeChange() {
+  const type = document.getElementById('goalType').value;
+  const unitEl = document.getElementById('goalUnit');
+  const targetEl = document.getElementById('goalTarget');
+  const units = { time: '(時間)', pomodoro: '(回)', sessions: '(回)', custom: '(任意)' };
+  const defaults = { time: 5, pomodoro: 15, sessions: 5, custom: 1 };
+  if (unitEl) unitEl.textContent = units[type] || '';
+  if (targetEl) targetEl.value = defaults[type] || 1;
+}
+
+async function submitPersonalGoal() {
+  const type = document.getElementById('goalType').value;
+  const title = document.getElementById('goalTitle').value.trim();
+  const target = parseFloat(document.getElementById('goalTarget').value) || 0;
+  const description = document.getElementById('goalDescription').value.trim();
+  const reward = parseInt(document.getElementById('goalReward').value) || 0;
+  const penalty = parseInt(document.getElementById('goalPenalty').value) || 0;
+  const resultEl = document.getElementById('createGoalResult');
+
+  if (!title) {
+    resultEl.innerHTML = '<div style="color:#e53e3e;">タイトルを入力してください</div>';
+    return;
+  }
+  if (target <= 0) {
+    resultEl.innerHTML = '<div style="color:#e53e3e;">目標値は 0 より大きい数字で指定してください</div>';
+    return;
+  }
+
+  const units = { time: '時間', pomodoro: '回', sessions: '回', custom: '' };
+
+  try {
+    await PersonalGoalsDB.create({
+      studentId: currentStudent.id,
+      studentName: currentStudent.callsign || currentStudent.nickname || currentStudent.name,
+      type, title, target, unit: units[type] || '',
+      description, reward, penalty,
+    });
+    document.getElementById('createGoalModal').remove();
+    showToast('✉️ 目標を教室長に申請しました');
+    loadHomePersonalGoals();
+  } catch (e) {
+    console.error('[submitPersonalGoal]', e);
+    resultEl.innerHTML = '<div style="color:#e53e3e;">申請失敗: ' + escapeHtml(e.message || '') + '</div>';
+  }
+}
+
 async function loadHome() {
   if (!currentStudent) return;
   // Refresh student data
@@ -2682,6 +2888,11 @@ async function loadHome() {
   try {
     await loadHomeCollectiveGoals();
   } catch(e) { console.error('CollectiveGoals error:', e); }
+
+  // Phase X1: 個人目標表示
+  try {
+    await loadHomePersonalGoals();
+  } catch(e) { console.error('PersonalGoals error:', e); }
 
   // Recent logs
   try {

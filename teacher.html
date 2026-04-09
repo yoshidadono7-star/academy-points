@@ -221,6 +221,7 @@ body {
       </div>
       <div class="tab-sub-group" data-cat="operation">
         <button class="tab-btn" data-tab="approval">🏠 家庭学習承認</button>
+        <button class="tab-btn" data-tab="goalApproval" style="position:relative;">🎯 目標承認<span id="goalApprovalBadge" style="display:none;position:absolute;top:4px;right:4px;background:#fc8181;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;">0</span></button>
         <button class="tab-btn" data-tab="shifts">📅 シフト確認</button>
       </div>
     </div>
@@ -338,6 +339,29 @@ body {
     <div class="card">
       <h3 style="display:flex;align-items:center;gap:8px;">📬 申し送り Inbox <span style="font-size:11px;font-weight:normal;color:var(--text-light);">あなたに関係する情報を一覧で</span></h3>
       <div id="handoffInboxList">
+        <div class="empty-state">読み込み中...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Phase X1: 個人目標の承認 -->
+  <div class="tab-content" id="tab-goalApproval">
+    <div class="card">
+      <h3>🎯 個人目標の承認</h3>
+      <p style="font-size:12px;color:#718096;margin-bottom:14px;">
+        生徒が立てた今週の目標を承認してください。目標は現実的な範囲か、レベルに合ったポイント設定かを確認し、必要なら却下も可能です。
+      </p>
+      <div id="pendingGoalsList">
+        <div class="empty-state">読み込み中...</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h3>📋 承認済み・進行中の目標</h3>
+      <p style="font-size:12px;color:#718096;margin-bottom:14px;">
+        現在進行中の目標。手動で達成 or 未達成としてマークできます (自動判定は週次で実行)。
+      </p>
+      <div id="activeGoalsList">
         <div class="empty-state">読み込み中...</div>
       </div>
     </div>
@@ -485,7 +509,8 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
       stats: loadTeacherStats,
       buddychat: loadTeacherBuddyChat,
       aibuddy: loadAIBuddyChat,
-      handoff: loadHandoffInbox
+      handoff: loadHandoffInbox,
+      goalApproval: loadGoalApprovalTab,
     };
     if (loaders[tab]) loaders[tab]();
   });
@@ -1166,6 +1191,197 @@ async function sendAIBuddyMessage() {
 // ============================================
 // Phase 2: 申し送り Inbox
 // ============================================
+// ============================================
+// Phase X1: 個人目標の承認 (教師画面)
+// ============================================
+function escapeHtmlTeacher(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+const GOAL_TYPE_LABELS = {
+  time: '⏱ 学習時間',
+  pomodoro: '🍅 ポモドーロ回数',
+  sessions: '📚 セッション数',
+  task: '✅ タスク',
+  custom: '📝 自由目標',
+};
+
+async function loadGoalApprovalTab() {
+  await Promise.all([loadPendingGoals(), loadActiveGoals()]);
+}
+
+async function loadPendingGoals() {
+  const container = document.getElementById('pendingGoalsList');
+  if (!container) return;
+  try {
+    const pending = await PersonalGoalsDB.getPendingApprovals();
+    updateGoalApprovalBadge(pending.length);
+    if (pending.length === 0) {
+      container.innerHTML = '<div class="empty-state">承認待ちの目標はありません</div>';
+      return;
+    }
+    // Load students for level calculation
+    const students = await StudentsDB.getAll();
+    const sMap = {};
+    students.forEach(s => { sMap[s.id] = s; });
+
+    container.innerHTML = pending.map(g => {
+      const student = sMap[g.studentId];
+      const level = student ? calcLevel(student.totalPoints || 0) : 1;
+      const typeLabel = GOAL_TYPE_LABELS[g.type] || g.type;
+      return `
+        <div style="background:#fffbeb;border:2px solid #fbd38d;border-radius:10px;padding:14px;margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">
+            <div>
+              <div style="font-size:15px;font-weight:700;">${escapeHtmlTeacher(g.title)}</div>
+              <div style="font-size:11px;color:#718096;">${escapeHtmlTeacher(g.studentName)} (Lv${level}) · ${escapeHtmlTeacher(typeLabel)}</div>
+            </div>
+            <div style="text-align:right;font-size:11px;color:#718096;">
+              週: ${escapeHtmlTeacher(g.week || '-')}
+            </div>
+          </div>
+          <div style="padding:8px 12px;background:#fff;border-radius:6px;margin-bottom:8px;font-size:13px;">
+            目標: <strong>${g.target} ${g.unit || ''}</strong>
+            ${g.description ? '<br><span style="font-size:11px;color:#718096;">' + escapeHtmlTeacher(g.description) + '</span>' : ''}
+          </div>
+          <div style="display:flex;gap:10px;font-size:11px;margin-bottom:10px;">
+            <span>達成: <strong style="color:#48bb78;">+${g.reward} pt</strong></span>
+            <span>未達: <strong style="color:#e53e3e;">-${g.penalty} pt</strong></span>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary btn-sm" style="flex:1;" onclick="approveGoal('${g.id}')">✅ 承認</button>
+            <button class="btn btn-sm" style="flex:1;background:#fff5f5;color:#c53030;border:1px solid #fc8181;" onclick="rejectGoal('${g.id}')">❌ 却下</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch(e) {
+    console.error('[loadPendingGoals]', e);
+    container.innerHTML = '<div class="empty-state" style="color:#e53e3e;">読み込み失敗: ' + escapeHtmlTeacher(e.message || '') + '</div>';
+  }
+}
+
+async function loadActiveGoals() {
+  const container = document.getElementById('activeGoalsList');
+  if (!container) return;
+  try {
+    const all = await PersonalGoalsDB.getAll();
+    const week = PersonalGoalsDB.getCurrentWeek();
+    const active = all.filter(g => g.status === 'active' && g.week === week);
+    if (active.length === 0) {
+      container.innerHTML = '<div class="empty-state">今週の進行中目標はありません</div>';
+      return;
+    }
+
+    const students = await StudentsDB.getAll();
+    const sMap = {};
+    students.forEach(s => { sMap[s.id] = s; });
+
+    // 各目標の進捗を計算
+    const withProgress = await Promise.all(active.map(async g => ({
+      ...g,
+      _progress: await PersonalGoalsDB.calculateProgress(g),
+      _student: sMap[g.studentId],
+    })));
+
+    container.innerHTML = withProgress.map(g => {
+      const rawPct = g._progress.pct || 0;
+      const pct = Math.min(100, rawPct);
+      const barColor = pct >= 100 ? '#48bb78' : pct >= 70 ? '#ed8936' : '#667eea';
+      const pctLabel = rawPct <= 0 ? '0%' : rawPct < 1 ? '< 1%' : rawPct < 10 ? (Math.round(rawPct * 10) / 10) + '%' : rawPct >= 100 ? '100%' : Math.round(rawPct) + '%';
+      const level = g._student ? calcLevel(g._student.totalPoints || 0) : 1;
+      return `
+        <div style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
+            <div>
+              <div style="font-size:13px;font-weight:700;">${escapeHtmlTeacher(g.title)}</div>
+              <div style="font-size:11px;color:#718096;">${escapeHtmlTeacher(g.studentName)} (Lv${level})</div>
+            </div>
+            <div style="font-size:12px;font-weight:700;color:${barColor};">${pctLabel}</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
+            <span>進捗</span>
+            <span style="font-family:monospace;">${(Math.round(g._progress.current * 10) / 10)} / ${g.target} ${g.unit || ''}</span>
+          </div>
+          <div style="background:rgba(0,0,0,0.06);border-radius:4px;height:8px;overflow:hidden;margin-bottom:8px;">
+            <div style="background:${barColor};height:8px;width:${Math.max(pct, rawPct > 0 ? 1 : 0)}%;"></div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-sm btn-primary" style="flex:1;" onclick="markGoalAchievedManual('${g.id}')">🎉 達成にする</button>
+            <button class="btn btn-sm" style="flex:1;background:#fff5f5;color:#c53030;border:1px solid #fc8181;" onclick="markGoalMissedManual('${g.id}')">😢 未達にする</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch(e) {
+    console.error('[loadActiveGoals]', e);
+    container.innerHTML = '<div class="empty-state" style="color:#e53e3e;">読み込み失敗: ' + escapeHtmlTeacher(e.message || '') + '</div>';
+  }
+}
+
+function updateGoalApprovalBadge(count) {
+  const badge = document.getElementById('goalApprovalBadge');
+  if (!badge) return;
+  if (count > 0) {
+    badge.textContent = count;
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+async function approveGoal(id) {
+  try {
+    await PersonalGoalsDB.approve(id, currentTeacher?.name || '教室長');
+    showToast('✅ 承認しました');
+    loadGoalApprovalTab();
+  } catch(e) { showToast('承認失敗', 'error'); }
+}
+
+async function rejectGoal(id) {
+  const reason = prompt('却下理由 (任意):');
+  if (reason === null) return;
+  try {
+    await PersonalGoalsDB.reject(id, reason);
+    showToast('却下しました');
+    loadGoalApprovalTab();
+  } catch(e) { showToast('却下失敗', 'error'); }
+}
+
+async function markGoalAchievedManual(id) {
+  if (!confirm('この目標を「達成」にマークしますか？ 報酬ポイントが生徒に付与されます。')) return;
+  try {
+    const goal = await PersonalGoalsDB.getById(id);
+    const student = await StudentsDB.getById(goal.studentId);
+    await PersonalGoalsDB.markAchieved(id, student);
+    showToast('🎉 達成としてマークしました');
+    loadGoalApprovalTab();
+  } catch(e) {
+    console.error(e);
+    showToast('失敗: ' + (e.message || ''), 'error');
+  }
+}
+
+async function markGoalMissedManual(id) {
+  if (!confirm('この目標を「未達成」にマークしますか？ レベルに応じたペナルティが適用されます (Lv1-2 は保護、1 週目は警告のみ)。')) return;
+  try {
+    const goal = await PersonalGoalsDB.getById(id);
+    const student = await StudentsDB.getById(goal.studentId);
+    const result = await PersonalGoalsDB.markMissed(id, student);
+    const msg = result.penalty > 0
+      ? `😢 未達としてマーク (Lv${result.level}, ${result.consecutiveMisses}週目連続, -${result.penalty} pt)`
+      : `😢 未達としてマーク (Lv${result.level}, 警告のみ)`;
+    showToast(msg);
+    loadGoalApprovalTab();
+  } catch(e) {
+    console.error(e);
+    showToast('失敗: ' + (e.message || ''), 'error');
+  }
+}
+
 async function loadHandoffInbox() {
   if (!currentTeacher) return;
   const container = document.getElementById('handoffInboxList');

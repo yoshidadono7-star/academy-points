@@ -3763,6 +3763,269 @@ const BudgetLimitsDB = {
   },
 };
 
+// --- Feature 12 Phase X1: 個人目標 ---
+// personalGoals コレクション: 生徒が自分で立てる週次目標
+// 「目標を立てる → 教室長が承認 → 期限到達 → 判定 → 報酬 or ペナルティ」のサイクル
+//
+// フィールド:
+//   studentId, studentName, week (YYYY-WW), type (time/pomodoro/sessions/task/custom),
+//   title, description, target (数値目標), unit (h/回/分...),
+//   reward (達成時の pt), penalty (未達時の pt、レベルで自動スケール),
+//   status: 'pending_approval' | 'active' | 'achieved' | 'missed' | 'cancelled',
+//   approvedBy, approvedAt, rejectedReason,
+//   judgedAt, result (progress %), consecutiveMisses,
+//   createdAt, updatedAt
+//
+// レベル別ペナルティスケール (3 週連続未達 = 本格マイナス):
+//   Lv1-2: 0 pt (完全保護)
+//   Lv3-4: -25 pt
+//   Lv5-6: -50 pt
+//   Lv7-8: -100 pt
+//   Lv9-10: -150 pt
+const PersonalGoalsDB = {
+  // 今週の ISO week 番号 (YYYY-WW) を返す
+  getCurrentWeek() {
+    const now = new Date();
+    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNum = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+  },
+  // 週の期間 (月曜 00:00 〜 日曜 23:59)
+  getWeekRange(weekId) {
+    // weekId は 'YYYY-WWnn' 形式
+    const m = weekId.match(/^(\d{4})-W(\d{2})$/);
+    if (!m) return null;
+    const year = parseInt(m[1]);
+    const weekNum = parseInt(m[2]);
+    const jan4 = new Date(Date.UTC(year, 0, 4));
+    const jan4Dow = jan4.getUTCDay() || 7;
+    const week1Monday = new Date(jan4);
+    week1Monday.setUTCDate(jan4.getUTCDate() - jan4Dow + 1);
+    const weekMonday = new Date(week1Monday);
+    weekMonday.setUTCDate(weekMonday.getUTCDate() + (weekNum - 1) * 7);
+    const weekSunday = new Date(weekMonday);
+    weekSunday.setUTCDate(weekSunday.getUTCDate() + 6);
+    weekSunday.setUTCHours(23, 59, 59, 999);
+    return { start: weekMonday, end: weekSunday };
+  },
+  // レベルから標準ペナルティを算出 (段階 3: 本格マイナス時)
+  calcPenaltyByLevel(level) {
+    if (level <= 2) return 0;
+    if (level <= 4) return 25;
+    if (level <= 6) return 50;
+    if (level <= 8) return 100;
+    return 150;
+  },
+  // レベルから標準報酬を算出 (達成時)
+  calcRewardByLevel(level) {
+    if (level <= 2) return 50;
+    if (level <= 4) return 100;
+    if (level <= 6) return 200;
+    if (level <= 8) return 300;
+    return 500;
+  },
+  async getAll() {
+    const snap = await db.collection('personalGoals').orderBy('createdAt', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getByStudent(studentId, limit = 20) {
+    const snap = await db.collection('personalGoals')
+      .where('studentId', '==', studentId)
+      .orderBy('createdAt', 'desc')
+      .limit(limit).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getCurrentWeekByStudent(studentId) {
+    const week = this.getCurrentWeek();
+    const snap = await db.collection('personalGoals')
+      .where('studentId', '==', studentId)
+      .where('week', '==', week)
+      .get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getPendingApprovals() {
+    const snap = await db.collection('personalGoals')
+      .where('status', '==', 'pending_approval')
+      .get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getById(id) {
+    const doc = await db.collection('personalGoals').doc(id).get();
+    return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  },
+  // 生徒が目標を立てる (status: pending_approval)
+  async create(data) {
+    const ref = await db.collection('personalGoals').add({
+      studentId: data.studentId,
+      studentName: data.studentName || '',
+      week: data.week || this.getCurrentWeek(),
+      type: data.type || 'time',  // 'time' | 'pomodoro' | 'sessions' | 'task' | 'custom'
+      title: data.title || '',
+      description: data.description || '',
+      target: data.target || 0,
+      unit: data.unit || '',
+      reward: data.reward || 0,
+      penalty: data.penalty || 0,
+      status: 'pending_approval',
+      consecutiveMisses: 0,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    return ref.id;
+  },
+  // 教室長が承認 (status: active)
+  async approve(id, approverName) {
+    await db.collection('personalGoals').doc(id).update({
+      status: 'active',
+      approvedBy: approverName || 'commander',
+      approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  },
+  // 教室長が却下
+  async reject(id, reason) {
+    await db.collection('personalGoals').doc(id).update({
+      status: 'cancelled',
+      rejectedReason: reason || '',
+      judgedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  },
+  async update(id, data) {
+    await db.collection('personalGoals').doc(id).update({
+      ...data,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  },
+  async delete(id) {
+    await db.collection('personalGoals').doc(id).delete();
+  },
+  // 目標の進捗を計算 (studyLogs から集計)
+  // 目標の target 値に対する現在の達成率を返す
+  async calculateProgress(goal) {
+    const range = this.getWeekRange(goal.week);
+    if (!range) return { current: 0, target: goal.target, pct: 0 };
+
+    let current = 0;
+    try {
+      const snap = await db.collection('studyLogs')
+        .where('studentId', '==', goal.studentId)
+        .get();
+      snap.forEach(d => {
+        const log = d.data();
+        const ts = log.date ? new Date(log.date) : (log.timestamp?.toDate ? log.timestamp.toDate() : null);
+        if (!ts || ts < range.start || ts > range.end) return;
+        if (log.pending) return; // 未承認ログはカウントしない
+
+        if (goal.type === 'time') {
+          current += (log.duration || 0) / 60; // 分 → 時間
+        } else if (goal.type === 'pomodoro') {
+          current += log.pomodoroCount || 0;
+        } else if (goal.type === 'sessions') {
+          current += 1;
+        }
+        // 'task' / 'custom' は別途判定 (講師が手動で結果を入れる)
+      });
+    } catch(e) { console.warn('[PersonalGoalsDB.calculateProgress]', e); }
+
+    const pct = goal.target > 0 ? Math.min(100, (current / goal.target) * 100) : 0;
+    return { current, target: goal.target, pct };
+  },
+  // 目標を達成として判定
+  async markAchieved(id, student, customResult) {
+    const goal = await this.getById(id);
+    if (!goal) throw new Error('目標が見つかりません');
+    // 報酬付与 (StudentsDB.addPoints が coins 監査ログも自動記録)
+    if (goal.reward > 0) {
+      await StudentsDB.addPoints(goal.studentId, goal.reward, {
+        category: 'goal_achieved',
+        description: `個人目標達成: ${goal.title}`,
+        grantedBy: 'system',
+      });
+    }
+    await db.collection('personalGoals').doc(id).update({
+      status: 'achieved',
+      judgedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      result: customResult || null,
+    });
+  },
+  // 目標を未達として判定 (連続未達成カウント + ペナルティ)
+  async markMissed(id, student) {
+    const goal = await this.getById(id);
+    if (!goal) throw new Error('目標が見つかりません');
+
+    // 連続未達カウントを更新 (前週までの連続値を取得)
+    const prevMisses = await this.getConsecutiveMisses(goal.studentId);
+    const consecutiveMisses = prevMisses + 1;
+
+    // レベルベースのペナルティ算出
+    const level = typeof calcLevel === 'function' ? calcLevel(student?.totalPoints || 0) : 1;
+    const basePenalty = this.calcPenaltyByLevel(level);
+
+    // 段階的スケーリング: 1 週目は警告のみ、2 週目は半額、3 週目以上は全額
+    let penaltyMultiplier = 0;
+    if (consecutiveMisses === 1) penaltyMultiplier = 0;
+    else if (consecutiveMisses === 2) penaltyMultiplier = 0.5;
+    else penaltyMultiplier = 1.0;
+
+    const penalty = Math.floor(basePenalty * penaltyMultiplier);
+
+    // ペナルティ実行 (フロア 0 保護)
+    if (penalty > 0 && student) {
+      const currentPts = student.currentPoints || 0;
+      const actualPenalty = Math.min(penalty, currentPts); // フロア保護
+      if (actualPenalty > 0) {
+        await StudentsDB.spendPoints(goal.studentId, actualPenalty, {
+          category: 'goal_missed',
+          description: `個人目標未達 (Lv${level}, ${consecutiveMisses}週目): ${goal.title}`,
+          grantedBy: 'system',
+        });
+      }
+    }
+
+    await db.collection('personalGoals').doc(id).update({
+      status: 'missed',
+      judgedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      consecutiveMisses,
+      penaltyApplied: penalty,
+      levelAtJudgement: level,
+    });
+
+    // 3 週連続未達成なら handoffLog にアラート生成 (コーチング介入 trigger)
+    if (consecutiveMisses >= 3 && typeof HandoffLogDB !== 'undefined') {
+      try {
+        await HandoffLogDB.create({
+          level: 'commander',
+          type: 'alert',
+          studentId: goal.studentId,
+          studentName: goal.studentName,
+          title: `⚠️ ${goal.studentName}: 3 週連続目標未達成`,
+          content: `${goal.studentName} さんが 3 週連続で個人目標「${goal.title}」を達成できていません。コーチング介入を検討してください。`,
+          visibleTo: ['commander', 'owner'],
+          createdBy: 'system',
+        });
+      } catch(e) { console.warn('[goal handoff alert]', e); }
+    }
+
+    return { penalty, consecutiveMisses, level };
+  },
+  // ある生徒の連続未達成数を取得 (直近 N 週)
+  async getConsecutiveMisses(studentId) {
+    const snap = await db.collection('personalGoals')
+      .where('studentId', '==', studentId)
+      .orderBy('createdAt', 'desc')
+      .limit(10)
+      .get();
+    const goals = snap.docs.map(d => d.data()).filter(g => g.status === 'missed' || g.status === 'achieved');
+
+    let count = 0;
+    for (const g of goals) {
+      if (g.status === 'missed') count++;
+      else break;
+    }
+    return count;
+  },
+};
+
 // --- Feature 11 Phase S1: 集団目標 ---
 // collectiveGoals コレクション: 全員で貢献して閾値に達すると教室全体に特典が降ってくる
 // 例: 日曜開室、ドリンクバー解禁、特別イベント開催 etc.
