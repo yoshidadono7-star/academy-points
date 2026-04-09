@@ -343,6 +343,14 @@ service cloud.firestore {
       allow write: if true;
     }
 
+    // Feature 11 Phase D1: 特別付与テンプレート
+    // grantTemplates: 誕生日・皆勤・新入生歓迎などのテンプレート定義
+    // 管理画面から作成・編集、実行時は一覧取得が必要
+    match /grantTemplates/{templateId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
     // handoffLog: 階層間の申し送り（生徒バディ → 講師 → 教室長 → オーナー）。
     // 講師ポータル/オーナーポータルから書き込み（PIN ログインなのでクライアントから自由に）。
     // 将来的に Firestore Rules で role ベースの絞り込みを検討。
