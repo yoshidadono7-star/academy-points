@@ -1345,12 +1345,14 @@ const StreakManager = {
     });
     await batch.commit();
   },
-  // Phase 10: ストリークボーナス改定
+  // Phase 10→A1: ストリークボーナス（Firestore 管理に移行、後方互換のため同期版も残す）
   getStreakBonus(streakDays) {
-    if (streakDays >= 20) return 60;
-    if (streakDays >= 10) return 40;
-    if (streakDays >= 5) return 20;
-    if (streakDays >= 3) return 10;
+    // 同期版: PointRatesDB のキャッシュがあればそれを使い、なければデフォルト値
+    const r = PointRatesDB._cache || PointRatesDB.DEFAULTS;
+    if (streakDays >= 20) return r.streak20;
+    if (streakDays >= 10) return r.streak10;
+    if (streakDays >= 5) return r.streak5;
+    if (streakDays >= 3) return r.streak3;
     return 0;
   },
   // ストリーク更新（bestStreak保存）
@@ -1510,10 +1512,11 @@ function getRankDisplay(rankId) {
   return `${r.icon} ${r.name}`;
 }
 
-// ポイント残高上限チェック
+// ポイント残高上限チェック（PointRatesDB のキャッシュ優先、未ロード時は COIN_PARAMS フォールバック）
 function checkBalanceCap(currentPoints) {
-  if (currentPoints > COIN_PARAMS.balanceCap) {
-    return { overflow: currentPoints - COIN_PARAMS.balanceCap, capped: COIN_PARAMS.balanceCap };
+  const cap = (PointRatesDB._cache && PointRatesDB._cache.balanceCap) || COIN_PARAMS.balanceCap;
+  if (currentPoints > cap) {
+    return { overflow: currentPoints - cap, capped: cap };
   }
   return { overflow: 0, capped: currentPoints };
 }
@@ -4437,35 +4440,71 @@ const GrantTemplatesDB = {
 // 月間報酬予算（円）を管理。未設定時は DEFAULTS を使用。
 const PointRatesDB = {
   DEFAULTS: {
-    yenPerPoint: 1,          // 1 pt = ¥1 (塾長の方針)
-    monthlyRewardBudgetYen: 75000,  // 月間報酬予算 ¥75,000
+    // 経済パラメータ
+    yenPerPoint: 1,                    // 1 pt = ¥1
+    monthlyRewardBudgetYen: 75000,     // 月間報酬予算 ¥75,000
+    // 基本ポイント収入
+    basePointsPerMinute: 1,            // 1分 = 1pt
+    pomodoroBonus: 7,                  // ポモドーロ1回ボーナス
+    // ストリークボーナス
+    streak3: 10,                       // 3-4日連続
+    streak5: 20,                       // 5-9日連続
+    streak10: 40,                      // 10-19日連続
+    streak20: 60,                      // 20日+連続
+    // 残高・レベル
+    balanceCap: 3500,                  // ポイント残高上限
+    levelThresholds: [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4500, 7000],
   },
 
+  _cache: null,
+  _cacheAt: 0,
+
   async get() {
+    // 5分キャッシュ（Firestoreの読み取り節約）
+    if (this._cache && Date.now() - this._cacheAt < 300000) return this._cache;
     try {
       const doc = await db.collection('settings').doc('pointRates').get();
       if (doc.exists) {
         const data = doc.data() || {};
-        return {
-          yenPerPoint: data.yenPerPoint != null ? data.yenPerPoint : this.DEFAULTS.yenPerPoint,
-          monthlyRewardBudgetYen: data.monthlyRewardBudgetYen != null ? data.monthlyRewardBudgetYen : this.DEFAULTS.monthlyRewardBudgetYen,
-        };
+        const merged = {};
+        for (const [key, def] of Object.entries(this.DEFAULTS)) {
+          merged[key] = data[key] != null ? data[key] : def;
+        }
+        this._cache = merged;
+        this._cacheAt = Date.now();
+        return merged;
       }
     } catch (e) { console.warn('[PointRatesDB.get]', e); }
-    return { ...this.DEFAULTS };
+    this._cache = { ...this.DEFAULTS };
+    this._cacheAt = Date.now();
+    return this._cache;
   },
+
+  // キャッシュを破棄（save 後に呼ぶ）
+  invalidateCache() { this._cache = null; this._cacheAt = 0; },
 
   async save(rates) {
     await db.collection('settings').doc('pointRates').set({
       ...rates,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
+    this.invalidateCache();
   },
 
   // pt → ¥ 変換 (便利関数)
   async toYen(points) {
     const rates = await this.get();
     return points * rates.yenPerPoint;
+  },
+
+  // ストリークボーナスを動的に取得
+  async getStreakBonus(streakDays) {
+    const r = await this.get();
+    if (streakDays >= 20) return r.streak20;
+    if (streakDays >= 10) return r.streak10;
+    if (streakDays >= 5) return r.streak5;
+    if (streakDays >= 3) return r.streak3;
+    return 0;
   },
 };
 
