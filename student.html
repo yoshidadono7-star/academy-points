@@ -1849,6 +1849,8 @@ body.theme-space {
   </div>
   <div id="homePersonalGoals" style="margin-bottom:16px;"></div>
 
+  <div id="homeGuildGoal" style="margin-bottom:16px;"></div>
+
   <div class="home-section-title">最近の学習</div>
   <div id="homeRecentLogs"></div>
 </div>
@@ -2707,6 +2709,41 @@ async function loadHomePersonalGoals() {
   }
 }
 
+// X4: ギルド目標をホーム画面に表示
+async function loadHomeGuildGoal() {
+  const container = document.getElementById('homeGuildGoal');
+  if (!container || !currentStudent || !currentStudent.guildId) {
+    if (container) container.innerHTML = '';
+    return;
+  }
+
+  const goals = await GuildGoalsDB.getActiveByGuild(currentStudent.guildId);
+  if (goals.length === 0) { container.innerHTML = ''; return; }
+
+  const guild = await GuildsDB.getById(currentStudent.guildId);
+  const theme = (typeof GUILD_THEMES !== 'undefined') ? GUILD_THEMES.find(t => t.id === (guild || {}).themeId) : null;
+  const icon = theme ? theme.icon : '⭐';
+  const guildName = theme ? theme.name : (guild ? guild.name : '');
+
+  let html = `<div style="font-size:13px;font-weight:700;margin-bottom:6px;">${icon} ${escapeHtml(guildName)}のギルド目標</div>`;
+  for (const goal of goals.slice(0, 2)) {
+    const progress = await GuildGoalsDB.calculateProgress(goal);
+    const pct = Math.min(progress.pct, 100);
+    const color = theme ? theme.color : '#667eea';
+    html += `<div style="padding:8px 10px;background:linear-gradient(135deg,${color}11,${color}22);border:1px solid ${color}44;border-radius:8px;margin-bottom:6px;">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+        <span style="font-weight:600;">${escapeHtml(goal.title)}</span>
+        <span style="color:${color};font-weight:700;">${progress.current}/${goal.target} (${pct}%)</span>
+      </div>
+      <div style="background:${color}22;border-radius:4px;height:6px;">
+        <div style="background:${color};border-radius:4px;height:6px;width:${pct}%;transition:width 0.5s;"></div>
+      </div>
+      <div style="font-size:10px;color:var(--text-light);margin-top:3px;">達成で全員 +${goal.reward}pt</div>
+    </div>`;
+  }
+  container.innerHTML = html;
+}
+
 // 目標作成モーダル
 function openCreatePersonalGoalModal() {
   const level = calcLevel(currentStudent.totalPoints || 0);
@@ -2912,6 +2949,11 @@ async function loadHome() {
   try {
     await loadHomePersonalGoals();
   } catch(e) { console.error('PersonalGoals error:', e); }
+
+  // X4: ギルド目標表示
+  try {
+    await loadHomeGuildGoal();
+  } catch(e) { console.error('GuildGoal error:', e); }
 
   // Recent logs
   try {
