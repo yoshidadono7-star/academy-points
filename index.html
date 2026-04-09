@@ -1255,6 +1255,47 @@
       <div id="economyLogFooter" style="font-size:11px;color:var(--text-light);margin-top:6px;"></div>
     </div>
 
+    <!-- Phase F2: 予算上限ダッシュボード -->
+    <div class="card" id="budgetDashboardCard">
+      <div class="card-title"><span class="icon">&#128176;</span> 予算使用状況（裁量付与）</div>
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:10px;">
+        コーチ/艦長/講師が手動で付与するポイントの月次/日次上限と、使用済み・残量を表示します。システム自動付与（学習セッション・ミッション等）は集計対象外です。
+      </p>
+      <div id="budgetDashboardContent" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+        <p style="color:var(--text-light);font-size:12px;grid-column:1/-1;">読み込み中...</p>
+      </div>
+      <div id="budgetLimitEditor" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+        <div style="font-size:13px;font-weight:700;margin-bottom:8px;">⚙️ 予算上限の設定 <span style="font-size:11px;font-weight:normal;color:var(--text-light);">(オーナー専用)</span></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;font-size:12px;">
+          <div>
+            <label style="font-weight:700;display:block;margin-bottom:4px;">艦長 月次上限 (pt)</label>
+            <input type="number" class="form-control" id="limitCommanderMonthly" min="0" step="100">
+          </div>
+          <div>
+            <label style="font-weight:700;display:block;margin-bottom:4px;">管理者 月次上限 (pt)</label>
+            <input type="number" class="form-control" id="limitAdminMonthly" min="0" step="100">
+          </div>
+          <div>
+            <label style="font-weight:700;display:block;margin-bottom:4px;">講師 月次上限 (pt)</label>
+            <input type="number" class="form-control" id="limitTeacherMonthly" min="0" step="100">
+          </div>
+          <div>
+            <label style="font-weight:700;display:block;margin-bottom:4px;">講師 日次上限 (pt)</label>
+            <input type="number" class="form-control" id="limitTeacherDaily" min="0" step="10">
+          </div>
+          <div>
+            <label style="font-weight:700;display:block;margin-bottom:4px;">講師 1 回あたり上限 (pt)</label>
+            <input type="number" class="form-control" id="limitTeacherPerGrant" min="0" step="5">
+          </div>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:10px;align-items:center;">
+          <button class="btn btn-primary" onclick="saveBudgetLimits()">💾 保存</button>
+          <button class="btn" style="background:#e2e8f0;color:#4a5568;" onclick="resetBudgetLimits()">デフォルトに戻す</button>
+          <span id="budgetLimitStatus" style="font-size:11px;color:var(--text-light);"></span>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-title"><span class="icon">&#128202;</span> ポイント付与ルール一覧</div>
       <div class="table-wrap">
@@ -5530,6 +5571,134 @@ async function loadEconomyLog() {
   }
 }
 
+// ============================================
+// Phase F2: 予算上限ダッシュボード
+// ============================================
+const ECONOMY_ROLE_LABELS = {
+  commander: '艦長（教室長）',
+  admin: '管理者',
+  teacher: '講師',
+};
+
+async function loadBudgetDashboard() {
+  const container = document.getElementById('budgetDashboardContent');
+  if (!container) return;
+  try {
+    const snapshot = await BudgetLimitsDB.getUsageSnapshot();
+    const editor = document.getElementById('budgetLimitEditor');
+    // オーナーのみ編集エリアを表示
+    if (editor) editor.style.display = (window.currentUserRole === 'owner') ? '' : 'none';
+
+    if (Object.keys(snapshot).length === 0) {
+      container.innerHTML = '<p style="color:var(--text-light);font-size:12px;grid-column:1/-1;">予算上限が設定されていません</p>';
+      return;
+    }
+
+    const cards = Object.entries(snapshot).map(([role, data]) => {
+      const label = ECONOMY_ROLE_LABELS[role] || role;
+      const monthlyLimit = data.limits.monthly;
+      const monthPct = monthlyLimit ? Math.min(100, Math.round((data.monthUsed / monthlyLimit) * 100)) : 0;
+      const monthColor = monthPct >= 90 ? '#e53e3e' : monthPct >= 70 ? '#dd6b20' : '#48bb78';
+
+      let dailyHtml = '';
+      if (data.limits.daily != null) {
+        const dailyPct = Math.min(100, Math.round((data.todayUsed / data.limits.daily) * 100));
+        const dailyColor = dailyPct >= 90 ? '#e53e3e' : dailyPct >= 70 ? '#dd6b20' : '#48bb78';
+        dailyHtml = `
+          <div style="margin-top:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
+              <span>本日</span>
+              <span style="font-family:monospace;">${data.todayUsed} / ${data.limits.daily} pt</span>
+            </div>
+            <div style="background:#edf2f7;border-radius:4px;height:6px;overflow:hidden;">
+              <div style="background:${dailyColor};height:6px;width:${dailyPct}%;transition:width 0.4s;"></div>
+            </div>
+          </div>`;
+      }
+      let perGrantHtml = '';
+      if (data.limits.perGrant != null) {
+        perGrantHtml = `<div style="font-size:10px;color:var(--text-light);margin-top:6px;">1回あたり上限: ${data.limits.perGrant} pt</div>`;
+      }
+
+      return `
+        <div style="background:#f7fafc;border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+          <div style="font-weight:700;font-size:13px;margin-bottom:8px;color:var(--text);">${label}</div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
+            <span>今月</span>
+            <span style="font-family:monospace;">${data.monthUsed.toLocaleString()} / ${(monthlyLimit||0).toLocaleString()} pt</span>
+          </div>
+          <div style="background:#edf2f7;border-radius:4px;height:8px;overflow:hidden;">
+            <div style="background:${monthColor};height:8px;width:${monthPct}%;transition:width 0.4s;"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text-light);margin-top:3px;text-align:right;">
+            残 <strong style="color:${monthColor};">${(data.monthRemaining||0).toLocaleString()}</strong> pt
+          </div>
+          ${dailyHtml}
+          ${perGrantHtml}
+        </div>
+      `;
+    }).join('');
+
+    container.innerHTML = cards;
+
+    // オーナーなら現在の上限値を editor にロード
+    if (window.currentUserRole === 'owner') {
+      const limits = await BudgetLimitsDB.get();
+      const el = id => document.getElementById(id);
+      if (el('limitCommanderMonthly')) el('limitCommanderMonthly').value = limits.commander?.monthly || 0;
+      if (el('limitAdminMonthly')) el('limitAdminMonthly').value = limits.admin?.monthly || 0;
+      if (el('limitTeacherMonthly')) el('limitTeacherMonthly').value = limits.teacher?.monthly || 0;
+      if (el('limitTeacherDaily')) el('limitTeacherDaily').value = limits.teacher?.daily || 0;
+      if (el('limitTeacherPerGrant')) el('limitTeacherPerGrant').value = limits.teacher?.perGrant || 0;
+    }
+  } catch (e) {
+    console.error('[budgetDashboard] error:', e);
+    container.innerHTML = '<p style="color:var(--danger);font-size:12px;grid-column:1/-1;">読み込み失敗: ' + escapeHtml(e.message || '') + '</p>';
+  }
+}
+
+async function saveBudgetLimits() {
+  const status = document.getElementById('budgetLimitStatus');
+  if (window.currentUserRole !== 'owner') {
+    status.textContent = '❌ オーナーのみ編集可能';
+    return;
+  }
+  status.textContent = '保存中...';
+  try {
+    const el = id => parseInt(document.getElementById(id).value || '0', 10);
+    const newLimits = {
+      commander: { monthly: el('limitCommanderMonthly') },
+      admin:     { monthly: el('limitAdminMonthly') },
+      teacher: {
+        monthly: el('limitTeacherMonthly'),
+        daily: el('limitTeacherDaily'),
+        perGrant: el('limitTeacherPerGrant'),
+      },
+      owner: { unlimited: true },
+    };
+    await BudgetLimitsDB.save(newLimits);
+    status.textContent = '✅ 保存しました';
+    await loadBudgetDashboard();
+    setTimeout(() => { status.textContent = ''; }, 4000);
+  } catch (e) {
+    console.error('[saveBudgetLimits] error:', e);
+    status.textContent = '❌ 失敗: ' + (e.message || '');
+  }
+}
+
+async function resetBudgetLimits() {
+  if (!confirm('予算上限をデフォルト値に戻しますか？')) return;
+  try {
+    const defaults = BudgetLimitsDB.DEFAULTS;
+    document.getElementById('limitCommanderMonthly').value = defaults.commander.monthly;
+    document.getElementById('limitAdminMonthly').value = defaults.admin.monthly;
+    document.getElementById('limitTeacherMonthly').value = defaults.teacher.monthly;
+    document.getElementById('limitTeacherDaily').value = defaults.teacher.daily;
+    document.getElementById('limitTeacherPerGrant').value = defaults.teacher.perGrant;
+    await saveBudgetLimits();
+  } catch(e) { console.error(e); }
+}
+
 async function loadEconomy() {
   try {
     const monthInput = document.getElementById('economyMonth');
@@ -5539,12 +5708,13 @@ async function loadEconomy() {
     }
     const [year, month] = monthInput.value.split('-').map(Number);
 
-    // Phase F1: 並行で各ダッシュボードをロード
+    // Phase F1 + F2: 並行で各ダッシュボードをロード
     Promise.all([
       loadEconomyDailyChart(year, month),
       loadEconomyBreakdown(year, month),
       loadEconomyStudentRanking(year, month),
       loadEconomyLog(),
+      loadBudgetDashboard(),
     ]).catch(e => console.warn('[economy dashboards]', e));
 
     // 月間サマリー
@@ -5637,16 +5807,32 @@ async function grantCoin() {
   }
 
   try {
+    // Feature 11 Phase F2: 予算上限チェック
+    // 付与者ロール: currentUserRole ('owner' or 'admin'). 今は admin を commander 扱いで集計
+    const granterRole = (window.currentUserRole === 'owner') ? 'owner' : 'admin';
+    const check = await BudgetLimitsDB.check(granterRole, amount);
+    if (!check.allowed) {
+      showToast(`❌ 予算上限超過: ${check.reason}`, 'error');
+      return;
+    }
+
     // addPoints に meta を渡すと coins 監査ログを自動記録 (Feature 11 Phase F1)
     await StudentsDB.addPoints(studentId, amount, {
       category: category === 'manual' ? 'manual' : category,
       description: note || category,
-      grantedBy: 'coach',
+      grantedBy: granterRole,
       type: 'earn',
     });
-    showToast(`${amount}ポイントを付与しました`);
+    // 残量表示
+    let successMsg = `${amount}ポイントを付与しました`;
+    if (!check.unlimited && check.remaining?.monthly != null) {
+      successMsg += ` / 月残 ${check.remaining.monthly.toLocaleString()} pt`;
+    }
+    showToast(successMsg);
     document.getElementById('coinNote').value = '';
     if (category === 'manual') document.getElementById('manualCoinAmount').value = '';
+    // 予算ダッシュボードを更新
+    loadBudgetDashboard().catch(e => console.warn('[budgetDashboard refresh]', e));
   } catch (e) {
     console.error('ポイント付与エラー:', e);
     showToast('ポイント付与に失敗しました', 'error');

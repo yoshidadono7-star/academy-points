@@ -3593,6 +3593,133 @@ const UsersDB = {
   }
 };
 
+// --- Feature 11 Phase F2: 予算上限 ---
+// Firestore settings/budgetLimits ドキュメントで、role 別のポイント付与上限を管理。
+// 判定対象は「人間が裁量で付与したポイント」のみ (grantedBy in ['teacher','commander','admin','owner']).
+// システム自動付与 (grantedBy: 'system') と報酬交換 (spend) は budget 外。
+const BudgetLimitsDB = {
+  // デフォルト値（Firestore にドキュメントがない場合のフォールバック）
+  DEFAULTS: {
+    commander: { monthly: 10000 },
+    admin:     { monthly: 10000 }, // admin は commander と同等の扱い
+    teacher:   { daily: 300, monthly: 3000, perGrant: 100 },
+    owner:     { unlimited: true },
+  },
+
+  async get() {
+    try {
+      const doc = await db.collection('settings').doc('budgetLimits').get();
+      if (doc.exists) {
+        const data = doc.data() || {};
+        // DEFAULTS とマージして欠損フィールドを補完
+        return {
+          commander: { ...this.DEFAULTS.commander, ...(data.commander || {}) },
+          admin:     { ...this.DEFAULTS.admin,     ...(data.admin || {}) },
+          teacher:   { ...this.DEFAULTS.teacher,   ...(data.teacher || {}) },
+          owner:     { ...this.DEFAULTS.owner,     ...(data.owner || {}) },
+        };
+      }
+    } catch (e) { console.warn('[BudgetLimitsDB.get]', e); }
+    return { ...this.DEFAULTS };
+  },
+
+  async save(limits) {
+    await db.collection('settings').doc('budgetLimits').set({
+      ...limits,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  },
+
+  // ある role が該当期間に既に使った裁量付与ポイントを集計
+  // range: 'today' | 'month'
+  async sumGrants(role, range) {
+    const now = new Date();
+    let startTs, endTs;
+    if (range === 'today') {
+      startTs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      endTs   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    } else {
+      startTs = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      endTs   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    }
+    const snap = await db.collection('coins')
+      .where('timestamp', '>=', startTs)
+      .where('timestamp', '<=', endTs)
+      .where('grantedBy', '==', role)
+      .get();
+    let total = 0;
+    snap.forEach(d => {
+      const t = d.data();
+      if (t.amount > 0 && t.approvalStatus !== 'rejected') total += t.amount;
+    });
+    return total;
+  },
+
+  // 予算判定: 指定 role が points を付与してよいか
+  // 戻り値: { allowed: bool, reason: string, remaining: { daily?, monthly } }
+  async check(role, points) {
+    if (!role || role === 'owner') return { allowed: true, unlimited: true };
+    const limits = await this.get();
+    const l = limits[role];
+    if (!l || l.unlimited) return { allowed: true, unlimited: true };
+
+    const result = { allowed: true, remaining: {} };
+
+    // 1 回上限チェック (teacher のみ)
+    if (l.perGrant != null && points > l.perGrant) {
+      return { allowed: false, reason: `1 回あたり上限 ${l.perGrant} pt を超過 (要求: ${points} pt)` };
+    }
+
+    // 日次上限チェック (teacher のみ)
+    if (l.daily != null) {
+      const todayUsed = await this.sumGrants(role, 'today');
+      if (todayUsed + points > l.daily) {
+        return {
+          allowed: false,
+          reason: `本日の上限 ${l.daily} pt を超過 (使用済み ${todayUsed} pt + 今回 ${points} pt)`
+        };
+      }
+      result.remaining.daily = l.daily - todayUsed - points;
+    }
+
+    // 月次上限チェック
+    if (l.monthly != null) {
+      const monthUsed = await this.sumGrants(role, 'month');
+      if (monthUsed + points > l.monthly) {
+        return {
+          allowed: false,
+          reason: `今月の上限 ${l.monthly.toLocaleString()} pt を超過 (使用済み ${monthUsed.toLocaleString()} pt + 今回 ${points} pt)`
+        };
+      }
+      result.remaining.monthly = l.monthly - monthUsed - points;
+    }
+
+    return result;
+  },
+
+  // 予算使用状況のスナップショット (UI 表示用)
+  async getUsageSnapshot() {
+    const limits = await this.get();
+    const snapshot = {};
+    for (const role of ['commander', 'admin', 'teacher']) {
+      const l = limits[role];
+      if (!l || l.unlimited) continue;
+      const monthUsed = await this.sumGrants(role, 'month');
+      snapshot[role] = {
+        limits: l,
+        monthUsed,
+        monthRemaining: l.monthly != null ? Math.max(0, l.monthly - monthUsed) : null,
+      };
+      if (l.daily != null) {
+        const todayUsed = await this.sumGrants(role, 'today');
+        snapshot[role].todayUsed = todayUsed;
+        snapshot[role].todayRemaining = Math.max(0, l.daily - todayUsed);
+      }
+    }
+    return snapshot;
+  },
+};
+
 // --- マイグレーション: 既存データに classroomId を付与 ---
 // 起動時に1回だけ実行（settings/migrations で完了フラグ管理）
 async function migrateClassroomId() {
