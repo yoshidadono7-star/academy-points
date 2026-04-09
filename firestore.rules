@@ -351,6 +351,14 @@ service cloud.firestore {
       allow write: if true;
     }
 
+    // Feature 11 Phase S1: 集団目標
+    // collectiveGoals: 全員で貢献して達成する教室全体の目標
+    // 生徒画面から貢献 (update)、管理画面から作成・編集が必要
+    match /collectiveGoals/{goalId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
     // handoffLog: 階層間の申し送り（生徒バディ → 講師 → 教室長 → オーナー）。
     // 講師ポータル/オーナーポータルから書き込み（PIN ログインなのでクライアントから自由に）。
     // 将来的に Firestore Rules で role ベースの絞り込みを検討。

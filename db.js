@@ -3763,6 +3763,184 @@ const BudgetLimitsDB = {
   },
 };
 
+// --- Feature 11 Phase S1: 集団目標 ---
+// collectiveGoals コレクション: 全員で貢献して閾値に達すると教室全体に特典が降ってくる
+// 例: 日曜開室、ドリンクバー解禁、特別イベント開催 etc.
+// 閾値は塾長のアイデア通り、原価 (円) から換金レートで自動計算可能。
+const CollectiveGoalsDB = {
+  async getAll() {
+    const snap = await db.collection('collectiveGoals').orderBy('createdAt', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getActive() {
+    const all = await this.getAll();
+    return all.filter(g => g.status === 'active');
+  },
+  async getById(id) {
+    const doc = await db.collection('collectiveGoals').doc(id).get();
+    return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  },
+  async create(data) {
+    const ref = await db.collection('collectiveGoals').add({
+      name: data.name,
+      description: data.description || '',
+      icon: data.icon || '🏫',
+      category: data.category || 'special_open',  // 'special_open'|'facility_upgrade'|'event'|'custom'
+      threshold: data.threshold || 1000,
+      currentPoints: 0,
+      contributors: {},  // { studentId: 累計貢献pt }
+      contributorCount: 0,
+      rewardDescription: data.rewardDescription || '',
+      costYen: data.costYen || null,
+      deadline: data.deadline || null,  // ISO date string or null
+      status: 'active',  // 'active'|'achieved'|'expired'|'cancelled'
+      createdBy: data.createdBy || 'admin',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    return ref.id;
+  },
+  async update(id, data) {
+    await db.collection('collectiveGoals').doc(id).update({
+      ...data,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  },
+  async delete(id) {
+    await db.collection('collectiveGoals').doc(id).delete();
+  },
+  // 生徒が集団目標に pt を貢献する
+  // 個人の currentPoints から減算し、集団 pt に加算
+  // 達成時は status='achieved' に自動遷移
+  async contribute(goalId, studentId, points, studentName) {
+    if (points <= 0) throw new Error('貢献量は 1 以上で指定してください');
+    const student = await StudentsDB.getById(studentId);
+    if (!student) throw new Error('生徒が見つかりません');
+    if ((student.currentPoints || 0) < points) {
+      throw new Error(`ポイントが足りません (現在 ${student.currentPoints || 0} pt, 必要 ${points} pt)`);
+    }
+
+    // 1. 個人から減算 + 監査ログ
+    await StudentsDB.spendPoints(studentId, points, {
+      category: 'contribution',
+      description: `集団目標へ貢献 (goalId: ${goalId})`,
+      grantedBy: 'system',
+    });
+
+    // 2. 集団目標に加算 (transaction で原子的に更新)
+    const ref = db.collection('collectiveGoals').doc(goalId);
+    const result = await db.runTransaction(async (txn) => {
+      const doc = await txn.get(ref);
+      if (!doc.exists) throw new Error('目標が見つかりません');
+      const goal = doc.data();
+      if (goal.status !== 'active') throw new Error('この目標は現在アクティブではありません');
+
+      const newPoints = (goal.currentPoints || 0) + points;
+      const contributors = goal.contributors || {};
+      const prevContrib = contributors[studentId] || 0;
+      contributors[studentId] = prevContrib + points;
+      const contributorCount = Object.keys(contributors).length;
+
+      const update = {
+        currentPoints: newPoints,
+        contributors,
+        contributorCount,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      };
+
+      // 達成判定
+      if (newPoints >= goal.threshold && goal.status === 'active') {
+        update.status = 'achieved';
+        update.achievedAt = firebase.firestore.FieldValue.serverTimestamp();
+      }
+
+      txn.update(ref, update);
+      return { newPoints, contributorCount, achieved: update.status === 'achieved' };
+    });
+
+    return result;
+  },
+  // サンプル目標を一括投入
+  async injectSampleGoals() {
+    // 現在の換金レートを取得して threshold を円から計算
+    const rates = await PointRatesDB.get();
+    const yen2pt = (yen) => Math.round(yen / rates.yenPerPoint);
+
+    const samples = [
+      {
+        name: '🏫 日曜特別開室 (4 時間)',
+        icon: '🏫',
+        category: 'special_open',
+        description: '全員で目標達成すると、日曜日に自習室を 4 時間開放します',
+        threshold: yen2pt(5300),
+        costYen: 5300,
+        rewardDescription: '日曜 13:00-17:00 自習室開室 (バイト講師 1 名常駐)',
+      },
+      {
+        name: '🏫 祝日特別開室 (6 時間)',
+        icon: '🏫',
+        category: 'special_open',
+        description: '祝日に自習室を開けます。模試前の駆け込みに',
+        threshold: yen2pt(8000),
+        costYen: 8000,
+        rewardDescription: '祝日 10:00-16:00 自習室開室',
+      },
+      {
+        name: '🥤 ドリンクバー今月開放',
+        icon: '🥤',
+        category: 'facility_upgrade',
+        description: 'コーヒー・お茶・ジュースを月内いつでも飲めるように',
+        threshold: yen2pt(5000),
+        costYen: 5000,
+        rewardDescription: '今月中、ドリンクバー自由利用 (本数制限なし)',
+      },
+      {
+        name: '🍬 お菓子コーナー設置',
+        icon: '🍬',
+        category: 'facility_upgrade',
+        description: '自由に食べられるお菓子コーナーを設置 (1 ヶ月)',
+        threshold: yen2pt(2000),
+        costYen: 2000,
+        rewardDescription: '今月中、お菓子食べ放題',
+      },
+      {
+        name: '🪑 集中パーティション新設',
+        icon: '🪑',
+        category: 'facility_upgrade',
+        description: '集中力アップの壁掛け仕切りを 5 枚新設 (永続)',
+        threshold: yen2pt(20000),
+        costYen: 20000,
+        rewardDescription: '永続的に自習室の座席にパーティションが付きます',
+      },
+      {
+        name: '🍕 ピザパーティー',
+        icon: '🍕',
+        category: 'event',
+        description: '月末のお楽しみピザパーティー',
+        threshold: yen2pt(15000),
+        costYen: 15000,
+        rewardDescription: '全員参加のピザパーティー開催 (月末予定)',
+      },
+    ];
+
+    const batch = db.batch();
+    const coll = db.collection('collectiveGoals');
+    for (const s of samples) {
+      const ref = coll.doc();
+      batch.set(ref, {
+        ...s,
+        currentPoints: 0,
+        contributors: {},
+        contributorCount: 0,
+        status: 'active',
+        createdBy: 'sample',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+    return samples.length;
+  },
+};
+
 // --- Feature 11 Phase D1: 特別付与テンプレート ---
 // Firestore grantTemplates コレクションで「誕生日」「皆勤」「新入生歓迎」等の
 // テンプレートを管理。1 クリックで対象生徒に付与できる。

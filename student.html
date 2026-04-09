@@ -1838,6 +1838,10 @@ body.theme-space {
     </button>
   </div>
 
+  <!-- Phase S1: 集団目標セクション -->
+  <div class="home-section-title">🏫 教室の集団目標</div>
+  <div id="homeCollectiveGoals" style="margin-bottom:16px;"></div>
+
   <div class="home-section-title">最近の学習</div>
   <div id="homeRecentLogs"></div>
 </div>
@@ -2429,6 +2433,120 @@ function generateStudentNarration(student, station, boss, streak, level, logs) {
   return parts.join('');
 }
 
+// ============================================
+// Phase S1: 集団目標 (生徒画面)
+// ============================================
+async function loadHomeCollectiveGoals() {
+  const container = document.getElementById('homeCollectiveGoals');
+  if (!container) return;
+  try {
+    const goals = await CollectiveGoalsDB.getActive();
+    if (goals.length === 0) {
+      container.innerHTML = '<div style="padding:14px;background:#f7fafc;border-radius:10px;color:#718096;font-size:12px;text-align:center;">現在アクティブな集団目標はありません</div>';
+      return;
+    }
+    container.innerHTML = goals.map(g => {
+      const pct = g.threshold > 0 ? Math.min(100, Math.round((g.currentPoints / g.threshold) * 100)) : 0;
+      const myContrib = (g.contributors && g.contributors[currentStudent.id]) || 0;
+      const barColor = pct >= 100 ? '#48bb78' : pct >= 80 ? '#ed8936' : '#667eea';
+      return `
+        <div style="background:linear-gradient(135deg,#f0fff4,#e6fffa);border:2px solid #9ae6b4;border-radius:12px;padding:14px;margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
+            <div style="font-size:15px;font-weight:700;flex:1;">${escapeHtml(g.name)}</div>
+          </div>
+          <div style="font-size:11px;color:#4a5568;margin-bottom:8px;">${escapeHtml(g.description || '')}</div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;">
+            <span>進捗 ${pct}%</span>
+            <span style="font-family:monospace;font-weight:700;">${(g.currentPoints||0).toLocaleString()} / ${g.threshold.toLocaleString()} pt</span>
+          </div>
+          <div style="background:rgba(0,0,0,0.06);border-radius:4px;height:10px;overflow:hidden;margin-bottom:6px;">
+            <div style="background:${barColor};height:10px;width:${pct}%;transition:width 0.4s;"></div>
+          </div>
+          <div style="font-size:10px;color:#718096;margin-bottom:8px;">
+            ${g.contributorCount || 0} 名が貢献中 ${myContrib > 0 ? `(あなたは ${myContrib} pt)` : ''}
+          </div>
+          <div style="font-size:11px;color:#22543d;background:#fff;padding:6px 10px;border-radius:6px;margin-bottom:8px;border:1px solid #9ae6b4;">
+            🎁 <strong>特典</strong>: ${escapeHtml(g.rewardDescription || '')}
+          </div>
+          <button class="btn btn-primary btn-sm" style="width:100%;" onclick="openContributeModal('${g.id}')">💝 この目標に貢献する</button>
+        </div>
+      `;
+    }).join('');
+  } catch(e) {
+    console.error('[homeCollectiveGoals]', e);
+    container.innerHTML = '<div style="color:#e53e3e;font-size:12px;">読み込み失敗</div>';
+  }
+}
+
+async function openContributeModal(goalId) {
+  const goal = await CollectiveGoalsDB.getById(goalId);
+  if (!goal) { showToast('目標が見つかりません'); return; }
+  const maxContrib = Math.min(currentStudent.currentPoints || 0, goal.threshold - (goal.currentPoints || 0));
+  if (maxContrib <= 0) {
+    showToast(currentStudent.currentPoints <= 0 ? 'ポイントがありません' : '目標はすでに満額です', 'error');
+    return;
+  }
+
+  const modal = document.createElement('div');
+  modal.id = 'contributeModal';
+  modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.6);display:flex;align-items:center;justify-content:center;z-index:10000;padding:20px;';
+  modal.innerHTML = `
+    <div style="background:#fff;border-radius:16px;padding:20px;max-width:360px;width:100%;box-shadow:0 10px 40px rgba(0,0,0,0.3);">
+      <div style="font-size:18px;font-weight:700;margin-bottom:6px;">${escapeHtml(goal.name)}</div>
+      <div style="font-size:12px;color:#718096;margin-bottom:14px;">${escapeHtml(goal.description || '')}</div>
+
+      <div style="background:#f7fafc;padding:10px 14px;border-radius:8px;margin-bottom:14px;">
+        <div style="font-size:11px;color:#718096;">あなたの残高</div>
+        <div style="font-size:20px;font-weight:700;color:#667eea;">${(currentStudent.currentPoints||0).toLocaleString()} pt</div>
+      </div>
+
+      <div style="margin-bottom:14px;">
+        <label style="font-size:13px;font-weight:700;display:block;margin-bottom:6px;">貢献するポイント</label>
+        <input type="number" id="contribAmount" min="1" max="${maxContrib}" value="10" style="width:100%;padding:10px 12px;border:2px solid #e2e8f0;border-radius:8px;font-size:16px;">
+        <div style="display:flex;gap:6px;margin-top:8px;">
+          <button class="btn btn-sm" style="flex:1;background:#edf2f7;" onclick="document.getElementById('contribAmount').value=10">10</button>
+          <button class="btn btn-sm" style="flex:1;background:#edf2f7;" onclick="document.getElementById('contribAmount').value=50">50</button>
+          <button class="btn btn-sm" style="flex:1;background:#edf2f7;" onclick="document.getElementById('contribAmount').value=100">100</button>
+          <button class="btn btn-sm" style="flex:1;background:#edf2f7;" onclick="document.getElementById('contribAmount').value=500">500</button>
+          <button class="btn btn-sm" style="flex:1;background:#edf2f7;" onclick="document.getElementById('contribAmount').value=${maxContrib}">MAX</button>
+        </div>
+      </div>
+
+      <div id="contribResult" style="font-size:12px;margin-bottom:10px;"></div>
+
+      <div style="display:flex;gap:8px;">
+        <button class="btn btn-secondary" style="flex:1;" onclick="document.getElementById('contributeModal').remove()">キャンセル</button>
+        <button class="btn btn-primary" style="flex:1;" onclick="executeContribution('${goalId}')">💝 貢献する</button>
+      </div>
+    </div>
+  `;
+  document.body.appendChild(modal);
+}
+
+async function executeContribution(goalId) {
+  const amount = parseInt(document.getElementById('contribAmount').value) || 0;
+  const resultEl = document.getElementById('contribResult');
+  if (amount <= 0) {
+    resultEl.innerHTML = '<div style="color:#e53e3e;">1 以上を指定してください</div>';
+    return;
+  }
+  try {
+    const result = await CollectiveGoalsDB.contribute(goalId, currentStudent.id, amount, currentStudent.callsign || currentStudent.nickname || currentStudent.name);
+    // Refresh student data
+    const fresh = await StudentsDB.getById(currentStudent.id);
+    if (fresh) currentStudent = fresh;
+    document.getElementById('contributeModal').remove();
+    showToast(`💝 ${amount} pt 貢献しました！`);
+    if (result.achieved) {
+      setTimeout(() => showToast('🎉 目標を達成しました！ありがとう！'), 800);
+    }
+    loadHome();
+  } catch (e) {
+    console.error('[executeContribution]', e);
+    resultEl.innerHTML = '<div style="color:#e53e3e;">' + escapeHtml(e.message || '失敗') + '</div>';
+  }
+}
+
 async function loadHome() {
   if (!currentStudent) return;
   // Refresh student data
@@ -2507,6 +2625,11 @@ async function loadHome() {
     currentMissionDraw = draw;
     renderDailyMissions(draw);
   } catch(e) { console.error('Mission error:', e); }
+
+  // Phase S1: 集団目標表示
+  try {
+    await loadHomeCollectiveGoals();
+  } catch(e) { console.error('CollectiveGoals error:', e); }
 
   // Recent logs
   try {

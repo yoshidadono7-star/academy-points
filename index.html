@@ -1297,6 +1297,25 @@
       </div>
     </div>
 
+    <!-- Phase S1: 集団目標 -->
+    <div class="card" id="collectiveGoalsCard">
+      <div class="card-title" style="display:flex;align-items:center;gap:10px;">
+        <span class="icon">&#127979;</span> 集団目標（全員で達成する特典）
+        <span style="font-size:11px;font-weight:normal;color:var(--text-light);margin-left:auto;">日曜開室・ドリンクバー・設備UP等</span>
+      </div>
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:10px;">
+        全員で pt を貢献して閾値に達すると、教室全体に特典が降ってきます。閾値は原価（円）から換金レートで自動計算。
+      </p>
+      <div id="collectiveGoalsList" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:12px;">
+        <p style="color:var(--text-light);font-size:12px;grid-column:1/-1;">読み込み中...</p>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding-top:10px;border-top:1px solid var(--border);">
+        <button class="btn btn-primary btn-sm" onclick="openCollectiveGoalModal()">&#10133; 目標を追加</button>
+        <button class="btn btn-sm" style="background:#f6ad55;color:#fff;" onclick="injectSampleCollectiveGoals()">&#128313; サンプル目標を投入</button>
+        <span style="font-size:11px;color:var(--text-light);">初めて作る際、6 件のサンプル (日曜開室・ドリンクバー等) を投入できます</span>
+      </div>
+    </div>
+
     <!-- Phase D1: 特別付与テンプレート -->
     <div class="card" id="grantTemplatesCard">
       <div class="card-title" style="display:flex;align-items:center;gap:10px;">
@@ -5783,6 +5802,235 @@ async function loadEconomyLog() {
 }
 
 // ============================================
+// Phase S1: 集団目標
+// ============================================
+
+const COLLECTIVE_CAT_LABELS = {
+  special_open: '🏫 特別開室',
+  facility_upgrade: '🪑 設備アップグレード',
+  event: '🎉 イベント',
+  custom: '📝 カスタム',
+};
+
+async function loadCollectiveGoals() {
+  const container = document.getElementById('collectiveGoalsList');
+  if (!container) return;
+  try {
+    const goals = await CollectiveGoalsDB.getAll();
+    if (goals.length === 0) {
+      container.innerHTML = `
+        <div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--text-light);font-size:12px;">
+          <div style="font-size:28px;opacity:0.3;margin-bottom:6px;">🏫</div>
+          集団目標が未登録です。<br>
+          <strong>「🎴 サンプル目標を投入」</strong> ボタンから 6 件 (日曜開室・ドリンクバー etc.) を一括追加できます。
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = goals.map(g => {
+      const pct = g.threshold > 0 ? Math.min(100, Math.round((g.currentPoints / g.threshold) * 100)) : 0;
+      const statusBadge = g.status === 'achieved'
+        ? '<span style="background:#c6f6d5;color:#22543d;font-size:10px;padding:2px 8px;border-radius:4px;">🎉 達成</span>'
+        : g.status === 'expired'
+        ? '<span style="background:#fed7d7;color:#742a2a;font-size:10px;padding:2px 8px;border-radius:4px;">期限切れ</span>'
+        : g.status === 'cancelled'
+        ? '<span style="background:#e2e8f0;color:#4a5568;font-size:10px;padding:2px 8px;border-radius:4px;">中止</span>'
+        : '<span style="background:#bee3f8;color:#2c5282;font-size:10px;padding:2px 8px;border-radius:4px;">⏳ 進行中</span>';
+      const catLabel = COLLECTIVE_CAT_LABELS[g.category] || g.category;
+      const barColor = g.status === 'achieved' ? '#48bb78' : pct >= 80 ? '#ed8936' : '#667eea';
+      const costText = g.costYen ? ` (¥${g.costYen.toLocaleString()} 相当)` : '';
+      return `
+        <div style="background:#f0fff4;border:2px solid #9ae6b4;border-radius:10px;padding:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
+            <div style="font-size:14px;font-weight:700;flex:1;">${escapeHtml(g.name)}</div>
+            ${statusBadge}
+          </div>
+          <div style="font-size:11px;color:var(--text-light);margin-bottom:2px;">${catLabel}</div>
+          <div style="font-size:11px;color:#4a5568;min-height:28px;margin-bottom:8px;">${escapeHtml(g.description || '')}</div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;">
+            <span>進捗</span>
+            <span style="font-family:monospace;font-weight:700;">${(g.currentPoints||0).toLocaleString()} / ${g.threshold.toLocaleString()} pt${costText}</span>
+          </div>
+          <div style="background:rgba(0,0,0,0.05);border-radius:4px;height:10px;overflow:hidden;margin-bottom:6px;">
+            <div style="background:${barColor};height:10px;width:${pct}%;transition:width 0.4s;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-light);margin-bottom:8px;">
+            <span>${pct}%</span>
+            <span>${g.contributorCount || 0} 名が貢献</span>
+          </div>
+          <div style="font-size:11px;color:#22543d;background:#fff;padding:6px 10px;border-radius:6px;margin-bottom:8px;border:1px solid #9ae6b4;">
+            🎁 <strong>特典</strong>: ${escapeHtml(g.rewardDescription || '未設定')}
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-sm" style="flex:1;background:#e2e8f0;color:#4a5568;" onclick="openCollectiveGoalModal('${g.id}')">編集</button>
+            ${g.status === 'active' ? `<button class="btn btn-sm btn-primary" onclick="markGoalAchieved('${g.id}')">✅ 達成にする</button>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    console.error('[collectiveGoals] error:', e);
+    container.innerHTML = '<p style="color:var(--danger);font-size:12px;grid-column:1/-1;">読み込み失敗: ' + escapeHtml(e.message || '') + '</p>';
+  }
+}
+
+async function openCollectiveGoalModal(goalId) {
+  let g = null;
+  if (goalId) {
+    g = await CollectiveGoalsDB.getById(goalId);
+    if (!g) { showToast('目標が見つかりません', 'error'); return; }
+  }
+  const isEdit = !!g;
+  const rates = await PointRatesDB.get();
+  const categories = [
+    { v: 'special_open', label: '🏫 特別開室' },
+    { v: 'facility_upgrade', label: '🪑 設備アップグレード' },
+    { v: 'event', label: '🎉 イベント' },
+    { v: 'custom', label: '📝 カスタム' },
+  ];
+  const currentCat = isEdit ? (g.category || 'special_open') : 'special_open';
+  const statuses = [
+    { v: 'active', label: '⏳ 進行中' },
+    { v: 'achieved', label: '🎉 達成' },
+    { v: 'expired', label: '期限切れ' },
+    { v: 'cancelled', label: '中止' },
+  ];
+
+  openModal(isEdit ? '集団目標を編集' : '集団目標を追加', `
+    <div class="form-row">
+      <div class="form-group">
+        <label>名前 *</label>
+        <input type="text" class="form-control" id="goalName" value="${isEdit ? escapeHtml(g.name) : ''}" placeholder="例: 🏫 日曜特別開室">
+      </div>
+      <div class="form-group">
+        <label>カテゴリ</label>
+        <select class="form-control" id="goalCategory">
+          ${categories.map(c => `<option value="${c.v}"${c.v === currentCat ? ' selected' : ''}>${c.label}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>説明</label>
+      <textarea class="form-control" id="goalDescription" rows="2" placeholder="目標の説明">${isEdit ? escapeHtml(g.description || '') : ''}</textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>原価 (円)</label>
+        <input type="number" class="form-control" id="goalCostYen" value="${isEdit && g.costYen != null ? g.costYen : ''}" min="0" step="100" placeholder="例: 5300" onchange="updateGoalThresholdFromYen()">
+        <div style="font-size:10px;color:var(--text-light);">1 pt = ¥${rates.yenPerPoint}, 入力すると閾値が自動計算されます</div>
+      </div>
+      <div class="form-group">
+        <label>閾値 (pt) *</label>
+        <input type="number" class="form-control" id="goalThreshold" value="${isEdit ? g.threshold : 5000}" min="1" step="100">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>特典内容 (達成時) *</label>
+      <input type="text" class="form-control" id="goalReward" value="${isEdit ? escapeHtml(g.rewardDescription || '') : ''}" placeholder="例: 日曜 13:00-17:00 自習室開室">
+    </div>
+    ${isEdit ? `
+    <div class="form-row">
+      <div class="form-group">
+        <label>現在の集団 pt</label>
+        <input type="number" class="form-control" id="goalCurrentPoints" value="${g.currentPoints || 0}" min="0">
+        <div style="font-size:10px;color:var(--text-light);">手動で調整可能</div>
+      </div>
+      <div class="form-group">
+        <label>状態</label>
+        <select class="form-control" id="goalStatus">
+          ${statuses.map(s => `<option value="${s.v}"${s.v === g.status ? ' selected' : ''}>${s.label}</option>`).join('')}
+        </select>
+      </div>
+    </div>` : ''}
+    <p style="font-size:11px;color:var(--text-light);">
+      💡 生徒は自分の currentPoints から集団目標に貢献できます（生徒画面から実装予定）。
+    </p>
+  `, `
+    ${isEdit ? '<button class="btn btn-sm" style="background:#fff5f5;color:#c53030;border:1px solid #fc8181;" onclick="deleteCollectiveGoal(\'' + g.id + '\')">🗑 削除</button>' : ''}
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" onclick="saveCollectiveGoal('${isEdit ? g.id : ''}')">${isEdit ? '更新' : '追加'}</button>
+  `);
+}
+
+async function updateGoalThresholdFromYen() {
+  const rates = await PointRatesDB.get();
+  const yen = parseFloat(document.getElementById('goalCostYen').value);
+  if (!isNaN(yen) && yen > 0) {
+    document.getElementById('goalThreshold').value = Math.round(yen / rates.yenPerPoint);
+  }
+}
+
+async function saveCollectiveGoal(id) {
+  const name = document.getElementById('goalName').value.trim();
+  const description = document.getElementById('goalDescription').value.trim();
+  const category = document.getElementById('goalCategory').value;
+  const threshold = parseInt(document.getElementById('goalThreshold').value) || 1000;
+  const costYenRaw = document.getElementById('goalCostYen').value;
+  const costYen = costYenRaw === '' ? null : parseInt(costYenRaw);
+  const rewardDescription = document.getElementById('goalReward').value.trim();
+  if (!name) { showToast('名前を入力してください', 'error'); return; }
+  if (!rewardDescription) { showToast('特典内容を入力してください', 'error'); return; }
+
+  try {
+    if (id) {
+      const update = { name, description, category, threshold, costYen, rewardDescription };
+      const currEl = document.getElementById('goalCurrentPoints');
+      if (currEl) update.currentPoints = parseInt(currEl.value) || 0;
+      const stEl = document.getElementById('goalStatus');
+      if (stEl) update.status = stEl.value;
+      await CollectiveGoalsDB.update(id, update);
+      showToast('目標を更新しました');
+    } else {
+      await CollectiveGoalsDB.create({ name, description, category, threshold, costYen, rewardDescription });
+      showToast('目標を追加しました');
+    }
+    closeModal();
+    loadCollectiveGoals();
+  } catch (e) {
+    console.error('[saveCollectiveGoal]', e);
+    showToast('保存に失敗しました: ' + (e.message || ''), 'error');
+  }
+}
+
+async function deleteCollectiveGoal(id) {
+  if (!confirm('この集団目標を削除しますか？貢献履歴も消えます（coins の個別ログは残ります）')) return;
+  try {
+    await CollectiveGoalsDB.delete(id);
+    showToast('削除しました');
+    closeModal();
+    loadCollectiveGoals();
+  } catch (e) {
+    showToast('削除失敗: ' + (e.message || ''), 'error');
+  }
+}
+
+async function markGoalAchieved(id) {
+  if (!confirm('この目標を「達成」にマークしますか？（手動達成）')) return;
+  try {
+    await CollectiveGoalsDB.update(id, {
+      status: 'achieved',
+      achievedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    showToast('達成にマークしました');
+    loadCollectiveGoals();
+  } catch (e) {
+    showToast('失敗: ' + (e.message || ''), 'error');
+  }
+}
+
+async function injectSampleCollectiveGoals() {
+  if (!confirm('サンプル集団目標 6 件（日曜開室・祝日開室・ドリンクバー・お菓子・パーティション・ピザパーティー）を一括追加します。既存の目標は削除されません。続行しますか？')) return;
+  try {
+    const count = await CollectiveGoalsDB.injectSampleGoals();
+    showToast(`✅ サンプル目標 ${count} 件を追加しました`);
+    loadCollectiveGoals();
+  } catch (e) {
+    console.error('[injectSampleCollectiveGoals]', e);
+    showToast('❌ 投入失敗: ' + (e.message || ''), 'error');
+  }
+}
+
+// ============================================
 // Phase D1: 特別付与テンプレート
 // ============================================
 
@@ -6329,7 +6577,7 @@ async function loadEconomy() {
     }
     const [year, month] = monthInput.value.split('-').map(Number);
 
-    // Phase F1 + F2 + R3 + D1: 並行で各ダッシュボードをロード
+    // Phase F1 + F2 + R3 + D1 + S1: 並行で各ダッシュボードをロード
     Promise.all([
       loadEconomyDailyChart(year, month),
       loadEconomyBreakdown(year, month),
@@ -6338,6 +6586,7 @@ async function loadEconomy() {
       loadBudgetDashboard(),
       loadEconomyBalance(),
       loadGrantTemplates(),
+      loadCollectiveGoals(),
     ]).catch(e => console.warn('[economy dashboards]', e));
 
     // 月間サマリー
