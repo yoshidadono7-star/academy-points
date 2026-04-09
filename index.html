@@ -3346,9 +3346,9 @@ let currentLeagueTab = 'E';
 
 // Phase X3: ギルド初期化 + 自動割り当て
 async function initializeGuilds() {
-  if (!confirm('9 ギルド（星座テーマ: オリオン・シリウス・カシオペア・ペガサス・アンドロメダ・ポラリス・プレアデス・ドラゴン・フェニックス）を作成します。既存のギルドは上書きされません。続行しますか？')) return;
+  if (!confirm('既存のギルドを全て削除し、9 ギルド（星座テーマ）で新しく作り直します。\n\nテストデータは全て消えます。続行しますか？')) return;
   try {
-    const count = await GuildsDB.initializeGuilds();
+    const count = await GuildsDB.initializeGuilds(true); // force=true で既存削除
     showToast(`✅ ${count} ギルドを作成しました`);
     loadGuilds();
   } catch(e) {

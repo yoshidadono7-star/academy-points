@@ -593,10 +593,23 @@ const GuildsDB = {
   async getRanking() {
     return this.getProgress(); // 後方互換
   },
-  // Phase X3: 9 ギルドを一括作成 (既存がない場合)
-  async initializeGuilds() {
-    const existing = await this.getAll();
-    if (existing.length > 0) return existing.length; // 既存があれば何もしない
+  // Phase X3: 9 ギルドを一括作成 (force=true で既存を全削除して再作成)
+  async initializeGuilds(force) {
+    if (force) {
+      // 既存ギルドを全削除
+      const existing = await this.getAll();
+      const delBatch = db.batch();
+      existing.forEach(g => delBatch.delete(db.collection('guilds').doc(g.id)));
+      await delBatch.commit();
+      // 全生徒の guildId をリセット
+      const students = await StudentsDB.getAll();
+      for (const s of students) {
+        if (s.guildId) await StudentsDB.update(s.id, { guildId: null });
+      }
+    } else {
+      const existing = await this.getAll();
+      if (existing.length > 0) return existing.length;
+    }
     const batch = db.batch();
     for (const theme of GUILD_THEMES) {
       const ref = db.collection('guilds').doc(theme.id);
