@@ -1137,6 +1137,18 @@
       </div>
       <button class="btn btn-primary" onclick="createEvent()">&#10133; イベント作成</button>
     </div>
+    <!-- Phase C1: イベント影響ダッシュボード -->
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128202;</span> イベント影響ダッシュボード</div>
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:10px;">
+        今月のイベント発火による追加付与ポイントの実績を表示します。集計対象は coins コレクションの category='event' 取引。
+      </p>
+      <div id="eventImpactContent" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;">
+        <p style="color:var(--text-light);font-size:12px;grid-column:1/-1;">読み込み中...</p>
+      </div>
+    </div>
+
+    <!-- Phase C1: イベント履歴 (拡張版) -->
     <div class="card">
       <div class="card-title"><span class="icon">&#128197;</span> イベント履歴（過去30日）</div>
       <div id="eventHistory"></div>
@@ -5197,19 +5209,114 @@ async function loadEvents() {
       if (eventTimerInterval) clearInterval(eventTimerInterval);
     }
 
-    // 履歴
+    // Phase C1: 履歴 + 影響ダッシュボードを並行ロード
     const history = await EventsDB.getHistory(30);
+    const coinsByEventId = {};
+    try {
+      // 過去 30 日の coins で eventId があるレコードを集計
+      const endTs = new Date();
+      const startTs = new Date(); startTs.setDate(startTs.getDate() - 30);
+      const snap = await db.collection('coins')
+        .where('timestamp', '>=', startTs)
+        .where('timestamp', '<=', endTs)
+        .get();
+      snap.forEach(d => {
+        const t = d.data();
+        if (t.eventId && t.amount > 0 && t.approvalStatus !== 'rejected') {
+          if (!coinsByEventId[t.eventId]) coinsByEventId[t.eventId] = { total: 0, count: 0, students: new Set() };
+          coinsByEventId[t.eventId].total += t.amount;
+          coinsByEventId[t.eventId].count += 1;
+          coinsByEventId[t.eventId].students.add(t.studentId);
+        }
+      });
+    } catch (e) { console.warn('[eventHistory coin aggregation]', e); }
+
     document.getElementById('eventHistory').innerHTML = history.length === 0
       ? '<p style="color:var(--text-light)">過去30日間のイベントはありません</p>'
       : history.map(e => {
           const ts = e.activatedAt ? (e.activatedAt.toDate ? formatDateTime(e.activatedAt.toDate()) : formatDateTime(new Date(e.activatedAt))) : '未発火';
-          return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-            <span>${escapeHtml(e.name || e.type)}</span>
-            <span style="color:var(--text-light)">${ts} / ${e.durationMinutes || 30}分</span>
+          const impact = coinsByEventId[e.id];
+          const multText = (e.type === 'multiplier' && e.multiplier) ? ` <span style="font-size:11px;color:var(--primary);">×${e.multiplier}</span>` : '';
+          const impactText = impact
+            ? `<div style="font-size:11px;color:var(--success);margin-top:2px;">+${impact.total.toLocaleString()} pt / ${impact.students.size}名 / ${impact.count}件</div>`
+            : '<div style="font-size:11px;color:var(--text-light);margin-top:2px;">bonus 記録なし</div>';
+          return `<div style="padding:10px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+              <div style="flex:1;">
+                <strong>${escapeHtml(e.name || e.type)}</strong>${multText}
+                ${impactText}
+              </div>
+              <span style="color:var(--text-light);font-size:11px;white-space:nowrap;">${ts}<br>${e.durationMinutes || 30}分</span>
+            </div>
           </div>`;
         }).join('');
+
+    // Phase C1: 影響ダッシュボード
+    await loadEventImpactDashboard();
   } catch (e) {
     console.error('イベント読み込みエラー:', e);
+  }
+}
+
+// ============================================
+// Phase C1: イベント影響ダッシュボード
+// ============================================
+async function loadEventImpactDashboard() {
+  const container = document.getElementById('eventImpactContent');
+  if (!container) return;
+  try {
+    // 今月分: イベント発火回数 + 発行 bonus pt
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - 6); weekStart.setHours(0,0,0,0);
+
+    // 今月発火数
+    const monthEvents = await EventsDB.getHistory(60);
+    const firedThisMonth = monthEvents.filter(e => {
+      if (!e.activatedAt) return false;
+      const ts = e.activatedAt.toDate ? e.activatedAt.toDate() : new Date(e.activatedAt);
+      return ts >= monthStart && ts <= monthEnd;
+    });
+
+    // 今月のイベント由来 coins (category='event' または eventId ありで集計)
+    const snap = await db.collection('coins')
+      .where('timestamp', '>=', monthStart)
+      .where('timestamp', '<=', monthEnd)
+      .get();
+    let monthEventBonus = 0;
+    let monthEventCount = 0;
+    const monthEventStudents = new Set();
+    let weekEventBonus = 0;
+    snap.forEach(d => {
+      const t = d.data();
+      if (t.amount > 0 && t.approvalStatus !== 'rejected' && (t.category === 'event' || t.eventId)) {
+        monthEventBonus += t.amount;
+        monthEventCount += 1;
+        if (t.studentId) monthEventStudents.add(t.studentId);
+        const ts = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+        if (ts >= weekStart) weekEventBonus += t.amount;
+      }
+    });
+
+    const stats = [
+      { label: '今月の発火数', value: firedThisMonth.length, suffix: '回', color: '#667eea' },
+      { label: '今月の bonus 発行', value: monthEventBonus.toLocaleString(), suffix: 'pt', color: '#48bb78' },
+      { label: '直近 7 日の bonus', value: weekEventBonus.toLocaleString(), suffix: 'pt', color: '#38b2ac' },
+      { label: '適用された取引', value: monthEventCount.toLocaleString(), suffix: '件', color: '#805ad5' },
+      { label: '影響を受けた生徒', value: monthEventStudents.size, suffix: '名', color: '#dd6b20' },
+    ];
+
+    container.innerHTML = stats.map(s => `
+      <div style="background:#f7fafc;border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:11px;color:var(--text-light);margin-bottom:6px;">${s.label}</div>
+        <div style="font-size:24px;font-weight:700;color:${s.color};font-family:monospace;">${s.value}</div>
+        <div style="font-size:11px;color:var(--text-light);">${s.suffix}</div>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error('[eventImpact] error:', e);
+    container.innerHTML = '<p style="color:var(--danger);font-size:12px;grid-column:1/-1;">読み込み失敗: ' + escapeHtml(e.message || '') + '</p>';
   }
 }
 
