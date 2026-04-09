@@ -953,6 +953,22 @@
       </div>
     </div>
 
+    <!-- X4: ギルド目標 -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-title" style="display:flex;align-items:center;gap:10px;">
+        <span class="icon">🎯</span> ギルド目標（チームPDCA）
+        <span style="font-size:11px;font-weight:normal;color:var(--text-light);margin-left:auto;" id="guildGoalWeekLabel"></span>
+      </div>
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:10px;">
+        各ギルドに週次目標を設定。達成すると全メ���バーに報酬ポイントが付与されます。
+      </p>
+      <div style="margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="openGuildGoalModal()">🎯 ギルド目標を追加</button>
+        <button class="btn btn-secondary" onclick="runGuildGoalJudgement()">⚡ 一括判定</button>
+      </div>
+      <div id="guildGoalsList"></div>
+    </div>
+
     <div class="card" style="margin-top:16px">
       <div class="card-title"><span class="icon">&#127942;</span> リーグ別ランキング（個人競争）</div>
       <div style="display:flex;gap:8px;margin-bottom:12px;">
@@ -1320,6 +1336,37 @@
         <div style="margin-top:10px;display:flex;gap:10px;align-items:center;">
           <button class="btn btn-primary" onclick="savePointRates()">💾 保存</button>
           <span id="rateStatus" style="font-size:11px;color:var(--text-light);"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- B1: 時間帯/曜日ブースト設定 -->
+    <div class="card" id="timeBoostCard">
+      <div class="card-title"><span class="icon">⏰</span> 時間帯/曜日ブースト</div>
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:10px;">
+        特定の時間帯や曜日に自動でポイント倍率を適用します。早朝・夜間・休日の自主学習を奨励する仕組みです。
+      </p>
+      <div id="timeBoostStatus" style="margin-bottom:10px;"></div>
+      <div id="timeBoostEditor" style="display:none;">
+        <div style="font-size:12px;font-weight:600;margin-bottom:6px;">🌅 時間帯ブースト</div>
+        <div class="form-row">
+          <div class="form-group"><label>早朝 開始時</label><input type="number" class="form-control" id="tbHour1Start" min="0" max="23"></div>
+          <div class="form-group"><label>早朝 終了時</label><input type="number" class="form-control" id="tbHour1End" min="0" max="24"></div>
+          <div class="form-group"><label>早朝 倍率</label><input type="number" class="form-control" id="tbHour1Mult" step="0.1" min="1" max="3"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>夜間 開始時</label><input type="number" class="form-control" id="tbHour2Start" min="0" max="23"></div>
+          <div class="form-group"><label>夜間 終了時</label><input type="number" class="form-control" id="tbHour2End" min="0" max="24"></div>
+          <div class="form-group"><label>夜間 倍率</label><input type="number" class="form-control" id="tbHour2Mult" step="0.1" min="1" max="3"></div>
+        </div>
+        <div style="font-size:12px;font-weight:600;margin:10px 0 6px;">📅 曜日ブースト</div>
+        <div class="form-row">
+          <div class="form-group"><label>土曜 倍率</label><input type="number" class="form-control" id="tbDaySat" step="0.1" min="1" max="3"></div>
+          <div class="form-group"><label>日曜 倍率</label><input type="number" class="form-control" id="tbDaySun" step="0.1" min="1" max="3"></div>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:10px;align-items:center;">
+          <button class="btn btn-primary" onclick="saveTimeBoosts()">💾 保存</button>
+          <span id="tbStatus" style="font-size:11px;color:var(--text-light);"></span>
         </div>
       </div>
     </div>
@@ -3452,6 +3499,9 @@ async function loadGuilds() {
 
     // リーグランキング初期表示
     await loadLeagueRanking(currentLeagueTab);
+
+    // X4: ギルド目標をロード
+    loadGuildGoals().catch(e => console.warn('[guildGoals]', e));
   } catch (e) {
     console.error('ギルド読み込みエラー:', e);
   }
@@ -3480,6 +3530,133 @@ async function loadLeagueRanking(league) {
         <td><strong>${(s.totalPoints || 0).toLocaleString()}</strong> pt</td>
       </tr>`).join('');
   } catch(e) { console.error('League ranking error:', e); }
+}
+
+// ============================================
+// X4: ギルド目標
+// ============================================
+async function loadGuildGoals() {
+  const container = document.getElementById('guildGoalsList');
+  const weekLabel = document.getElementById('guildGoalWeekLabel');
+  if (!container) return;
+
+  const week = PersonalGoalsDB.getCurrentWeek();
+  if (weekLabel) weekLabel.textContent = week;
+
+  const goals = await GuildGoalsDB.getCurrentWeekAll();
+  if (goals.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-light);font-size:12px;padding:10px;text-align:center;">今週のギルド目標はまだありません</div>';
+    return;
+  }
+
+  let html = '<div style="display:flex;flex-direction:column;gap:8px;">';
+  for (const goal of goals) {
+    const progress = await GuildGoalsDB.calculateProgress(goal);
+    const theme = (typeof GUILD_THEMES !== 'undefined') ? GUILD_THEMES.find(t => t.id === (allGuilds.find(g => g.id === goal.guildId) || {}).themeId) : null;
+    const icon = theme ? theme.icon : '⭐';
+    const guildName = goal.guildName || goal.guildId;
+    const color = theme ? theme.color : '#888';
+    const statusBadge = goal.status === 'achieved' ? '<span style="background:#48bb78;color:white;padding:2px 8px;border-radius:10px;font-size:10px;">🎉 達成</span>'
+      : goal.status === 'missed' ? '<span style="background:#e53e3e;color:white;padding:2px 8px;border-radius:10px;font-size:10px;">😢 未達</span>'
+      : `<span style="background:#edf2f7;padding:2px 8px;border-radius:10px;font-size:10px;">${progress.pct}%</span>`;
+    const pct = Math.min(progress.pct, 100);
+    html += `<div style="padding:10px;border:1px solid var(--border);border-radius:8px;border-left:4px solid ${color};">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span style="font-size:16px;">${icon}</span>
+        <strong style="font-size:13px;">${escapeHtml(guildName)}</strong>
+        <span style="font-size:12px;color:var(--text-light);">${escapeHtml(goal.title)}</span>
+        <span style="margin-left:auto;">${statusBadge}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:11px;">
+        <div style="flex:1;background:#e2e8f0;border-radius:6px;height:8px;">
+          <div style="background:${color};border-radius:6px;height:8px;width:${pct}%;transition:width 0.3s;"></div>
+        </div>
+        <span>${progress.current} / ${goal.target} ${goal.type === 'totalMinutes' ? '分' : goal.type === 'totalPomodoros' ? '回' : 'pt'}</span>
+        <span style="color:var(--text-light);">報酬: +${goal.reward}pt/人</span>
+      </div>
+    </div>`;
+  }
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function openGuildGoalModal() {
+  const guilds = allGuilds || [];
+  if (guilds.length === 0) { showToast('先にギルドを初期化してください', 'error'); return; }
+  const week = PersonalGoalsDB.getCurrentWeek();
+  const guildOptions = guilds.map(g => {
+    const theme = (typeof GUILD_THEMES !== 'undefined') ? GUILD_THEMES.find(t => t.id === g.themeId) : null;
+    const name = theme ? `${theme.icon} ${theme.name}` : g.name || g.id;
+    return `<option value="${g.id}" data-name="${escapeHtml(theme ? theme.name : g.name || '')}">${name}</option>`;
+  }).join('');
+
+  const html = `<div class="modal-overlay" id="guildGoalModal" onclick="if(event.target===this)this.remove()">
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-header"><h3>🎯 ギルド目標を追加 (${week})</h3><button class="modal-close" onclick="document.getElementById('guildGoalModal').remove()">&times;</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label>ギルド</label><select class="form-control" id="ggGuild">${guildOptions}</select></div>
+        <div class="form-group"><label>目標タイプ</label>
+          <select class="form-control" id="ggType">
+            <option value="totalPoints">合計ポイント</option>
+            <option value="totalMinutes">合計学習時間 (分)</option>
+            <option value="totalPomodoros">合計ポモドーロ回数</option>
+            <option value="allStudied">全員学習達成 (人数)</option>
+          </select>
+        </div>
+        <div class="form-group"><label>目標タイトル</label><input type="text" class="form-control" id="ggTitle" placeholder="例: 今週500pt達成！"></div>
+        <div class="form-group"><label>目標値</label><input type="number" class="form-control" id="ggTarget" min="1" value="500"></div>
+        <div class="form-group"><label>達成時報酬 (pt/人)</label><input type="number" class="form-control" id="ggReward" min="0" value="30"></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-primary" onclick="submitGuildGoal()">作成</button></div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function submitGuildGoal() {
+  const guildId = document.getElementById('ggGuild').value;
+  const guildName = document.getElementById('ggGuild').selectedOptions[0].dataset.name || guildId;
+  const type = document.getElementById('ggType').value;
+  const title = document.getElementById('ggTitle').value.trim() || `${guildName}の週次目標`;
+  const target = parseInt(document.getElementById('ggTarget').value) || 1;
+  const reward = parseInt(document.getElementById('ggReward').value) || 0;
+
+  try {
+    await GuildGoalsDB.create({ guildId, guildName, type, title, target, reward });
+    document.getElementById('guildGoalModal').remove();
+    showToast(`🎯 ${guildName}にギルド目標を設定しました`);
+    loadGuildGoals();
+  } catch (e) {
+    console.error('[submitGuildGoal]', e);
+    showToast('作成に失敗しました', 'error');
+  }
+}
+
+async function runGuildGoalJudgement() {
+  if (!confirm('今週のギルド目標を一括判定しますか？\n\n達成 → 全メンバーに報酬pt付与\n未達 → 記録のみ（ペナルティなし）')) return;
+  try {
+    const goals = await GuildGoalsDB.getCurrentWeekAll();
+    const active = goals.filter(g => g.status === 'active');
+    if (active.length === 0) { showToast('判定対象のギルド目標がありません'); return; }
+
+    let achieved = 0, missed = 0;
+    for (const goal of active) {
+      const progress = await GuildGoalsDB.calculateProgress(goal);
+      const guild = await GuildsDB.getById(goal.guildId);
+      if (progress.pct >= 100) {
+        await GuildGoalsDB.markAchieved(goal.id, guild);
+        achieved++;
+      } else {
+        await GuildGoalsDB.markMissed(goal.id);
+        missed++;
+      }
+    }
+    showToast(`⚡ ギルド目標判定完了: 🎉達成 ${achieved} / 😢未達 ${missed}`);
+    loadGuildGoals();
+  } catch (e) {
+    console.error('[guildGoalJudge]', e);
+    showToast('判定に失敗しました', 'error');
+  }
 }
 
 function openGuildModal() {
@@ -5190,6 +5367,9 @@ async function initApp() {
     // 自動化: 週次目標判定 — 土曜 20:00 以降、今週の判定がまだなら自動実行
     tryAutoWeeklyJudgement().catch(e => console.warn('[autoWeeklyJudgement]', e));
 
+    // B1: 時間帯ブーストステータスのロード
+    loadTimeBoostStatus().catch(e => console.warn('[timeBoost]', e));
+
   } catch (e) {
     console.error('初期化エラー:', e);
   }
@@ -6746,6 +6926,73 @@ async function savePointRates() {
     setTimeout(() => { status.textContent = ''; }, 4000);
   } catch (e) {
     console.error('[savePointRates]', e);
+    status.textContent = '❌ 失敗: ' + (e.message || '');
+  }
+}
+
+// ============================================
+// B1: 時間帯/曜日ブースト
+// ============================================
+async function loadTimeBoostStatus() {
+  const statusEl = document.getElementById('timeBoostStatus');
+  const editorEl = document.getElementById('timeBoostEditor');
+  if (!statusEl) return;
+  try {
+    const config = await TimeBoostsDB.get();
+    const boost = await TimeBoostsDB.getCurrentBoost();
+
+    let statusHtml = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">';
+    for (const h of (config.hourly || [])) {
+      statusHtml += `<div style="padding:4px 10px;background:#edf2f7;border-radius:12px;font-size:11px;">${h.emoji} ${h.label}: x${h.multiplier}</div>`;
+    }
+    for (const d of (config.daily || [])) {
+      statusHtml += `<div style="padding:4px 10px;background:#edf2f7;border-radius:12px;font-size:11px;">${d.emoji} ${d.label}: x${d.multiplier}</div>`;
+    }
+    statusHtml += '</div>';
+    if (boost.multiplier > 1) {
+      statusHtml += `<div style="padding:8px 12px;background:#f0fff4;border:1px solid #9ae6b4;border-radius:8px;font-size:12px;font-weight:600;">🔥 現在のブースト: x${boost.multiplier} (${boost.label})</div>`;
+    } else {
+      statusHtml += `<div style="font-size:11px;color:var(--text-light);">現在ブースト適用なし</div>`;
+    }
+    statusEl.innerHTML = statusHtml;
+
+    // オーナーなら編集UIを表示
+    if (window.currentUserRole === 'owner' && editorEl) {
+      editorEl.style.display = 'block';
+      const h = config.hourly || TimeBoostsDB.DEFAULTS.hourly;
+      const d = config.daily || TimeBoostsDB.DEFAULTS.daily;
+      if (h[0]) { document.getElementById('tbHour1Start').value = h[0].startHour; document.getElementById('tbHour1End').value = h[0].endHour; document.getElementById('tbHour1Mult').value = h[0].multiplier; }
+      if (h[1]) { document.getElementById('tbHour2Start').value = h[1].startHour; document.getElementById('tbHour2End').value = h[1].endHour; document.getElementById('tbHour2Mult').value = h[1].multiplier; }
+      const sat = d.find(x => x.dayOfWeek === 6);
+      const sun = d.find(x => x.dayOfWeek === 0);
+      if (sat) document.getElementById('tbDaySat').value = sat.multiplier;
+      if (sun) document.getElementById('tbDaySun').value = sun.multiplier;
+    }
+  } catch (e) { console.error('[timeBoost]', e); }
+}
+
+async function saveTimeBoosts() {
+  const status = document.getElementById('tbStatus');
+  if (window.currentUserRole !== 'owner') { status.textContent = '❌ オーナーのみ'; return; }
+  status.textContent = '保存中...';
+  try {
+    const config = {
+      enabled: true,
+      hourly: [
+        { label: '早朝', startHour: parseInt(document.getElementById('tbHour1Start').value)||5, endHour: parseInt(document.getElementById('tbHour1End').value)||8, multiplier: parseFloat(document.getElementById('tbHour1Mult').value)||1.3, emoji: '🌅' },
+        { label: '夜間', startHour: parseInt(document.getElementById('tbHour2Start').value)||20, endHour: parseInt(document.getElementById('tbHour2End').value)||23, multiplier: parseFloat(document.getElementById('tbHour2Mult').value)||1.2, emoji: '🌙' },
+      ],
+      daily: [
+        { label: '土曜ブースト', dayOfWeek: 6, multiplier: parseFloat(document.getElementById('tbDaySat').value)||1.2, emoji: '🌟' },
+        { label: '日曜ブースト', dayOfWeek: 0, multiplier: parseFloat(document.getElementById('tbDaySun').value)||1.3, emoji: '✨' },
+      ],
+    };
+    await TimeBoostsDB.save(config);
+    status.textContent = '✅ 保存しました';
+    loadTimeBoostStatus();
+    setTimeout(() => { status.textContent = ''; }, 4000);
+  } catch (e) {
+    console.error('[saveTimeBoosts]', e);
     status.textContent = '❌ 失敗: ' + (e.message || '');
   }
 }
