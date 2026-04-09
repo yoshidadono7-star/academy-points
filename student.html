@@ -3183,6 +3183,10 @@ function startStudy() {
   try { ActiveSessionsDB.start(currentStudent.id, studySession.subject, studySession.material || null); } catch(e) {}
 
   navigate('timer');
+
+  // 2026-04 UX 修正: スタートボタン押下で即座にタイマー開始
+  // (以前はタイマー画面で ▶ をもう一度押す必要があったが、それは冗長なので自動開始に戻した)
+  resumeTimer();
 }
 
 function toggleTimer() {

@@ -1969,7 +1969,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
 
-// カテゴリ行クリック → サブタブグループを切替（コンテンツは変えない）
+// カテゴリ行クリック → サブタブグループを切替 + 先頭のサブタブに自動遷移
 document.querySelectorAll('.tab-cat-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const cat = btn.dataset.cat;
@@ -1977,7 +1977,15 @@ document.querySelectorAll('.tab-cat-btn').forEach(btn => {
     btn.classList.add('active');
     document.querySelectorAll('.tab-sub-group').forEach(g => g.classList.remove('active'));
     const group = document.querySelector(`.tab-sub-group[data-cat="${cat}"]`);
-    if (group) group.classList.add('active');
+    if (group) {
+      group.classList.add('active');
+      // 2026-04 UX 改善: このカテゴリ内で最初のサブタブに自動遷移する
+      // (以前は前のカテゴリのコンテンツが残っていて混乱する問題があった)
+      const firstSubTab = group.querySelector('.tab-btn');
+      if (firstSubTab && firstSubTab.dataset.tab) {
+        switchTab(firstSubTab.dataset.tab);
+      }
+    }
   });
 });
 

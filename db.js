@@ -3632,6 +3632,8 @@ const BudgetLimitsDB = {
 
   // ある role が該当期間に既に使った裁量付与ポイントを集計
   // range: 'today' | 'month'
+  // NOTE: grantedBy を Firestore の where でフィルタすると複合インデックスが
+  // 必要になるため、期間だけで取得してクライアント側で role を絞る方式にする。
   async sumGrants(role, range) {
     const now = new Date();
     let startTs, endTs;
@@ -3645,11 +3647,11 @@ const BudgetLimitsDB = {
     const snap = await db.collection('coins')
       .where('timestamp', '>=', startTs)
       .where('timestamp', '<=', endTs)
-      .where('grantedBy', '==', role)
       .get();
     let total = 0;
     snap.forEach(d => {
       const t = d.data();
+      if (t.grantedBy !== role) return; // クライアント側フィルタ
       if (t.amount > 0 && t.approvalStatus !== 'rejected') total += t.amount;
     });
     return total;
