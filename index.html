@@ -1297,6 +1297,23 @@
       </div>
     </div>
 
+    <!-- Phase X2: 週次目標判定 -->
+    <div class="card" id="goalJudgementCard">
+      <div class="card-title" style="display:flex;align-items:center;gap:10px;">
+        <span class="icon">&#127919;</span> 週次目標判定
+        <span style="font-size:11px;font-weight:normal;color:var(--text-light);margin-left:auto;" id="goalJudgementWeek"></span>
+      </div>
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:10px;">
+        今週の個人目標を一括判定します。量的目標 (学習時間・ポモドーロ・セッション数) は進捗 100% で自動達成判定。自由目標 (custom/task) は講師画面で手動判定してください。
+      </p>
+      <div id="goalJudgementSummary" style="margin-bottom:12px;"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="runWeeklyGoalJudgement()">&#127919; 自動判定を実行</button>
+        <button class="btn btn-secondary" onclick="loadGoalJudgementSummary()">&#128260; 状況を更新</button>
+      </div>
+      <div id="goalJudgementResult" style="margin-top:12px;font-size:12px;"></div>
+    </div>
+
     <!-- Phase S1: 集団目標 -->
     <div class="card" id="collectiveGoalsCard">
       <div class="card-title" style="display:flex;align-items:center;gap:10px;">
@@ -5807,6 +5824,142 @@ async function loadEconomyLog() {
 }
 
 // ============================================
+// Phase X2: 週次目標判定
+// ============================================
+
+async function loadGoalJudgementSummary() {
+  const container = document.getElementById('goalJudgementSummary');
+  const weekEl = document.getElementById('goalJudgementWeek');
+  if (!container) return;
+  try {
+    const week = PersonalGoalsDB.getCurrentWeek();
+    if (weekEl) weekEl.textContent = `対象週: ${week}`;
+
+    const all = await PersonalGoalsDB.getAll();
+    const thisWeek = all.filter(g => g.week === week);
+    const active = thisWeek.filter(g => g.status === 'active');
+    const pendingApproval = thisWeek.filter(g => g.status === 'pending_approval');
+    const achieved = thisWeek.filter(g => g.status === 'achieved');
+    const missed = thisWeek.filter(g => g.status === 'missed');
+
+    // active な目標の進捗を取得
+    const withProgress = await Promise.all(active.map(async g => ({
+      ...g,
+      _progress: await PersonalGoalsDB.calculateProgress(g),
+    })));
+    const autoJudgeable = withProgress.filter(g => g.type !== 'custom' && g.type !== 'task');
+    const wouldAchieve = autoJudgeable.filter(g => g._progress.pct >= 100);
+    const wouldMiss = autoJudgeable.filter(g => g._progress.pct < 100);
+    const manualOnly = withProgress.filter(g => g.type === 'custom' || g.type === 'task');
+
+    container.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">
+        <div style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;color:#667eea;">${thisWeek.length}</div>
+          <div style="font-size:11px;color:var(--text-light);">今週の目標</div>
+        </div>
+        <div style="background:#fffbeb;border:1px solid #fbd38d;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;color:#dd6b20;">${pendingApproval.length}</div>
+          <div style="font-size:11px;color:var(--text-light);">承認待ち</div>
+        </div>
+        <div style="background:#f0f7ff;border:1px solid #90cdf4;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;color:#3182ce;">${active.length}</div>
+          <div style="font-size:11px;color:var(--text-light);">進行中</div>
+        </div>
+        <div style="background:#f0fff4;border:1px solid #9ae6b4;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;color:#48bb78;">${achieved.length}</div>
+          <div style="font-size:11px;color:var(--text-light);">達成</div>
+        </div>
+        <div style="background:#fff5f5;border:1px solid #fc8181;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;color:#e53e3e;">${missed.length}</div>
+          <div style="font-size:11px;color:var(--text-light);">未達成</div>
+        </div>
+      </div>
+      ${autoJudgeable.length > 0 ? `
+        <div style="margin-top:12px;padding:10px;background:#f7fafc;border-radius:8px;font-size:12px;border:1px solid var(--border);">
+          <strong>自動判定プレビュー</strong> (量的目標 ${autoJudgeable.length} 件):
+          <span style="color:#48bb78;font-weight:700;">🎉 達成見込み ${wouldAchieve.length} 件</span> /
+          <span style="color:#e53e3e;font-weight:700;">😢 未達見込み ${wouldMiss.length} 件</span>
+          ${manualOnly.length > 0 ? `<br><span style="color:#718096;">📝 手動判定必要 ${manualOnly.length} 件 (custom/task 型)</span>` : ''}
+        </div>` : ''}
+    `;
+  } catch(e) {
+    console.error('[goalJudgement] error:', e);
+    container.innerHTML = '<p style="color:var(--danger);font-size:12px;">読み込み失敗: ' + escapeHtml(e.message || '') + '</p>';
+  }
+}
+
+async function runWeeklyGoalJudgement() {
+  const resultEl = document.getElementById('goalJudgementResult');
+  if (!resultEl) return;
+  if (!confirm('今週の量的目標を一括自動判定しますか？\n\n・進捗 100% 以上 → 🎉 達成（報酬付与）\n・進捗 100% 未満 → 😢 未達（レベル別ペナルティ）\n\n※ custom/task 型は手動判定のみ（ここでは判定されません）')) return;
+
+  resultEl.innerHTML = '<div style="color:var(--text-light);padding:10px;">判定中...</div>';
+
+  try {
+    const week = PersonalGoalsDB.getCurrentWeek();
+    const all = await PersonalGoalsDB.getAll();
+    const active = all.filter(g => g.week === week && g.status === 'active');
+    const autoJudgeable = active.filter(g => g.type !== 'custom' && g.type !== 'task');
+
+    let achievedCount = 0, missedCount = 0, totalReward = 0, totalPenalty = 0;
+    const results = [];
+
+    for (const goal of autoJudgeable) {
+      const progress = await PersonalGoalsDB.calculateProgress(goal);
+      const student = await StudentsDB.getById(goal.studentId);
+
+      if (progress.pct >= 100) {
+        await PersonalGoalsDB.markAchieved(goal.id, student);
+        achievedCount++;
+        totalReward += goal.reward || 0;
+        results.push({ name: goal.studentName, title: goal.title, status: 'achieved', reward: goal.reward, pct: Math.round(progress.pct) });
+      } else {
+        const penaltyResult = await PersonalGoalsDB.markMissed(goal.id, student);
+        missedCount++;
+        totalPenalty += penaltyResult.penalty;
+        results.push({ name: goal.studentName, title: goal.title, status: 'missed', penalty: penaltyResult.penalty, pct: Math.round(progress.pct), consecutiveMisses: penaltyResult.consecutiveMisses, level: penaltyResult.level });
+      }
+    }
+
+    let html = `
+      <div style="padding:12px;background:#f0fff4;border:2px solid #9ae6b4;border-radius:8px;margin-bottom:8px;">
+        <strong>判定完了!</strong>
+        🎉 達成 ${achievedCount} 件 (報酬合計 +${totalReward} pt) /
+        😢 未達 ${missedCount} 件 (ペナルティ合計 -${totalPenalty} pt)
+      </div>`;
+
+    if (results.length > 0) {
+      html += '<div style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;">';
+      html += results.map(r => {
+        if (r.status === 'achieved') {
+          return `<div style="display:flex;justify-content:space-between;padding:6px 10px;border-bottom:1px solid #edf2f7;background:#f0fff4;">
+            <span>🎉 ${escapeHtml(r.name)} — ${escapeHtml(r.title)} (${r.pct}%)</span>
+            <span style="color:#48bb78;font-weight:700;">+${r.reward} pt</span>
+          </div>`;
+        } else {
+          const penaltyText = r.penalty > 0 ? `-${r.penalty} pt (Lv${r.level}, ${r.consecutiveMisses}週)` : `警告のみ (Lv${r.level})`;
+          return `<div style="display:flex;justify-content:space-between;padding:6px 10px;border-bottom:1px solid #edf2f7;background:#fff5f5;">
+            <span>😢 ${escapeHtml(r.name)} — ${escapeHtml(r.title)} (${r.pct}%)</span>
+            <span style="color:#e53e3e;font-weight:700;">${penaltyText}</span>
+          </div>`;
+        }
+      }).join('');
+      html += '</div>';
+    }
+
+    resultEl.innerHTML = html;
+    // ダッシュボードを更新
+    loadGoalJudgementSummary();
+    loadEconomyBalance().catch(()=>{});
+    loadBudgetDashboard().catch(()=>{});
+  } catch(e) {
+    console.error('[runWeeklyGoalJudgement]', e);
+    resultEl.innerHTML = `<div style="color:var(--danger);padding:10px;background:#fff5f5;border-radius:6px;">❌ 判定失敗: ${escapeHtml(e.message || '')}</div>`;
+  }
+}
+
+// ============================================
 // Phase S1: 集団目標
 // ============================================
 
@@ -6604,6 +6757,7 @@ async function loadEconomy() {
       loadEconomyBalance(),
       loadGrantTemplates(),
       loadCollectiveGoals(),
+      loadGoalJudgementSummary(),
     ]).catch(e => console.warn('[economy dashboards]', e));
 
     // 月間サマリー
