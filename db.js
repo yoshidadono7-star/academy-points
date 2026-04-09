@@ -686,6 +686,24 @@ const GuildsDB = {
 
     return { guildCount: guildIds.length, studentCount: interleaved.length, assignments };
   },
+  // 新入生 1 名を最少人数のギルドに自動割り当て（学年バランス考慮）
+  async autoAssignOne(studentId) {
+    const guilds = await this.getAll();
+    if (guilds.length === 0) return null; // ギルド未初期化なら何もしない
+
+    // メンバー数が最も少ないギルドを選ぶ（同数なら先頭=ランダム性はギルド作成順）
+    guilds.sort((a, b) => (a.members || []).length - (b.members || []).length);
+    const target = guilds[0];
+
+    // メンバー配列に追加
+    const members = target.members || [];
+    if (members.includes(studentId)) return target; // 既に所属済み
+    members.push(studentId);
+    await db.collection('guilds').doc(target.id).update({ members });
+    await StudentsDB.update(studentId, { guildId: target.id });
+
+    return target;
+  },
   // リーグ別個人ランキング
   async getLeagueRanking(league) {
     const students = await StudentsDB.getAll();
@@ -3954,8 +3972,26 @@ const PersonalGoalsDB = {
     const doc = await db.collection('personalGoals').doc(id).get();
     return doc.exists ? { id: doc.id, ...doc.data() } : null;
   },
-  // 生徒が目標を立てる (status: pending_approval)
+  // 自動承認の判定 — 量的目標で報酬が合理範囲内なら即承認
+  // custom/task 型、高額報酬、異常値は手動承認に回す
+  AUTO_APPROVE_LIMITS: {
+    time:      { maxTarget: 30,  maxReward: 200 }, // 最大30時間/週, 報酬200pt以下
+    pomodoro:  { maxTarget: 40,  maxReward: 200 }, // 最大40ポモドーロ/週
+    sessions:  { maxTarget: 7,   maxReward: 150 }, // 最大7セッション/週
+  },
+  canAutoApprove(goalData) {
+    const type = goalData.type || 'custom';
+    const limits = this.AUTO_APPROVE_LIMITS[type];
+    if (!limits) return false; // custom/task は手動承認
+    if ((goalData.target || 0) <= 0) return false; // 目標値0以下は異常
+    if ((goalData.target || 0) > limits.maxTarget) return false; // 目標値が上限超過
+    if ((goalData.reward || 0) > limits.maxReward) return false; // 報酬が上限超過
+    if ((goalData.reward || 0) < 0) return false; // マイナス報酬は異常
+    return true;
+  },
+  // 生徒が目標を立てる (量的目標は自動承認、それ以外は pending_approval)
   async create(data) {
+    const shouldAutoApprove = this.canAutoApprove(data);
     const ref = await db.collection('personalGoals').add({
       studentId: data.studentId,
       studentName: data.studentName || '',
@@ -3967,11 +4003,13 @@ const PersonalGoalsDB = {
       unit: data.unit || '',
       reward: data.reward || 0,
       penalty: data.penalty || 0,
-      status: 'pending_approval',
+      status: shouldAutoApprove ? 'active' : 'pending_approval',
+      approvedBy: shouldAutoApprove ? 'auto' : null,
+      approvedAt: shouldAutoApprove ? firebase.firestore.FieldValue.serverTimestamp() : null,
       consecutiveMisses: 0,
       createdAt: firebase.firestore.FieldValue.serverTimestamp(),
     });
-    return ref.id;
+    return { id: ref.id, autoApproved: shouldAutoApprove };
   },
   // 教室長が承認 (status: active)
   async approve(id, approverName) {

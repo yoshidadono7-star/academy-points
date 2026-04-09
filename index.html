@@ -3315,8 +3315,19 @@ async function saveStudent(id) {
       await StudentsDB.update(id, data);
       showToast('生徒情報を更新しました');
     } else {
-      await StudentsDB.add(data);
-      showToast('生徒を追加しました');
+      const newId = await StudentsDB.add(data);
+      // 新入生をギルドに自動割り当て
+      try {
+        const guild = await GuildsDB.autoAssignOne(newId);
+        if (guild) {
+          showToast(`生徒を追加し、${guild.icon || ''}${guild.name}ギルドに配属しました`);
+        } else {
+          showToast('生徒を追加しました（ギルド未初期化のため配属なし）');
+        }
+      } catch (ge) {
+        console.warn('[autoAssignOne] failed:', ge);
+        showToast('生徒を追加しました（ギルド自動配属に失敗）');
+      }
     }
     closeModal();
     loadStudents();
@@ -5153,6 +5164,9 @@ async function initApp() {
     // リアルタイム: 教室状況リスナー
     setupAdminLiveListener();
 
+    // 自動化: 週次目標判定 — 土曜 20:00 以降、今週の判定がまだなら自動実行
+    tryAutoWeeklyJudgement().catch(e => console.warn('[autoWeeklyJudgement]', e));
+
   } catch (e) {
     console.error('初期化エラー:', e);
   }
@@ -5916,6 +5930,63 @@ async function loadGoalJudgementSummary() {
     console.error('[goalJudgement] error:', e);
     container.innerHTML = '<p style="color:var(--danger);font-size:12px;">読み込み失敗: ' + escapeHtml(e.message || '') + '</p>';
   }
+}
+
+// ============================================
+// 自動化: 週次目標判定（土曜 20:00 以降に自動実行）
+// ============================================
+async function tryAutoWeeklyJudgement() {
+  const now = new Date();
+  const day = now.getDay(); // 0=日, 6=土
+  const hour = now.getHours();
+  // 土曜20時以降 or 日曜 のみ判定を試みる
+  if (!(day === 6 && hour >= 20) && day !== 0) return;
+
+  const currentWeek = PersonalGoalsDB.getCurrentWeek();
+
+  // settings/weeklyJudgement で最終実行週を確認
+  try {
+    const doc = await db.collection('settings').doc('weeklyJudgement').get();
+    const lastWeek = doc.exists ? doc.data().lastJudgedWeek : null;
+    if (lastWeek === currentWeek) return; // 今週は判定済み
+  } catch (e) {
+    console.warn('[autoJudge] settings read failed:', e);
+    return; // 読めなければ安全のためスキップ
+  }
+
+  // 今週のアクティブな量的目標があるか確認
+  const all = await PersonalGoalsDB.getAll();
+  const active = all.filter(g => g.week === currentWeek && g.status === 'active');
+  const autoJudgeable = active.filter(g => g.type !== 'custom' && g.type !== 'task');
+  if (autoJudgeable.length === 0) return; // 判定対象なし
+
+  console.log(`[autoJudge] 自動判定を開始: ${autoJudgeable.length} 件 (week=${currentWeek})`);
+
+  // 判定を実行（runWeeklyGoalJudgement のコアロジックを再利用）
+  let achievedCount = 0, missedCount = 0;
+  for (const goal of autoJudgeable) {
+    const progress = await PersonalGoalsDB.calculateProgress(goal);
+    const student = await StudentsDB.getById(goal.studentId);
+    if (progress.pct >= 100) {
+      await PersonalGoalsDB.markAchieved(goal.id, student);
+      achievedCount++;
+    } else {
+      await PersonalGoalsDB.markMissed(goal.id, student);
+      missedCount++;
+    }
+  }
+
+  // 最終実行週を記録
+  await db.collection('settings').doc('weeklyJudgement').set(
+    { lastJudgedWeek: currentWeek, lastJudgedAt: firebase.firestore.FieldValue.serverTimestamp(), achievedCount, missedCount },
+    { merge: true }
+  );
+
+  console.log(`[autoJudge] 完了: 達成 ${achievedCount}, 未達 ${missedCount}`);
+  showToast(`🎯 週次目標を自動判定しました: 達成 ${achievedCount} 件 / 未達 ${missedCount} 件`);
+
+  // サマリーを更新
+  loadGoalJudgementSummary().catch(() => {});
 }
 
 async function runWeeklyGoalJudgement() {
