@@ -1020,17 +1020,11 @@ body {
 
   <!-- Phase S1: 集団目標プログレスバー -->
   <div id="collectiveGoalsBar" style="display:none;padding:10px 24px;background:linear-gradient(90deg,rgba(0,255,136,0.05),rgba(0,212,255,0.05));border-bottom:1px solid rgba(0,255,136,0.2);">
-    <div style="display:flex;gap:16px;align-items:center;min-width:0;">
-      <div style="font-family:'Orbitron',monospace;font-size:10px;color:var(--accent-green);letter-spacing:2px;white-space:nowrap;flex:0 0 auto;">🏫 COLLECTIVE GOALS</div>
-      <div id="collectiveGoalsBarContent" style="display:flex;gap:14px;flex:1 1 0;min-width:0;overflow-x:auto;scrollbar-width:thin;scrollbar-color:rgba(0,212,255,0.5) rgba(0,0,0,0.2);padding-bottom:4px;"></div>
+    <div style="display:flex;gap:16px;align-items:flex-start;min-width:0;">
+      <div style="font-family:'Orbitron',monospace;font-size:10px;color:var(--accent-green);letter-spacing:2px;white-space:nowrap;flex:0 0 auto;padding-top:4px;">🏫 COLLECTIVE GOALS</div>
+      <div id="collectiveGoalsBarContent" style="display:flex;gap:14px 18px;flex-wrap:wrap;flex:1 1 0;min-width:0;"></div>
     </div>
   </div>
-  <style>
-    #collectiveGoalsBarContent::-webkit-scrollbar { height: 6px; }
-    #collectiveGoalsBarContent::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 3px; }
-    #collectiveGoalsBarContent::-webkit-scrollbar-thumb { background: rgba(0,212,255,0.5); border-radius: 3px; }
-    #collectiveGoalsBarContent::-webkit-scrollbar-thumb:hover { background: rgba(0,212,255,0.8); }
-  </style>
 
   <!-- メインパネル -->
   <div class="main">
@@ -1969,7 +1963,7 @@ async function renderCollectiveGoalsBar() {
       const pctLabel = rawPct <= 0 ? '0%' : rawPct < 1 ? '<1%' : rawPct < 10 ? (Math.round(rawPct * 10) / 10) + '%' : rawPct >= 100 ? '100%' : Math.round(rawPct) + '%';
       const color = pct >= 100 ? '#00ff88' : pct >= 80 ? '#ff8800' : '#00d4ff';
       return `
-        <div style="flex:0 0 auto;min-width:200px;max-width:260px;">
+        <div style="flex:1 1 220px;min-width:200px;max-width:320px;">
           <div style="display:flex;justify-content:space-between;align-items:baseline;font-size:11px;margin-bottom:3px;">
             <span style="font-weight:700;color:#e8ecff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${g.name}</span>
             <span style="font-family:'Orbitron',monospace;color:${color};font-size:10px;margin-left:6px;">${pctLabel}</span>
