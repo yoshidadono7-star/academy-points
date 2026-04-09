@@ -2048,10 +2048,15 @@ document.querySelectorAll('.tab-cat-btn').forEach(btn => {
     if (group) {
       group.classList.add('active');
       // 2026-04 UX 改善: このカテゴリ内で最初のサブタブに自動遷移する
-      // (以前は前のカテゴリのコンテンツが残っていて混乱する問題があった)
       const firstSubTab = group.querySelector('.tab-btn');
       if (firstSubTab && firstSubTab.dataset.tab) {
         switchTab(firstSubTab.dataset.tab);
+        // switchTab 後にサブタブの active 状態を明示的に再設定
+        // (分析・運営 等の初回表示時に border-bottom が付かない問題の対策)
+        requestAnimationFrame(() => {
+          group.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          firstSubTab.classList.add('active');
+        });
       }
     }
   });
