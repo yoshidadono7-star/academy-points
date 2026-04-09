@@ -2190,8 +2190,20 @@ let currentMissionDraw = null; // Daily mission draw cache
 const SUBJECT_ICONS = { '国語': '📕', '数学': '📐', '英語': '🔤', '理科': '🔬', '社会': '🌍', 'その他': '📝' };
 
 // Level thresholds for progress bar
-// Phase 10: レベル閾値改定
-const LEVEL_THRESHOLDS = [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4500, 7000, 99999];
+// Phase 10→A1: レベル閾値（PointRatesDB から動的取得、初期値はデフォルト）
+let LEVEL_THRESHOLDS = [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4500, 7000, 99999];
+// ポモドーロボーナス（PointRatesDB から動的取得）
+let POMODORO_BONUS = 7;
+// アプリ起動時に Firestore から最新値をロード
+async function loadPointRates() {
+  try {
+    const r = await PointRatesDB.get();
+    if (r.levelThresholds && Array.isArray(r.levelThresholds)) {
+      LEVEL_THRESHOLDS = [...r.levelThresholds, 99999];
+    }
+    POMODORO_BONUS = r.pomodoroBonus || 7;
+  } catch (e) { console.warn('[loadPointRates]', e); }
+}
 
 // ============================================
 // Navigation
@@ -2293,6 +2305,9 @@ async function handleLogin() {
     localStorage.setItem('heroAcademy_student', JSON.stringify({ id: student.id, nickname, pin }));
     // プッシュ通知のセットアップ（バックグラウンドで実行）
     setupPushNotifications(student.id);
+
+    // A1: ポイントレートを Firestore からロード
+    loadPointRates();
 
     // Phase 14: バディシステム起動 + AI設定読み込み
     BuddySystem.init();
@@ -3686,7 +3701,7 @@ async function stopStudy(save) {
   // Points: 1pt per minute base, pomodoro bonus (Phase 10: 5→7pt)
   let basePoints = duration;
   if (studySession.method === 'pomodoro' && timerState.pomodoroCount > 0) {
-    basePoints += timerState.pomodoroCount * 7; // 7pt bonus per pomodoro
+    basePoints += timerState.pomodoroCount * POMODORO_BONUS; // A1: Firestore 管理
   }
 
   // イベント重複判定: セッション期間とイベント期間が1秒でも��なっていれば倍率適用
