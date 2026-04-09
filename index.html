@@ -934,8 +934,12 @@
   </div>
 
   <div class="tab-content" id="tab-guilds">
-    <div style="margin-bottom:16px">
+    <!-- Phase X3: ギルド再編ツール -->
+    <div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
       <button class="btn btn-primary" onclick="openGuildModal()">&#10133; ギルド作成</button>
+      <button class="btn" style="background:#667eea;color:#fff;" onclick="initializeGuilds()">&#127775; 9 ギルドを初期化（星座テーマ）</button>
+      <button class="btn" style="background:#f6ad55;color:#fff;" onclick="autoAssignGuilds()">&#127922; 全員自動割り当て</button>
+      <span style="font-size:11px;color:var(--text-light);">テスト中はデータを入れ替えられます</span>
     </div>
     <div class="guild-grid" id="guildGrid"></div>
 
@@ -3339,6 +3343,31 @@ async function deleteStudent(id) {
 // 8. ギルド
 // ============================================
 let currentLeagueTab = 'E';
+
+// Phase X3: ギルド初期化 + 自動割り当て
+async function initializeGuilds() {
+  if (!confirm('9 ギルド（星座テーマ: オリオン・シリウス・カシオペア・ペガサス・アンドロメダ・ポラリス・プレアデス・ドラゴン・フェニックス）を作成します。既存のギルドは上書きされません。続行しますか？')) return;
+  try {
+    const count = await GuildsDB.initializeGuilds();
+    showToast(`✅ ${count} ギルドを作成しました`);
+    loadGuilds();
+  } catch(e) {
+    console.error('[initializeGuilds]', e);
+    showToast('❌ 失敗: ' + (e.message || ''), 'error');
+  }
+}
+
+async function autoAssignGuilds() {
+  if (!confirm('全生徒を 9 ギルドに自動割り当てします。学年バランスを考慮してシャッフル配分します。既存のギルド所属は上書きされます。続行しますか？')) return;
+  try {
+    const result = await GuildsDB.autoAssignAll();
+    showToast(`✅ ${result.studentCount} 名を ${result.guildCount} ギルドに割り当てました`);
+    loadGuilds();
+  } catch(e) {
+    console.error('[autoAssignGuilds]', e);
+    showToast('❌ 失敗: ' + (e.message || ''), 'error');
+  }
+}
 
 async function loadGuilds() {
   try {

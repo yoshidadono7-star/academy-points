@@ -493,13 +493,19 @@ const MessagesDB = {
 };
 
 // --- ギルド ---
+// Feature 12 Phase X3: 9 ギルド（星座テーマ）に再編
+// 5-6 名 × 9 ギルドでマジカルナンバー 7 の認知単位を実現。
+// 学年混成 (小中高混在) でメンター文化を促進。
 const GUILD_THEMES = [
-  { id: 'fire', name: '炎のギルド', icon: '🔥', color: '#ef4444' },
-  { id: 'water', name: '水のギルド', icon: '💧', color: '#3b82f6' },
-  { id: 'wind', name: '風のギルド', icon: '🌪️', color: '#10b981' },
-  { id: 'earth', name: '大地のギルド', icon: '🏔️', color: '#f59e0b' },
-  { id: 'light', name: '光のギルド', icon: '✨', color: '#8b5cf6' },
-  { id: 'dark', name: '闇のギルド', icon: '🌙', color: '#6366f1' }
+  { id: 'orion',     name: 'オリオン',     icon: '🌟', color: '#3b82f6',  motto: '勇敢なる狩人' },
+  { id: 'sirius',    name: 'シリウス',     icon: '⭐', color: '#f1f5f9',  motto: '最も明るい星' },
+  { id: 'cassiopeia',name: 'カシオペア',   icon: '👑', color: '#a855f7',  motto: '気高き女王' },
+  { id: 'pegasus',   name: 'ペガサス',     icon: '🦄', color: '#eab308',  motto: '翼ある飛躍' },
+  { id: 'andromeda', name: 'アンドロメダ', icon: '🌌', color: '#ec4899',  motto: '銀河の広がり' },
+  { id: 'polaris',   name: 'ポラリス',     icon: '✨', color: '#22d3ee',  motto: '導きの北極星' },
+  { id: 'pleiades',  name: 'プレアデス',   icon: '💫', color: '#06b6d4',  motto: '七つ星の調和' },
+  { id: 'draco',     name: 'ドラゴン',     icon: '🐉', color: '#ef4444',  motto: '龍の力' },
+  { id: 'phoenix',   name: 'フェニックス', icon: '🔥', color: '#f97316',  motto: '不死鳥の再生' },
 ];
 
 // ===== リーグ（年齢別競争単位） =====
@@ -586,6 +592,86 @@ const GuildsDB = {
   },
   async getRanking() {
     return this.getProgress(); // 後方互換
+  },
+  // Phase X3: 9 ギルドを一括作成 (既存がない場合)
+  async initializeGuilds() {
+    const existing = await this.getAll();
+    if (existing.length > 0) return existing.length; // 既存があれば何もしない
+    const batch = db.batch();
+    for (const theme of GUILD_THEMES) {
+      const ref = db.collection('guilds').doc(theme.id);
+      batch.set(ref, {
+        name: theme.name,
+        themeId: theme.id,
+        icon: theme.icon,
+        color: theme.color,
+        motto: theme.motto || '',
+        members: [],
+        totalPoints: 0,
+        milestones: GUILD_MILESTONES.map(m => ({ ...m, unlocked: false })),
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+    return GUILD_THEMES.length;
+  },
+  // Phase X3: 全生徒を 9 ギルドに自動割り当て（学年バランス考慮）
+  // grade ごとにシャッフルしてラウンドロビンで均等配分
+  async autoAssignAll() {
+    const students = await StudentsDB.getAll();
+    const guilds = await this.getAll();
+    if (guilds.length === 0) throw new Error('ギルドが作成されていません。先に「ギルド初期化」してください。');
+
+    // 学年グループに分ける
+    const gradeGroups = {};
+    students.forEach(s => {
+      const g = s.grade || '未設定';
+      if (!gradeGroups[g]) gradeGroups[g] = [];
+      gradeGroups[g].push(s);
+    });
+
+    // 各学年グループをシャッフル
+    for (const arr of Object.values(gradeGroups)) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    }
+
+    // 全生徒をフラットにして学年インターリーブ (小→中→高→小→中→高...)
+    const gradeKeys = Object.keys(gradeGroups).sort();
+    const interleaved = [];
+    let maxLen = Math.max(...Object.values(gradeGroups).map(g => g.length));
+    for (let i = 0; i < maxLen; i++) {
+      for (const key of gradeKeys) {
+        if (i < gradeGroups[key].length) {
+          interleaved.push(gradeGroups[key][i]);
+        }
+      }
+    }
+
+    // ラウンドロビンで 9 ギルドに配分
+    const guildIds = guilds.map(g => g.id);
+    const assignments = {}; // guildId -> [studentId]
+    guildIds.forEach(id => { assignments[id] = []; });
+
+    interleaved.forEach((student, i) => {
+      const guildId = guildIds[i % guildIds.length];
+      assignments[guildId].push(student.id);
+    });
+
+    // Firestore に書き込み
+    for (const [guildId, memberIds] of Object.entries(assignments)) {
+      await db.collection('guilds').doc(guildId).update({
+        members: memberIds,
+      });
+      // 各生徒の guildId を更新
+      for (const sid of memberIds) {
+        await StudentsDB.update(sid, { guildId });
+      }
+    }
+
+    return { guildCount: guildIds.length, studentCount: interleaved.length, assignments };
   },
   // リーグ別個人ランキング
   async getLeagueRanking(league) {
