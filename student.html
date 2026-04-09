@@ -3704,6 +3704,18 @@ async function stopStudy(save) {
     basePoints += timerState.pomodoroCount * POMODORO_BONUS; // A1: Firestore 管理
   }
 
+  // B1: 時間帯/曜日ブースト
+  let timeBoostMultiplier = 1;
+  let timeBoostLabel = null;
+  try {
+    const tb = await TimeBoostsDB.getCurrentBoost();
+    timeBoostMultiplier = tb.multiplier;
+    timeBoostLabel = tb.label;
+    if (timeBoostMultiplier > 1) {
+      basePoints = Math.round(basePoints * timeBoostMultiplier);
+    }
+  } catch (e) { console.warn('[TimeBoost]', e); }
+
   // イベント重複判定: セッション期間とイベント期間が1秒でも��なっていれば倍率適用
   let eventMultiplier = 1;
   let eventBonusPoints = 0;
@@ -3905,6 +3917,11 @@ async function stopStudy(save) {
         await DailyPlansDB.updatePhaseStatus(currentPlan.id, activeIdx, 'completed', duration);
         currentPlan.phases[activeIdx].status = 'completed';
       }
+    }
+
+    // B1: ブースト適用されていたら通知
+    if (timeBoostLabel) {
+      setTimeout(() => showToast(`${timeBoostLabel} (x${timeBoostMultiplier})`), 1500);
     }
 
     // Show complete screen

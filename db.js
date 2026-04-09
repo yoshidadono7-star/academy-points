@@ -721,6 +721,112 @@ const GuildsDB = {
   }
 };
 
+// --- Phase X4: ギルド目標 ---
+// ギルド（チーム）単位の週次目標。チームPDCAサイクルを実装。
+const GuildGoalsDB = {
+  async getAll() {
+    const snap = await db.collection('guildGoals').orderBy('createdAt', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getByGuild(guildId) {
+    const snap = await db.collection('guildGoals').where('guildId', '==', guildId).orderBy('createdAt', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getActiveByGuild(guildId) {
+    const snap = await db.collection('guildGoals').where('guildId', '==', guildId).where('status', '==', 'active').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getCurrentWeekAll() {
+    const week = PersonalGoalsDB.getCurrentWeek();
+    const snap = await db.collection('guildGoals').where('week', '==', week).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  // ギルド目標を作成 (教室長が設定)
+  async create(data) {
+    const ref = await db.collection('guildGoals').add({
+      guildId: data.guildId,
+      guildName: data.guildName || '',
+      week: data.week || PersonalGoalsDB.getCurrentWeek(),
+      type: data.type || 'totalPoints',  // 'totalPoints' | 'totalMinutes' | 'totalPomodoros' | 'allStudied' | 'custom'
+      title: data.title || '',
+      description: data.description || '',
+      target: data.target || 0,
+      reward: data.reward || 0,         // 達成時に全メンバーに付与
+      status: 'active',                 // 'active' | 'achieved' | 'missed'
+      progress: 0,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    return ref.id;
+  },
+  // 進捗を計算（週のギルド合算）
+  async calculateProgress(goal) {
+    const guild = await GuildsDB.getById(goal.guildId);
+    if (!guild || !guild.members || guild.members.length === 0) return { current: 0, pct: 0 };
+
+    const weekRange = PersonalGoalsDB.getWeekRange(goal.week);
+    const logs = [];
+    // メンバーの学習ログを集計
+    for (const memberId of guild.members) {
+      const snap = await db.collection('studyLogs')
+        .where('studentId', '==', memberId)
+        .where('createdAt', '>=', weekRange.start)
+        .where('createdAt', '<=', weekRange.end)
+        .get();
+      snap.docs.forEach(d => logs.push(d.data()));
+    }
+
+    let current = 0;
+    switch (goal.type) {
+      case 'totalPoints':
+        current = logs.reduce((s, l) => s + (l.points || 0), 0);
+        break;
+      case 'totalMinutes':
+        current = logs.reduce((s, l) => s + (l.duration || 0), 0);
+        break;
+      case 'totalPomodoros':
+        current = logs.reduce((s, l) => s + (l.pomodoroCount || 0), 0);
+        break;
+      case 'allStudied':
+        // メンバー全員が今週1回以上学習したか
+        const studiedMembers = new Set(logs.map(l => l.studentId));
+        current = studiedMembers.size;
+        break;
+      default:
+        current = 0;
+    }
+
+    const target = goal.target || 1;
+    return { current, pct: Math.min(Math.round((current / target) * 100), 999) };
+  },
+  // 達成判定 → 全メンバーに報酬付与
+  async markAchieved(goalId, guild) {
+    await db.collection('guildGoals').doc(goalId).update({
+      status: 'achieved',
+      judgedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    const goal = await this.getById(goalId);
+    if (goal && goal.reward && guild && guild.members) {
+      for (const memberId of guild.members) {
+        await StudentsDB.addPoints(memberId, goal.reward, {
+          category: 'guild_goal',
+          description: `ギルド目標達成: ${goal.title}`,
+          grantedBy: 'system',
+        });
+      }
+    }
+  },
+  async markMissed(goalId) {
+    await db.collection('guildGoals').doc(goalId).update({
+      status: 'missed',
+      judgedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  },
+  async getById(id) {
+    const doc = await db.collection('guildGoals').doc(id).get();
+    return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  },
+};
+
 // --- レイドボス ---
 const RaidBossDB = {
   async getAll() {
@@ -4432,6 +4538,90 @@ const GrantTemplatesDB = {
     }
     await batch.commit();
     return samples.length;
+  },
+};
+
+// --- Phase B1: 時間帯/曜日ブースト ---
+// Firestore settings/timeBoosts で管理。未設定時は DEFAULTS を使用。
+const TimeBoostsDB = {
+  DEFAULTS: {
+    enabled: true,
+    // 時間帯ブースト: 早朝・夜の学習を奨励
+    hourly: [
+      { label: '早朝 (5-8時)',   startHour: 5,  endHour: 8,  multiplier: 1.3, emoji: '🌅' },
+      { label: '夜間 (20-23時)', startHour: 20, endHour: 23, multiplier: 1.2, emoji: '🌙' },
+    ],
+    // 曜日ブースト: 土日の自主学習を奨励
+    daily: [
+      { label: '土曜ブースト', dayOfWeek: 6, multiplier: 1.2, emoji: '🌟' },
+      { label: '日曜ブースト', dayOfWeek: 0, multiplier: 1.3, emoji: '✨' },
+    ],
+  },
+
+  _cache: null,
+  _cacheAt: 0,
+
+  async get() {
+    if (this._cache && Date.now() - this._cacheAt < 300000) return this._cache;
+    try {
+      const doc = await db.collection('settings').doc('timeBoosts').get();
+      if (doc.exists) {
+        const data = doc.data() || {};
+        this._cache = {
+          enabled: data.enabled != null ? data.enabled : this.DEFAULTS.enabled,
+          hourly: data.hourly || this.DEFAULTS.hourly,
+          daily: data.daily || this.DEFAULTS.daily,
+        };
+        this._cacheAt = Date.now();
+        return this._cache;
+      }
+    } catch (e) { console.warn('[TimeBoostsDB.get]', e); }
+    this._cache = { ...this.DEFAULTS };
+    this._cacheAt = Date.now();
+    return this._cache;
+  },
+
+  async save(config) {
+    await db.collection('settings').doc('timeBoosts').set({
+      ...config,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    this._cache = null;
+    this._cacheAt = 0;
+  },
+
+  // 現在の時刻と曜日からブースト倍率を計算
+  async getCurrentBoost() {
+    const config = await this.get();
+    if (!config.enabled) return { multiplier: 1, label: null, emoji: null };
+
+    const now = new Date();
+    const hour = now.getHours();
+    const day = now.getDay(); // 0=日, 6=土
+    let totalMultiplier = 1;
+    const activeLabels = [];
+
+    // 時間帯ブースト
+    for (const h of (config.hourly || [])) {
+      if (hour >= h.startHour && hour < h.endHour) {
+        totalMultiplier *= h.multiplier;
+        activeLabels.push({ label: h.label, multiplier: h.multiplier, emoji: h.emoji });
+      }
+    }
+
+    // 曜日ブースト
+    for (const d of (config.daily || [])) {
+      if (day === d.dayOfWeek) {
+        totalMultiplier *= d.multiplier;
+        activeLabels.push({ label: d.label, multiplier: d.multiplier, emoji: d.emoji });
+      }
+    }
+
+    return {
+      multiplier: Math.round(totalMultiplier * 100) / 100,
+      active: activeLabels,
+      label: activeLabels.map(a => `${a.emoji} ${a.label} x${a.multiplier}`).join(' + ') || null,
+    };
   },
 };
 
