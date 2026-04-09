@@ -522,6 +522,28 @@
   <!-- ===== ランキング ===== -->
   <!-- 今日のプラン管理 -->
   <div class="tab-content active" id="tab-plans">
+
+    <!-- 艦長マイケル - ブリーフィング上書き -->
+    <div class="card" id="commanderOverrideCard" style="background:linear-gradient(135deg,rgba(0,212,255,0.08),rgba(136,102,255,0.08));border:1px solid rgba(0,212,255,0.3);">
+      <h3 style="display:flex;align-items:center;gap:10px;">
+        <span style="font-size:24px;">🧑‍✈️</span>
+        艦長マイケルの「今日のメッセージ」
+        <span id="commanderStatusBadge" style="font-size:11px;padding:2px 10px;border-radius:10px;background:rgba(136,102,255,0.2);color:#8866ff;margin-left:auto;">AI 自動</span>
+      </h3>
+      <p style="font-size:12px;color:#718096;margin-bottom:12px;">
+        ブリーフィング画面（教室モニター）の上部で艦長マイケルが語るメッセージです。
+        空欄のままにすると AI が毎日自動生成します。
+        何か特別なメッセージがある日だけここに入力してください（例: 「今日は期末テスト対策最終日だ！」）。
+      </p>
+      <textarea id="commanderManualInput" rows="2" placeholder="例: 諸君、本日は期末テスト対策最終日だ。全クルー、全力で挑め！"
+        style="width:100%;padding:10px 12px;border:1px solid #cbd5e0;border-radius:8px;font-size:14px;resize:vertical;font-family:inherit;"></textarea>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:10px;flex-wrap:wrap;">
+        <button id="commanderManualSaveBtn" class="btn" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;padding:8px 18px;border:none;border-radius:6px;cursor:pointer;font-weight:600;">💾 保存</button>
+        <button id="commanderManualClearBtn" class="btn" style="background:#e2e8f0;color:#4a5568;padding:8px 18px;border:none;border-radius:6px;cursor:pointer;">🗑️ クリア（AI 自動に戻す）</button>
+        <span id="commanderManualStatus" style="font-size:12px;color:#718096;"></span>
+      </div>
+    </div>
+
     <div class="card">
       <h3>🚀 今日のプラン管理</h3>
       <p style="font-size:13px;color:#718096;margin-bottom:16px;">各生徒の本日の学習プランを設定します。プランがある生徒は、生徒画面でワンタップで学習を開始できます。</p>
@@ -704,15 +726,17 @@
 
   <!-- ===== 景品交換 ===== -->
   <div class="tab-content" id="tab-prizes">
-    <div style="margin-bottom:16px">
+    <div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
       <button class="btn btn-primary" onclick="openPrizeModal()">&#10133; 景品追加</button>
+      <button class="btn" style="background:#f6ad55;color:#fff;" onclick="injectSampleCatalog()">&#128313; サンプルカタログを投入</button>
+      <span style="font-size:11px;color:var(--text-light);">初めて景品を作る際、延岡校向けの推定原価付き 14 件を一括投入できます</span>
     </div>
     <div class="card">
       <div class="card-title"><span class="icon">&#127873;</span> 景品一覧</div>
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>アイコン</th><th>景品名</th><th>説明</th><th>必要pt</th><th>在庫</th><th>操作</th></tr>
+            <tr><th>アイコン</th><th>景品名 / カテゴリ</th><th>説明</th><th>必要pt</th><th>原価 (¥)</th><th>在庫</th><th>操作</th></tr>
           </thead>
           <tbody id="prizesTable"></tbody>
         </table>
@@ -1115,6 +1139,18 @@
       </div>
       <button class="btn btn-primary" onclick="createEvent()">&#10133; イベント作成</button>
     </div>
+    <!-- Phase C1: イベント影響ダッシュボード -->
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128202;</span> イベント影響ダッシュボード</div>
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:10px;">
+        今月のイベント発火による追加付与ポイントの実績を表示します。集計対象は coins コレクションの category='event' 取引。
+      </p>
+      <div id="eventImpactContent" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:12px;">
+        <p style="color:var(--text-light);font-size:12px;grid-column:1/-1;">読み込み中...</p>
+      </div>
+    </div>
+
+    <!-- Phase C1: イベント履歴 (拡張版) -->
     <div class="card">
       <div class="card-title"><span class="icon">&#128197;</span> イベント履歴（過去30日）</div>
       <div id="eventHistory"></div>
@@ -1134,6 +1170,212 @@
       </div>
       <div id="economySummary"></div>
     </div>
+
+    <!-- Phase F1: 日次推移グラフ -->
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128200;</span> 日次発行・消費推移（今月）</div>
+      <div style="position:relative;height:280px;max-width:100%;">
+        <canvas id="economyDailyChart"></canvas>
+      </div>
+      <div style="font-size:11px;color:var(--text-light);margin-top:8px;">
+        青 = 発行ポイント、オレンジ = 消費ポイント。日毎の推移が見えるので、イベント直前直後や週末の変化がわかります。
+      </div>
+    </div>
+
+    <!-- Phase F1: カテゴリ別 + 発行者別 内訳 -->
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128203;</span> 今月の発行内訳</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px;">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-light);margin-bottom:8px;">カテゴリ別</div>
+          <div style="position:relative;height:220px;">
+            <canvas id="economyCategoryChart"></canvas>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-light);margin-bottom:8px;">発行者別</div>
+          <div style="position:relative;height:220px;">
+            <canvas id="economyGranterChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase F1: 生徒別ランキング -->
+    <div class="card">
+      <div class="card-title"><span class="icon">&#127942;</span> 今月の獲得ランキング TOP10</div>
+      <div id="economyStudentRanking" style="font-size:13px;">読み込み中...</div>
+    </div>
+
+    <!-- Phase F1: 発行ログビューア -->
+    <div class="card">
+      <div class="card-title"><span class="icon">&#128269;</span> 発行ログビューア</div>
+      <div class="form-row" style="margin-bottom:10px;">
+        <div class="form-group">
+          <label>期間</label>
+          <select class="form-control" id="economyLogRange" onchange="loadEconomyLog()">
+            <option value="today">今日</option>
+            <option value="week">直近 7 日</option>
+            <option value="month" selected>今月</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>カテゴリ</label>
+          <select class="form-control" id="economyLogCategory" onchange="loadEconomyLog()">
+            <option value="">全て</option>
+            <option value="attendance">通塾</option>
+            <option value="pomodoro">ポモドーロ</option>
+            <option value="pomodoro_triple">ポモ3連続</option>
+            <option value="review">振り返り</option>
+            <option value="review_plan">振り返り+計画</option>
+            <option value="ai_10">AI教材</option>
+            <option value="teaching">教え合い</option>
+            <option value="new_support">新入生サポート</option>
+            <option value="trial_support">体験授業サポート</option>
+            <option value="manual">手動</option>
+            <option value="session">学習セッション</option>
+            <option value="mission">ミッション</option>
+            <option value="event">イベント</option>
+            <option value="streak">ストリーク</option>
+            <option value="reward">報酬消費</option>
+            <option value="gift">ギフト</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>付与者</label>
+          <select class="form-control" id="economyLogGranter" onchange="loadEconomyLog()">
+            <option value="">全て</option>
+            <option value="coach">コーチ (手動)</option>
+            <option value="system">システム (自動)</option>
+            <option value="teacher">講師</option>
+            <option value="commander">艦長</option>
+            <option value="owner">オーナー</option>
+          </select>
+        </div>
+        <div class="form-group">
+          <label>方向</label>
+          <select class="form-control" id="economyLogDirection" onchange="loadEconomyLog()">
+            <option value="all">全て</option>
+            <option value="earn">発行 (+)</option>
+            <option value="spend">消費 (-)</option>
+          </select>
+        </div>
+      </div>
+      <!-- サマリーバー (フィルタ結果の合計。常に表示) -->
+      <div id="economyLogSummaryBar"></div>
+      <div id="economyLogTableWrap" style="max-height:460px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;">
+        <p style="color:var(--text-light);font-size:12px;padding:14px;">読み込み中...</p>
+      </div>
+      <div id="economyLogFooter" style="font-size:11px;color:var(--text-light);margin-top:6px;"></div>
+    </div>
+
+    <!-- Phase R3: 経済バランス（責務・換金レート） -->
+    <div class="card" id="economyBalanceCard">
+      <div class="card-title"><span class="icon">&#128181;</span> 経済バランス（責務・換金レート）</div>
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:10px;">
+        ポイントの実体経済とのバランスを可視化します。1 pt を円に換算し、未消費ポイント総量（業務責務）・月間発行額・月間消費額（実原価）を比較。
+      </p>
+      <div id="economyBalanceContent">
+        <p style="color:var(--text-light);font-size:12px;">読み込み中...</p>
+      </div>
+      <div id="economyRateEditor" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+        <div style="font-size:13px;font-weight:700;margin-bottom:8px;">⚙️ 換金レート・月間予算の設定 <span style="font-size:11px;font-weight:normal;color:var(--text-light);">(オーナー専用)</span></div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>1 pt = ¥ いくら</label>
+            <input type="number" class="form-control" id="rateYenPerPoint" step="0.1" min="0">
+          </div>
+          <div class="form-group">
+            <label>月間報酬予算 (¥)</label>
+            <input type="number" class="form-control" id="rateMonthlyBudget" step="1000" min="0">
+          </div>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:10px;align-items:center;">
+          <button class="btn btn-primary" onclick="savePointRates()">💾 保存</button>
+          <span id="rateStatus" style="font-size:11px;color:var(--text-light);"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase S1: 集団目標 -->
+    <div class="card" id="collectiveGoalsCard">
+      <div class="card-title" style="display:flex;align-items:center;gap:10px;">
+        <span class="icon">&#127979;</span> 集団目標（全員で達成する特典）
+        <span style="font-size:11px;font-weight:normal;color:var(--text-light);margin-left:auto;">日曜開室・ドリンクバー・設備UP等</span>
+      </div>
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:10px;">
+        全員で pt を貢献して閾値に達すると、教室全体に特典が降ってきます。閾値は原価（円）から換金レートで自動計算。
+      </p>
+      <div id="collectiveGoalsList" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:12px;margin-bottom:12px;">
+        <p style="color:var(--text-light);font-size:12px;grid-column:1/-1;">読み込み中...</p>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding-top:10px;border-top:1px solid var(--border);">
+        <button class="btn btn-primary btn-sm" onclick="openCollectiveGoalModal()">&#10133; 目標を追加</button>
+        <button class="btn btn-sm" style="background:#f6ad55;color:#fff;" onclick="injectSampleCollectiveGoals()">&#128313; サンプル目標を投入</button>
+        <span style="font-size:11px;color:var(--text-light);">初めて作る際、6 件のサンプル (日曜開室・ドリンクバー等) を投入できます</span>
+      </div>
+    </div>
+
+    <!-- Phase D1: 特別付与テンプレート -->
+    <div class="card" id="grantTemplatesCard">
+      <div class="card-title" style="display:flex;align-items:center;gap:10px;">
+        <span class="icon">&#127873;</span> 特別付与テンプレート
+        <span style="font-size:11px;font-weight:normal;color:var(--text-light);margin-left:auto;">1 クリックで誕生日・皆勤・新入生歓迎 etc. を付与</span>
+      </div>
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:10px;">
+        よく使う付与パターンをテンプレート化し、1 クリックで対象生徒に付与できます。F2 の予算上限が適用されます。
+      </p>
+      <div id="grantTemplatesList" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:12px;">
+        <p style="color:var(--text-light);font-size:12px;grid-column:1/-1;">読み込み中...</p>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding-top:10px;border-top:1px solid var(--border);">
+        <button class="btn btn-primary btn-sm" onclick="openGrantTemplateModal()">&#10133; テンプレート追加</button>
+        <button class="btn btn-sm" style="background:#f6ad55;color:#fff;" onclick="injectSampleTemplates()">&#128313; サンプルテンプレートを投入</button>
+        <span style="font-size:11px;color:var(--text-light);">初めて作る際、延岡校向け 10 件を一括投入できます</span>
+      </div>
+    </div>
+
+    <!-- Phase F2: 予算上限ダッシュボード -->
+    <div class="card" id="budgetDashboardCard">
+      <div class="card-title"><span class="icon">&#128176;</span> 予算使用状況（裁量付与）</div>
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:10px;">
+        コーチ/艦長/講師が手動で付与するポイントの月次/日次上限と、使用済み・残量を表示します。システム自動付与（学習セッション・ミッション等）は集計対象外です。
+      </p>
+      <div id="budgetDashboardContent" style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:14px;">
+        <p style="color:var(--text-light);font-size:12px;grid-column:1/-1;">読み込み中...</p>
+      </div>
+      <div id="budgetLimitEditor" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+        <div style="font-size:13px;font-weight:700;margin-bottom:8px;">⚙️ 予算上限の設定 <span style="font-size:11px;font-weight:normal;color:var(--text-light);">(オーナー専用)</span></div>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:12px;font-size:12px;">
+          <div>
+            <label style="font-weight:700;display:block;margin-bottom:4px;">艦長 月次上限 (pt)</label>
+            <input type="number" class="form-control" id="limitCommanderMonthly" min="0" step="100">
+          </div>
+          <div>
+            <label style="font-weight:700;display:block;margin-bottom:4px;">管理者 月次上限 (pt)</label>
+            <input type="number" class="form-control" id="limitAdminMonthly" min="0" step="100">
+          </div>
+          <div>
+            <label style="font-weight:700;display:block;margin-bottom:4px;">講師 月次上限 (pt)</label>
+            <input type="number" class="form-control" id="limitTeacherMonthly" min="0" step="100">
+          </div>
+          <div>
+            <label style="font-weight:700;display:block;margin-bottom:4px;">講師 日次上限 (pt)</label>
+            <input type="number" class="form-control" id="limitTeacherDaily" min="0" step="10">
+          </div>
+          <div>
+            <label style="font-weight:700;display:block;margin-bottom:4px;">講師 1 回あたり上限 (pt)</label>
+            <input type="number" class="form-control" id="limitTeacherPerGrant" min="0" step="5">
+          </div>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:10px;align-items:center;">
+          <button class="btn btn-primary" onclick="saveBudgetLimits()">💾 保存</button>
+          <button class="btn" style="background:#e2e8f0;color:#4a5568;" onclick="resetBudgetLimits()">デフォルトに戻す</button>
+          <span id="budgetLimitStatus" style="font-size:11px;color:var(--text-light);"></span>
+        </div>
+      </div>
+    </div>
+
     <div class="card">
       <div class="card-title"><span class="icon">&#128202;</span> ポイント付与ルール一覧</div>
       <div class="table-wrap">
@@ -1795,7 +2037,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
   btn.addEventListener('click', () => switchTab(btn.dataset.tab));
 });
 
-// カテゴリ行クリック → サブタブグループを切替（コンテンツは変えない）
+// カテゴリ行クリック → サブタブグループを切替 + 先頭のサブタブに自動遷移
 document.querySelectorAll('.tab-cat-btn').forEach(btn => {
   btn.addEventListener('click', () => {
     const cat = btn.dataset.cat;
@@ -1803,7 +2045,15 @@ document.querySelectorAll('.tab-cat-btn').forEach(btn => {
     btn.classList.add('active');
     document.querySelectorAll('.tab-sub-group').forEach(g => g.classList.remove('active'));
     const group = document.querySelector(`.tab-sub-group[data-cat="${cat}"]`);
-    if (group) group.classList.add('active');
+    if (group) {
+      group.classList.add('active');
+      // 2026-04 UX 改善: このカテゴリ内で最初のサブタブに自動遷移する
+      // (以前は前のカテゴリのコンテンツが残っていて混乱する問題があった)
+      const firstSubTab = group.querySelector('.tab-btn');
+      if (firstSubTab && firstSubTab.dataset.tab) {
+        switchTab(firstSubTab.dataset.tab);
+      }
+    }
   });
 });
 
@@ -2235,24 +2485,42 @@ async function loadHistory() {
 // ============================================
 // 6. 景品交換
 // ============================================
+// Phase R4: 延岡校向け 14 件のサンプル景品を一括投入
+async function injectSampleCatalog() {
+  if (!confirm('延岡校向けのサンプル景品 14 件（自習室/食事/文具/グッズ/体験）を一括追加します。既存の景品は削除されません。続行しますか？')) return;
+  try {
+    const count = await PrizesDB.injectSampleCatalog();
+    showToast(`✅ サンプル景品 ${count} 件を追加しました`);
+    loadPrizes();
+  } catch (e) {
+    console.error('[injectSampleCatalog]', e);
+    showToast('❌ 投入失敗: ' + (e.message || ''), 'error');
+  }
+}
+
 async function loadPrizes() {
   try {
     const [prizes, history] = await Promise.all([PrizesDB.getAll(), PrizesDB.getAllHistory()]);
 
     document.getElementById('prizesTable').innerHTML = prizes.length === 0
-      ? '<tr><td colspan="6" style="text-align:center;color:var(--text-light)">景品がありません</td></tr>'
-      : prizes.map(p => `<tr>
-          <td style="font-size:24px">${p.icon || '&#127873;'}</td>
-          <td><strong>${escapeHtml(p.name)}</strong></td>
-          <td>${escapeHtml(p.description || '-')}</td>
-          <td><strong>${p.cost}</strong> pt</td>
-          <td>${p.stock === -1 ? '無制限' : p.stock}</td>
-          <td>
-            <div class="btn-group">
-              <button class="btn btn-secondary btn-sm" onclick="editPrize('${p.id}')">編集</button>
-            </div>
-          </td>
-        </tr>`).join('');
+      ? '<tr><td colspan="7" style="text-align:center;color:var(--text-light)">景品がありません</td></tr>'
+      : prizes.map(p => {
+          const catLabel = PRIZE_CAT_LABELS && PRIZE_CAT_LABELS[p.category] ? PRIZE_CAT_LABELS[p.category] : (p.category || '-');
+          const costYenCell = (p.costYen != null) ? `<span style="color:#48bb78;font-family:monospace;">¥${p.costYen.toLocaleString()}</span>` : '<span style="color:var(--text-light);font-size:11px;">未設定</span>';
+          return `<tr>
+            <td style="font-size:24px">${p.icon || '&#127873;'}</td>
+            <td><strong>${escapeHtml(p.name)}</strong><br><span style="font-size:11px;color:var(--text-light);">${escapeHtml(catLabel)}</span></td>
+            <td style="font-size:12px;">${escapeHtml(p.description || '-')}</td>
+            <td><strong>${p.cost}</strong> pt</td>
+            <td>${costYenCell}</td>
+            <td>${p.stock === -1 ? '無制限' : p.stock}</td>
+            <td>
+              <div class="btn-group">
+                <button class="btn btn-secondary btn-sm" onclick="editPrize('${p.id}')">編集</button>
+              </div>
+            </td>
+          </tr>`;
+        }).join('');
 
     const prizeMap = {};
     prizes.forEach(p => { prizeMap[p.id] = p; });
@@ -2272,6 +2540,15 @@ async function loadPrizes() {
 
 function openPrizeModal(prize) {
   const isEdit = !!prize;
+  const categories = [
+    { v: 'seat', label: '🪑 座席 (自習室)' },
+    { v: 'meal', label: '🍱 食事 (お弁当・おにぎり)' },
+    { v: 'snack', label: '🍬 お菓子' },
+    { v: 'stationery', label: '✏️ 文具' },
+    { v: 'goods', label: '🎁 グッズ' },
+    { v: 'experience', label: '🎯 体験 (特訓・面談)' },
+  ];
+  const currentCat = isEdit ? (prize.category || 'goods') : 'goods';
   openModal(isEdit ? '景品編集' : '景品追加', `
     <div class="form-group">
       <label>景品名 *</label>
@@ -2287,14 +2564,29 @@ function openPrizeModal(prize) {
         <input type="number" class="form-control" id="prizeCost" value="${isEdit ? prize.cost : 50}" min="1">
       </div>
       <div class="form-group">
+        <label>原価 (円) <span style="font-size:10px;color:var(--text-light);">Phase R1</span></label>
+        <input type="number" class="form-control" id="prizeCostYen" value="${isEdit && prize.costYen != null ? prize.costYen : ''}" min="0" placeholder="例: 500">
+      </div>
+      <div class="form-group">
         <label>在庫 (-1=無制限)</label>
         <input type="number" class="form-control" id="prizeStock" value="${isEdit ? prize.stock : -1}" min="-1">
       </div>
     </div>
-    <div class="form-group">
-      <label>アイコン</label>
-      <input type="text" class="form-control" id="prizeIcon" value="${isEdit ? (prize.icon || '&#127873;') : '&#127873;'}" placeholder="絵文字">
+    <div class="form-row">
+      <div class="form-group">
+        <label>カテゴリ</label>
+        <select class="form-control" id="prizeCategory">
+          ${categories.map(c => `<option value="${c.v}"${c.v === currentCat ? ' selected' : ''}>${c.label}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>アイコン</label>
+        <input type="text" class="form-control" id="prizeIcon" value="${isEdit ? (prize.icon || '&#127873;') : '&#127873;'}" placeholder="絵文字">
+      </div>
     </div>
+    <p style="font-size:11px;color:var(--text-light);margin-top:6px;">
+      💡 原価 (円) は業務責務ダッシュボード (経済バランス) で月間コスト計算に使われます。未入力でも動作します (その場合は必要 pt × 換金レートで概算)。
+    </p>
   `, `
     <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
     <button class="btn btn-primary" onclick="savePrize('${isEdit ? prize.id : ''}')">${isEdit ? '更新' : '追加'}</button>
@@ -2304,23 +2596,28 @@ function openPrizeModal(prize) {
 async function savePrize(id) {
   const name = document.getElementById('prizeName').value.trim();
   const cost = parseInt(document.getElementById('prizeCost').value) || 50;
+  const costYenRaw = document.getElementById('prizeCostYen').value;
+  const costYen = costYenRaw === '' ? null : parseInt(costYenRaw);
+  const category = document.getElementById('prizeCategory').value;
   const description = document.getElementById('prizeDesc').value.trim();
   const stock = parseInt(document.getElementById('prizeStock').value);
   const icon = document.getElementById('prizeIcon').value.trim() || '&#127873;';
 
   if (!name) { showToast('景品名を入力してください', 'error'); return; }
 
+  const payload = { name, description, cost, costYen, category, stock: isNaN(stock) ? -1 : stock, icon };
   try {
     if (id) {
-      await PrizesDB.update(id, { name, description, cost, stock: isNaN(stock) ? -1 : stock, icon });
+      await PrizesDB.update(id, payload);
       showToast('景品を更新しました');
     } else {
-      await PrizesDB.add({ name, description, cost, stock: isNaN(stock) ? -1 : stock, icon });
+      await PrizesDB.add(payload);
       showToast('景品を追加しました');
     }
     closeModal();
     loadPrizes();
   } catch (e) {
+    console.error('[savePrize]', e);
     showToast('保存に失敗しました', 'error');
   }
 }
@@ -4662,6 +4959,92 @@ function toggleAllPlanChecks(checked) {
   document.querySelectorAll('.plan-student-check').forEach(c => c.checked = checked);
 }
 
+// ============================================
+// 艦長マイケルのブリーフィング手動上書き
+// ============================================
+async function initCommanderOverridePanel() {
+  const input = document.getElementById('commanderManualInput');
+  const saveBtn = document.getElementById('commanderManualSaveBtn');
+  const clearBtn = document.getElementById('commanderManualClearBtn');
+  const status = document.getElementById('commanderManualStatus');
+  const badge = document.getElementById('commanderStatusBadge');
+  if (!input || !saveBtn) return;
+
+  const today = getToday();
+  const docRef = db.collection('dailyBriefing').doc(today);
+
+  // 現在値を読み込み
+  async function refresh() {
+    try {
+      const snap = await docRef.get();
+      if (snap.exists) {
+        const d = snap.data();
+        if (d.manualOverride) {
+          input.value = d.manualOverride;
+          if (badge) {
+            badge.textContent = '手動上書き中';
+            badge.style.background = 'rgba(0,255,136,0.2)';
+            badge.style.color = '#00a064';
+          }
+        } else {
+          input.value = '';
+          if (badge) {
+            badge.textContent = d.aiMessage ? 'AI 自動（本日生成済み）' : 'AI 自動';
+            badge.style.background = 'rgba(136,102,255,0.2)';
+            badge.style.color = '#8866ff';
+          }
+        }
+      } else {
+        input.value = '';
+        if (badge) {
+          badge.textContent = 'AI 自動';
+          badge.style.background = 'rgba(136,102,255,0.2)';
+          badge.style.color = '#8866ff';
+        }
+      }
+    } catch(e) { console.warn('[commanderOverride] refresh failed:', e); }
+  }
+
+  saveBtn.addEventListener('click', async () => {
+    const text = input.value.trim();
+    if (!text) { status.textContent = '⚠️ 何か入力してください'; setTimeout(() => status.textContent = '', 3000); return; }
+    status.textContent = '保存中...';
+    try {
+      await docRef.set({
+        manualOverride: text,
+        manualOverrideAt: firebase.firestore.FieldValue.serverTimestamp(),
+      }, { merge: true });
+      status.textContent = '✅ 保存しました（ブリーフィング画面をリロードすると反映）';
+      await refresh();
+      setTimeout(() => status.textContent = '', 5000);
+    } catch(e) {
+      console.error('[commanderOverride] save failed:', e);
+      status.textContent = '❌ 保存失敗: ' + (e.message || e);
+    }
+  });
+
+  clearBtn.addEventListener('click', async () => {
+    if (!confirm('手動メッセージを削除して AI 自動生成に戻しますか？')) return;
+    status.textContent = '削除中...';
+    try {
+      // manualOverride フィールドを削除
+      await docRef.set({
+        manualOverride: firebase.firestore.FieldValue.delete(),
+        manualOverrideAt: firebase.firestore.FieldValue.delete(),
+      }, { merge: true });
+      input.value = '';
+      status.textContent = '✅ AI 自動に戻しました';
+      await refresh();
+      setTimeout(() => status.textContent = '', 5000);
+    } catch(e) {
+      console.error('[commanderOverride] clear failed:', e);
+      status.textContent = '❌ 削除失敗: ' + (e.message || e);
+    }
+  });
+
+  await refresh();
+}
+
 async function initApp() {
   // ダッシュボードを初期化（認証後に呼ぶ）
   try {
@@ -4672,6 +5055,9 @@ async function initApp() {
     start.setDate(start.getDate() - 7);
     document.getElementById('historyEnd').value = end.toISOString().split('T')[0];
     document.getElementById('historyStart').value = start.toISOString().split('T')[0];
+
+    // 艦長マイケルのブリーフィング上書きパネル初期化
+    initCommanderOverridePanel().catch(e => console.warn('[commander override init]', e));
 
     // データロード
     await loadPlanStatus();
@@ -4946,19 +5332,114 @@ async function loadEvents() {
       if (eventTimerInterval) clearInterval(eventTimerInterval);
     }
 
-    // 履歴
+    // Phase C1: 履歴 + 影響ダッシュボードを並行ロード
     const history = await EventsDB.getHistory(30);
+    const coinsByEventId = {};
+    try {
+      // 過去 30 日の coins で eventId があるレコードを集計
+      const endTs = new Date();
+      const startTs = new Date(); startTs.setDate(startTs.getDate() - 30);
+      const snap = await db.collection('coins')
+        .where('timestamp', '>=', startTs)
+        .where('timestamp', '<=', endTs)
+        .get();
+      snap.forEach(d => {
+        const t = d.data();
+        if (t.eventId && t.amount > 0 && t.approvalStatus !== 'rejected') {
+          if (!coinsByEventId[t.eventId]) coinsByEventId[t.eventId] = { total: 0, count: 0, students: new Set() };
+          coinsByEventId[t.eventId].total += t.amount;
+          coinsByEventId[t.eventId].count += 1;
+          coinsByEventId[t.eventId].students.add(t.studentId);
+        }
+      });
+    } catch (e) { console.warn('[eventHistory coin aggregation]', e); }
+
     document.getElementById('eventHistory').innerHTML = history.length === 0
       ? '<p style="color:var(--text-light)">過去30日間のイベントはありません</p>'
       : history.map(e => {
           const ts = e.activatedAt ? (e.activatedAt.toDate ? formatDateTime(e.activatedAt.toDate()) : formatDateTime(new Date(e.activatedAt))) : '未発火';
-          return `<div style="display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
-            <span>${escapeHtml(e.name || e.type)}</span>
-            <span style="color:var(--text-light)">${ts} / ${e.durationMinutes || 30}分</span>
+          const impact = coinsByEventId[e.id];
+          const multText = (e.type === 'multiplier' && e.multiplier) ? ` <span style="font-size:11px;color:var(--primary);">×${e.multiplier}</span>` : '';
+          const impactText = impact
+            ? `<div style="font-size:11px;color:var(--success);margin-top:2px;">+${impact.total.toLocaleString()} pt / ${impact.students.size}名 / ${impact.count}件</div>`
+            : '<div style="font-size:11px;color:var(--text-light);margin-top:2px;">bonus 記録なし</div>';
+          return `<div style="padding:10px 0;border-bottom:1px solid var(--border);">
+            <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+              <div style="flex:1;">
+                <strong>${escapeHtml(e.name || e.type)}</strong>${multText}
+                ${impactText}
+              </div>
+              <span style="color:var(--text-light);font-size:11px;white-space:nowrap;">${ts}<br>${e.durationMinutes || 30}分</span>
+            </div>
           </div>`;
         }).join('');
+
+    // Phase C1: 影響ダッシュボード
+    await loadEventImpactDashboard();
   } catch (e) {
     console.error('イベント読み込みエラー:', e);
+  }
+}
+
+// ============================================
+// Phase C1: イベント影響ダッシュボード
+// ============================================
+async function loadEventImpactDashboard() {
+  const container = document.getElementById('eventImpactContent');
+  if (!container) return;
+  try {
+    // 今月分: イベント発火回数 + 発行 bonus pt
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    const weekStart = new Date(); weekStart.setDate(weekStart.getDate() - 6); weekStart.setHours(0,0,0,0);
+
+    // 今月発火数
+    const monthEvents = await EventsDB.getHistory(60);
+    const firedThisMonth = monthEvents.filter(e => {
+      if (!e.activatedAt) return false;
+      const ts = e.activatedAt.toDate ? e.activatedAt.toDate() : new Date(e.activatedAt);
+      return ts >= monthStart && ts <= monthEnd;
+    });
+
+    // 今月のイベント由来 coins (category='event' または eventId ありで集計)
+    const snap = await db.collection('coins')
+      .where('timestamp', '>=', monthStart)
+      .where('timestamp', '<=', monthEnd)
+      .get();
+    let monthEventBonus = 0;
+    let monthEventCount = 0;
+    const monthEventStudents = new Set();
+    let weekEventBonus = 0;
+    snap.forEach(d => {
+      const t = d.data();
+      if (t.amount > 0 && t.approvalStatus !== 'rejected' && (t.category === 'event' || t.eventId)) {
+        monthEventBonus += t.amount;
+        monthEventCount += 1;
+        if (t.studentId) monthEventStudents.add(t.studentId);
+        const ts = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+        if (ts >= weekStart) weekEventBonus += t.amount;
+      }
+    });
+
+    const stats = [
+      { label: '今月の発火数', value: firedThisMonth.length, suffix: '回', color: '#667eea' },
+      { label: '今月の bonus 発行', value: monthEventBonus.toLocaleString(), suffix: 'pt', color: '#48bb78' },
+      { label: '直近 7 日の bonus', value: weekEventBonus.toLocaleString(), suffix: 'pt', color: '#38b2ac' },
+      { label: '適用された取引', value: monthEventCount.toLocaleString(), suffix: '件', color: '#805ad5' },
+      { label: '影響を受けた生徒', value: monthEventStudents.size, suffix: '名', color: '#dd6b20' },
+    ];
+
+    container.innerHTML = stats.map(s => `
+      <div style="background:#f7fafc;border:1px solid var(--border);border-radius:8px;padding:12px;text-align:center;">
+        <div style="font-size:11px;color:var(--text-light);margin-bottom:6px;">${s.label}</div>
+        <div style="font-size:24px;font-weight:700;color:${s.color};font-family:monospace;">${s.value}</div>
+        <div style="font-size:11px;color:var(--text-light);">${s.suffix}</div>
+      </div>
+    `).join('');
+  } catch (e) {
+    console.error('[eventImpact] error:', e);
+    container.innerHTML = '<p style="color:var(--danger);font-size:12px;grid-column:1/-1;">読み込み失敗: ' + escapeHtml(e.message || '') + '</p>';
   }
 }
 
@@ -5037,6 +5518,1056 @@ function startEventTimerDisplay(ev) {
 // ============================================
 // ポイント経済ダッシュボード
 // ============================================
+// ============================================
+// Phase F1: ポイント経済ガバナンス 可視化基盤
+// ============================================
+
+// カテゴリ日本語ラベル
+const ECONOMY_CATEGORY_LABELS = {
+  attendance: '通塾', pomodoro: 'ポモドーロ', pomodoro_triple: 'ポモ3連続',
+  review: '振り返り', review_plan: '振り返り+計画', ai_10: 'AI教材',
+  teaching: '教え合い', new_support: '新入生サポート', trial_support: '体験授業サポート',
+  manual: '手動', session: '学習セッション', mission: 'ミッション',
+  event: 'イベント', streak: 'ストリーク', reward: '報酬消費',
+  gift: 'ギフト', task: 'タスク', combo: 'コンボ', raid: 'レイド',
+  story: 'ストーリー', bonus: 'ボーナス', support: 'サポート行動',
+};
+
+// 発行者日本語ラベル
+const ECONOMY_GRANTER_LABELS = {
+  coach: 'コーチ (手動)', system: 'システム (自動)',
+  teacher: '講師', commander: '艦長', owner: 'オーナー',
+};
+
+// カテゴリ用カラーパレット
+const ECONOMY_COLORS = [
+  '#667eea', '#f6ad55', '#48bb78', '#f56565', '#9f7aea',
+  '#38b2ac', '#ed8936', '#ecc94b', '#4299e1', '#e53e3e',
+  '#805ad5', '#319795', '#dd6b20', '#d69e2e', '#3182ce',
+];
+
+function economyCategoryLabel(key) {
+  return ECONOMY_CATEGORY_LABELS[key] || key || '不明';
+}
+function economyGranterLabel(key) {
+  return ECONOMY_GRANTER_LABELS[key] || key || '不明';
+}
+
+// 日次推移グラフ: 今月の発行量と消費量を日別に
+async function loadEconomyDailyChart(year, month) {
+  try {
+    const startDate = `${year}-${String(month).padStart(2,'0')}-01`;
+    const endDay = new Date(year, month, 0).getDate();
+    const endDate = `${year}-${String(month).padStart(2,'0')}-${endDay}`;
+    const txns = await CoinsDB.getByDateRange(startDate, endDate);
+    const confirmed = txns.filter(t => t.approvalStatus === 'confirmed');
+
+    // 日別に集計
+    const daily = {};
+    for (let d = 1; d <= endDay; d++) {
+      const key = `${year}-${String(month).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+      daily[key] = { issued: 0, spent: 0 };
+    }
+    confirmed.forEach(t => {
+      const ts = t.timestamp?.toDate ? t.timestamp.toDate() : new Date(t.timestamp);
+      const key = `${ts.getFullYear()}-${String(ts.getMonth()+1).padStart(2,'0')}-${String(ts.getDate()).padStart(2,'0')}`;
+      if (!daily[key]) return;
+      if (t.amount > 0) daily[key].issued += t.amount;
+      else daily[key].spent += Math.abs(t.amount);
+    });
+    const labels = Object.keys(daily).map(k => k.slice(-2) + '日');
+    const issuedArr = Object.values(daily).map(d => d.issued);
+    const spentArr = Object.values(daily).map(d => d.spent);
+
+    renderChart('economyDailyChart', 'bar', {
+      labels,
+      datasets: [
+        { label: '発行', data: issuedArr, backgroundColor: 'rgba(102,126,234,0.7)' },
+        { label: '消費', data: spentArr, backgroundColor: 'rgba(246,173,85,0.7)' }
+      ]
+    }, {
+      scales: { y: { beginAtZero: true, ticks: { precision: 0 } } },
+      plugins: { legend: { position: 'top' } }
+    });
+  } catch (e) { console.error('[economyDaily] error:', e); }
+}
+
+// カテゴリ別 + 発行者別 の円グラフ
+async function loadEconomyBreakdown(year, month) {
+  try {
+    const startDate = `${year}-${String(month).padStart(2,'0')}-01`;
+    const endDay = new Date(year, month, 0).getDate();
+    const endDate = `${year}-${String(month).padStart(2,'0')}-${endDay}`;
+    const txns = await CoinsDB.getByDateRange(startDate, endDate);
+    const confirmed = txns.filter(t => t.approvalStatus === 'confirmed' && t.amount > 0);
+
+    // カテゴリ別集計
+    const byCategory = {};
+    confirmed.forEach(t => {
+      const k = t.category || '不明';
+      byCategory[k] = (byCategory[k] || 0) + t.amount;
+    });
+    const catEntries = Object.entries(byCategory).sort((a,b) => b[1] - a[1]);
+    renderChart('economyCategoryChart', 'doughnut', {
+      labels: catEntries.map(([k]) => economyCategoryLabel(k)),
+      datasets: [{
+        data: catEntries.map(([,v]) => v),
+        backgroundColor: catEntries.map((_,i) => ECONOMY_COLORS[i % ECONOMY_COLORS.length]),
+      }]
+    }, {
+      plugins: { legend: { position: 'right', labels: { font: { size: 10 } } } }
+    });
+
+    // 発行者別集計
+    const byGranter = {};
+    confirmed.forEach(t => {
+      const k = t.grantedBy || 'system';
+      byGranter[k] = (byGranter[k] || 0) + t.amount;
+    });
+    const grEntries = Object.entries(byGranter).sort((a,b) => b[1] - a[1]);
+    renderChart('economyGranterChart', 'doughnut', {
+      labels: grEntries.map(([k]) => economyGranterLabel(k)),
+      datasets: [{
+        data: grEntries.map(([,v]) => v),
+        backgroundColor: grEntries.map((_,i) => ECONOMY_COLORS[(i+3) % ECONOMY_COLORS.length]),
+      }]
+    }, {
+      plugins: { legend: { position: 'right', labels: { font: { size: 10 } } } }
+    });
+  } catch (e) { console.error('[economyBreakdown] error:', e); }
+}
+
+// 生徒別ランキング（TOP10）
+async function loadEconomyStudentRanking(year, month) {
+  try {
+    const startDate = `${year}-${String(month).padStart(2,'0')}-01`;
+    const endDay = new Date(year, month, 0).getDate();
+    const endDate = `${year}-${String(month).padStart(2,'0')}-${endDay}`;
+    const txns = await CoinsDB.getByDateRange(startDate, endDate);
+    const confirmed = txns.filter(t => t.approvalStatus === 'confirmed' && t.amount > 0);
+
+    const byStudent = {};
+    confirmed.forEach(t => {
+      const sid = t.studentId || 'unknown';
+      byStudent[sid] = (byStudent[sid] || 0) + t.amount;
+    });
+    const sorted = Object.entries(byStudent).sort((a,b) => b[1] - a[1]).slice(0, 10);
+
+    const students = await StudentsDB.getAll();
+    const sMap = {};
+    students.forEach(s => { sMap[s.id] = s; });
+
+    if (sorted.length === 0) {
+      document.getElementById('economyStudentRanking').innerHTML = '<p style="color:var(--text-light);font-size:12px;">今月のデータはありません</p>';
+      return;
+    }
+    const html = sorted.map(([sid, pts], i) => {
+      const s = sMap[sid];
+      const name = s ? escapeHtml(s.callsign || s.nickname || s.name) : '(削除済み)';
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : `#${i+1}`;
+      return `<div style="display:flex;align-items:center;gap:10px;padding:6px 10px;border-bottom:1px solid var(--border);">
+        <span style="width:34px;font-weight:700;">${medal}</span>
+        <span style="flex:1;">${name}</span>
+        <span style="font-weight:700;color:var(--primary);font-family:monospace;">+${pts.toLocaleString()} pt</span>
+      </div>`;
+    }).join('');
+    document.getElementById('economyStudentRanking').innerHTML = html;
+  } catch (e) { console.error('[economyRanking] error:', e); }
+}
+
+// 発行ログビューア
+async function loadEconomyLog() {
+  const wrap = document.getElementById('economyLogTableWrap');
+  const summaryBar = document.getElementById('economyLogSummaryBar');
+  const footer = document.getElementById('economyLogFooter');
+  if (!wrap) return;
+  wrap.innerHTML = '<p style="color:var(--text-light);font-size:12px;padding:14px;">読み込み中...</p>';
+
+  // サマリーバー初期化
+  const setSummary = (plus, minus, count, note) => {
+    if (summaryBar) {
+      summaryBar.innerHTML = `
+        <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap;padding:10px 14px;background:linear-gradient(135deg,#f0f7ff,#e6f0ff);border:1px solid #667eea33;border-radius:8px;margin-bottom:10px;font-size:13px;">
+          <div><span style="color:var(--text-light);">発行合計 </span><strong style="color:var(--primary);font-size:16px;">+${plus.toLocaleString()}</strong><span style="color:var(--text-light);"> pt</span></div>
+          <div><span style="color:var(--text-light);">消費合計 </span><strong style="color:var(--danger);font-size:16px;">-${minus.toLocaleString()}</strong><span style="color:var(--text-light);"> pt</span></div>
+          <div><span style="color:var(--text-light);">純増減 </span><strong style="color:${(plus-minus)>=0?'var(--primary)':'var(--danger)'};font-size:16px;">${(plus-minus)>=0?'+':''}${(plus-minus).toLocaleString()}</strong><span style="color:var(--text-light);"> pt</span></div>
+          <div style="margin-left:auto;color:var(--text-light);">${count} 件${note||''}</div>
+        </div>
+      `;
+    }
+    if (footer) footer.textContent = '';
+  };
+
+  try {
+    const range = document.getElementById('economyLogRange').value;
+    const catFilter = document.getElementById('economyLogCategory').value;
+    const granterFilter = document.getElementById('economyLogGranter').value;
+    const dirFilter = document.getElementById('economyLogDirection').value;
+
+    // Feature 11 Phase F1 Fix: ローカル時刻ベースで日付範囲を計算
+    // (旧バージョンは toISOString() を使っていて、JST 早朝アクセス時に前日を指す UTC バグがあった)
+    const now = new Date();
+    let startTs, endTs;
+    if (range === 'today') {
+      startTs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      endTs   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    } else if (range === 'week') {
+      startTs = new Date(now.getFullYear(), now.getMonth(), now.getDate() - 6, 0, 0, 0, 0);
+      endTs   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    } else {
+      startTs = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      endTs   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    }
+
+    // 直接 Firestore クエリ (Date オブジェクトで渡すことで UTC 問題を回避)
+    const snap = await db.collection('coins')
+      .where('timestamp', '>=', startTs)
+      .where('timestamp', '<=', endTs)
+      .orderBy('timestamp', 'desc')
+      .get();
+    let txns = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+
+    txns = txns.filter(t => t.approvalStatus !== 'rejected');
+    if (catFilter) txns = txns.filter(t => t.category === catFilter);
+    if (granterFilter) txns = txns.filter(t => t.grantedBy === granterFilter);
+    if (dirFilter === 'earn') txns = txns.filter(t => t.amount > 0);
+    if (dirFilter === 'spend') txns = txns.filter(t => t.amount < 0);
+
+    const students = await StudentsDB.getAll();
+    const sMap = {};
+    students.forEach(s => { sMap[s.id] = s; });
+
+    if (txns.length === 0) {
+      setSummary(0, 0, 0);
+      // 該当期間全体の coins 件数を確認してヘルプメッセージを出す
+      const allSnap = await db.collection('coins').limit(1).get();
+      const hasAnyCoins = !allSnap.empty;
+      wrap.innerHTML = `
+        <div style="padding:20px;text-align:center;color:var(--text-light);font-size:12px;">
+          <div style="font-size:32px;opacity:0.3;margin-bottom:8px;">📭</div>
+          <p style="margin-bottom:6px;">該当する取引はありません</p>
+          ${!hasAnyCoins ? '<p style="font-size:11px;max-width:500px;margin:8px auto;padding:10px;background:#fffbeb;border:1px solid #fbd38d;border-radius:6px;color:#92400e;text-align:left;">💡 <strong>ヒント</strong>: coins コレクション自体が空です。従来は自動付与（学習セッション・ミッション等）が coins に記録されていませんでした。Feature 11 Phase F1 の修正により、以降の新しい付与は全てここに記録されます。生徒画面で学習を完了すると新しいログが現れます。</p>' : '<p style="font-size:11px;">フィルタ条件を変えると結果が変わるかもしれません</p>'}
+        </div>`;
+      return;
+    }
+
+    const maxRows = 500; // パフォーマンス保護
+    const rows = txns.slice(0, maxRows);
+    let totalPlus = 0, totalMinus = 0;
+    txns.forEach(t => { if (t.amount > 0) totalPlus += t.amount; else totalMinus += Math.abs(t.amount); });
+
+    const truncNote = txns.length > maxRows ? ` (最新 ${maxRows} 件を表示)` : '';
+    setSummary(totalPlus, totalMinus, txns.length, truncNote);
+
+    const html = `
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead style="position:sticky;top:0;background:#f7fafc;z-index:1;">
+          <tr>
+            <th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--border);">日時</th>
+            <th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--border);">生徒</th>
+            <th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--border);">カテゴリ</th>
+            <th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--border);">付与者</th>
+            <th style="text-align:right;padding:6px 8px;border-bottom:2px solid var(--border);">ポイント</th>
+            <th style="text-align:left;padding:6px 8px;border-bottom:2px solid var(--border);">メモ</th>
+          </tr>
+        </thead>
+        <tbody>
+          ${rows.map(t => {
+            const ts = t.timestamp?.toDate ? t.timestamp.toDate() : (t.timestamp ? new Date(t.timestamp) : null);
+            const tsStr = ts ? `${String(ts.getMonth()+1).padStart(2,'0')}/${String(ts.getDate()).padStart(2,'0')} ${String(ts.getHours()).padStart(2,'0')}:${String(ts.getMinutes()).padStart(2,'0')}` : '-';
+            const st = sMap[t.studentId];
+            const studentName = st ? escapeHtml(st.callsign || st.nickname || st.name) : '(不明)';
+            const catLabel = economyCategoryLabel(t.category);
+            const grLabel = economyGranterLabel(t.grantedBy);
+            const amtColor = t.amount > 0 ? 'var(--primary)' : 'var(--danger)';
+            const amtSign = t.amount > 0 ? '+' : '';
+            const pending = t.approvalStatus === 'pending' ? ' <span style="font-size:10px;color:#b45309;background:#fef3c7;padding:1px 6px;border-radius:3px;">承認待ち</span>' : '';
+            return `<tr style="border-bottom:1px solid #edf2f7;">
+              <td style="padding:5px 8px;white-space:nowrap;color:var(--text-light);font-family:monospace;font-size:11px;">${tsStr}</td>
+              <td style="padding:5px 8px;">${studentName}</td>
+              <td style="padding:5px 8px;">${escapeHtml(catLabel)}${pending}</td>
+              <td style="padding:5px 8px;color:var(--text-light);">${escapeHtml(grLabel)}</td>
+              <td style="padding:5px 8px;text-align:right;color:${amtColor};font-weight:700;font-family:monospace;">${amtSign}${t.amount}</td>
+              <td style="padding:5px 8px;color:var(--text-light);font-size:11px;max-width:220px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${escapeHtml(t.description || '')}">${escapeHtml(t.description || '')}</td>
+            </tr>`;
+          }).join('')}
+        </tbody>
+      </table>`;
+    wrap.innerHTML = html;
+  } catch (e) {
+    console.error('[economyLog] error:', e);
+    setSummary(0, 0, 0);
+    wrap.innerHTML = '<p style="color:var(--danger);font-size:12px;padding:14px;">ログの読み込みに失敗しました: ' + escapeHtml(e.message || '') + '</p>';
+  }
+}
+
+// ============================================
+// Phase S1: 集団目標
+// ============================================
+
+const COLLECTIVE_CAT_LABELS = {
+  special_open: '🏫 特別開室',
+  facility_upgrade: '🪑 設備アップグレード',
+  event: '🎉 イベント',
+  custom: '📝 カスタム',
+};
+
+async function loadCollectiveGoals() {
+  const container = document.getElementById('collectiveGoalsList');
+  if (!container) return;
+  try {
+    const goals = await CollectiveGoalsDB.getAll();
+    if (goals.length === 0) {
+      container.innerHTML = `
+        <div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--text-light);font-size:12px;">
+          <div style="font-size:28px;opacity:0.3;margin-bottom:6px;">🏫</div>
+          集団目標が未登録です。<br>
+          <strong>「🎴 サンプル目標を投入」</strong> ボタンから 6 件 (日曜開室・ドリンクバー etc.) を一括追加できます。
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = goals.map(g => {
+      const pct = g.threshold > 0 ? Math.min(100, Math.round((g.currentPoints / g.threshold) * 100)) : 0;
+      const statusBadge = g.status === 'achieved'
+        ? '<span style="background:#c6f6d5;color:#22543d;font-size:10px;padding:2px 8px;border-radius:4px;">🎉 達成</span>'
+        : g.status === 'expired'
+        ? '<span style="background:#fed7d7;color:#742a2a;font-size:10px;padding:2px 8px;border-radius:4px;">期限切れ</span>'
+        : g.status === 'cancelled'
+        ? '<span style="background:#e2e8f0;color:#4a5568;font-size:10px;padding:2px 8px;border-radius:4px;">中止</span>'
+        : '<span style="background:#bee3f8;color:#2c5282;font-size:10px;padding:2px 8px;border-radius:4px;">⏳ 進行中</span>';
+      const catLabel = COLLECTIVE_CAT_LABELS[g.category] || g.category;
+      const barColor = g.status === 'achieved' ? '#48bb78' : pct >= 80 ? '#ed8936' : '#667eea';
+      const costText = g.costYen ? ` (¥${g.costYen.toLocaleString()} 相当)` : '';
+      return `
+        <div style="background:#f0fff4;border:2px solid #9ae6b4;border-radius:10px;padding:14px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
+            <div style="font-size:14px;font-weight:700;flex:1;">${escapeHtml(g.name)}</div>
+            ${statusBadge}
+          </div>
+          <div style="font-size:11px;color:var(--text-light);margin-bottom:2px;">${catLabel}</div>
+          <div style="font-size:11px;color:#4a5568;min-height:28px;margin-bottom:8px;">${escapeHtml(g.description || '')}</div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:4px;">
+            <span>進捗</span>
+            <span style="font-family:monospace;font-weight:700;">${(g.currentPoints||0).toLocaleString()} / ${g.threshold.toLocaleString()} pt${costText}</span>
+          </div>
+          <div style="background:rgba(0,0,0,0.05);border-radius:4px;height:10px;overflow:hidden;margin-bottom:6px;">
+            <div style="background:${barColor};height:10px;width:${pct}%;transition:width 0.4s;"></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-light);margin-bottom:8px;">
+            <span>${pct}%</span>
+            <span>${g.contributorCount || 0} 名が貢献</span>
+          </div>
+          <div style="font-size:11px;color:#22543d;background:#fff;padding:6px 10px;border-radius:6px;margin-bottom:8px;border:1px solid #9ae6b4;">
+            🎁 <strong>特典</strong>: ${escapeHtml(g.rewardDescription || '未設定')}
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-sm" style="flex:1;background:#e2e8f0;color:#4a5568;" onclick="openCollectiveGoalModal('${g.id}')">編集</button>
+            ${g.status === 'active' ? `<button class="btn btn-sm btn-primary" onclick="markGoalAchieved('${g.id}')">✅ 達成にする</button>` : ''}
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    console.error('[collectiveGoals] error:', e);
+    container.innerHTML = '<p style="color:var(--danger);font-size:12px;grid-column:1/-1;">読み込み失敗: ' + escapeHtml(e.message || '') + '</p>';
+  }
+}
+
+async function openCollectiveGoalModal(goalId) {
+  let g = null;
+  if (goalId) {
+    g = await CollectiveGoalsDB.getById(goalId);
+    if (!g) { showToast('目標が見つかりません', 'error'); return; }
+  }
+  const isEdit = !!g;
+  const rates = await PointRatesDB.get();
+  const categories = [
+    { v: 'special_open', label: '🏫 特別開室' },
+    { v: 'facility_upgrade', label: '🪑 設備アップグレード' },
+    { v: 'event', label: '🎉 イベント' },
+    { v: 'custom', label: '📝 カスタム' },
+  ];
+  const currentCat = isEdit ? (g.category || 'special_open') : 'special_open';
+  const statuses = [
+    { v: 'active', label: '⏳ 進行中' },
+    { v: 'achieved', label: '🎉 達成' },
+    { v: 'expired', label: '期限切れ' },
+    { v: 'cancelled', label: '中止' },
+  ];
+
+  openModal(isEdit ? '集団目標を編集' : '集団目標を追加', `
+    <div class="form-row">
+      <div class="form-group">
+        <label>名前 *</label>
+        <input type="text" class="form-control" id="goalName" value="${isEdit ? escapeHtml(g.name) : ''}" placeholder="例: 🏫 日曜特別開室">
+      </div>
+      <div class="form-group">
+        <label>カテゴリ</label>
+        <select class="form-control" id="goalCategory">
+          ${categories.map(c => `<option value="${c.v}"${c.v === currentCat ? ' selected' : ''}>${c.label}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>説明</label>
+      <textarea class="form-control" id="goalDescription" rows="2" placeholder="目標の説明">${isEdit ? escapeHtml(g.description || '') : ''}</textarea>
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>原価 (円)</label>
+        <input type="number" class="form-control" id="goalCostYen" value="${isEdit && g.costYen != null ? g.costYen : ''}" min="0" step="100" placeholder="例: 5300" onchange="updateGoalThresholdFromYen()">
+        <div style="font-size:10px;color:var(--text-light);">1 pt = ¥${rates.yenPerPoint}, 入力すると閾値が自動計算されます</div>
+      </div>
+      <div class="form-group">
+        <label>閾値 (pt) *</label>
+        <input type="number" class="form-control" id="goalThreshold" value="${isEdit ? g.threshold : 5000}" min="1" step="100">
+      </div>
+    </div>
+    <div class="form-group">
+      <label>特典内容 (達成時) *</label>
+      <input type="text" class="form-control" id="goalReward" value="${isEdit ? escapeHtml(g.rewardDescription || '') : ''}" placeholder="例: 日曜 13:00-17:00 自習室開室">
+    </div>
+    ${isEdit ? `
+    <div class="form-row">
+      <div class="form-group">
+        <label>現在の集団 pt</label>
+        <input type="number" class="form-control" id="goalCurrentPoints" value="${g.currentPoints || 0}" min="0">
+        <div style="font-size:10px;color:var(--text-light);">手動で調整可能</div>
+      </div>
+      <div class="form-group">
+        <label>状態</label>
+        <select class="form-control" id="goalStatus">
+          ${statuses.map(s => `<option value="${s.v}"${s.v === g.status ? ' selected' : ''}>${s.label}</option>`).join('')}
+        </select>
+      </div>
+    </div>` : ''}
+    <p style="font-size:11px;color:var(--text-light);">
+      💡 生徒は自分の currentPoints から集団目標に貢献できます（生徒画面から実装予定）。
+    </p>
+  `, `
+    ${isEdit ? '<button class="btn btn-sm" style="background:#fff5f5;color:#c53030;border:1px solid #fc8181;" onclick="deleteCollectiveGoal(\'' + g.id + '\')">🗑 削除</button>' : ''}
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" onclick="saveCollectiveGoal('${isEdit ? g.id : ''}')">${isEdit ? '更新' : '追加'}</button>
+  `);
+}
+
+async function updateGoalThresholdFromYen() {
+  const rates = await PointRatesDB.get();
+  const yen = parseFloat(document.getElementById('goalCostYen').value);
+  if (!isNaN(yen) && yen > 0) {
+    document.getElementById('goalThreshold').value = Math.round(yen / rates.yenPerPoint);
+  }
+}
+
+async function saveCollectiveGoal(id) {
+  const name = document.getElementById('goalName').value.trim();
+  const description = document.getElementById('goalDescription').value.trim();
+  const category = document.getElementById('goalCategory').value;
+  const threshold = parseInt(document.getElementById('goalThreshold').value) || 1000;
+  const costYenRaw = document.getElementById('goalCostYen').value;
+  const costYen = costYenRaw === '' ? null : parseInt(costYenRaw);
+  const rewardDescription = document.getElementById('goalReward').value.trim();
+  if (!name) { showToast('名前を入力してください', 'error'); return; }
+  if (!rewardDescription) { showToast('特典内容を入力してください', 'error'); return; }
+
+  try {
+    if (id) {
+      const update = { name, description, category, threshold, costYen, rewardDescription };
+      const currEl = document.getElementById('goalCurrentPoints');
+      if (currEl) update.currentPoints = parseInt(currEl.value) || 0;
+      const stEl = document.getElementById('goalStatus');
+      if (stEl) update.status = stEl.value;
+      await CollectiveGoalsDB.update(id, update);
+      showToast('目標を更新しました');
+    } else {
+      await CollectiveGoalsDB.create({ name, description, category, threshold, costYen, rewardDescription });
+      showToast('目標を追加しました');
+    }
+    closeModal();
+    loadCollectiveGoals();
+  } catch (e) {
+    console.error('[saveCollectiveGoal]', e);
+    showToast('保存に失敗しました: ' + (e.message || ''), 'error');
+  }
+}
+
+async function deleteCollectiveGoal(id) {
+  if (!confirm('この集団目標を削除しますか？貢献履歴も消えます（coins の個別ログは残ります）')) return;
+  try {
+    await CollectiveGoalsDB.delete(id);
+    showToast('削除しました');
+    closeModal();
+    loadCollectiveGoals();
+  } catch (e) {
+    showToast('削除失敗: ' + (e.message || ''), 'error');
+  }
+}
+
+async function markGoalAchieved(id) {
+  if (!confirm('この目標を「達成」にマークしますか？（手動達成）')) return;
+  try {
+    await CollectiveGoalsDB.update(id, {
+      status: 'achieved',
+      achievedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    showToast('達成にマークしました');
+    loadCollectiveGoals();
+  } catch (e) {
+    showToast('失敗: ' + (e.message || ''), 'error');
+  }
+}
+
+async function injectSampleCollectiveGoals() {
+  if (!confirm('サンプル集団目標 6 件（日曜開室・祝日開室・ドリンクバー・お菓子・パーティション・ピザパーティー）を一括追加します。既存の目標は削除されません。続行しますか？')) return;
+  try {
+    const count = await CollectiveGoalsDB.injectSampleGoals();
+    showToast(`✅ サンプル目標 ${count} 件を追加しました`);
+    loadCollectiveGoals();
+  } catch (e) {
+    console.error('[injectSampleCollectiveGoals]', e);
+    showToast('❌ 投入失敗: ' + (e.message || ''), 'error');
+  }
+}
+
+// ============================================
+// Phase D1: 特別付与テンプレート
+// ============================================
+
+async function loadGrantTemplates() {
+  const container = document.getElementById('grantTemplatesList');
+  if (!container) return;
+  try {
+    const templates = await GrantTemplatesDB.getAll();
+    if (templates.length === 0) {
+      container.innerHTML = `
+        <div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--text-light);font-size:12px;">
+          <div style="font-size:28px;opacity:0.3;margin-bottom:6px;">📭</div>
+          テンプレートが未登録です。<br>
+          <strong>「🎴 サンプルテンプレートを投入」</strong> ボタンから 10 件を一括追加できます。
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = templates.map(t => {
+      const activeStyle = t.active === false ? 'opacity:0.5;' : '';
+      const label = t.active === false ? ' (無効)' : '';
+      return `
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;${activeStyle}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:6px;">
+            <div style="font-size:13px;font-weight:700;flex:1;">${escapeHtml(t.name)}${label}</div>
+            <div style="font-size:16px;font-weight:700;color:#dd6b20;font-family:monospace;white-space:nowrap;">+${t.points} pt</div>
+          </div>
+          <div style="font-size:11px;color:var(--text-light);min-height:28px;margin-bottom:8px;">${escapeHtml(t.description || '')}</div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-sm btn-primary" style="flex:1;" onclick="openApplyTemplateModal('${t.id}')" ${t.active === false ? 'disabled' : ''}>▶ 実行</button>
+            <button class="btn btn-sm" style="background:#e2e8f0;color:#4a5568;" onclick="openGrantTemplateModal('${t.id}')">編集</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    console.error('[grantTemplates] error:', e);
+    container.innerHTML = '<p style="color:var(--danger);font-size:12px;grid-column:1/-1;">読み込み失敗: ' + escapeHtml(e.message || '') + '</p>';
+  }
+}
+
+// テンプレート作成・編集モーダル
+async function openGrantTemplateModal(templateId) {
+  let tpl = null;
+  if (templateId) {
+    const all = await GrantTemplatesDB.getAll();
+    tpl = all.find(t => t.id === templateId);
+    if (!tpl) { showToast('テンプレートが見つかりません', 'error'); return; }
+  }
+  const isEdit = !!tpl;
+  const categories = [
+    { v: 'birthday', label: '🎂 誕生日' },
+    { v: 'perfect_attendance', label: '⭐ 皆勤' },
+    { v: 'new_student', label: '👋 新入生歓迎' },
+    { v: 'referral', label: '🤝 紹介' },
+    { v: 'test_score', label: '💯 テスト成績' },
+    { v: 'effort', label: '💪 努力' },
+    { v: 'streak', label: '🔥 連続' },
+    { v: 'bonus', label: '🎉 その他ボーナス' },
+    { v: 'custom', label: 'カスタム' },
+  ];
+  const currentCat = isEdit ? (tpl.category || 'bonus') : 'bonus';
+
+  openModal(isEdit ? 'テンプレート編集' : 'テンプレート追加', `
+    <div class="form-group">
+      <label>名前 *</label>
+      <input type="text" class="form-control" id="tplName" value="${isEdit ? escapeHtml(tpl.name) : ''}" placeholder="例: 🎂 誕生日おめでとう">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>付与ポイント *</label>
+        <input type="number" class="form-control" id="tplPoints" value="${isEdit ? tpl.points : 100}" min="1" max="10000">
+      </div>
+      <div class="form-group">
+        <label>カテゴリ</label>
+        <select class="form-control" id="tplCategory">
+          ${categories.map(c => `<option value="${c.v}"${c.v === currentCat ? ' selected' : ''}>${c.label}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>説明</label>
+      <textarea class="form-control" id="tplDescription" rows="2" placeholder="このテンプレートを使う場面の説明">${isEdit ? escapeHtml(tpl.description || '') : ''}</textarea>
+    </div>
+    <div class="form-group">
+      <label>
+        <input type="checkbox" id="tplActive" ${!isEdit || tpl.active !== false ? 'checked' : ''}>
+        有効 (オフにすると一覧で灰色になり実行できなくなります)
+      </label>
+    </div>
+    <p style="font-size:11px;color:var(--text-light);">
+      💡 実行時は F2 予算上限チェックが走ります。超過すると拒否されます。
+    </p>
+  `, `
+    ${isEdit ? '<button class="btn btn-sm" style="background:#fff5f5;color:#c53030;border:1px solid #fc8181;" onclick="deleteGrantTemplate(\'' + tpl.id + '\')">🗑 削除</button>' : ''}
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" onclick="saveGrantTemplate('${isEdit ? tpl.id : ''}')">${isEdit ? '更新' : '追加'}</button>
+  `);
+}
+
+async function saveGrantTemplate(id) {
+  const name = document.getElementById('tplName').value.trim();
+  const points = parseInt(document.getElementById('tplPoints').value) || 0;
+  const category = document.getElementById('tplCategory').value;
+  const description = document.getElementById('tplDescription').value.trim();
+  const active = document.getElementById('tplActive').checked;
+  if (!name) { showToast('名前を入力してください', 'error'); return; }
+  if (points <= 0) { showToast('ポイントは 1 以上で入力してください', 'error'); return; }
+  try {
+    if (id) {
+      await GrantTemplatesDB.update(id, { name, points, category, description, active });
+      showToast('テンプレートを更新しました');
+    } else {
+      await GrantTemplatesDB.create({ name, points, category, description, active });
+      showToast('テンプレートを追加しました');
+    }
+    closeModal();
+    loadGrantTemplates();
+  } catch (e) {
+    console.error('[saveGrantTemplate]', e);
+    showToast('保存に失敗しました: ' + (e.message || ''), 'error');
+  }
+}
+
+async function deleteGrantTemplate(id) {
+  if (!confirm('このテンプレートを削除しますか？（過去の付与履歴は coins に残ります）')) return;
+  try {
+    await GrantTemplatesDB.delete(id);
+    showToast('削除しました');
+    closeModal();
+    loadGrantTemplates();
+  } catch (e) {
+    showToast('削除失敗: ' + (e.message || ''), 'error');
+  }
+}
+
+// テンプレート適用モーダル (対象生徒選択 + 実行)
+async function openApplyTemplateModal(templateId) {
+  const all = await GrantTemplatesDB.getAll();
+  const tpl = all.find(t => t.id === templateId);
+  if (!tpl) { showToast('テンプレートが見つかりません', 'error'); return; }
+
+  const students = await StudentsDB.getAll();
+  const studentOptions = students.map(s => `<option value="${s.id}">${escapeHtml(s.callsign || s.nickname || s.name)}</option>`).join('');
+
+  openModal(`${tpl.name} を付与`, `
+    <div style="background:#fff7ed;padding:10px 14px;border-radius:8px;border:1px solid #fed7aa;margin-bottom:14px;">
+      <div style="font-size:13px;font-weight:700;">${escapeHtml(tpl.name)}</div>
+      <div style="font-size:12px;color:var(--text-light);">${escapeHtml(tpl.description || '')}</div>
+      <div style="font-size:18px;font-weight:700;color:#dd6b20;font-family:monospace;margin-top:4px;">+${tpl.points} pt</div>
+    </div>
+    <div class="form-group">
+      <label>付与対象</label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+        <label style="font-size:12px;">
+          <input type="radio" name="applyMode" value="single" checked onchange="updateApplyModeUI()"> 個別 (1 名ずつ)
+        </label>
+        <label style="font-size:12px;">
+          <input type="radio" name="applyMode" value="multi" onchange="updateApplyModeUI()"> 複数名 (Cmd/Ctrl + クリック)
+        </label>
+        <label style="font-size:12px;">
+          <input type="radio" name="applyMode" value="all" onchange="updateApplyModeUI()"> 全員 (${students.length} 名)
+        </label>
+      </div>
+      <div id="applySingleWrap">
+        <select class="form-control" id="applyStudentSingle">
+          <option value="">生徒を選択...</option>
+          ${studentOptions}
+        </select>
+      </div>
+      <div id="applyMultiWrap" style="display:none;">
+        <select class="form-control" id="applyStudentMulti" multiple size="8" style="height:auto;">
+          ${studentOptions}
+        </select>
+        <div style="font-size:11px;color:var(--text-light);margin-top:4px;">Cmd (Mac) または Ctrl (Windows) を押しながらクリックで複数選択</div>
+      </div>
+      <div id="applyAllWrap" style="display:none;">
+        <div style="padding:10px;background:#fff5f5;border:1px solid #fc8181;border-radius:6px;font-size:12px;color:#c53030;">
+          ⚠️ 全 ${students.length} 名に <strong>${tpl.points} pt × ${students.length} 名 = ${(tpl.points * students.length).toLocaleString()} pt</strong> を付与します。月予算を消費するので注意してください。
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>メモ (任意)</label>
+      <input type="text" class="form-control" id="applyNote" placeholder="付与理由の補足">
+    </div>
+    <div id="applyResult" style="margin-top:10px;font-size:12px;"></div>
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" id="applyExecuteBtn" onclick="executeGrantTemplate('${tpl.id}')">▶ 付与実行</button>
+  `);
+}
+
+function updateApplyModeUI() {
+  const mode = document.querySelector('input[name="applyMode"]:checked')?.value || 'single';
+  document.getElementById('applySingleWrap').style.display = mode === 'single' ? '' : 'none';
+  document.getElementById('applyMultiWrap').style.display = mode === 'multi' ? '' : 'none';
+  document.getElementById('applyAllWrap').style.display = mode === 'all' ? '' : 'none';
+}
+
+async function executeGrantTemplate(templateId) {
+  const mode = document.querySelector('input[name="applyMode"]:checked')?.value || 'single';
+  const note = document.getElementById('applyNote').value.trim();
+  const resultEl = document.getElementById('applyResult');
+  const btnEl = document.getElementById('applyExecuteBtn');
+
+  let studentIds = [];
+  if (mode === 'single') {
+    const sid = document.getElementById('applyStudentSingle').value;
+    if (!sid) { showToast('生徒を選択してください', 'error'); return; }
+    studentIds = [sid];
+  } else if (mode === 'multi') {
+    const sel = document.getElementById('applyStudentMulti');
+    studentIds = Array.from(sel.selectedOptions).map(o => o.value);
+    if (studentIds.length === 0) { showToast('少なくとも 1 名選択してください', 'error'); return; }
+  } else {
+    const all = await StudentsDB.getAll();
+    studentIds = all.map(s => s.id);
+  }
+
+  // F2 予算チェック (全員分の合計を事前判定)
+  const all = await GrantTemplatesDB.getAll();
+  const tpl = all.find(t => t.id === templateId);
+  if (!tpl) { showToast('テンプレートが見つかりません', 'error'); return; }
+  const totalPoints = tpl.points * studentIds.length;
+  const granterRole = (window.currentUserRole === 'owner') ? 'owner' : 'admin';
+  const check = await BudgetLimitsDB.check(granterRole, totalPoints);
+  if (!check.allowed) {
+    resultEl.innerHTML = `<div style="color:var(--danger);padding:8px;background:#fff5f5;border-radius:6px;">❌ 予算上限超過: ${escapeHtml(check.reason)}</div>`;
+    return;
+  }
+
+  btnEl.disabled = true;
+  btnEl.textContent = '実行中...';
+  resultEl.innerHTML = '<div style="color:var(--text-light);">付与中...</div>';
+
+  try {
+    const results = await GrantTemplatesDB.apply(templateId, studentIds, granterRole, note || null);
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+
+    let msg = `<div style="padding:10px;background:#f0fff4;border:1px solid #9ae6b4;border-radius:6px;color:#22543d;">`;
+    msg += `✅ ${successCount} 名に ${tpl.points} pt ずつ付与完了 (合計 ${successCount * tpl.points} pt)`;
+    if (failCount > 0) {
+      msg += `<br>⚠️ ${failCount} 名は付与失敗`;
+    }
+    msg += `</div>`;
+    resultEl.innerHTML = msg;
+    showToast(`${successCount} 名に ${tpl.points} pt 付与しました`);
+    // 経済ダッシュボード更新
+    loadEconomyBalance().catch(()=>{});
+    loadBudgetDashboard().catch(()=>{});
+    loadEconomyLog().catch(()=>{});
+    setTimeout(() => {
+      btnEl.disabled = false;
+      btnEl.textContent = '▶ 付与実行';
+    }, 2000);
+  } catch (e) {
+    console.error('[executeGrantTemplate]', e);
+    resultEl.innerHTML = `<div style="color:var(--danger);padding:8px;background:#fff5f5;border-radius:6px;">❌ 付与失敗: ${escapeHtml(e.message || '')}</div>`;
+    btnEl.disabled = false;
+    btnEl.textContent = '▶ 付与実行';
+  }
+}
+
+async function injectSampleTemplates() {
+  if (!confirm('サンプルテンプレート 10 件（誕生日・皆勤・新入生歓迎・紹介・テスト成績・努力賞 etc.）を一括追加します。既存のテンプレートは削除されません。続行しますか？')) return;
+  try {
+    const count = await GrantTemplatesDB.injectSampleTemplates();
+    showToast(`✅ サンプルテンプレート ${count} 件を追加しました`);
+    loadGrantTemplates();
+  } catch (e) {
+    console.error('[injectSampleTemplates]', e);
+    showToast('❌ 投入失敗: ' + (e.message || ''), 'error');
+  }
+}
+
+// ============================================
+// Phase R3: 経済バランス（責務・換金レート）ダッシュボード
+// ============================================
+
+// カテゴリの日本語ラベル (景品カテゴリ)
+const PRIZE_CAT_LABELS = {
+  seat: '🪑 座席', meal: '🍱 食事', snack: '🍬 お菓子',
+  stationery: '✏️ 文具', goods: '🎁 グッズ', experience: '🎯 体験',
+  prize: '景品', reward: '報酬', unknown: '不明',
+};
+
+async function loadEconomyBalance() {
+  const container = document.getElementById('economyBalanceContent');
+  if (!container) return;
+  try {
+    const snap = await EconomyBalanceDB.getSnapshot();
+    const editor = document.getElementById('economyRateEditor');
+    if (editor) editor.style.display = (window.currentUserRole === 'owner') ? '' : 'none';
+
+    // 健全性バッジ
+    const healthMap = {
+      good: { color: '#48bb78', bg: '#f0fff4', label: '🟢 健全', note: '月間予算内で運用できています' },
+      warning: { color: '#dd6b20', bg: '#fffbeb', label: '🟡 注意', note: '月間予算の 80% を超えました。消費ペースを確認してください' },
+      danger: { color: '#e53e3e', bg: '#fff5f5', label: '🔴 危険', note: '月間予算を超過しました。調整が必要です' },
+    };
+    const h = healthMap[snap.healthStatus];
+
+    // カテゴリ別コスト内訳 (上位 5 件)
+    const catEntries = Object.entries(snap.monthSpent.byCategory || {}).sort((a,b) => b[1] - a[1]).slice(0, 6);
+    const catListHtml = catEntries.length > 0
+      ? catEntries.map(([cat, yen]) => `
+          <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;border-bottom:1px dashed #edf2f7;">
+            <span>${PRIZE_CAT_LABELS[cat] || cat}</span>
+            <span style="font-family:monospace;color:var(--text);">¥${yen.toLocaleString()}</span>
+          </div>
+        `).join('')
+      : '<p style="font-size:11px;color:var(--text-light);padding:6px 0;">今月の消費データはまだありません</p>';
+
+    container.innerHTML = `
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:10px 14px;background:#f7fafc;border-radius:8px;border:1px solid var(--border);">
+        <div style="font-size:12px;">
+          <span style="color:var(--text-light);">公式レート: </span>
+          <strong style="font-size:15px;color:var(--primary);">1 pt = ¥${snap.yenRate}</strong>
+        </div>
+        <div style="margin-left:auto;font-size:12px;">
+          <span style="color:var(--text-light);">月間報酬予算: </span>
+          <strong style="font-size:15px;color:var(--text);">¥${snap.budget.toLocaleString()}</strong>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px;">
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;">
+          <div style="font-size:11px;color:var(--text-light);margin-bottom:4px;">📋 発行責務 (未消費残高)</div>
+          <div style="font-size:22px;font-weight:700;color:#dd6b20;font-family:monospace;">¥${snap.outstanding.yen.toLocaleString()}</div>
+          <div style="font-size:11px;color:var(--text-light);">${snap.outstanding.points.toLocaleString()} pt</div>
+          <div style="font-size:10px;color:var(--text-light);margin-top:4px;">全生徒が保有する未消費 pt 合計</div>
+        </div>
+        <div style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;">
+          <div style="font-size:11px;color:var(--text-light);margin-bottom:4px;">📈 今月の発行額</div>
+          <div style="font-size:22px;font-weight:700;color:#667eea;font-family:monospace;">¥${snap.monthIssued.yen.toLocaleString()}</div>
+          <div style="font-size:11px;color:var(--text-light);">${snap.monthIssued.points.toLocaleString()} pt</div>
+          <div style="font-size:10px;color:var(--text-light);margin-top:4px;">今月の全付与 pt × 換金レート</div>
+        </div>
+        <div style="background:#f0fff4;border:1px solid #c6f6d5;border-radius:8px;padding:12px;">
+          <div style="font-size:11px;color:var(--text-light);margin-bottom:4px;">💸 今月の実コスト</div>
+          <div style="font-size:22px;font-weight:700;color:#48bb78;font-family:monospace;">¥${(snap.monthSpent.yenActual||0).toLocaleString()}</div>
+          <div style="font-size:11px;color:var(--text-light);">${snap.monthSpent.points.toLocaleString()} pt 消費</div>
+          <div style="font-size:10px;color:var(--text-light);margin-top:4px;">景品原価ベースの実支出</div>
+        </div>
+        <div style="background:${h.bg};border:2px solid ${h.color};border-radius:8px;padding:12px;">
+          <div style="font-size:11px;color:var(--text-light);margin-bottom:4px;">🏥 予算健全性</div>
+          <div style="font-size:22px;font-weight:700;color:${h.color};">${h.label}</div>
+          <div style="font-size:11px;color:var(--text-light);">${snap.budgetUsagePct}% 使用</div>
+          <div style="background:#fff;border-radius:4px;height:6px;margin-top:6px;overflow:hidden;">
+            <div style="background:${h.color};height:6px;width:${Math.min(100, snap.budgetUsagePct)}%;transition:width 0.4s;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:10px 14px;background:${h.bg};border-left:4px solid ${h.color};border-radius:6px;font-size:12px;color:#2d3748;margin-bottom:12px;">
+        ${h.note}
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-light);margin-bottom:6px;">📊 今月のカテゴリ別実コスト</div>
+          ${catListHtml}
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-light);margin-bottom:6px;">💡 経営ヒント</div>
+          <ul style="font-size:11px;color:var(--text-light);padding-left:18px;line-height:1.7;">
+            <li><strong>発行責務</strong> が大きすぎる場合、将来の引当金として意識してください</li>
+            <li><strong>月間発行額</strong> が <strong>予算</strong> を常に超えているなら、基本レートを下げるか消費イベントを強化</li>
+            <li><strong>実コスト</strong> が予算内なら健全。景品カタログの魅力を高めて消費を促進してください</li>
+            <li>原価未設定の景品は <strong>pt × レート</strong> で概算しています</li>
+          </ul>
+        </div>
+      </div>
+    `;
+
+    // オーナーなら編集欄に現在値をロード
+    if (window.currentUserRole === 'owner') {
+      const rates = await PointRatesDB.get();
+      if (document.getElementById('rateYenPerPoint')) document.getElementById('rateYenPerPoint').value = rates.yenPerPoint;
+      if (document.getElementById('rateMonthlyBudget')) document.getElementById('rateMonthlyBudget').value = rates.monthlyRewardBudgetYen;
+    }
+  } catch (e) {
+    console.error('[economyBalance] error:', e);
+    container.innerHTML = '<p style="color:var(--danger);font-size:12px;">読み込み失敗: ' + escapeHtml(e.message || '') + '</p>';
+  }
+}
+
+async function savePointRates() {
+  const status = document.getElementById('rateStatus');
+  if (window.currentUserRole !== 'owner') {
+    status.textContent = '❌ オーナーのみ編集可能';
+    return;
+  }
+  status.textContent = '保存中...';
+  try {
+    const yenPerPoint = parseFloat(document.getElementById('rateYenPerPoint').value) || 1;
+    const monthlyRewardBudgetYen = parseInt(document.getElementById('rateMonthlyBudget').value) || 75000;
+    await PointRatesDB.save({ yenPerPoint, monthlyRewardBudgetYen });
+    status.textContent = '✅ 保存しました';
+    await loadEconomyBalance();
+    setTimeout(() => { status.textContent = ''; }, 4000);
+  } catch (e) {
+    console.error('[savePointRates]', e);
+    status.textContent = '❌ 失敗: ' + (e.message || '');
+  }
+}
+
+// ============================================
+// Phase F2: 予算上限ダッシュボード
+// ============================================
+const ECONOMY_ROLE_LABELS = {
+  commander: '艦長（教室長）',
+  admin: '管理者',
+  teacher: '講師',
+};
+
+async function loadBudgetDashboard() {
+  const container = document.getElementById('budgetDashboardContent');
+  if (!container) return;
+  try {
+    const snapshot = await BudgetLimitsDB.getUsageSnapshot();
+    const editor = document.getElementById('budgetLimitEditor');
+    // オーナーのみ編集エリアを表示
+    if (editor) editor.style.display = (window.currentUserRole === 'owner') ? '' : 'none';
+
+    if (Object.keys(snapshot).length === 0) {
+      container.innerHTML = '<p style="color:var(--text-light);font-size:12px;grid-column:1/-1;">予算上限が設定されていません</p>';
+      return;
+    }
+
+    const cards = Object.entries(snapshot).map(([role, data]) => {
+      const label = ECONOMY_ROLE_LABELS[role] || role;
+      const monthlyLimit = data.limits.monthly;
+      const monthPct = monthlyLimit ? Math.min(100, Math.round((data.monthUsed / monthlyLimit) * 100)) : 0;
+      const monthColor = monthPct >= 90 ? '#e53e3e' : monthPct >= 70 ? '#dd6b20' : '#48bb78';
+
+      let dailyHtml = '';
+      if (data.limits.daily != null) {
+        const dailyPct = Math.min(100, Math.round((data.todayUsed / data.limits.daily) * 100));
+        const dailyColor = dailyPct >= 90 ? '#e53e3e' : dailyPct >= 70 ? '#dd6b20' : '#48bb78';
+        dailyHtml = `
+          <div style="margin-top:10px;">
+            <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
+              <span>本日</span>
+              <span style="font-family:monospace;">${data.todayUsed} / ${data.limits.daily} pt</span>
+            </div>
+            <div style="background:#edf2f7;border-radius:4px;height:6px;overflow:hidden;">
+              <div style="background:${dailyColor};height:6px;width:${dailyPct}%;transition:width 0.4s;"></div>
+            </div>
+          </div>`;
+      }
+      let perGrantHtml = '';
+      if (data.limits.perGrant != null) {
+        perGrantHtml = `<div style="font-size:10px;color:var(--text-light);margin-top:6px;">1回あたり上限: ${data.limits.perGrant} pt</div>`;
+      }
+
+      return `
+        <div style="background:#f7fafc;border:1px solid var(--border);border-radius:8px;padding:12px 14px;">
+          <div style="font-weight:700;font-size:13px;margin-bottom:8px;color:var(--text);">${label}</div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
+            <span>今月</span>
+            <span style="font-family:monospace;">${data.monthUsed.toLocaleString()} / ${(monthlyLimit||0).toLocaleString()} pt</span>
+          </div>
+          <div style="background:#edf2f7;border-radius:4px;height:8px;overflow:hidden;">
+            <div style="background:${monthColor};height:8px;width:${monthPct}%;transition:width 0.4s;"></div>
+          </div>
+          <div style="font-size:11px;color:var(--text-light);margin-top:3px;text-align:right;">
+            残 <strong style="color:${monthColor};">${(data.monthRemaining||0).toLocaleString()}</strong> pt
+          </div>
+          ${dailyHtml}
+          ${perGrantHtml}
+        </div>
+      `;
+    }).join('');
+
+    container.innerHTML = cards;
+
+    // オーナーなら現在の上限値を editor にロード
+    if (window.currentUserRole === 'owner') {
+      const limits = await BudgetLimitsDB.get();
+      const el = id => document.getElementById(id);
+      if (el('limitCommanderMonthly')) el('limitCommanderMonthly').value = limits.commander?.monthly || 0;
+      if (el('limitAdminMonthly')) el('limitAdminMonthly').value = limits.admin?.monthly || 0;
+      if (el('limitTeacherMonthly')) el('limitTeacherMonthly').value = limits.teacher?.monthly || 0;
+      if (el('limitTeacherDaily')) el('limitTeacherDaily').value = limits.teacher?.daily || 0;
+      if (el('limitTeacherPerGrant')) el('limitTeacherPerGrant').value = limits.teacher?.perGrant || 0;
+    }
+  } catch (e) {
+    console.error('[budgetDashboard] error:', e);
+    container.innerHTML = '<p style="color:var(--danger);font-size:12px;grid-column:1/-1;">読み込み失敗: ' + escapeHtml(e.message || '') + '</p>';
+  }
+}
+
+async function saveBudgetLimits() {
+  const status = document.getElementById('budgetLimitStatus');
+  if (window.currentUserRole !== 'owner') {
+    status.textContent = '❌ オーナーのみ編集可能';
+    return;
+  }
+  status.textContent = '保存中...';
+  try {
+    const el = id => parseInt(document.getElementById(id).value || '0', 10);
+    const newLimits = {
+      commander: { monthly: el('limitCommanderMonthly') },
+      admin:     { monthly: el('limitAdminMonthly') },
+      teacher: {
+        monthly: el('limitTeacherMonthly'),
+        daily: el('limitTeacherDaily'),
+        perGrant: el('limitTeacherPerGrant'),
+      },
+      owner: { unlimited: true },
+    };
+    await BudgetLimitsDB.save(newLimits);
+    status.textContent = '✅ 保存しました';
+    await loadBudgetDashboard();
+    setTimeout(() => { status.textContent = ''; }, 4000);
+  } catch (e) {
+    console.error('[saveBudgetLimits] error:', e);
+    status.textContent = '❌ 失敗: ' + (e.message || '');
+  }
+}
+
+async function resetBudgetLimits() {
+  if (!confirm('予算上限をデフォルト値に戻しますか？')) return;
+  try {
+    const defaults = BudgetLimitsDB.DEFAULTS;
+    document.getElementById('limitCommanderMonthly').value = defaults.commander.monthly;
+    document.getElementById('limitAdminMonthly').value = defaults.admin.monthly;
+    document.getElementById('limitTeacherMonthly').value = defaults.teacher.monthly;
+    document.getElementById('limitTeacherDaily').value = defaults.teacher.daily;
+    document.getElementById('limitTeacherPerGrant').value = defaults.teacher.perGrant;
+    await saveBudgetLimits();
+  } catch(e) { console.error(e); }
+}
+
 async function loadEconomy() {
   try {
     const monthInput = document.getElementById('economyMonth');
@@ -5045,6 +6576,18 @@ async function loadEconomy() {
       monthInput.value = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2,'0')}`;
     }
     const [year, month] = monthInput.value.split('-').map(Number);
+
+    // Phase F1 + F2 + R3 + D1 + S1: 並行で各ダッシュボードをロード
+    Promise.all([
+      loadEconomyDailyChart(year, month),
+      loadEconomyBreakdown(year, month),
+      loadEconomyStudentRanking(year, month),
+      loadEconomyLog(),
+      loadBudgetDashboard(),
+      loadEconomyBalance(),
+      loadGrantTemplates(),
+      loadCollectiveGoals(),
+    ]).catch(e => console.warn('[economy dashboards]', e));
 
     // 月間サマリー
     const summary = await CoinsDB.getMonthlySummary(year, month);
@@ -5136,16 +6679,32 @@ async function grantCoin() {
   }
 
   try {
-    await CoinsDB.addTransaction({
-      studentId, amount, type: 'earn',
+    // Feature 11 Phase F2: 予算上限チェック
+    // 付与者ロール: currentUserRole ('owner' or 'admin'). 今は admin を commander 扱いで集計
+    const granterRole = (window.currentUserRole === 'owner') ? 'owner' : 'admin';
+    const check = await BudgetLimitsDB.check(granterRole, amount);
+    if (!check.allowed) {
+      showToast(`❌ 予算上限超過: ${check.reason}`, 'error');
+      return;
+    }
+
+    // addPoints に meta を渡すと coins 監査ログを自動記録 (Feature 11 Phase F1)
+    await StudentsDB.addPoints(studentId, amount, {
       category: category === 'manual' ? 'manual' : category,
       description: note || category,
-      grantedBy: 'coach'
+      grantedBy: granterRole,
+      type: 'earn',
     });
-    await StudentsDB.addPoints(studentId, amount);
-    showToast(`${amount}ポイントを付与しました`);
+    // 残量表示
+    let successMsg = `${amount}ポイントを付与しました`;
+    if (!check.unlimited && check.remaining?.monthly != null) {
+      successMsg += ` / 月残 ${check.remaining.monthly.toLocaleString()} pt`;
+    }
+    showToast(successMsg);
     document.getElementById('coinNote').value = '';
     if (category === 'manual') document.getElementById('manualCoinAmount').value = '';
+    // 予算ダッシュボードを更新
+    loadBudgetDashboard().catch(e => console.warn('[budgetDashboard refresh]', e));
   } catch (e) {
     console.error('ポイント付与エラー:', e);
     showToast('ポイント付与に失敗しました', 'error');
@@ -6699,15 +8258,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.body.appendChild(btn);
   }
 
-  // 開発者向け: ブラウザ Console から自分を owner に昇格できるヘルパー
-  // 使い方: makeMeOwner()
-  window.makeMeOwner = async function() {
-    const user = firebase.auth().currentUser;
-    if (!user) { console.log('ログインしてください'); return; }
-    if (typeof UsersDB === 'undefined') { console.log('UsersDB が未定義'); return; }
-    await UsersDB.setRole(user.uid, 'owner');
-    console.log('✅ あなたを owner に昇格しました。リロードしてください。');
-  };
+  // 本番セキュリティ強化 (2026-04): 以前ここに window.makeMeOwner という
+  // Console バックドアがあったが、誰でも DevTools Console から昇格できる問題を塞ぐため削除。
+  // オーナー昇格は Firebase Console の Firestore > users/{uid}.role = 'owner' で手動設定する運用に変更。
 
   firebase.auth().onAuthStateChanged(user => {
     const loginScreen = document.getElementById('adminLoginScreen');

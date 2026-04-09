@@ -1,0 +1,850 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<title>HERO'S ACADEMY ご案内 (Feature 9 + 10) ― 塾長版（完全版）</title>
+<style>
+  @page {
+    size: A4;
+    margin: 20mm 18mm 25mm 18mm;
+    @bottom-center {
+      content: "HERO'S ACADEMY 塾長版（完全版） — " counter(page) " / " counter(pages);
+      font-size: 9pt;
+      color: #718096;
+      font-family: "Hiragino Kaku Gothic Pro", "Yu Gothic", sans-serif;
+    }
+  }
+  body {
+    font-family: "Hiragino Kaku Gothic Pro", "Yu Gothic", "Noto Sans JP", sans-serif;
+    font-size: 10.5pt;
+    line-height: 1.7;
+    color: #2d3748;
+  }
+  h1 {
+    color: #663ab7;
+    font-size: 28pt;
+    margin-top: 0;
+    margin-bottom: 5pt;
+    border-bottom: 4px solid #663ab7;
+    padding-bottom: 8pt;
+  }
+  h1.cover {
+    text-align: center;
+    font-size: 32pt;
+    border: none;
+    margin-top: 60pt;
+  }
+  h2 {
+    color: #663ab7;
+    font-size: 18pt;
+    margin-top: 22pt;
+    margin-bottom: 10pt;
+    padding-left: 12pt;
+    border-left: 6px solid #663ab7;
+    page-break-after: avoid;
+  }
+  h3 {
+    color: #2d3748;
+    font-size: 13pt;
+    margin-top: 14pt;
+    margin-bottom: 6pt;
+    page-break-after: avoid;
+  }
+  p { margin: 6pt 0; }
+  .subtitle {
+    text-align: center;
+    font-size: 14pt;
+    color: #718096;
+    margin-top: 0;
+  }
+  .cover-meta {
+    text-align: center;
+    margin-top: 120pt;
+    color: #718096;
+    font-size: 11pt;
+    line-height: 2;
+  }
+  .cover-badge {
+    display: inline-block;
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 6pt 20pt;
+    border-radius: 20pt;
+    font-size: 11pt;
+    font-weight: bold;
+    margin-top: 18pt;
+  }
+  .page-break { page-break-before: always; }
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 10pt 0;
+    font-size: 10pt;
+  }
+  th {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    color: white;
+    padding: 8pt 10pt;
+    text-align: left;
+    font-weight: bold;
+  }
+  td {
+    padding: 8pt 10pt;
+    border-bottom: 1px solid #e2e8f0;
+    vertical-align: top;
+  }
+  tr:nth-child(even) td {
+    background: #f8fafc;
+  }
+  a {
+    color: #5a67d8;
+    text-decoration: underline;
+    word-break: break-all;
+  }
+  .login-box {
+    background: #fffbea;
+    border: 2px solid #f6ad55;
+    border-radius: 10pt;
+    padding: 12pt 16pt;
+    margin: 10pt 0 14pt 0;
+  }
+  .login-box .screen-name {
+    font-size: 13pt;
+    font-weight: bold;
+    color: #dd6b20;
+    margin-bottom: 4pt;
+  }
+  .login-box .url {
+    font-family: monospace;
+    background: white;
+    padding: 4pt 8pt;
+    border-radius: 4pt;
+    display: inline-block;
+    font-size: 10pt;
+    margin: 4pt 0 8pt 0;
+    border: 1px solid #e2e8f0;
+  }
+  .login-box .creds {
+    background: white;
+    border-radius: 6pt;
+    padding: 8pt 12pt;
+    margin-top: 6pt;
+    font-size: 10pt;
+    border: 1px solid #fed7aa;
+  }
+  .login-box .creds .row {
+    display: block;
+    margin: 3pt 0;
+  }
+  .login-box .creds .label {
+    display: inline-block;
+    width: 130pt;
+    color: #718096;
+    font-weight: bold;
+  }
+  .login-box .creds .value {
+    font-family: monospace;
+    color: #2d3748;
+    background: #fffbea;
+    padding: 2pt 8pt;
+    border-radius: 4pt;
+  }
+  .warning {
+    background: #fef2f2;
+    border-left: 5px solid #fc8181;
+    padding: 10pt 14pt;
+    margin: 10pt 0;
+    font-size: 10pt;
+    color: #c53030;
+  }
+  .info {
+    background: #f0f9ff;
+    border-left: 5px solid #63b3ed;
+    padding: 10pt 14pt;
+    margin: 10pt 0;
+    font-size: 10pt;
+  }
+  .success {
+    background: #f0fff4;
+    border-left: 5px solid #48bb78;
+    padding: 10pt 14pt;
+    margin: 10pt 0;
+    font-size: 10pt;
+  }
+  .feature-card {
+    background: linear-gradient(135deg, #f8fafc, #eef2ff);
+    border-radius: 10pt;
+    padding: 14pt 18pt;
+    margin: 12pt 0;
+    border-left: 5px solid #663ab7;
+  }
+  .feature-card h3 {
+    margin-top: 0;
+    color: #663ab7;
+  }
+  .chat-example {
+    background: #f7fafc;
+    border-radius: 8pt;
+    padding: 12pt 16pt;
+    margin: 8pt 0;
+    font-size: 10pt;
+    border: 1px solid #e2e8f0;
+  }
+  .chat-student {
+    color: #2b6cb0;
+    font-weight: bold;
+  }
+  .chat-buddy {
+    color: #2f855a;
+    font-weight: bold;
+  }
+  .chat-example p { margin: 4pt 0; }
+  ul, ol { margin: 6pt 0; padding-left: 22pt; }
+  li { margin: 3pt 0; }
+  .toc {
+    background: #f7fafc;
+    padding: 16pt 20pt;
+    border-radius: 10pt;
+    margin: 20pt 0;
+  }
+  .toc ol { padding-left: 20pt; }
+  .toc li { margin: 4pt 0; font-size: 10pt; }
+  .role-icon {
+    font-size: 24pt;
+    margin-right: 6pt;
+  }
+  .hierarchy {
+    background: #f7fafc;
+    border-radius: 10pt;
+    padding: 16pt 20pt;
+    margin: 12pt 0;
+    font-size: 10pt;
+  }
+  .hierarchy .level {
+    padding: 10pt 14pt;
+    margin: 6pt 0;
+    border-radius: 8pt;
+    border-left: 5px solid;
+  }
+  .level-owner { background: #fff7ed; border-color: #ed8936; }
+  .level-director { background: #ebf8ff; border-color: #3182ce; }
+  .level-teacher { background: #f0fff4; border-color: #48bb78; }
+  .level-student { background: #faf5ff; border-color: #805ad5; }
+  .small { font-size: 9pt; color: #718096; }
+  .badge {
+    display: inline-block;
+    background: #ed8936;
+    color: white;
+    padding: 2pt 8pt;
+    border-radius: 10pt;
+    font-size: 9pt;
+    font-weight: bold;
+    margin-left: 6pt;
+  }
+  .badge.new { background: #fc8181; }
+  .badge.improved { background: #63b3ed; }
+</style>
+</head>
+<body>
+
+<!-- カバーページ -->
+<h1 class="cover">HERO'S ACADEMY</h1>
+<p class="subtitle">ゲーミフィケーション学習管理システム</p>
+<div style="text-align: center;">
+  <span class="cover-badge">Feature 9: 階層型 AI コーチング + Feature 10: 艦長マイケル</span>
+</div>
+
+<div style="text-align: center; margin-top: 40pt; font-size: 20pt; color: #2d3748; font-weight: bold;">
+  塾長版（完全版）
+</div>
+<div style="text-align: center; font-size: 13pt; color: #718096; margin-top: 8pt;">
+  新機能のご紹介（Feature 9 + Feature 8a + Feature 10）
+</div>
+<div style="text-align: center; font-size: 11pt; color: #c53030; margin-top: 16pt; font-weight: bold;">
+  ⚠️ この版には「オーナー画面」章を含みます。<br>
+  スタッフ配布用には同梱の「スタッフ版」(STAFF_GUIDE_Feature9_staff.pdf) をご利用ください。
+</div>
+
+<div class="cover-meta">
+  2026年4月8日 更新<br>
+  個別指導学院ヒーローズ延岡校<br>
+  <br>
+  <strong style="color: #c53030;">※ ログイン情報 + オーナー昇格手順を含みます。塾長のみ保管</strong>
+</div>
+
+<div class="page-break"></div>
+
+<!-- 目次 -->
+<h1>目次</h1>
+<div class="toc">
+  <ol>
+    <li>6つの画面とアクセス先（URL + ログイン情報）</li>
+    <li>今回の目玉: 階層型 AI コーチングシステム</li>
+    <li>ルカ（生徒バディ）の進化</li>
+    <li>講師バディ AI（新規）</li>
+    <li>教室長バディ AI（新規）</li>
+    <li>申し送り Inbox（新規）</li>
+    <li>オーナーダッシュボード（新規・塾長専用）</li>
+    <li>音声入力の常時マイクモード</li>
+    <li>艦長マイケルのブリーフィング（新規・Feature 10）</li>
+    <li>スタッフ向け運用メモ</li>
+    <li>トラブルシューティング</li>
+  </ol>
+</div>
+
+<div class="page-break"></div>
+
+<!-- 1. 6画面のアクセス情報 -->
+<h1>1. 6つの画面とアクセス先</h1>
+<p>これまでの5画面に加えて、新たに <strong>「オーナー画面」</strong> が追加され、6画面になりました。<br>
+各画面の URL（青い文字）をクリックすると、直接その画面が開きます。</p>
+
+<div class="warning">
+  <strong>⚠️ この資料にはログイン情報を含みます。スタッフ限定で、外部への共有は禁止です。</strong>
+</div>
+
+<!-- 管理画面 -->
+<div class="login-box">
+  <div class="screen-name">🛰 管理画面（先生・教室長用）</div>
+  <a class="url" href="https://hero-s-points.web.app/">https://hero-s-points.web.app/</a>
+  <p>システム全体の管理。生徒登録、スケジュール管理、報酬、統計、設定などすべてをここから操作します。</p>
+  <div class="creds">
+    <span class="row"><span class="label">ログイン方式</span> Firebase Auth（メール + パスワード）</span>
+    <span class="row"><span class="label">メールアドレス</span> <span class="value">admin@heros.jp</span></span>
+    <span class="row"><span class="label">パスワード</span> <span class="value">0070heros</span></span>
+  </div>
+</div>
+
+<!-- 生徒画面 -->
+<div class="login-box">
+  <div class="screen-name">👨‍🎓 生徒画面</div>
+  <a class="url" href="https://hero-s-points.web.app/student">https://hero-s-points.web.app/student</a>
+  <p>生徒がログインして学習する画面。バディAI「ルカ」との会話、学習タイマー、ポイント確認、報酬交換など。</p>
+  <div class="creds">
+    <span class="row"><span class="label">ログイン方式</span> ニックネーム + 4桁 PIN</span>
+    <span class="row"><span class="label">ニックネーム</span> （管理画面で生徒ごとに設定）</span>
+    <span class="row"><span class="label">生徒 PIN（4桁）</span> （管理画面で設定した4桁の数字）</span>
+  </div>
+  <p class="small">例: ニックネーム「ジロー」 / PIN「2000」</p>
+</div>
+
+<!-- 保護者画面 -->
+<div class="login-box">
+  <div class="screen-name">👨‍👩‍👧 保護者画面</div>
+  <a class="url" href="https://hero-s-points.web.app/parent">https://hero-s-points.web.app/parent</a>
+  <p>お子さまの学習状況を確認する画面。家庭学習の承認ボタン、レポート受信もこちらで。</p>
+  <div class="creds">
+    <span class="row"><span class="label">ログイン方式</span> ニックネーム + 保護者 PIN</span>
+    <span class="row"><span class="label">ニックネーム</span> （お子さまのニックネーム）</span>
+    <span class="row"><span class="label">保護者 PIN（4桁）</span> （生徒 PIN とは別の数字）</span>
+  </div>
+  <p class="small">例: ニックネーム「ジロー」 / 保護者 PIN「5678」</p>
+</div>
+
+<!-- 講師画面 -->
+<div class="login-box">
+  <div class="screen-name">👨‍🏫 講師画面（教室長もここから）</div>
+  <a class="url" href="https://hero-s-points.web.app/teacher">https://hero-s-points.web.app/teacher</a>
+  <p>講師がスケジュール・担当生徒のコメント記入、AI 相談、申し送りを行う画面。</p>
+  <div class="creds">
+    <span class="row"><span class="label">ログイン方式</span> 4桁 PIN のみ</span>
+    <span class="row"><span class="label">PIN（4桁）</span> （管理画面の講師管理で設定）</span>
+    <span class="row"><span class="label">役割判定</span> 講師 or 教室長（management 画面で role を設定）</span>
+  </div>
+  <p class="small">例: 黒木先生 → PIN「1234」。role=director の講師は教室長バディが有効になります</p>
+</div>
+
+<!-- オーナー画面 -->
+<div class="login-box">
+  <div class="screen-name">👑 オーナー画面 <span class="badge new">NEW</span></div>
+  <a class="url" href="https://hero-s-points.web.app/owner">https://hero-s-points.web.app/owner</a>
+  <p>経営者用ダッシュボード。複数教室（将来）の KPI 一覧、オーナー専用 AI（Opus 4.6）との経営相談、教室長からの申し送り確認。</p>
+  <div class="creds">
+    <span class="row"><span class="label">ログイン方式</span> Firebase Auth + role=owner</span>
+    <span class="row"><span class="label">メールアドレス</span> <span class="value">admin@heros.jp</span></span>
+    <span class="row"><span class="label">パスワード</span> <span class="value">0070heros</span></span>
+    <span class="row"><span class="label">オーナー昇格（初回のみ）</span> Firebase Console から手動で <code>users/{uid}.role = 'owner'</code> を設定</span>
+  </div>
+  <p class="small">セキュリティ強化のため、以前の <code>makeMeOwner()</code> コマンドは廃止されました。初回だけ Firebase Console でロールを書き換える必要があります（詳細は第 7 章）。</p>
+</div>
+
+<!-- 教室モニター -->
+<div class="login-box">
+  <div class="screen-name">📺 教室モニター</div>
+  <a class="url" href="https://hero-s-points.web.app/briefing">https://hero-s-points.web.app/briefing</a>
+  <p>教室の大画面に常時表示する画面。今日の講師シフト・ランキング・ハイライトなど。</p>
+  <div class="creds">
+    <span class="row"><span class="label">ログイン方式</span> なし（URL を開くだけで表示）</span>
+  </div>
+</div>
+
+<div class="page-break"></div>
+
+
+<!-- 2. Feature 9 概要 -->
+<h1>2. 今回の目玉: 階層型 AI コーチング</h1>
+<p>これまで「ルカ」という生徒用バディ AI だけでしたが、今回から<strong>講師・教室長・オーナー</strong>にも専用の AI バディが付きました。
+しかも 4 階層の間で「申し送り（HandoffLog）」が自動的に流れる仕組みになっていて、
+たとえば「生徒がバディに家庭の悩みを話した」→ 自動的に教室長の Inbox にアラートが届く、ということが実現できます。</p>
+
+<h2>📐 階層構造のイメージ</h2>
+<div class="hierarchy">
+  <div class="level level-owner">
+    <strong>👑 オーナー</strong> — 経営判断・複数教室統括 <span class="small">(AIBuddyOwner: Opus 4.6)</span><br>
+    <span class="small">教室長からの申し送りを要約・優先順位付け。経営判断を一緒に考える。</span>
+  </div>
+  <div class="level level-director">
+    <strong>🏛 教室長</strong> — 教室運営・人材管理 <span class="small">(AIBuddyDirector: Sonnet 4.6)</span><br>
+    <span class="small">講師配置、生徒の継続率、保護者対応、教室 KPI を一緒に考える。</span>
+  </div>
+  <div class="level level-teacher">
+    <strong>👨‍🏫 講師</strong> — 生徒への接し方・授業計画 <span class="small">(AIBuddyTeacher: Sonnet 4.6)</span><br>
+    <span class="small">担当生徒一人ひとりへの声かけ例、授業の進め方を一緒に考える。</span>
+  </div>
+  <div class="level level-student">
+    <strong>👨‍🎓 生徒</strong> — 学習サポート・感情サポート <span class="small">(AIBuddy ルカ: Haiku 4.5)</span><br>
+    <span class="small">学習計画、モチベーション、勉強の質問など。教室長と同じレベルの情報を持つ。</span>
+  </div>
+</div>
+
+<div class="info">
+  <strong>💡 情報の流れ（上下双方向）</strong><br>
+  生徒がルカに相談 → ルカが「これは教室長に伝えるべき」と判断 → 自動的に申し送り Inbox へ → 教室長が対応<br>
+  教室長がルカに「〇〇ちゃんに明日この課題を出して」と指示 → ルカが生徒に伝える
+</div>
+
+<h2>🔐 プライバシー配慮: バディ共有フラグ</h2>
+<p>講師コメントを記入するとき、<strong>「🤖 生徒バディ（ルカ）に共有する」</strong>というチェックボックスが付きました。</p>
+<ul>
+  <li><strong>チェック ON</strong> → ルカが生徒と会話するときに、このコメントを参照できる（例: 「明日までに数学ワーク p.50-60 をやろう」）</li>
+  <li><strong>チェック OFF</strong> → ルカには見えない。講師・教室長だけが見る内部メモ（例: 「家庭の事情で集中力低下」）</li>
+</ul>
+<p>機微な情報は OFF、学習の指示は ON、という使い分けを推奨します。</p>
+
+<div class="page-break"></div>
+
+<!-- 3. ルカ（生徒バディ）の進化 -->
+<h1>3. ルカ（生徒バディ）の進化</h1>
+<p>これまでルカは生徒の名前・学年・レベル・ポイントしか知りませんでした。
+今回から以下の情報を知った上で会話します:</p>
+
+<ul>
+  <li><strong>今日の授業予定</strong>（スケジュールスロットから）</li>
+  <li><strong>未完了の宿題・チャレンジ</strong>（タスク管理から）</li>
+  <li><strong>講師からの最近のコメント</strong>（buddyVisible=ON のみ、最新3件）</li>
+  <li><strong>講師からの未読メッセージ</strong></li>
+  <li><strong>志望校</strong>（大学・中学・高校）</li>
+  <li><strong>苦手科目</strong></li>
+  <li><strong>連続学習日数（ストリーク）</strong></li>
+</ul>
+
+<h2>💬 実際の会話例</h2>
+
+<div class="chat-example">
+  <p><span class="chat-student">生徒「今日、何やればいい？」</span></p>
+  <p><span class="chat-buddy">ルカ</span>「黒木先生からのお知らせで、数学のワーク50〜60ページをやるように言われてるにゃ📖 まずそこから始めてみてどう？」</p>
+</div>
+
+<div class="chat-example">
+  <p><span class="chat-student">生徒「最近どう？」</span></p>
+  <p><span class="chat-buddy">ルカ</span>「3日連続で頑張ってるにゃ〜！✨ 黒木先生からも「態度good・理解度good」ってコメントもらえてるよ。いい流れが来てる感じ、自分ではどう思う？」</p>
+</div>
+
+<div class="chat-example">
+  <p><span class="chat-student">生徒「高校生の物理なんか難しいね」</span>（中3の生徒が発言）</p>
+  <p><span class="chat-buddy">ルカ</span>「ジローはまだ中3だから、今は高校物理は気にしなくて大丈夫ピヨ！まず中学理科をしっかり固めようね♪ 高校行ったら一緒に攻略しようよ！」</p>
+</div>
+
+<p class="small">※ 学年を考慮して「今やるべきこと」に誘導できるのがポイント。ただの応援ロボから一歩進んで、状況を踏まえた具体的アドバイスができるようになっています。</p>
+
+<h2>⚙️ 先生側での操作のコツ</h2>
+<div class="success">
+  <strong>ルカをもっと賢くするには:</strong> 管理画面の講師コメント記入時に「🤖 生徒バディに共有する」チェックを ON で保存してください。
+  それだけでルカがそのコメント内容を踏まえて生徒に話しかけられるようになります。<br><br>
+  また、生徒の「苦手科目」「志望校」をちゃんと登録しておくと、ルカの返答が一段と具体的になります。
+</div>
+
+<div class="page-break"></div>
+
+
+<!-- 4. 講師バディ -->
+<h1>4. 講師バディ AI <span class="badge new">NEW</span></h1>
+<p>講師画面（<a href="https://hero-s-points.web.app/teacher">/teacher</a>）に新しく <strong>「🤖 AI相談」</strong> タブが追加されました。
+担当する生徒一人ひとりについて、「どう接したら？」「次の授業で何やる？」といった相談を AI にできます。</p>
+
+<h2>📝 使い方</h2>
+<ol>
+  <li>講師画面にログイン（4桁 PIN）</li>
+  <li>上のタブから「🤖 AI相談」をクリック</li>
+  <li>入力欄に相談内容を書く（例: 「〇〇ちゃん、最近やる気なさそうに見えるけどどう接したら？」）</li>
+  <li>送信 → AI が担当生徒の最近のコメント・宿題状況・態度・理解度を踏まえて具体的にアドバイス</li>
+</ol>
+
+<h2>💡 こんな時に使ってみてください</h2>
+<ul>
+  <li>新人講師で、特定の生徒への接し方に迷った時</li>
+  <li>次の授業で何をやるか迷った時</li>
+  <li>保護者にどう伝えるか言い回しを相談したい時</li>
+  <li>生徒の細かい変化に気づくきっかけを得たい時</li>
+</ul>
+
+<div class="info">
+  <strong>💬 AI の特徴</strong><br>
+  ・ 押し付けがましくせず「こういう選択肢がありますよ」と複数案を提示<br>
+  ・ 才能でなく過程を褒める（成長マインドセット）<br>
+  ・ 個人情報配慮。生徒に直接伝えるべきでないことは明示<br>
+  ・ 返答は 200-400 文字程度、箇条書きで読みやすく
+</div>
+
+<!-- 5. 教室長バディ -->
+<h1>5. 教室長バディ AI <span class="badge new">NEW</span></h1>
+<p>同じく講師画面の「🤖 AI相談」タブですが、<strong>role=director（教室長）で登録された講師</strong>がログインすると、
+自動的に <strong>教室長モード</strong>に切り替わります。画面上部のヘッダーに「（教室長）」と表示され、
+AI のプロンプトも教室運営視点のものに変わります。</p>
+
+<h2>📊 教室長モードで取れる相談</h2>
+<ul>
+  <li><strong>講師配置</strong>: 「今月シフト減らしたい講師の代わりに誰を増やすべき？」</li>
+  <li><strong>生徒対応</strong>: 「〇〇ちゃんの保護者にどう連絡すべき？」</li>
+  <li><strong>教室 KPI</strong>: 「今月の出席率は？」「継続率で気になる生徒は？」</li>
+  <li><strong>採用判断</strong>: 「講師を増やすべきタイミング？」</li>
+</ul>
+
+<h2>👀 教室長が見られる情報</h2>
+<p>教室長バディは以下の情報を全部見た上で答えます:</p>
+<ul>
+  <li>在籍生徒数・講師数</li>
+  <li>今日の全授業（完了・欠席含む）</li>
+  <li>家庭学習の承認待ち件数</li>
+  <li>今日の講師コメント（全件）</li>
+  <li>最近の申し送り（director ロール向け）</li>
+</ul>
+
+<h2>⚠️ 講師→教室長の切替方法</h2>
+<p>既存の講師を教室長に昇格させるには:</p>
+<ol>
+  <li>管理画面にログイン</li>
+  <li>「👨‍🏫 講師管理」タブ</li>
+  <li>該当講師の ✏️ ボタンをクリック</li>
+  <li>「役割」を <strong>「教室長」</strong> に変更</li>
+  <li>保存</li>
+</ol>
+<p>変更後、その講師が次回 /teacher にログインすると、AI 相談タブが自動で教室長モードになります。</p>
+
+<div class="page-break"></div>
+
+<!-- 6. 申し送り Inbox -->
+<h1>6. 申し送り Inbox <span class="badge new">NEW</span></h1>
+<p>講師画面に <strong>「📬 申し送り」</strong> タブが追加されました。階層間で自動・手動に流れる重要情報がここに集まります。
+タブ右上に未読件数のバッジが表示されます。</p>
+
+<h2>🚨 どんな情報が届くか</h2>
+<table>
+  <thead>
+    <tr><th>アイコン</th><th>種類</th><th>内容</th></tr>
+  </thead>
+  <tbody>
+    <tr><td>🚨</td><td>alert</td><td>緊急度高。生徒の心身・家庭・学習に要注意な兆候。即対応推奨</td></tr>
+    <tr><td>👁</td><td>observation</td><td>重要だが緊急ではない気付き。成長・変化の記録</td></tr>
+    <tr><td>🙏</td><td>request</td><td>具体的な要望（「次回〇〇してあげて」等）</td></tr>
+    <tr><td>✅</td><td>decision</td><td>話し合いで決まった方針・約束</td></tr>
+  </tbody>
+</table>
+
+<h2>🌊 自動で届くケース</h2>
+<p>生徒がルカに感情的な話をすると、ルカが自動的に申し送りを書き込みます:</p>
+<div class="chat-example">
+  <p><span class="chat-student">生徒「最近、親がケンカしてばっかでしんどい…」</span></p>
+  <p><span class="chat-buddy">ルカ</span>「お疲れさま、大丈夫？深呼吸してリラックスしよう☕」（生徒画面には優しい返答）</p>
+  <p style="margin-top: 10pt; border-top: 1px dashed #cbd5e0; padding-top: 10pt;">
+    <strong style="color: #c53030;">→ 裏側で自動生成:</strong><br>
+    <span style="background: #fef2f2; padding: 6pt 10pt; display: inline-block; border-radius: 4pt;">
+      🚨 alert: 家庭環境にストレス兆候。声かけ推奨。
+    </span>
+  </p>
+</div>
+<p>→ 次に講師・教室長が申し送り Inbox を開くと、このエントリが赤い帯で一番上に表示されます。<strong>「既読」</strong>ボタンで既読化。</p>
+
+<h2>🎯 使い方のコツ</h2>
+<ul>
+  <li><strong>毎朝チェック</strong>: 授業前に申し送り Inbox を開いて、前日までの新着を確認</li>
+  <li><strong>夕会で活用</strong>: 教室長が申し送りを元にスタッフ間で情報共有</li>
+  <li><strong>既読管理</strong>: 対応済みは「既読」でバッジから消す</li>
+</ul>
+
+<div class="page-break"></div>
+
+<!-- 7. オーナー画面 -->
+<h1>7. オーナーダッシュボード <span class="badge new">NEW</span></h1>
+<p>経営者（塾長）専用の画面が追加されました。<a href="https://hero-s-points.web.app/owner">https://hero-s-points.web.app/owner</a></p>
+
+<h2>🎯 何ができるか</h2>
+<ul>
+  <li><strong>KPI ダッシュボード</strong>: 教室数・総生徒数・総講師数・未読申し送り数</li>
+  <li><strong>教室一覧</strong>: 複数教室を運営する将来のため（現状は1教室）</li>
+  <li><strong>オーナーバディ AI（Opus 4.6）</strong>: 経営判断を一緒に考える最高性能 AI</li>
+  <li><strong>教室長からの申し送り一覧</strong>: owner 向け HandoffLog をまとめて確認</li>
+</ul>
+
+<h2>💰 オーナーバディ AI の特徴</h2>
+<p>モデルは Claude Opus 4.6（最高性能）を使用。他のバディより思考が深く、経営判断に適した返答をします。</p>
+<ul>
+  <li>教室全体の KPI を踏まえて助言</li>
+  <li>教室長から上がった申し送りを要約・優先順位付け</li>
+  <li>採用・撤退・拡張・カリキュラム改訂の意思決定支援</li>
+  <li>短期の打ち手と中長期の戦略を分けて提示</li>
+</ul>
+
+<h2>🔐 初回のオーナー昇格手順（重要・塾長専用）</h2>
+<div class="warning">
+  <strong>⚠️ セキュリティ強化について</strong><br>
+  2026 年 4 月の更新で、以前の <code>makeMeOwner()</code> コマンド（DevTools Console から誰でも昇格できる）は
+  本番から削除されました。誰でも昇格できる状態では安全性が確保できないためです。
+  今後は以下の Firebase Console 経由の手順でのみ昇格できます。
+</div>
+
+<p>オーナー画面に初めて入るには、Firebase Console から直接 Firestore のユーザーレコードを編集する必要があります。この操作は塾長のみが行なってください。</p>
+
+<ol>
+  <li>まず普通に管理画面 <a href="https://hero-s-points.web.app/">https://hero-s-points.web.app/</a> にログインします（メール admin@heros.jp / パスワード 0070heros）。これで Firestore の <code>users</code> コレクションに自分のレコードが自動生成されます（初期 role は <code>admin</code>）。</li>
+  <li>別タブで Firebase Console <a href="https://console.firebase.google.com/">https://console.firebase.google.com/</a> を開き、プロジェクト <strong>hero-s-points</strong> を選択</li>
+  <li>左メニューから <strong>Firestore Database</strong> → <strong>データ</strong> タブ</li>
+  <li>コレクション一覧から <code>users</code> を選ぶ</li>
+  <li>自分の uid のドキュメントを探す（メールアドレスで判断: <code>email: "admin@heros.jp"</code>）</li>
+  <li>そのドキュメントの <code>role</code> フィールドの値を <code>admin</code> から <code>owner</code> に書き換えて保存</li>
+  <li>管理画面のタブに戻ってページをリロード（Cmd+R）</li>
+  <li>画面右下に <strong>👑 オレンジの丸いボタン</strong>が出現</li>
+  <li>クリック → オーナー画面へ</li>
+</ol>
+
+<div class="info">
+  <strong>💡 オーナー昇格は Firebase Auth アカウントごとに 1 回のみ</strong><br>
+  一度昇格すると、次回以降は管理画面を開くだけで👑ボタンが自動表示されます。
+  デバイスごとの作業は不要です（Firebase Auth アカウント単位で保存されます）。
+</div>
+
+<div class="warning">
+  <strong>🔑 admin@heros.jp のパスワードについて</strong><br>
+  現在のパスワード <code>0070heros</code> はスタッフ配布資料にも記載されている共通知です。
+  オーナー権限を持つのは塾長だけにするため、<strong>運用開始前に Firebase Console でパスワードを変更</strong>してください
+  （Authentication → Users → admin@heros.jp → パスワード再設定）。変更後は新パスワードを塾長のみで保持し、
+  スタッフ配布版の資料には記載しない運用にしてください。
+</div>
+
+<div class="page-break"></div>
+
+
+<!-- 8. 音声入力 -->
+<h1>8. 音声入力の常時マイクモード <span class="badge improved">IMPROVED</span></h1>
+<p>生徒画面のバディ会話機能で、<strong>マイクを 1 回押したらずっと話し続けられる</strong>ようになりました。</p>
+
+<h2>📝 使い方</h2>
+<ol>
+  <li>生徒画面でチャットバーの <strong>🎤</strong> ボタンをタップ</li>
+  <li>バディが「🎤 聞いてるよ！話してみて〜」と吹き出しで知らせてくれる</li>
+  <li>そのまま話す → 自動的に文字化されて送信 → バディが返答</li>
+  <li><strong>🎤 を押し直さずにそのまま続けて話せる</strong></li>
+  <li>終わりたい時だけ 🎤 をもう一度タップ → 「マイクオフにしたにゃ〜」で停止</li>
+</ol>
+
+<div class="success">
+  <strong>✨ これまでとの違い</strong><br>
+  以前: 1回話す → マイク停止 → 次に話すたびに 🎤 を押し直し（面倒！）<br>
+  今回: 1回 🎤 → ずっとオン → 好きなだけ連続で話せる → 終わる時だけ 🎤 再タップ
+</div>
+
+<h2>⚠️ ご注意</h2>
+<ul>
+  <li><strong>Mac / Windows の Chrome</strong> で動作します</li>
+  <li><strong>iPhone / iPad の Chrome では動きません</strong>（Safari と同じエンジンを使っていて、音声認識 API 非対応のため）</li>
+  <li><strong>5 分</strong>で自動的にマイクがオフになります（バッテリー・コスト・誤爆防止のため）</li>
+  <li>Mac でクラムシェルモード（ノート閉じ）にしていると、内蔵マイクが使えない場合があります</li>
+  <li>外部マイク（DJI MIC 等）を USB 接続していると、そちらが優先されます。使いたいマイクが選ばれているか、<strong>システム設定 → サウンド → 入力</strong>で確認してください</li>
+</ul>
+
+<h2>❓ マイクが反応しない時</h2>
+<ol>
+  <li>Mac のシステム設定 → サウンド → 入力 で、使いたいマイクが選ばれているか確認</li>
+  <li>マイクに向かって話すと「入力レベル」のバーが動くか確認</li>
+  <li>Chrome のアドレスバー左の🔒アイコン → マイク「許可」になっているか確認</li>
+  <li>他のアプリ（Zoom・Teams 等）がマイクを使っていないか確認</li>
+  <li>それでもダメなら、シークレットウィンドウで開いて試す</li>
+</ol>
+
+<div class="page-break"></div>
+
+<!-- 9. 艦長マイケル -->
+<h1>9. 艦長マイケルのブリーフィング <span class="badge new">NEW (Feature 10)</span></h1>
+<p>教室モニター（<a href="https://hero-s-points.web.app/briefing">https://hero-s-points.web.app/briefing</a>）の画面上部に、新キャラクター <strong>「艦長マイケル」</strong> が登場しました。宇宙艦隊ミッションコントロールの艦長役として、その日のメインメッセージをクルー（生徒）に向けて一方的に語る情報表示領域です。</p>
+
+<div class="feature-card">
+  <h3>🧑‍✈️ 艦長マイケルとは</h3>
+  <ul>
+    <li>宇宙艦長風の SVG キャラクター（口髭・艦長帽・金の階級章）</li>
+    <li>教室モニター画面の上部に常駐し、その日のメインメッセージを吹き出しで表示</li>
+    <li>タイプライター演出 + 回転する通信リング付きで、モニターの存在感 UP</li>
+    <li>質問・対話機能はなし。一方的にメッセージを語るだけの情報表示</li>
+  </ul>
+</div>
+
+<h2>📝 メッセージの仕組み（ハイブリッド方式）</h2>
+<p>艦長マイケルのセリフは 2 系統のデータソースをハイブリッドで扱います:</p>
+<ol>
+  <li><strong>AI 自動生成（デフォルト）</strong>: 1 日 1 回、Claude API（Haiku 4.5）が以下の情報から艦長セリフを自動生成します。生成結果は Firestore <code>dailyBriefing/{日付}</code> にキャッシュされるので同じ日に何度開いても追加コストはかかりません。
+    <ul>
+      <li>時間帯（朝 / 昼 / 夕方）</li>
+      <li>今日の出撃中クルー数・総学習時間</li>
+      <li>今日誕生日の生徒</li>
+      <li>レイドボスの HP 状況</li>
+      <li>進行中ストーリー</li>
+    </ul>
+  </li>
+  <li><strong>手動上書き（特別な日だけ）</strong>: 管理画面の「🚀 今日のプラン管理」タブ先頭に 「🧑‍✈️ 艦長マイケルの『今日のメッセージ』」 カードがあります。そこに入力して「💾 保存」を押すと、その日のメッセージが塾長が書いた内容で上書きされます（ブリーフィング画面には「手動」タグが表示）。</li>
+</ol>
+
+<h2>💡 使い方のコツ</h2>
+<ul>
+  <li>普段は何もしなくて OK。空欄のままなら AI が毎日自動で気の利いたメッセージを生成します。</li>
+  <li>期末テスト前・大型イベント・進学説明会など「特別な一言を伝えたい日」だけ手動入力。</li>
+  <li>手動メッセージは「艦長マイケルになりきった口調」で書くと世界観が崩れません（例:「諸君、本日は期末テスト対策最終日だ。全クルー、全力で挑め！」）。</li>
+  <li>手動メッセージを消して AI 自動に戻すには「🗑️ クリア」ボタン。</li>
+  <li>AI メッセージが気に入らない日は、ブリーフィング画面の艦長横にある「🔄 更新」ボタンで再生成できます。</li>
+</ul>
+
+<div class="info">
+  <strong>💰 API コストの目安</strong><br>
+  1 日 1 回の生成 + キャッシュ方式なので、Claude Haiku のコストで月数十円以下。
+  手動更新ボタンを連打しない限り、追加料金はほぼ発生しません。
+</div>
+
+<div class="page-break"></div>
+
+<!-- 10. 運用メモ -->
+<h1>10. スタッフ向け運用メモ</h1>
+
+<h2>🎯 1 日の流れイメージ</h2>
+
+<h3>朝（開講前 15 分）</h3>
+<ul>
+  <li>教室長は <a href="https://hero-s-points.web.app/teacher">/teacher</a> にログイン → 📬 申し送り Inbox をチェック</li>
+  <li>前日までに溜まった未読の alert / observation を確認</li>
+  <li>当日の担当講師と朝礼で情報共有</li>
+</ul>
+
+<h3>授業中</h3>
+<ul>
+  <li>講師は各自の /teacher にログイン → 「📅 今日のスケジュール」で担当を確認</li>
+  <li>授業終わりに「📝 生徒コメント」から学習態度・理解度・特記事項を記入</li>
+  <li>特記事項が学習に関することなら <strong>「🤖 バディに共有する」ON</strong> で保存</li>
+  <li>家庭の事情など機微なことは OFF で保存</li>
+</ul>
+
+<h3>困った時</h3>
+<ul>
+  <li>「〇〇ちゃんどう接したら？」→ 「🤖 AI相談」タブで相談</li>
+  <li>AI が担当生徒の最近のコメント・態度から具体的なアドバイス</li>
+  <li>新人講師でも大ベテラン並みの返答ができるように</li>
+</ul>
+
+<h3>終礼</h3>
+<ul>
+  <li>教室長は申し送り Inbox を再確認（生徒バディが自動生成したアラート含む）</li>
+  <li>重要なものを夕会で共有</li>
+  <li>オーナーへの申し送りが必要なものは教室長バディ AI に相談しながらまとめる</li>
+</ul>
+
+<h2>💡 豆知識</h2>
+<div class="info">
+  <strong>❓ バディキャラクター名について</strong><br>
+  「ルカ」「ミミ」「ピヨ」など、生徒によって違うバディキャラが表示されます。これは既存のバディシステムの仕様で、
+  生徒が選んだキャラクター名が反映されます。内部的にはすべて同じ AI（AIBuddy）が答えています。
+</div>
+
+<div class="info">
+  <strong>❓ プロンプトキャッシングでコスト削減</strong><br>
+  今回の仕組みでは、AI に毎回送る「共通ガイド部分」をキャッシュすることで、コストが約 45% 削減されています。
+  月額想定 18,000 円 → 10,000 円。Phase 2-3 追加しても合計約 14,700 円で収まる設計です。
+</div>
+
+<div class="info">
+  <strong>❓ API 過負荷で待たされる時</strong><br>
+  Anthropic（Claude）のサービスが一時的に混雑すると、返答に 10 秒以上かかることがあります。
+  この場合、10 秒経過するとバディが「もうちょっとだけ…考え中にゃ…🌀」と吹き出しを出してフリーズを防ぎます。
+  自動的に最大 3 回までリトライするので、ほとんどの場合は待っていれば返答が返ってきます。
+</div>
+
+<div class="page-break"></div>
+
+<!-- 10. トラブルシューティング -->
+<h1>11. トラブルシューティング</h1>
+
+<h2>画面が古いままで更新されない</h2>
+<div class="info">
+  <strong>症状</strong>: 何か新機能が入ったはずなのに、ブラウザで見ても変わってない<br>
+  <strong>原因</strong>: Service Worker が古いキャッシュを返している可能性<br>
+  <strong>対策</strong>:
+  <ol>
+    <li>通常は放っておけば自動的に更新される仕組みになっています（次回アクセス時に自動リロード）</li>
+    <li>それでも古いままなら、ブラウザを完全終了 → 再起動 → 同じ URL を開き直し</li>
+    <li>Mac Chrome で強制解決したい場合: DevTools → Application タブ → Storage → 「Clear site data」ボタン → リロード</li>
+  </ol>
+</div>
+
+<h2>生徒バディ「ルカ」が曖昧な返答しかしない</h2>
+<div class="info">
+  <strong>原因</strong>: 生徒に関する情報（苦手科目・講師コメント等）が登録されていない<br>
+  <strong>対策</strong>: 管理画面で以下を登録してください:
+  <ul>
+    <li>生徒編集 → 苦手科目を設定</li>
+    <li>スケジュール管理 → 今日以降の授業スロットを追加</li>
+    <li>講師コメント記入時に「🤖 バディに共有する」を <strong>ON</strong> にして保存</li>
+  </ul>
+  これらが整うと、ルカが「黒木先生から〇〇って言われてるよ」と具体的に答えるようになります。
+</div>
+
+<h2>音声入力（🎤）を押しても無反応</h2>
+<div class="info">
+  <strong>対策</strong>: 第 8 章の「マイクが反応しない時」を参照。特に:
+  <ul>
+    <li>システム設定 → サウンド → 入力で、使いたいマイクが選ばれているか</li>
+    <li>Mac クラムシェル時は外部マイク必須</li>
+    <li>iPhone/iPad は非対応</li>
+  </ul>
+</div>
+
+<h2>申し送り Inbox に何も出てこない</h2>
+<div class="info">
+  <strong>原因</strong>: まだ誰も申し送りを書き込んでいない or 生徒バディがアラートを自動生成するような会話をしていない<br>
+  <strong>確認方法</strong>: 生徒画面でルカに感情的な話（家庭・悩み）をしてみる。その後に教室長として /teacher の Inbox を確認 → alert が追加されているはず。
+</div>
+
+<h2>オーナー画面に入れない</h2>
+<div class="info">
+  <strong>症状</strong>: 「オーナー権限がありません」と言われて管理画面に戻される<br>
+  <strong>対策</strong>: Firebase Console から <code>users/{uid}.role</code> を <code>owner</code> に設定する必要があります。詳細は第 7 章「初回のオーナー昇格手順」を参照。<br>
+  <strong>注意</strong>: 以前あった <code>makeMeOwner()</code> コマンドはセキュリティ強化のため廃止されました。
+</div>
+
+<h2>Claude API エラー（Anthropic 529）</h2>
+<div class="info">
+  <strong>症状</strong>: 会話がエラーで返ってこない<br>
+  <strong>原因</strong>: Anthropic 側の一時的な過負荷（世界的に利用者が多い時間帯）<br>
+  <strong>対策</strong>: 自動的に 3 回までリトライされます。それでもダメなら少し時間をおいてから再度話しかけてください。コード側の問題ではないので、待つ以外に解決策はありません。
+</div>
+
+<h1>付録: 問い合わせ先</h1>
+<p>システムに関する不明点・不具合報告は、塾長または開発担当まで直接ご連絡ください。</p>
+<p class="small">
+  本資料は 2026 年 4 月 8 日時点の情報です。機能追加・変更により一部内容が古くなる可能性があります。<br>
+  最新情報は実際の画面・管理画面の設定を優先してください。
+</p>
+
+<div style="text-align: center; margin-top: 40pt; color: #663ab7; font-weight: bold; font-size: 14pt;">
+  🎉 HERO'S ACADEMY チーム一同
+</div>
+<div style="text-align: center; color: #718096; font-size: 10pt; margin-top: 6pt;">
+  個別指導学院ヒーローズ延岡校
+</div>
+
+</body>
+</html>

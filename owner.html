@@ -192,6 +192,27 @@ body {
 
 <div class="main-content" id="mainContent">
 
+  <!-- テスト運用中アラート (本番移行時に削除 or 非表示化) -->
+  <div id="testOperationAlert" style="background:linear-gradient(135deg,#fef3c7,#fed7aa);border:2px solid #f59e0b;border-radius:12px;padding:16px 20px;margin-bottom:20px;display:flex;gap:14px;align-items:flex-start;box-shadow:0 2px 10px rgba(245,158,11,0.15);">
+    <div style="font-size:28px;line-height:1;">⚠️</div>
+    <div style="flex:1;">
+      <div style="font-size:15px;font-weight:700;color:#92400e;margin-bottom:4px;">テスト運用中 — 本番移行前に必ず実施してください</div>
+      <div style="font-size:12px;color:#78350f;line-height:1.6;">
+        現在この <strong>オーナー画面は admin@heros.jp の共通パスワード</strong>でアクセスできる状態です。
+        本番運用を始める前に、以下 3 点を必ず完了してください:
+      </div>
+      <ol style="font-size:12px;color:#78350f;margin:8px 0 6px 18px;line-height:1.7;">
+        <li><strong>admin@heros.jp のパスワードを変更</strong>（Firebase Console → Authentication → Users）し、新パスワードは塾長のみが保管</li>
+        <li>スタッフには <code style="background:#fff;padding:1px 6px;border-radius:3px;">STAFF_GUIDE_Feature9_staff.pdf</code> のみを配布（オーナー章を含む owner 版は配布しない）</li>
+        <li>オーナー専用の別アカウントを作成する場合は Firebase Console から追加し、users コレクションで role='owner' を設定</li>
+      </ol>
+      <div style="font-size:11px;color:#78350f;margin-top:6px;">
+        このアラートを消すには <code style="background:#fff;padding:1px 6px;border-radius:3px;">owner.html</code> の <code style="background:#fff;padding:1px 6px;border-radius:3px;">testOperationAlert</code> ブロックを削除してください。
+      </div>
+    </div>
+    <button onclick="document.getElementById('testOperationAlert').style.display='none'" style="background:transparent;border:1px solid #92400e;color:#92400e;padding:4px 10px;border-radius:6px;font-size:11px;cursor:pointer;font-weight:600;">一時的に閉じる</button>
+  </div>
+
   <!-- KPI -->
   <div class="kpi-grid" id="kpiGrid">
     <div class="kpi-card"><div class="kpi-label">教室数</div><div class="kpi-value" id="kpiClassroomCount">-</div></div>
@@ -282,7 +303,7 @@ firebase.auth().onAuthStateChanged(async (user) => {
       rec = await UsersDB.getByUid(user.uid);
     }
     if (rec.role !== 'owner') {
-      alert('オーナー権限がありません。\n\n管理画面 (index.html) からまず admin としてログインし、\nDevTools Console で makeMeOwner() を実行してください。');
+      alert('オーナー権限がありません。\n\nこの画面は塾長専用です。アクセスが必要な場合は塾長にご連絡ください。');
       firebase.auth().signOut();
       window.location.href = '/index.html';
       return;

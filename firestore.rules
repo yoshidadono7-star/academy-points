@@ -305,12 +305,58 @@ service cloud.firestore {
     }
 
     // users: Firebase Auth uid に対応するロール管理。
-    // 自分のレコードは自分で読み書き可能。他人のレコードの書き込みは admin のみ。
+    // セキュリティ強化 (2026-04): makeMeOwner() バックドア削除に合わせ、
+    // role の書き換えを厳しく制限。owner 昇格は Firebase Console から手動設定のみ。
     match /users/{uid} {
-      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
-      allow create: if request.auth != null && request.auth.uid == uid;
-      allow update: if request.auth != null && (request.auth.uid == uid || isAdmin());
-      allow delete: if isAdmin();
+      function isExistingOwner() {
+        return request.auth != null
+          && exists(/databases/$(database)/documents/users/$(request.auth.uid))
+          && get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'owner';
+      }
+
+      // 読み取り: 自分のレコード or 既存オーナー
+      allow read: if request.auth != null
+                  && (request.auth.uid == uid || isExistingOwner());
+
+      // 作成: 自分のレコードのみ、かつ初期 role は 'admin' 固定
+      // （owner を自分で作ることは不可。owner 昇格は Firebase Console 経由のみ）
+      allow create: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.role == 'admin';
+
+      // 更新(a): 自分のレコードを自分で更新 — ただし role フィールドは変更不可
+      allow update: if request.auth != null
+                    && request.auth.uid == uid
+                    && request.resource.data.role == resource.data.role;
+      // 更新(b): 既存オーナーは他人のレコード (role 含む) を変更できる
+      allow update: if isExistingOwner();
+
+      // 削除: 既存オーナーのみ
+      allow delete: if isExistingOwner();
+    }
+
+    // dailyBriefing: 艦長マイケルのブリーフィングメッセージ（日毎キャッシュ）
+    // ドキュメント ID = YYYY-MM-DD。aiMessage, manualOverride, context を保持。
+    // 管理画面からの手動上書き / briefing.html からの AI キャッシュ書き込みの両方を許可。
+    match /dailyBriefing/{dateId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Feature 11 Phase D1: 特別付与テンプレート
+    // grantTemplates: 誕生日・皆勤・新入生歓迎などのテンプレート定義
+    // 管理画面から作成・編集、実行時は一覧取得が必要
+    match /grantTemplates/{templateId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
+    // Feature 11 Phase S1: 集団目標
+    // collectiveGoals: 全員で貢献して達成する教室全体の目標
+    // 生徒画面から貢献 (update)、管理画面から作成・編集が必要
+    match /collectiveGoals/{goalId} {
+      allow read: if true;
+      allow write: if true;
     }
 
     // handoffLog: 階層間の申し送り（生徒バディ → 講師 → 教室長 → オーナー）。

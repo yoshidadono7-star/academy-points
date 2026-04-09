@@ -85,16 +85,45 @@ const StudentsDB = {
   async delete(id) {
     await db.collection('students').doc(id).delete();
   },
-  async addPoints(id, points) {
+  // Feature 11 Phase F1: meta 引数で監査ログ (coins コレクション) に自動記録する
+  // meta = { category, description, grantedBy, eventId, type } を任意で渡せる。
+  // 未指定なら category='unknown', grantedBy='system' で記録する。
+  async addPoints(id, points, meta = null) {
     await db.collection('students').doc(id).update({
       totalPoints: firebase.firestore.FieldValue.increment(points),
       currentPoints: firebase.firestore.FieldValue.increment(points)
     });
+    // 監査ログ書き込み（失敗しても本体は継続）
+    try {
+      if (typeof CoinsDB !== 'undefined' && points !== 0) {
+        await CoinsDB.addTransaction({
+          studentId: id,
+          amount: points,
+          type: (meta && meta.type) || (points > 0 ? 'earn' : 'spend'),
+          category: (meta && meta.category) || 'unknown',
+          description: (meta && meta.description) || '',
+          grantedBy: (meta && meta.grantedBy) || 'system',
+          eventId: (meta && meta.eventId) || null,
+        });
+      }
+    } catch (e) { console.warn('[addPoints] coin log failed:', e); }
   },
-  async spendPoints(id, points) {
+  async spendPoints(id, points, meta = null) {
     await db.collection('students').doc(id).update({
       currentPoints: firebase.firestore.FieldValue.increment(-points)
     });
+    try {
+      if (typeof CoinsDB !== 'undefined' && points !== 0) {
+        await CoinsDB.addTransaction({
+          studentId: id,
+          amount: -Math.abs(points),
+          type: 'spend',
+          category: (meta && meta.category) || 'spend',
+          description: (meta && meta.description) || '',
+          grantedBy: (meta && meta.grantedBy) || 'system',
+        });
+      }
+    } catch (e) { console.warn('[spendPoints] coin log failed:', e); }
   }
 };
 
@@ -239,12 +268,52 @@ const PrizesDB = {
       name: data.name,
       description: data.description || '',
       cost: data.cost,
+      costYen: data.costYen != null ? data.costYen : null,  // Phase R1: 原価 (円)
+      category: data.category || 'goods',                     // Phase R1: カテゴリ (seat/meal/snack/stationery/goods/experience)
       stock: data.stock || -1, // -1 = 無制限
       icon: data.icon || '🎁',
       active: true,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     return ref.id;
+  },
+  // Phase R4: サンプルカタログ一括投入
+  // 初期状態が空の塾に対して、延岡校向けの推定原価付きカタログを投入する
+  async injectSampleCatalog() {
+    const samples = [
+      // 自習室系
+      { name: '自習室 1時間利用券', icon: '🪑', category: 'seat', cost: 150, costYen: 150, description: '自習室を1時間使えます' },
+      { name: '自習室 半日パス (3h)', icon: '🪑', category: 'seat', cost: 400, costYen: 400, description: '自習室を3時間使えます (お得)' },
+      { name: '自習室 1日パス', icon: '🏫', category: 'seat', cost: 700, costYen: 700, description: '自習室を1日使い放題' },
+      { name: '自習室 1週間パス', icon: '📚', category: 'seat', cost: 3500, costYen: 3500, description: '自習室を1週間使い放題 (さらにお得)' },
+      { name: '自習室 1ヶ月パス', icon: '🏆', category: 'seat', cost: 12000, costYen: 12000, description: '自習室を1ヶ月使い放題 (最高のお得)' },
+      // 食事系
+      { name: 'おにぎり 1個', icon: '🍙', category: 'meal', cost: 120, costYen: 120, description: '軽食用おにぎり1個' },
+      { name: 'お弁当 (普通)', icon: '🍱', category: 'meal', cost: 500, costYen: 500, description: '普通のお弁当' },
+      { name: 'お弁当 (特上)', icon: '🍱', category: 'meal', cost: 800, costYen: 800, description: '特上お弁当 (要予約)' },
+      { name: 'お菓子 小袋', icon: '🍬', category: 'snack', cost: 80, costYen: 80, description: 'お菓子の小袋' },
+      // 文具系
+      { name: 'ノート 1冊', icon: '📓', category: 'stationery', cost: 150, costYen: 150, description: '塾ロゴ入りノート' },
+      { name: 'シャーペン', icon: '✏️', category: 'stationery', cost: 200, costYen: 200, description: '塾オリジナルシャーペン' },
+      // グッズ系
+      { name: '特製キーホルダー', icon: '🔑', category: 'goods', cost: 300, costYen: 300, description: '塾オリジナルキーホルダー' },
+      // 体験系 (原価 ¥0 だが pt 消費は大きい、特別な体験)
+      { name: '定期テスト直前特訓 1h', icon: '📝', category: 'experience', cost: 500, costYen: 500, description: '塾長または講師との1時間特訓' },
+      { name: '進路相談 30min', icon: '🎯', category: 'experience', cost: 400, costYen: 400, description: '塾長との進路相談30分' },
+    ];
+    const batch = db.batch();
+    const collRef = db.collection('prizes');
+    for (const s of samples) {
+      const docRef = collRef.doc();
+      batch.set(docRef, {
+        ...s,
+        stock: -1,
+        active: true,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+    return samples.length;
   },
   async update(id, data) {
     await db.collection('prizes').doc(id).update(data);
@@ -1043,6 +1112,7 @@ const RewardsDB = {
       name: data.name,
       category: data.category || 'privilege', // privilege(特権), title(称号), study(学習体験), goods(物品)
       cost: data.cost,
+      costYen: data.costYen != null ? data.costYen : null,   // Phase R1: 原価 (円)
       stock: data.stock !== undefined ? data.stock : -1, // -1 = 無制限
       level: data.level || 1, // 1-4
       cooldownDays: data.cooldownDays || 0,
@@ -1060,13 +1130,11 @@ const RewardsDB = {
       rewardId, studentId, studentName, cost,
       exchangedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    // ポイント消費
-    await StudentsDB.spendPoints(studentId, cost);
-    // 取引履歴に記録
-    await CoinsDB.addTransaction({
-      studentId, amount: -cost, type: 'spend',
-      category: 'reward', description: `報酬交換`,
-      grantedBy: 'system'
+    // ポイント消費 + coins 監査ログ (spendPoints が自動記録)
+    await StudentsDB.spendPoints(studentId, cost, {
+      category: 'reward',
+      description: '報酬交換',
+      grantedBy: 'system',
     });
   }
 };
@@ -1745,7 +1813,11 @@ const DailyMissionsDB = {
         completed: true,
         completedAt: firebase.firestore.FieldValue.serverTimestamp()
       });
-      await StudentsDB.addPoints(studentId, mission.points);
+      await StudentsDB.addPoints(studentId, mission.points, {
+        category: 'mission',
+        description: `デイリーミッション: ${mission.title || mission.id || ''}`,
+        grantedBy: 'system',
+      });
       // missionStreak更新
       await StudentsDB.update(studentId, {
         missionStreak: firebase.firestore.FieldValue.increment(1)
@@ -1764,7 +1836,11 @@ const DailyMissionsDB = {
     await db.collection('dailyMissionDraws').doc(drawId).update({
       completed: true, completedAt: firebase.firestore.FieldValue.serverTimestamp()
     });
-    if (mission) await StudentsDB.addPoints(draw.studentId, mission.points);
+    if (mission) await StudentsDB.addPoints(draw.studentId, mission.points, {
+      category: 'mission',
+      description: `デイリーミッション達成: ${mission.title || mission.id || ''}`,
+      grantedBy: 'system',
+    });
   },
 
   async getHistory(studentId, days = 30) {
@@ -1924,7 +2000,11 @@ const StoryDB = {
     if (route && route.reward && route.reward.points) {
       const students = await StudentsDB.getAll();
       for (const st of students) {
-        await StudentsDB.addPoints(st.id, route.reward.points);
+        await StudentsDB.addPoints(st.id, route.reward.points, {
+          category: 'story',
+          description: `ストーリー報酬: ${chapter.title || ''} (${route.name || ''})`,
+          grantedBy: 'system',
+        });
       }
     }
 
@@ -2208,7 +2288,11 @@ const SupportFleetDB = {
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     // サポーター自身にもポイント付与
-    await StudentsDB.addPoints(supporterId, points);
+    await StudentsDB.addPoints(supporterId, points, {
+      category: 'support',
+      description: `サポート行動: ${actionType}`,
+      grantedBy: 'teacher',
+    });
     return points;
   },
 };
@@ -3548,6 +3632,549 @@ const UsersDB = {
     const snap = await db.collection('users').get();
     return snap.docs.map(d => ({ uid: d.id, ...d.data() }));
   }
+};
+
+// --- Feature 11 Phase F2: 予算上限 ---
+// Firestore settings/budgetLimits ドキュメントで、role 別のポイント付与上限を管理。
+// 判定対象は「人間が裁量で付与したポイント」のみ (grantedBy in ['teacher','commander','admin','owner']).
+// システム自動付与 (grantedBy: 'system') と報酬交換 (spend) は budget 外。
+const BudgetLimitsDB = {
+  // デフォルト値（Firestore にドキュメントがない場合のフォールバック）
+  DEFAULTS: {
+    commander: { monthly: 10000 },
+    admin:     { monthly: 10000 }, // admin は commander と同等の扱い
+    teacher:   { daily: 300, monthly: 3000, perGrant: 100 },
+    owner:     { unlimited: true },
+  },
+
+  async get() {
+    try {
+      const doc = await db.collection('settings').doc('budgetLimits').get();
+      if (doc.exists) {
+        const data = doc.data() || {};
+        // DEFAULTS とマージして欠損フィールドを補完
+        return {
+          commander: { ...this.DEFAULTS.commander, ...(data.commander || {}) },
+          admin:     { ...this.DEFAULTS.admin,     ...(data.admin || {}) },
+          teacher:   { ...this.DEFAULTS.teacher,   ...(data.teacher || {}) },
+          owner:     { ...this.DEFAULTS.owner,     ...(data.owner || {}) },
+        };
+      }
+    } catch (e) { console.warn('[BudgetLimitsDB.get]', e); }
+    return { ...this.DEFAULTS };
+  },
+
+  async save(limits) {
+    await db.collection('settings').doc('budgetLimits').set({
+      ...limits,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  },
+
+  // ある role が該当期間に既に使った裁量付与ポイントを集計
+  // range: 'today' | 'month'
+  // NOTE: grantedBy を Firestore の where でフィルタすると複合インデックスが
+  // 必要になるため、期間だけで取得してクライアント側で role を絞る方式にする。
+  async sumGrants(role, range) {
+    const now = new Date();
+    let startTs, endTs;
+    if (range === 'today') {
+      startTs = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 0, 0, 0, 0);
+      endTs   = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59, 999);
+    } else {
+      startTs = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0, 0);
+      endTs   = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59, 999);
+    }
+    const snap = await db.collection('coins')
+      .where('timestamp', '>=', startTs)
+      .where('timestamp', '<=', endTs)
+      .get();
+    let total = 0;
+    snap.forEach(d => {
+      const t = d.data();
+      if (t.grantedBy !== role) return; // クライアント側フィルタ
+      if (t.amount > 0 && t.approvalStatus !== 'rejected') total += t.amount;
+    });
+    return total;
+  },
+
+  // 予算判定: 指定 role が points を付与してよいか
+  // 戻り値: { allowed: bool, reason: string, remaining: { daily?, monthly } }
+  async check(role, points) {
+    if (!role || role === 'owner') return { allowed: true, unlimited: true };
+    const limits = await this.get();
+    const l = limits[role];
+    if (!l || l.unlimited) return { allowed: true, unlimited: true };
+
+    const result = { allowed: true, remaining: {} };
+
+    // 1 回上限チェック (teacher のみ)
+    if (l.perGrant != null && points > l.perGrant) {
+      return { allowed: false, reason: `1 回あたり上限 ${l.perGrant} pt を超過 (要求: ${points} pt)` };
+    }
+
+    // 日次上限チェック (teacher のみ)
+    if (l.daily != null) {
+      const todayUsed = await this.sumGrants(role, 'today');
+      if (todayUsed + points > l.daily) {
+        return {
+          allowed: false,
+          reason: `本日の上限 ${l.daily} pt を超過 (使用済み ${todayUsed} pt + 今回 ${points} pt)`
+        };
+      }
+      result.remaining.daily = l.daily - todayUsed - points;
+    }
+
+    // 月次上限チェック
+    if (l.monthly != null) {
+      const monthUsed = await this.sumGrants(role, 'month');
+      if (monthUsed + points > l.monthly) {
+        return {
+          allowed: false,
+          reason: `今月の上限 ${l.monthly.toLocaleString()} pt を超過 (使用済み ${monthUsed.toLocaleString()} pt + 今回 ${points} pt)`
+        };
+      }
+      result.remaining.monthly = l.monthly - monthUsed - points;
+    }
+
+    return result;
+  },
+
+  // 予算使用状況のスナップショット (UI 表示用)
+  async getUsageSnapshot() {
+    const limits = await this.get();
+    const snapshot = {};
+    for (const role of ['commander', 'admin', 'teacher']) {
+      const l = limits[role];
+      if (!l || l.unlimited) continue;
+      const monthUsed = await this.sumGrants(role, 'month');
+      snapshot[role] = {
+        limits: l,
+        monthUsed,
+        monthRemaining: l.monthly != null ? Math.max(0, l.monthly - monthUsed) : null,
+      };
+      if (l.daily != null) {
+        const todayUsed = await this.sumGrants(role, 'today');
+        snapshot[role].todayUsed = todayUsed;
+        snapshot[role].todayRemaining = Math.max(0, l.daily - todayUsed);
+      }
+    }
+    return snapshot;
+  },
+};
+
+// --- Feature 11 Phase S1: 集団目標 ---
+// collectiveGoals コレクション: 全員で貢献して閾値に達すると教室全体に特典が降ってくる
+// 例: 日曜開室、ドリンクバー解禁、特別イベント開催 etc.
+// 閾値は塾長のアイデア通り、原価 (円) から換金レートで自動計算可能。
+const CollectiveGoalsDB = {
+  async getAll() {
+    const snap = await db.collection('collectiveGoals').orderBy('createdAt', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getActive() {
+    const all = await this.getAll();
+    return all.filter(g => g.status === 'active');
+  },
+  async getById(id) {
+    const doc = await db.collection('collectiveGoals').doc(id).get();
+    return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  },
+  async create(data) {
+    const ref = await db.collection('collectiveGoals').add({
+      name: data.name,
+      description: data.description || '',
+      icon: data.icon || '🏫',
+      category: data.category || 'special_open',  // 'special_open'|'facility_upgrade'|'event'|'custom'
+      threshold: data.threshold || 1000,
+      currentPoints: 0,
+      contributors: {},  // { studentId: 累計貢献pt }
+      contributorCount: 0,
+      rewardDescription: data.rewardDescription || '',
+      costYen: data.costYen || null,
+      deadline: data.deadline || null,  // ISO date string or null
+      status: 'active',  // 'active'|'achieved'|'expired'|'cancelled'
+      createdBy: data.createdBy || 'admin',
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    return ref.id;
+  },
+  async update(id, data) {
+    await db.collection('collectiveGoals').doc(id).update({
+      ...data,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  },
+  async delete(id) {
+    await db.collection('collectiveGoals').doc(id).delete();
+  },
+  // 生徒が集団目標に pt を貢献する
+  // 個人の currentPoints から減算し、集団 pt に加算
+  // 達成時は status='achieved' に自動遷移
+  async contribute(goalId, studentId, points, studentName) {
+    if (points <= 0) throw new Error('貢献量は 1 以上で指定してください');
+    const student = await StudentsDB.getById(studentId);
+    if (!student) throw new Error('生徒が見つかりません');
+    if ((student.currentPoints || 0) < points) {
+      throw new Error(`ポイントが足りません (現在 ${student.currentPoints || 0} pt, 必要 ${points} pt)`);
+    }
+
+    // 1. 個人から減算 + 監査ログ
+    await StudentsDB.spendPoints(studentId, points, {
+      category: 'contribution',
+      description: `集団目標へ貢献 (goalId: ${goalId})`,
+      grantedBy: 'system',
+    });
+
+    // 2. 集団目標に加算 (transaction で原子的に更新)
+    const ref = db.collection('collectiveGoals').doc(goalId);
+    const result = await db.runTransaction(async (txn) => {
+      const doc = await txn.get(ref);
+      if (!doc.exists) throw new Error('目標が見つかりません');
+      const goal = doc.data();
+      if (goal.status !== 'active') throw new Error('この目標は現在アクティブではありません');
+
+      const newPoints = (goal.currentPoints || 0) + points;
+      const contributors = goal.contributors || {};
+      const prevContrib = contributors[studentId] || 0;
+      contributors[studentId] = prevContrib + points;
+      const contributorCount = Object.keys(contributors).length;
+
+      const update = {
+        currentPoints: newPoints,
+        contributors,
+        contributorCount,
+        updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      };
+
+      // 達成判定
+      if (newPoints >= goal.threshold && goal.status === 'active') {
+        update.status = 'achieved';
+        update.achievedAt = firebase.firestore.FieldValue.serverTimestamp();
+      }
+
+      txn.update(ref, update);
+      return { newPoints, contributorCount, achieved: update.status === 'achieved' };
+    });
+
+    return result;
+  },
+  // サンプル目標を一括投入
+  async injectSampleGoals() {
+    // 現在の換金レートを取得して threshold を円から計算
+    const rates = await PointRatesDB.get();
+    const yen2pt = (yen) => Math.round(yen / rates.yenPerPoint);
+
+    const samples = [
+      {
+        name: '🏫 日曜特別開室 (4 時間)',
+        icon: '🏫',
+        category: 'special_open',
+        description: '全員で目標達成すると、日曜日に自習室を 4 時間開放します',
+        threshold: yen2pt(5300),
+        costYen: 5300,
+        rewardDescription: '日曜 13:00-17:00 自習室開室 (バイト講師 1 名常駐)',
+      },
+      {
+        name: '🏫 祝日特別開室 (6 時間)',
+        icon: '🏫',
+        category: 'special_open',
+        description: '祝日に自習室を開けます。模試前の駆け込みに',
+        threshold: yen2pt(8000),
+        costYen: 8000,
+        rewardDescription: '祝日 10:00-16:00 自習室開室',
+      },
+      {
+        name: '🥤 ドリンクバー今月開放',
+        icon: '🥤',
+        category: 'facility_upgrade',
+        description: 'コーヒー・お茶・ジュースを月内いつでも飲めるように',
+        threshold: yen2pt(5000),
+        costYen: 5000,
+        rewardDescription: '今月中、ドリンクバー自由利用 (本数制限なし)',
+      },
+      {
+        name: '🍬 お菓子コーナー設置',
+        icon: '🍬',
+        category: 'facility_upgrade',
+        description: '自由に食べられるお菓子コーナーを設置 (1 ヶ月)',
+        threshold: yen2pt(2000),
+        costYen: 2000,
+        rewardDescription: '今月中、お菓子食べ放題',
+      },
+      {
+        name: '🪑 集中パーティション新設',
+        icon: '🪑',
+        category: 'facility_upgrade',
+        description: '集中力アップの壁掛け仕切りを 5 枚新設 (永続)',
+        threshold: yen2pt(20000),
+        costYen: 20000,
+        rewardDescription: '永続的に自習室の座席にパーティションが付きます',
+      },
+      {
+        name: '🍕 ピザパーティー',
+        icon: '🍕',
+        category: 'event',
+        description: '月末のお楽しみピザパーティー',
+        threshold: yen2pt(15000),
+        costYen: 15000,
+        rewardDescription: '全員参加のピザパーティー開催 (月末予定)',
+      },
+    ];
+
+    const batch = db.batch();
+    const coll = db.collection('collectiveGoals');
+    for (const s of samples) {
+      const ref = coll.doc();
+      batch.set(ref, {
+        ...s,
+        currentPoints: 0,
+        contributors: {},
+        contributorCount: 0,
+        status: 'active',
+        createdBy: 'sample',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+    return samples.length;
+  },
+};
+
+// --- Feature 11 Phase D1: 特別付与テンプレート ---
+// Firestore grantTemplates コレクションで「誕生日」「皆勤」「新入生歓迎」等の
+// テンプレートを管理。1 クリックで対象生徒に付与できる。
+// F2 予算上限チェックは呼び出し側で行う (applyTemplate ではしない)。
+const GrantTemplatesDB = {
+  async getAll() {
+    const snap = await db.collection('grantTemplates').orderBy('sortOrder').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getActive() {
+    const all = await this.getAll();
+    return all.filter(t => t.active !== false);
+  },
+  async create(data) {
+    const ref = await db.collection('grantTemplates').add({
+      name: data.name,
+      icon: data.icon || '🎁',
+      description: data.description || '',
+      points: data.points || 100,
+      category: data.category || 'bonus',  // 'birthday','perfect_attendance','new_student','referral','test_score','effort','streak','bonus','custom'
+      trigger: data.trigger || 'manual',    // 'manual' (now), 'auto_daily'/'auto_monthly' は将来実装
+      active: data.active !== false,
+      sortOrder: data.sortOrder || 100,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    return ref.id;
+  },
+  async update(id, data) {
+    await db.collection('grantTemplates').doc(id).update({
+      ...data,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  },
+  async delete(id) {
+    await db.collection('grantTemplates').doc(id).delete();
+  },
+  // テンプレートを 1 人または複数の生徒に適用
+  // studentIds: string[], granterRole: 'owner'|'admin'|'teacher' (F2 予算判定用)
+  async apply(templateId, studentIds, granterRole, customNote) {
+    const doc = await db.collection('grantTemplates').doc(templateId).get();
+    if (!doc.exists) throw new Error('テンプレートが見つかりません');
+    const tpl = { id: doc.id, ...doc.data() };
+    if (!tpl.active) throw new Error('このテンプレートは無効化されています');
+
+    const results = [];
+    for (const sid of studentIds) {
+      const description = customNote ? `${tpl.name}: ${customNote}` : tpl.name;
+      try {
+        await StudentsDB.addPoints(sid, tpl.points, {
+          category: tpl.category || 'bonus',
+          description,
+          grantedBy: granterRole || 'system',
+          type: 'earn',
+        });
+        results.push({ studentId: sid, success: true, points: tpl.points });
+      } catch (e) {
+        results.push({ studentId: sid, success: false, error: e.message });
+      }
+    }
+    return results;
+  },
+  // サンプルテンプレート一括投入
+  async injectSampleTemplates() {
+    const samples = [
+      { name: '🎂 誕生日おめでとう', icon: '🎂', category: 'birthday', points: 100, description: '誕生日の生徒に贈るお祝いポイント', sortOrder: 10 },
+      { name: '⭐ 皆勤賞 (今月)', icon: '⭐', category: 'perfect_attendance', points: 500, description: '今月 1 日も休まなかった生徒への賞', sortOrder: 20 },
+      { name: '👋 新入生歓迎', icon: '👋', category: 'new_student', points: 200, description: '新しく入塾した生徒へのウェルカムポイント', sortOrder: 30 },
+      { name: '🤝 紹介ありがとう', icon: '🤝', category: 'referral', points: 300, description: '新しい生徒を紹介してくれたお礼', sortOrder: 40 },
+      { name: '💯 テスト満点', icon: '💯', category: 'test_score', points: 200, description: '定期テストで満点を取った生徒', sortOrder: 50 },
+      { name: '📈 テスト大幅アップ', icon: '📈', category: 'test_score', points: 150, description: '前回比 20 点以上アップした生徒', sortOrder: 55 },
+      { name: '💪 努力賞', icon: '💪', category: 'effort', points: 100, description: '特に頑張っている生徒を褒めるとき', sortOrder: 60 },
+      { name: '🔥 連続出席賞', icon: '🔥', category: 'streak', points: 80, description: '連続出席を称えるボーナス', sortOrder: 70 },
+      { name: '🎉 行事参加', icon: '🎉', category: 'bonus', points: 50, description: 'イベント・説明会などに参加した生徒', sortOrder: 80 },
+      { name: '🙏 お手伝いありがとう', icon: '🙏', category: 'bonus', points: 30, description: '教室の片付けや準備を手伝ってくれた生徒', sortOrder: 90 },
+    ];
+    const batch = db.batch();
+    const collRef = db.collection('grantTemplates');
+    for (const s of samples) {
+      const docRef = collRef.doc();
+      batch.set(docRef, {
+        ...s,
+        trigger: 'manual',
+        active: true,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+    return samples.length;
+  },
+};
+
+// --- Feature 11 Phase R1: 換金レート ---
+// Firestore settings/pointRates ドキュメントで、1 pt の円換算レートと
+// 月間報酬予算（円）を管理。未設定時は DEFAULTS を使用。
+const PointRatesDB = {
+  DEFAULTS: {
+    yenPerPoint: 1,          // 1 pt = ¥1 (塾長の方針)
+    monthlyRewardBudgetYen: 75000,  // 月間報酬予算 ¥75,000
+  },
+
+  async get() {
+    try {
+      const doc = await db.collection('settings').doc('pointRates').get();
+      if (doc.exists) {
+        const data = doc.data() || {};
+        return {
+          yenPerPoint: data.yenPerPoint != null ? data.yenPerPoint : this.DEFAULTS.yenPerPoint,
+          monthlyRewardBudgetYen: data.monthlyRewardBudgetYen != null ? data.monthlyRewardBudgetYen : this.DEFAULTS.monthlyRewardBudgetYen,
+        };
+      }
+    } catch (e) { console.warn('[PointRatesDB.get]', e); }
+    return { ...this.DEFAULTS };
+  },
+
+  async save(rates) {
+    await db.collection('settings').doc('pointRates').set({
+      ...rates,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  },
+
+  // pt → ¥ 変換 (便利関数)
+  async toYen(points) {
+    const rates = await this.get();
+    return points * rates.yenPerPoint;
+  },
+};
+
+// --- Feature 11 Phase R2: 経済バランス集計 ---
+// 発行責務・未消費残高・月間バーン率を一括で計算する
+const EconomyBalanceDB = {
+  async getSnapshot() {
+    const rates = await PointRatesDB.get();
+    const yenRate = rates.yenPerPoint;
+    const budget = rates.monthlyRewardBudgetYen;
+
+    // 1. 未消費ポイント残高 (全生徒の currentPoints 合計)
+    const students = await StudentsDB.getAll();
+    const outstandingPoints = students.reduce((sum, s) => sum + (s.currentPoints || 0), 0);
+    const outstandingYen = outstandingPoints * yenRate;
+
+    // 2. 今月の発行合計 / 消費合計 (coins コレクションから集計)
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    let monthIssued = 0, monthSpent = 0;
+    let monthSpentByCategory = {};
+    try {
+      const snap = await db.collection('coins')
+        .where('timestamp', '>=', monthStart)
+        .where('timestamp', '<=', monthEnd)
+        .get();
+      snap.forEach(d => {
+        const t = d.data();
+        if (t.approvalStatus === 'rejected') return;
+        if (t.amount > 0) {
+          monthIssued += t.amount;
+        } else if (t.amount < 0) {
+          const absAmt = Math.abs(t.amount);
+          monthSpent += absAmt;
+          const cat = t.category || 'unknown';
+          monthSpentByCategory[cat] = (monthSpentByCategory[cat] || 0) + absAmt;
+        }
+      });
+    } catch (e) { console.warn('[EconomyBalance] month aggregation failed:', e); }
+
+    // 3. 今月の prizeHistory / rewardHistory から実コスト (¥) を集計
+    // prizes と rewards 両方のコレクションを横断。原価 (costYen) があればそれを使用、
+    // 無ければ pt × yenRate で推定
+    let monthCostYen = 0;
+    const monthCostByCategory = {};
+    try {
+      // prizes コレクション + prizeHistory
+      const prizesSnap = await db.collection('prizes').get();
+      const prizesMap = {};
+      prizesSnap.forEach(d => { prizesMap[d.id] = d.data(); });
+      const prizeHistSnap = await db.collection('prizeHistory')
+        .where('exchangedAt', '>=', monthStart)
+        .where('exchangedAt', '<=', monthEnd)
+        .get();
+      prizeHistSnap.forEach(d => {
+        const h = d.data();
+        const prize = prizesMap[h.prizeId];
+        const costYen = (prize && prize.costYen != null) ? prize.costYen : (h.cost * yenRate);
+        const cat = (prize && prize.category) || 'prize';
+        monthCostYen += costYen;
+        monthCostByCategory[cat] = (monthCostByCategory[cat] || 0) + costYen;
+      });
+
+      // rewards コレクション + rewardHistory (Feature 10 以前は未使用の可能性)
+      const rewardsSnap = await db.collection('rewards').get();
+      const rewardsMap = {};
+      rewardsSnap.forEach(d => { rewardsMap[d.id] = d.data(); });
+      const rewardHistSnap = await db.collection('rewardHistory')
+        .where('exchangedAt', '>=', monthStart)
+        .where('exchangedAt', '<=', monthEnd)
+        .get();
+      rewardHistSnap.forEach(d => {
+        const h = d.data();
+        const r = rewardsMap[h.rewardId];
+        const costYen = (r && r.costYen != null) ? r.costYen : (h.cost * yenRate);
+        const cat = (r && r.category) || 'reward';
+        monthCostYen += costYen;
+        monthCostByCategory[cat] = (monthCostByCategory[cat] || 0) + costYen;
+      });
+    } catch (e) { console.warn('[EconomyBalance] cost aggregation failed:', e); }
+
+    // 4. 健全性判定
+    const budgetUsagePct = budget > 0 ? (monthCostYen / budget) * 100 : 0;
+    let healthStatus = 'good'; // good | warning | danger
+    if (budgetUsagePct >= 100) healthStatus = 'danger';
+    else if (budgetUsagePct >= 80) healthStatus = 'warning';
+
+    return {
+      yenRate,
+      budget,
+      outstanding: {
+        points: outstandingPoints,
+        yen: outstandingYen,
+      },
+      monthIssued: {
+        points: monthIssued,
+        yen: monthIssued * yenRate,
+      },
+      monthSpent: {
+        points: monthSpent,
+        yen: monthSpent * yenRate,    // ポイントベースの概算
+        yenActual: monthCostYen,       // 実際の原価ベース (prizes/rewards の costYen より)
+        byCategory: monthCostByCategory,
+      },
+      budgetUsagePct: Math.round(budgetUsagePct * 10) / 10,
+      healthStatus,
+    };
+  },
 };
 
 // --- マイグレーション: 既存データに classroomId を付与 ---
