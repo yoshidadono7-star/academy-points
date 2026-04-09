@@ -1297,6 +1297,25 @@
       </div>
     </div>
 
+    <!-- Phase D1: 特別付与テンプレート -->
+    <div class="card" id="grantTemplatesCard">
+      <div class="card-title" style="display:flex;align-items:center;gap:10px;">
+        <span class="icon">&#127873;</span> 特別付与テンプレート
+        <span style="font-size:11px;font-weight:normal;color:var(--text-light);margin-left:auto;">1 クリックで誕生日・皆勤・新入生歓迎 etc. を付与</span>
+      </div>
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:10px;">
+        よく使う付与パターンをテンプレート化し、1 クリックで対象生徒に付与できます。F2 の予算上限が適用されます。
+      </p>
+      <div id="grantTemplatesList" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:10px;margin-bottom:12px;">
+        <p style="color:var(--text-light);font-size:12px;grid-column:1/-1;">読み込み中...</p>
+      </div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;align-items:center;padding-top:10px;border-top:1px solid var(--border);">
+        <button class="btn btn-primary btn-sm" onclick="openGrantTemplateModal()">&#10133; テンプレート追加</button>
+        <button class="btn btn-sm" style="background:#f6ad55;color:#fff;" onclick="injectSampleTemplates()">&#128313; サンプルテンプレートを投入</button>
+        <span style="font-size:11px;color:var(--text-light);">初めて作る際、延岡校向け 10 件を一括投入できます</span>
+      </div>
+    </div>
+
     <!-- Phase F2: 予算上限ダッシュボード -->
     <div class="card" id="budgetDashboardCard">
       <div class="card-title"><span class="icon">&#128176;</span> 予算使用状況（裁量付与）</div>
@@ -5764,6 +5783,284 @@ async function loadEconomyLog() {
 }
 
 // ============================================
+// Phase D1: 特別付与テンプレート
+// ============================================
+
+async function loadGrantTemplates() {
+  const container = document.getElementById('grantTemplatesList');
+  if (!container) return;
+  try {
+    const templates = await GrantTemplatesDB.getAll();
+    if (templates.length === 0) {
+      container.innerHTML = `
+        <div style="grid-column:1/-1;padding:20px;text-align:center;color:var(--text-light);font-size:12px;">
+          <div style="font-size:28px;opacity:0.3;margin-bottom:6px;">📭</div>
+          テンプレートが未登録です。<br>
+          <strong>「🎴 サンプルテンプレートを投入」</strong> ボタンから 10 件を一括追加できます。
+        </div>`;
+      return;
+    }
+
+    container.innerHTML = templates.map(t => {
+      const activeStyle = t.active === false ? 'opacity:0.5;' : '';
+      const label = t.active === false ? ' (無効)' : '';
+      return `
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;${activeStyle}">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px;margin-bottom:6px;">
+            <div style="font-size:13px;font-weight:700;flex:1;">${escapeHtml(t.name)}${label}</div>
+            <div style="font-size:16px;font-weight:700;color:#dd6b20;font-family:monospace;white-space:nowrap;">+${t.points} pt</div>
+          </div>
+          <div style="font-size:11px;color:var(--text-light);min-height:28px;margin-bottom:8px;">${escapeHtml(t.description || '')}</div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-sm btn-primary" style="flex:1;" onclick="openApplyTemplateModal('${t.id}')" ${t.active === false ? 'disabled' : ''}>▶ 実行</button>
+            <button class="btn btn-sm" style="background:#e2e8f0;color:#4a5568;" onclick="openGrantTemplateModal('${t.id}')">編集</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch (e) {
+    console.error('[grantTemplates] error:', e);
+    container.innerHTML = '<p style="color:var(--danger);font-size:12px;grid-column:1/-1;">読み込み失敗: ' + escapeHtml(e.message || '') + '</p>';
+  }
+}
+
+// テンプレート作成・編集モーダル
+async function openGrantTemplateModal(templateId) {
+  let tpl = null;
+  if (templateId) {
+    const all = await GrantTemplatesDB.getAll();
+    tpl = all.find(t => t.id === templateId);
+    if (!tpl) { showToast('テンプレートが見つかりません', 'error'); return; }
+  }
+  const isEdit = !!tpl;
+  const categories = [
+    { v: 'birthday', label: '🎂 誕生日' },
+    { v: 'perfect_attendance', label: '⭐ 皆勤' },
+    { v: 'new_student', label: '👋 新入生歓迎' },
+    { v: 'referral', label: '🤝 紹介' },
+    { v: 'test_score', label: '💯 テスト成績' },
+    { v: 'effort', label: '💪 努力' },
+    { v: 'streak', label: '🔥 連続' },
+    { v: 'bonus', label: '🎉 その他ボーナス' },
+    { v: 'custom', label: 'カスタム' },
+  ];
+  const currentCat = isEdit ? (tpl.category || 'bonus') : 'bonus';
+
+  openModal(isEdit ? 'テンプレート編集' : 'テンプレート追加', `
+    <div class="form-group">
+      <label>名前 *</label>
+      <input type="text" class="form-control" id="tplName" value="${isEdit ? escapeHtml(tpl.name) : ''}" placeholder="例: 🎂 誕生日おめでとう">
+    </div>
+    <div class="form-row">
+      <div class="form-group">
+        <label>付与ポイント *</label>
+        <input type="number" class="form-control" id="tplPoints" value="${isEdit ? tpl.points : 100}" min="1" max="10000">
+      </div>
+      <div class="form-group">
+        <label>カテゴリ</label>
+        <select class="form-control" id="tplCategory">
+          ${categories.map(c => `<option value="${c.v}"${c.v === currentCat ? ' selected' : ''}>${c.label}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>説明</label>
+      <textarea class="form-control" id="tplDescription" rows="2" placeholder="このテンプレートを使う場面の説明">${isEdit ? escapeHtml(tpl.description || '') : ''}</textarea>
+    </div>
+    <div class="form-group">
+      <label>
+        <input type="checkbox" id="tplActive" ${!isEdit || tpl.active !== false ? 'checked' : ''}>
+        有効 (オフにすると一覧で灰色になり実行できなくなります)
+      </label>
+    </div>
+    <p style="font-size:11px;color:var(--text-light);">
+      💡 実行時は F2 予算上限チェックが走ります。超過すると拒否されます。
+    </p>
+  `, `
+    ${isEdit ? '<button class="btn btn-sm" style="background:#fff5f5;color:#c53030;border:1px solid #fc8181;" onclick="deleteGrantTemplate(\'' + tpl.id + '\')">🗑 削除</button>' : ''}
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" onclick="saveGrantTemplate('${isEdit ? tpl.id : ''}')">${isEdit ? '更新' : '追加'}</button>
+  `);
+}
+
+async function saveGrantTemplate(id) {
+  const name = document.getElementById('tplName').value.trim();
+  const points = parseInt(document.getElementById('tplPoints').value) || 0;
+  const category = document.getElementById('tplCategory').value;
+  const description = document.getElementById('tplDescription').value.trim();
+  const active = document.getElementById('tplActive').checked;
+  if (!name) { showToast('名前を入力してください', 'error'); return; }
+  if (points <= 0) { showToast('ポイントは 1 以上で入力してください', 'error'); return; }
+  try {
+    if (id) {
+      await GrantTemplatesDB.update(id, { name, points, category, description, active });
+      showToast('テンプレートを更新しました');
+    } else {
+      await GrantTemplatesDB.create({ name, points, category, description, active });
+      showToast('テンプレートを追加しました');
+    }
+    closeModal();
+    loadGrantTemplates();
+  } catch (e) {
+    console.error('[saveGrantTemplate]', e);
+    showToast('保存に失敗しました: ' + (e.message || ''), 'error');
+  }
+}
+
+async function deleteGrantTemplate(id) {
+  if (!confirm('このテンプレートを削除しますか？（過去の付与履歴は coins に残ります）')) return;
+  try {
+    await GrantTemplatesDB.delete(id);
+    showToast('削除しました');
+    closeModal();
+    loadGrantTemplates();
+  } catch (e) {
+    showToast('削除失敗: ' + (e.message || ''), 'error');
+  }
+}
+
+// テンプレート適用モーダル (対象生徒選択 + 実行)
+async function openApplyTemplateModal(templateId) {
+  const all = await GrantTemplatesDB.getAll();
+  const tpl = all.find(t => t.id === templateId);
+  if (!tpl) { showToast('テンプレートが見つかりません', 'error'); return; }
+
+  const students = await StudentsDB.getAll();
+  const studentOptions = students.map(s => `<option value="${s.id}">${escapeHtml(s.callsign || s.nickname || s.name)}</option>`).join('');
+
+  openModal(`${tpl.name} を付与`, `
+    <div style="background:#fff7ed;padding:10px 14px;border-radius:8px;border:1px solid #fed7aa;margin-bottom:14px;">
+      <div style="font-size:13px;font-weight:700;">${escapeHtml(tpl.name)}</div>
+      <div style="font-size:12px;color:var(--text-light);">${escapeHtml(tpl.description || '')}</div>
+      <div style="font-size:18px;font-weight:700;color:#dd6b20;font-family:monospace;margin-top:4px;">+${tpl.points} pt</div>
+    </div>
+    <div class="form-group">
+      <label>付与対象</label>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px;">
+        <label style="font-size:12px;">
+          <input type="radio" name="applyMode" value="single" checked onchange="updateApplyModeUI()"> 個別 (1 名ずつ)
+        </label>
+        <label style="font-size:12px;">
+          <input type="radio" name="applyMode" value="multi" onchange="updateApplyModeUI()"> 複数名 (Cmd/Ctrl + クリック)
+        </label>
+        <label style="font-size:12px;">
+          <input type="radio" name="applyMode" value="all" onchange="updateApplyModeUI()"> 全員 (${students.length} 名)
+        </label>
+      </div>
+      <div id="applySingleWrap">
+        <select class="form-control" id="applyStudentSingle">
+          <option value="">生徒を選択...</option>
+          ${studentOptions}
+        </select>
+      </div>
+      <div id="applyMultiWrap" style="display:none;">
+        <select class="form-control" id="applyStudentMulti" multiple size="8" style="height:auto;">
+          ${studentOptions}
+        </select>
+        <div style="font-size:11px;color:var(--text-light);margin-top:4px;">Cmd (Mac) または Ctrl (Windows) を押しながらクリックで複数選択</div>
+      </div>
+      <div id="applyAllWrap" style="display:none;">
+        <div style="padding:10px;background:#fff5f5;border:1px solid #fc8181;border-radius:6px;font-size:12px;color:#c53030;">
+          ⚠️ 全 ${students.length} 名に <strong>${tpl.points} pt × ${students.length} 名 = ${(tpl.points * students.length).toLocaleString()} pt</strong> を付与します。月予算を消費するので注意してください。
+        </div>
+      </div>
+    </div>
+    <div class="form-group">
+      <label>メモ (任意)</label>
+      <input type="text" class="form-control" id="applyNote" placeholder="付与理由の補足">
+    </div>
+    <div id="applyResult" style="margin-top:10px;font-size:12px;"></div>
+  `, `
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    <button class="btn btn-primary" id="applyExecuteBtn" onclick="executeGrantTemplate('${tpl.id}')">▶ 付与実行</button>
+  `);
+}
+
+function updateApplyModeUI() {
+  const mode = document.querySelector('input[name="applyMode"]:checked')?.value || 'single';
+  document.getElementById('applySingleWrap').style.display = mode === 'single' ? '' : 'none';
+  document.getElementById('applyMultiWrap').style.display = mode === 'multi' ? '' : 'none';
+  document.getElementById('applyAllWrap').style.display = mode === 'all' ? '' : 'none';
+}
+
+async function executeGrantTemplate(templateId) {
+  const mode = document.querySelector('input[name="applyMode"]:checked')?.value || 'single';
+  const note = document.getElementById('applyNote').value.trim();
+  const resultEl = document.getElementById('applyResult');
+  const btnEl = document.getElementById('applyExecuteBtn');
+
+  let studentIds = [];
+  if (mode === 'single') {
+    const sid = document.getElementById('applyStudentSingle').value;
+    if (!sid) { showToast('生徒を選択してください', 'error'); return; }
+    studentIds = [sid];
+  } else if (mode === 'multi') {
+    const sel = document.getElementById('applyStudentMulti');
+    studentIds = Array.from(sel.selectedOptions).map(o => o.value);
+    if (studentIds.length === 0) { showToast('少なくとも 1 名選択してください', 'error'); return; }
+  } else {
+    const all = await StudentsDB.getAll();
+    studentIds = all.map(s => s.id);
+  }
+
+  // F2 予算チェック (全員分の合計を事前判定)
+  const all = await GrantTemplatesDB.getAll();
+  const tpl = all.find(t => t.id === templateId);
+  if (!tpl) { showToast('テンプレートが見つかりません', 'error'); return; }
+  const totalPoints = tpl.points * studentIds.length;
+  const granterRole = (window.currentUserRole === 'owner') ? 'owner' : 'admin';
+  const check = await BudgetLimitsDB.check(granterRole, totalPoints);
+  if (!check.allowed) {
+    resultEl.innerHTML = `<div style="color:var(--danger);padding:8px;background:#fff5f5;border-radius:6px;">❌ 予算上限超過: ${escapeHtml(check.reason)}</div>`;
+    return;
+  }
+
+  btnEl.disabled = true;
+  btnEl.textContent = '実行中...';
+  resultEl.innerHTML = '<div style="color:var(--text-light);">付与中...</div>';
+
+  try {
+    const results = await GrantTemplatesDB.apply(templateId, studentIds, granterRole, note || null);
+    const successCount = results.filter(r => r.success).length;
+    const failCount = results.filter(r => !r.success).length;
+
+    let msg = `<div style="padding:10px;background:#f0fff4;border:1px solid #9ae6b4;border-radius:6px;color:#22543d;">`;
+    msg += `✅ ${successCount} 名に ${tpl.points} pt ずつ付与完了 (合計 ${successCount * tpl.points} pt)`;
+    if (failCount > 0) {
+      msg += `<br>⚠️ ${failCount} 名は付与失敗`;
+    }
+    msg += `</div>`;
+    resultEl.innerHTML = msg;
+    showToast(`${successCount} 名に ${tpl.points} pt 付与しました`);
+    // 経済ダッシュボード更新
+    loadEconomyBalance().catch(()=>{});
+    loadBudgetDashboard().catch(()=>{});
+    loadEconomyLog().catch(()=>{});
+    setTimeout(() => {
+      btnEl.disabled = false;
+      btnEl.textContent = '▶ 付与実行';
+    }, 2000);
+  } catch (e) {
+    console.error('[executeGrantTemplate]', e);
+    resultEl.innerHTML = `<div style="color:var(--danger);padding:8px;background:#fff5f5;border-radius:6px;">❌ 付与失敗: ${escapeHtml(e.message || '')}</div>`;
+    btnEl.disabled = false;
+    btnEl.textContent = '▶ 付与実行';
+  }
+}
+
+async function injectSampleTemplates() {
+  if (!confirm('サンプルテンプレート 10 件（誕生日・皆勤・新入生歓迎・紹介・テスト成績・努力賞 etc.）を一括追加します。既存のテンプレートは削除されません。続行しますか？')) return;
+  try {
+    const count = await GrantTemplatesDB.injectSampleTemplates();
+    showToast(`✅ サンプルテンプレート ${count} 件を追加しました`);
+    loadGrantTemplates();
+  } catch (e) {
+    console.error('[injectSampleTemplates]', e);
+    showToast('❌ 投入失敗: ' + (e.message || ''), 'error');
+  }
+}
+
+// ============================================
 // Phase R3: 経済バランス（責務・換金レート）ダッシュボード
 // ============================================
 
@@ -6032,7 +6329,7 @@ async function loadEconomy() {
     }
     const [year, month] = monthInput.value.split('-').map(Number);
 
-    // Phase F1 + F2 + R3: 並行で各ダッシュボードをロード
+    // Phase F1 + F2 + R3 + D1: 並行で各ダッシュボードをロード
     Promise.all([
       loadEconomyDailyChart(year, month),
       loadEconomyBreakdown(year, month),
@@ -6040,6 +6337,7 @@ async function loadEconomy() {
       loadEconomyLog(),
       loadBudgetDashboard(),
       loadEconomyBalance(),
+      loadGrantTemplates(),
     ]).catch(e => console.warn('[economy dashboards]', e));
 
     // 月間サマリー

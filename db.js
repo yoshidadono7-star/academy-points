@@ -3763,6 +3763,97 @@ const BudgetLimitsDB = {
   },
 };
 
+// --- Feature 11 Phase D1: 特別付与テンプレート ---
+// Firestore grantTemplates コレクションで「誕生日」「皆勤」「新入生歓迎」等の
+// テンプレートを管理。1 クリックで対象生徒に付与できる。
+// F2 予算上限チェックは呼び出し側で行う (applyTemplate ではしない)。
+const GrantTemplatesDB = {
+  async getAll() {
+    const snap = await db.collection('grantTemplates').orderBy('sortOrder').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getActive() {
+    const all = await this.getAll();
+    return all.filter(t => t.active !== false);
+  },
+  async create(data) {
+    const ref = await db.collection('grantTemplates').add({
+      name: data.name,
+      icon: data.icon || '🎁',
+      description: data.description || '',
+      points: data.points || 100,
+      category: data.category || 'bonus',  // 'birthday','perfect_attendance','new_student','referral','test_score','effort','streak','bonus','custom'
+      trigger: data.trigger || 'manual',    // 'manual' (now), 'auto_daily'/'auto_monthly' は将来実装
+      active: data.active !== false,
+      sortOrder: data.sortOrder || 100,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    return ref.id;
+  },
+  async update(id, data) {
+    await db.collection('grantTemplates').doc(id).update({
+      ...data,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  },
+  async delete(id) {
+    await db.collection('grantTemplates').doc(id).delete();
+  },
+  // テンプレートを 1 人または複数の生徒に適用
+  // studentIds: string[], granterRole: 'owner'|'admin'|'teacher' (F2 予算判定用)
+  async apply(templateId, studentIds, granterRole, customNote) {
+    const doc = await db.collection('grantTemplates').doc(templateId).get();
+    if (!doc.exists) throw new Error('テンプレートが見つかりません');
+    const tpl = { id: doc.id, ...doc.data() };
+    if (!tpl.active) throw new Error('このテンプレートは無効化されています');
+
+    const results = [];
+    for (const sid of studentIds) {
+      const description = customNote ? `${tpl.name}: ${customNote}` : tpl.name;
+      try {
+        await StudentsDB.addPoints(sid, tpl.points, {
+          category: tpl.category || 'bonus',
+          description,
+          grantedBy: granterRole || 'system',
+          type: 'earn',
+        });
+        results.push({ studentId: sid, success: true, points: tpl.points });
+      } catch (e) {
+        results.push({ studentId: sid, success: false, error: e.message });
+      }
+    }
+    return results;
+  },
+  // サンプルテンプレート一括投入
+  async injectSampleTemplates() {
+    const samples = [
+      { name: '🎂 誕生日おめでとう', icon: '🎂', category: 'birthday', points: 100, description: '誕生日の生徒に贈るお祝いポイント', sortOrder: 10 },
+      { name: '⭐ 皆勤賞 (今月)', icon: '⭐', category: 'perfect_attendance', points: 500, description: '今月 1 日も休まなかった生徒への賞', sortOrder: 20 },
+      { name: '👋 新入生歓迎', icon: '👋', category: 'new_student', points: 200, description: '新しく入塾した生徒へのウェルカムポイント', sortOrder: 30 },
+      { name: '🤝 紹介ありがとう', icon: '🤝', category: 'referral', points: 300, description: '新しい生徒を紹介してくれたお礼', sortOrder: 40 },
+      { name: '💯 テスト満点', icon: '💯', category: 'test_score', points: 200, description: '定期テストで満点を取った生徒', sortOrder: 50 },
+      { name: '📈 テスト大幅アップ', icon: '📈', category: 'test_score', points: 150, description: '前回比 20 点以上アップした生徒', sortOrder: 55 },
+      { name: '💪 努力賞', icon: '💪', category: 'effort', points: 100, description: '特に頑張っている生徒を褒めるとき', sortOrder: 60 },
+      { name: '🔥 連続出席賞', icon: '🔥', category: 'streak', points: 80, description: '連続出席を称えるボーナス', sortOrder: 70 },
+      { name: '🎉 行事参加', icon: '🎉', category: 'bonus', points: 50, description: 'イベント・説明会などに参加した生徒', sortOrder: 80 },
+      { name: '🙏 お手伝いありがとう', icon: '🙏', category: 'bonus', points: 30, description: '教室の片付けや準備を手伝ってくれた生徒', sortOrder: 90 },
+    ];
+    const batch = db.batch();
+    const collRef = db.collection('grantTemplates');
+    for (const s of samples) {
+      const docRef = collRef.doc();
+      batch.set(docRef, {
+        ...s,
+        trigger: 'manual',
+        active: true,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+    return samples.length;
+  },
+};
+
 // --- Feature 11 Phase R1: 換金レート ---
 // Firestore settings/pointRates ドキュメントで、1 pt の円換算レートと
 // 月間報酬予算（円）を管理。未設定時は DEFAULTS を使用。
