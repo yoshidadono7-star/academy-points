@@ -1089,8 +1089,8 @@ body {
 
     <!-- リ��グランキング（右下左） -->
     <div class="panel" style="overflow-y:auto;">
-      <div class="panel-title"><span class="icon">🏅</span> リーグランキング</div>
-      <div id="leagueRankDisplay"></div>
+      <div class="panel-title"><span class="icon">🏛</span> ギルドハイライト</div>
+      <div id="guildHighlightDisplay"></div>
     </div>
 
     <!-- 統計（右下） -->
@@ -1917,32 +1917,35 @@ async function renderGuildProgress() {
   } catch(e) { console.error('Guild progress error:', e); container.innerHTML = ''; }
 }
 
-// リーグランキング表示
-async function renderLeagueRanking() {
-  const container = document.getElementById('leagueRankDisplay');
+// X6: リーグランキング → ギルドハイライトに変更（リーグは管理画面の分析タブに移動）
+async function renderGuildHighlight() {
+  const container = document.getElementById('guildHighlightDisplay');
+  if (!container) return;
   try {
-    if (typeof LEAGUES === 'undefined') { container.innerHTML = ''; return; }
-    const students = await StudentsDB.getAll();
+    const guilds = await GuildsDB.getAll();
+    if (guilds.length === 0) { container.innerHTML = '<div style="color:var(--text-secondary);font-size:11px">ギルド未初期化</div>'; return; }
+    // ポイント順にソートして上位3ギルドを表示
+    guilds.sort((a, b) => (b.totalPoints || 0) - (a.totalPoints || 0));
+    const top = guilds.slice(0, 5);
     let html = '';
-    for (const [id, league] of Object.entries(LEAGUES)) {
-      const ls = students.filter(s => getLeague(s.grade) === id).sort((a,b) => (b.totalPoints||0) - (a.totalPoints||0)).slice(0, 3);
-      if (ls.length === 0) continue;
-      html += '<div style="margin-bottom:8px">';
-      html += '<div style="font-size:10px;font-family:Orbitron,monospace;color:' + league.color + ';margin-bottom:4px;letter-spacing:1px">' + league.icon + ' ' + league.name + '</div>';
-      ls.forEach((s, i) => {
-        const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : '🥉';
-        const display = s.callsign || s.nickname || '???';
-        html += '<div style="display:flex;align-items:center;gap:6px;padding:3px 6px;background:var(--bg-card);border-radius:4px;margin-bottom:2px;font-size:11px">' +
-          '<span>' + medal + '</span>' +
-          '<span style="flex:1;font-weight:600">' + display + '</span>' +
-          '<span style="color:var(--accent-orange);font-family:Orbitron,monospace;font-size:10px">' + (s.totalPoints||0).toLocaleString() + '</span>' +
-          '</div>';
-      });
-      html += '</div>';
-    }
-    container.innerHTML = html || '<div style="color:var(--text-secondary);font-size:11px">データなし</div>';
-  } catch(e) { console.error('League ranking error:', e); }
+    top.forEach((g, i) => {
+      const theme = (typeof GUILD_THEMES !== 'undefined') ? GUILD_THEMES.find(t => t.id === g.themeId) : null;
+      const icon = theme ? theme.icon : '⭐';
+      const name = theme ? theme.name : (g.name || g.id);
+      const color = theme ? theme.color : '#888';
+      const medal = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '';
+      html += `<div style="display:flex;align-items:center;gap:6px;padding:4px 6px;background:var(--bg-card);border-radius:4px;margin-bottom:3px;font-size:11px;border-left:3px solid ${color}">
+        <span>${medal}${icon}</span>
+        <span style="flex:1;font-weight:600">${name}</span>
+        <span style="font-size:10px;color:var(--text-secondary)">${(g.members || []).length}名</span>
+        <span style="color:var(--accent-orange);font-family:Orbitron,monospace;font-size:10px">${(g.totalPoints||0).toLocaleString()}</span>
+      </div>`;
+    });
+    container.innerHTML = html;
+  } catch(e) { console.error('Guild highlight error:', e); }
 }
+// 後方互換: 旧呼び出しが残っている場合のエイリアス
+async function renderLeagueRanking() { return renderGuildHighlight(); }
 
 // Phase S1: 集団目標バー
 async function renderCollectiveGoalsBar() {
