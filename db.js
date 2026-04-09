@@ -268,12 +268,52 @@ const PrizesDB = {
       name: data.name,
       description: data.description || '',
       cost: data.cost,
+      costYen: data.costYen != null ? data.costYen : null,  // Phase R1: 原価 (円)
+      category: data.category || 'goods',                     // Phase R1: カテゴリ (seat/meal/snack/stationery/goods/experience)
       stock: data.stock || -1, // -1 = 無制限
       icon: data.icon || '🎁',
       active: true,
       createdAt: firebase.firestore.FieldValue.serverTimestamp()
     });
     return ref.id;
+  },
+  // Phase R4: サンプルカタログ一括投入
+  // 初期状態が空の塾に対して、延岡校向けの推定原価付きカタログを投入する
+  async injectSampleCatalog() {
+    const samples = [
+      // 自習室系
+      { name: '自習室 1時間利用券', icon: '🪑', category: 'seat', cost: 150, costYen: 150, description: '自習室を1時間使えます' },
+      { name: '自習室 半日パス (3h)', icon: '🪑', category: 'seat', cost: 400, costYen: 400, description: '自習室を3時間使えます (お得)' },
+      { name: '自習室 1日パス', icon: '🏫', category: 'seat', cost: 700, costYen: 700, description: '自習室を1日使い放題' },
+      { name: '自習室 1週間パス', icon: '📚', category: 'seat', cost: 3500, costYen: 3500, description: '自習室を1週間使い放題 (さらにお得)' },
+      { name: '自習室 1ヶ月パス', icon: '🏆', category: 'seat', cost: 12000, costYen: 12000, description: '自習室を1ヶ月使い放題 (最高のお得)' },
+      // 食事系
+      { name: 'おにぎり 1個', icon: '🍙', category: 'meal', cost: 120, costYen: 120, description: '軽食用おにぎり1個' },
+      { name: 'お弁当 (普通)', icon: '🍱', category: 'meal', cost: 500, costYen: 500, description: '普通のお弁当' },
+      { name: 'お弁当 (特上)', icon: '🍱', category: 'meal', cost: 800, costYen: 800, description: '特上お弁当 (要予約)' },
+      { name: 'お菓子 小袋', icon: '🍬', category: 'snack', cost: 80, costYen: 80, description: 'お菓子の小袋' },
+      // 文具系
+      { name: 'ノート 1冊', icon: '📓', category: 'stationery', cost: 150, costYen: 150, description: '塾ロゴ入りノート' },
+      { name: 'シャーペン', icon: '✏️', category: 'stationery', cost: 200, costYen: 200, description: '塾オリジナルシャーペン' },
+      // グッズ系
+      { name: '特製キーホルダー', icon: '🔑', category: 'goods', cost: 300, costYen: 300, description: '塾オリジナルキーホルダー' },
+      // 体験系 (原価 ¥0 だが pt 消費は大きい、特別な体験)
+      { name: '定期テスト直前特訓 1h', icon: '📝', category: 'experience', cost: 500, costYen: 500, description: '塾長または講師との1時間特訓' },
+      { name: '進路相談 30min', icon: '🎯', category: 'experience', cost: 400, costYen: 400, description: '塾長との進路相談30分' },
+    ];
+    const batch = db.batch();
+    const collRef = db.collection('prizes');
+    for (const s of samples) {
+      const docRef = collRef.doc();
+      batch.set(docRef, {
+        ...s,
+        stock: -1,
+        active: true,
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+    return samples.length;
   },
   async update(id, data) {
     await db.collection('prizes').doc(id).update(data);
@@ -1072,6 +1112,7 @@ const RewardsDB = {
       name: data.name,
       category: data.category || 'privilege', // privilege(特権), title(称号), study(学習体験), goods(物品)
       cost: data.cost,
+      costYen: data.costYen != null ? data.costYen : null,   // Phase R1: 原価 (円)
       stock: data.stock !== undefined ? data.stock : -1, // -1 = 無制限
       level: data.level || 1, // 1-4
       cooldownDays: data.cooldownDays || 0,
@@ -3719,6 +3760,151 @@ const BudgetLimitsDB = {
       }
     }
     return snapshot;
+  },
+};
+
+// --- Feature 11 Phase R1: 換金レート ---
+// Firestore settings/pointRates ドキュメントで、1 pt の円換算レートと
+// 月間報酬予算（円）を管理。未設定時は DEFAULTS を使用。
+const PointRatesDB = {
+  DEFAULTS: {
+    yenPerPoint: 1,          // 1 pt = ¥1 (塾長の方針)
+    monthlyRewardBudgetYen: 75000,  // 月間報酬予算 ¥75,000
+  },
+
+  async get() {
+    try {
+      const doc = await db.collection('settings').doc('pointRates').get();
+      if (doc.exists) {
+        const data = doc.data() || {};
+        return {
+          yenPerPoint: data.yenPerPoint != null ? data.yenPerPoint : this.DEFAULTS.yenPerPoint,
+          monthlyRewardBudgetYen: data.monthlyRewardBudgetYen != null ? data.monthlyRewardBudgetYen : this.DEFAULTS.monthlyRewardBudgetYen,
+        };
+      }
+    } catch (e) { console.warn('[PointRatesDB.get]', e); }
+    return { ...this.DEFAULTS };
+  },
+
+  async save(rates) {
+    await db.collection('settings').doc('pointRates').set({
+      ...rates,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+  },
+
+  // pt → ¥ 変換 (便利関数)
+  async toYen(points) {
+    const rates = await this.get();
+    return points * rates.yenPerPoint;
+  },
+};
+
+// --- Feature 11 Phase R2: 経済バランス集計 ---
+// 発行責務・未消費残高・月間バーン率を一括で計算する
+const EconomyBalanceDB = {
+  async getSnapshot() {
+    const rates = await PointRatesDB.get();
+    const yenRate = rates.yenPerPoint;
+    const budget = rates.monthlyRewardBudgetYen;
+
+    // 1. 未消費ポイント残高 (全生徒の currentPoints 合計)
+    const students = await StudentsDB.getAll();
+    const outstandingPoints = students.reduce((sum, s) => sum + (s.currentPoints || 0), 0);
+    const outstandingYen = outstandingPoints * yenRate;
+
+    // 2. 今月の発行合計 / 消費合計 (coins コレクションから集計)
+    const now = new Date();
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1, 0, 0, 0);
+    const monthEnd = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    let monthIssued = 0, monthSpent = 0;
+    let monthSpentByCategory = {};
+    try {
+      const snap = await db.collection('coins')
+        .where('timestamp', '>=', monthStart)
+        .where('timestamp', '<=', monthEnd)
+        .get();
+      snap.forEach(d => {
+        const t = d.data();
+        if (t.approvalStatus === 'rejected') return;
+        if (t.amount > 0) {
+          monthIssued += t.amount;
+        } else if (t.amount < 0) {
+          const absAmt = Math.abs(t.amount);
+          monthSpent += absAmt;
+          const cat = t.category || 'unknown';
+          monthSpentByCategory[cat] = (monthSpentByCategory[cat] || 0) + absAmt;
+        }
+      });
+    } catch (e) { console.warn('[EconomyBalance] month aggregation failed:', e); }
+
+    // 3. 今月の prizeHistory / rewardHistory から実コスト (¥) を集計
+    // prizes と rewards 両方のコレクションを横断。原価 (costYen) があればそれを使用、
+    // 無ければ pt × yenRate で推定
+    let monthCostYen = 0;
+    const monthCostByCategory = {};
+    try {
+      // prizes コレクション + prizeHistory
+      const prizesSnap = await db.collection('prizes').get();
+      const prizesMap = {};
+      prizesSnap.forEach(d => { prizesMap[d.id] = d.data(); });
+      const prizeHistSnap = await db.collection('prizeHistory')
+        .where('exchangedAt', '>=', monthStart)
+        .where('exchangedAt', '<=', monthEnd)
+        .get();
+      prizeHistSnap.forEach(d => {
+        const h = d.data();
+        const prize = prizesMap[h.prizeId];
+        const costYen = (prize && prize.costYen != null) ? prize.costYen : (h.cost * yenRate);
+        const cat = (prize && prize.category) || 'prize';
+        monthCostYen += costYen;
+        monthCostByCategory[cat] = (monthCostByCategory[cat] || 0) + costYen;
+      });
+
+      // rewards コレクション + rewardHistory (Feature 10 以前は未使用の可能性)
+      const rewardsSnap = await db.collection('rewards').get();
+      const rewardsMap = {};
+      rewardsSnap.forEach(d => { rewardsMap[d.id] = d.data(); });
+      const rewardHistSnap = await db.collection('rewardHistory')
+        .where('exchangedAt', '>=', monthStart)
+        .where('exchangedAt', '<=', monthEnd)
+        .get();
+      rewardHistSnap.forEach(d => {
+        const h = d.data();
+        const r = rewardsMap[h.rewardId];
+        const costYen = (r && r.costYen != null) ? r.costYen : (h.cost * yenRate);
+        const cat = (r && r.category) || 'reward';
+        monthCostYen += costYen;
+        monthCostByCategory[cat] = (monthCostByCategory[cat] || 0) + costYen;
+      });
+    } catch (e) { console.warn('[EconomyBalance] cost aggregation failed:', e); }
+
+    // 4. 健全性判定
+    const budgetUsagePct = budget > 0 ? (monthCostYen / budget) * 100 : 0;
+    let healthStatus = 'good'; // good | warning | danger
+    if (budgetUsagePct >= 100) healthStatus = 'danger';
+    else if (budgetUsagePct >= 80) healthStatus = 'warning';
+
+    return {
+      yenRate,
+      budget,
+      outstanding: {
+        points: outstandingPoints,
+        yen: outstandingYen,
+      },
+      monthIssued: {
+        points: monthIssued,
+        yen: monthIssued * yenRate,
+      },
+      monthSpent: {
+        points: monthSpent,
+        yen: monthSpent * yenRate,    // ポイントベースの概算
+        yenActual: monthCostYen,       // 実際の原価ベース (prizes/rewards の costYen より)
+        byCategory: monthCostByCategory,
+      },
+      budgetUsagePct: Math.round(budgetUsagePct * 10) / 10,
+      healthStatus,
+    };
   },
 };
 

@@ -726,15 +726,17 @@
 
   <!-- ===== 景品交換 ===== -->
   <div class="tab-content" id="tab-prizes">
-    <div style="margin-bottom:16px">
+    <div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
       <button class="btn btn-primary" onclick="openPrizeModal()">&#10133; 景品追加</button>
+      <button class="btn" style="background:#f6ad55;color:#fff;" onclick="injectSampleCatalog()">&#128313; サンプルカタログを投入</button>
+      <span style="font-size:11px;color:var(--text-light);">初めて景品を作る際、延岡校向けの推定原価付き 14 件を一括投入できます</span>
     </div>
     <div class="card">
       <div class="card-title"><span class="icon">&#127873;</span> 景品一覧</div>
       <div class="table-wrap">
         <table>
           <thead>
-            <tr><th>アイコン</th><th>景品名</th><th>説明</th><th>必要pt</th><th>在庫</th><th>操作</th></tr>
+            <tr><th>アイコン</th><th>景品名 / カテゴリ</th><th>説明</th><th>必要pt</th><th>原価 (¥)</th><th>在庫</th><th>操作</th></tr>
           </thead>
           <tbody id="prizesTable"></tbody>
         </table>
@@ -1265,6 +1267,34 @@
         <p style="color:var(--text-light);font-size:12px;padding:14px;">読み込み中...</p>
       </div>
       <div id="economyLogFooter" style="font-size:11px;color:var(--text-light);margin-top:6px;"></div>
+    </div>
+
+    <!-- Phase R3: 経済バランス（責務・換金レート） -->
+    <div class="card" id="economyBalanceCard">
+      <div class="card-title"><span class="icon">&#128181;</span> 経済バランス（責務・換金レート）</div>
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:10px;">
+        ポイントの実体経済とのバランスを可視化します。1 pt を円に換算し、未消費ポイント総量（業務責務）・月間発行額・月間消費額（実原価）を比較。
+      </p>
+      <div id="economyBalanceContent">
+        <p style="color:var(--text-light);font-size:12px;">読み込み中...</p>
+      </div>
+      <div id="economyRateEditor" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
+        <div style="font-size:13px;font-weight:700;margin-bottom:8px;">⚙️ 換金レート・月間予算の設定 <span style="font-size:11px;font-weight:normal;color:var(--text-light);">(オーナー専用)</span></div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>1 pt = ¥ いくら</label>
+            <input type="number" class="form-control" id="rateYenPerPoint" step="0.1" min="0">
+          </div>
+          <div class="form-group">
+            <label>月間報酬予算 (¥)</label>
+            <input type="number" class="form-control" id="rateMonthlyBudget" step="1000" min="0">
+          </div>
+        </div>
+        <div style="margin-top:10px;display:flex;gap:10px;align-items:center;">
+          <button class="btn btn-primary" onclick="savePointRates()">💾 保存</button>
+          <span id="rateStatus" style="font-size:11px;color:var(--text-light);"></span>
+        </div>
+      </div>
     </div>
 
     <!-- Phase F2: 予算上限ダッシュボード -->
@@ -2417,24 +2447,42 @@ async function loadHistory() {
 // ============================================
 // 6. 景品交換
 // ============================================
+// Phase R4: 延岡校向け 14 件のサンプル景品を一括投入
+async function injectSampleCatalog() {
+  if (!confirm('延岡校向けのサンプル景品 14 件（自習室/食事/文具/グッズ/体験）を一括追加します。既存の景品は削除されません。続行しますか？')) return;
+  try {
+    const count = await PrizesDB.injectSampleCatalog();
+    showToast(`✅ サンプル景品 ${count} 件を追加しました`);
+    loadPrizes();
+  } catch (e) {
+    console.error('[injectSampleCatalog]', e);
+    showToast('❌ 投入失敗: ' + (e.message || ''), 'error');
+  }
+}
+
 async function loadPrizes() {
   try {
     const [prizes, history] = await Promise.all([PrizesDB.getAll(), PrizesDB.getAllHistory()]);
 
     document.getElementById('prizesTable').innerHTML = prizes.length === 0
-      ? '<tr><td colspan="6" style="text-align:center;color:var(--text-light)">景品がありません</td></tr>'
-      : prizes.map(p => `<tr>
-          <td style="font-size:24px">${p.icon || '&#127873;'}</td>
-          <td><strong>${escapeHtml(p.name)}</strong></td>
-          <td>${escapeHtml(p.description || '-')}</td>
-          <td><strong>${p.cost}</strong> pt</td>
-          <td>${p.stock === -1 ? '無制限' : p.stock}</td>
-          <td>
-            <div class="btn-group">
-              <button class="btn btn-secondary btn-sm" onclick="editPrize('${p.id}')">編集</button>
-            </div>
-          </td>
-        </tr>`).join('');
+      ? '<tr><td colspan="7" style="text-align:center;color:var(--text-light)">景品がありません</td></tr>'
+      : prizes.map(p => {
+          const catLabel = PRIZE_CAT_LABELS && PRIZE_CAT_LABELS[p.category] ? PRIZE_CAT_LABELS[p.category] : (p.category || '-');
+          const costYenCell = (p.costYen != null) ? `<span style="color:#48bb78;font-family:monospace;">¥${p.costYen.toLocaleString()}</span>` : '<span style="color:var(--text-light);font-size:11px;">未設定</span>';
+          return `<tr>
+            <td style="font-size:24px">${p.icon || '&#127873;'}</td>
+            <td><strong>${escapeHtml(p.name)}</strong><br><span style="font-size:11px;color:var(--text-light);">${escapeHtml(catLabel)}</span></td>
+            <td style="font-size:12px;">${escapeHtml(p.description || '-')}</td>
+            <td><strong>${p.cost}</strong> pt</td>
+            <td>${costYenCell}</td>
+            <td>${p.stock === -1 ? '無制限' : p.stock}</td>
+            <td>
+              <div class="btn-group">
+                <button class="btn btn-secondary btn-sm" onclick="editPrize('${p.id}')">編集</button>
+              </div>
+            </td>
+          </tr>`;
+        }).join('');
 
     const prizeMap = {};
     prizes.forEach(p => { prizeMap[p.id] = p; });
@@ -2454,6 +2502,15 @@ async function loadPrizes() {
 
 function openPrizeModal(prize) {
   const isEdit = !!prize;
+  const categories = [
+    { v: 'seat', label: '🪑 座席 (自習室)' },
+    { v: 'meal', label: '🍱 食事 (お弁当・おにぎり)' },
+    { v: 'snack', label: '🍬 お菓子' },
+    { v: 'stationery', label: '✏️ 文具' },
+    { v: 'goods', label: '🎁 グッズ' },
+    { v: 'experience', label: '🎯 体験 (特訓・面談)' },
+  ];
+  const currentCat = isEdit ? (prize.category || 'goods') : 'goods';
   openModal(isEdit ? '景品編集' : '景品追加', `
     <div class="form-group">
       <label>景品名 *</label>
@@ -2469,14 +2526,29 @@ function openPrizeModal(prize) {
         <input type="number" class="form-control" id="prizeCost" value="${isEdit ? prize.cost : 50}" min="1">
       </div>
       <div class="form-group">
+        <label>原価 (円) <span style="font-size:10px;color:var(--text-light);">Phase R1</span></label>
+        <input type="number" class="form-control" id="prizeCostYen" value="${isEdit && prize.costYen != null ? prize.costYen : ''}" min="0" placeholder="例: 500">
+      </div>
+      <div class="form-group">
         <label>在庫 (-1=無制限)</label>
         <input type="number" class="form-control" id="prizeStock" value="${isEdit ? prize.stock : -1}" min="-1">
       </div>
     </div>
-    <div class="form-group">
-      <label>アイコン</label>
-      <input type="text" class="form-control" id="prizeIcon" value="${isEdit ? (prize.icon || '&#127873;') : '&#127873;'}" placeholder="絵文字">
+    <div class="form-row">
+      <div class="form-group">
+        <label>カテゴリ</label>
+        <select class="form-control" id="prizeCategory">
+          ${categories.map(c => `<option value="${c.v}"${c.v === currentCat ? ' selected' : ''}>${c.label}</option>`).join('')}
+        </select>
+      </div>
+      <div class="form-group">
+        <label>アイコン</label>
+        <input type="text" class="form-control" id="prizeIcon" value="${isEdit ? (prize.icon || '&#127873;') : '&#127873;'}" placeholder="絵文字">
+      </div>
     </div>
+    <p style="font-size:11px;color:var(--text-light);margin-top:6px;">
+      💡 原価 (円) は業務責務ダッシュボード (経済バランス) で月間コスト計算に使われます。未入力でも動作します (その場合は必要 pt × 換金レートで概算)。
+    </p>
   `, `
     <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
     <button class="btn btn-primary" onclick="savePrize('${isEdit ? prize.id : ''}')">${isEdit ? '更新' : '追加'}</button>
@@ -2486,23 +2558,28 @@ function openPrizeModal(prize) {
 async function savePrize(id) {
   const name = document.getElementById('prizeName').value.trim();
   const cost = parseInt(document.getElementById('prizeCost').value) || 50;
+  const costYenRaw = document.getElementById('prizeCostYen').value;
+  const costYen = costYenRaw === '' ? null : parseInt(costYenRaw);
+  const category = document.getElementById('prizeCategory').value;
   const description = document.getElementById('prizeDesc').value.trim();
   const stock = parseInt(document.getElementById('prizeStock').value);
   const icon = document.getElementById('prizeIcon').value.trim() || '&#127873;';
 
   if (!name) { showToast('景品名を入力してください', 'error'); return; }
 
+  const payload = { name, description, cost, costYen, category, stock: isNaN(stock) ? -1 : stock, icon };
   try {
     if (id) {
-      await PrizesDB.update(id, { name, description, cost, stock: isNaN(stock) ? -1 : stock, icon });
+      await PrizesDB.update(id, payload);
       showToast('景品を更新しました');
     } else {
-      await PrizesDB.add({ name, description, cost, stock: isNaN(stock) ? -1 : stock, icon });
+      await PrizesDB.add(payload);
       showToast('景品を追加しました');
     }
     closeModal();
     loadPrizes();
   } catch (e) {
+    console.error('[savePrize]', e);
     showToast('保存に失敗しました', 'error');
   }
 }
@@ -5687,6 +5764,138 @@ async function loadEconomyLog() {
 }
 
 // ============================================
+// Phase R3: 経済バランス（責務・換金レート）ダッシュボード
+// ============================================
+
+// カテゴリの日本語ラベル (景品カテゴリ)
+const PRIZE_CAT_LABELS = {
+  seat: '🪑 座席', meal: '🍱 食事', snack: '🍬 お菓子',
+  stationery: '✏️ 文具', goods: '🎁 グッズ', experience: '🎯 体験',
+  prize: '景品', reward: '報酬', unknown: '不明',
+};
+
+async function loadEconomyBalance() {
+  const container = document.getElementById('economyBalanceContent');
+  if (!container) return;
+  try {
+    const snap = await EconomyBalanceDB.getSnapshot();
+    const editor = document.getElementById('economyRateEditor');
+    if (editor) editor.style.display = (window.currentUserRole === 'owner') ? '' : 'none';
+
+    // 健全性バッジ
+    const healthMap = {
+      good: { color: '#48bb78', bg: '#f0fff4', label: '🟢 健全', note: '月間予算内で運用できています' },
+      warning: { color: '#dd6b20', bg: '#fffbeb', label: '🟡 注意', note: '月間予算の 80% を超えました。消費ペースを確認してください' },
+      danger: { color: '#e53e3e', bg: '#fff5f5', label: '🔴 危険', note: '月間予算を超過しました。調整が必要です' },
+    };
+    const h = healthMap[snap.healthStatus];
+
+    // カテゴリ別コスト内訳 (上位 5 件)
+    const catEntries = Object.entries(snap.monthSpent.byCategory || {}).sort((a,b) => b[1] - a[1]).slice(0, 6);
+    const catListHtml = catEntries.length > 0
+      ? catEntries.map(([cat, yen]) => `
+          <div style="display:flex;justify-content:space-between;padding:4px 0;font-size:12px;border-bottom:1px dashed #edf2f7;">
+            <span>${PRIZE_CAT_LABELS[cat] || cat}</span>
+            <span style="font-family:monospace;color:var(--text);">¥${yen.toLocaleString()}</span>
+          </div>
+        `).join('')
+      : '<p style="font-size:11px;color:var(--text-light);padding:6px 0;">今月の消費データはまだありません</p>';
+
+    container.innerHTML = `
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:12px;padding:10px 14px;background:#f7fafc;border-radius:8px;border:1px solid var(--border);">
+        <div style="font-size:12px;">
+          <span style="color:var(--text-light);">公式レート: </span>
+          <strong style="font-size:15px;color:var(--primary);">1 pt = ¥${snap.yenRate}</strong>
+        </div>
+        <div style="margin-left:auto;font-size:12px;">
+          <span style="color:var(--text-light);">月間報酬予算: </span>
+          <strong style="font-size:15px;color:var(--text);">¥${snap.budget.toLocaleString()}</strong>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(170px,1fr));gap:12px;margin-bottom:16px;">
+        <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;">
+          <div style="font-size:11px;color:var(--text-light);margin-bottom:4px;">📋 発行責務 (未消費残高)</div>
+          <div style="font-size:22px;font-weight:700;color:#dd6b20;font-family:monospace;">¥${snap.outstanding.yen.toLocaleString()}</div>
+          <div style="font-size:11px;color:var(--text-light);">${snap.outstanding.points.toLocaleString()} pt</div>
+          <div style="font-size:10px;color:var(--text-light);margin-top:4px;">全生徒が保有する未消費 pt 合計</div>
+        </div>
+        <div style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;padding:12px;">
+          <div style="font-size:11px;color:var(--text-light);margin-bottom:4px;">📈 今月の発行額</div>
+          <div style="font-size:22px;font-weight:700;color:#667eea;font-family:monospace;">¥${snap.monthIssued.yen.toLocaleString()}</div>
+          <div style="font-size:11px;color:var(--text-light);">${snap.monthIssued.points.toLocaleString()} pt</div>
+          <div style="font-size:10px;color:var(--text-light);margin-top:4px;">今月の全付与 pt × 換金レート</div>
+        </div>
+        <div style="background:#f0fff4;border:1px solid #c6f6d5;border-radius:8px;padding:12px;">
+          <div style="font-size:11px;color:var(--text-light);margin-bottom:4px;">💸 今月の実コスト</div>
+          <div style="font-size:22px;font-weight:700;color:#48bb78;font-family:monospace;">¥${(snap.monthSpent.yenActual||0).toLocaleString()}</div>
+          <div style="font-size:11px;color:var(--text-light);">${snap.monthSpent.points.toLocaleString()} pt 消費</div>
+          <div style="font-size:10px;color:var(--text-light);margin-top:4px;">景品原価ベースの実支出</div>
+        </div>
+        <div style="background:${h.bg};border:2px solid ${h.color};border-radius:8px;padding:12px;">
+          <div style="font-size:11px;color:var(--text-light);margin-bottom:4px;">🏥 予算健全性</div>
+          <div style="font-size:22px;font-weight:700;color:${h.color};">${h.label}</div>
+          <div style="font-size:11px;color:var(--text-light);">${snap.budgetUsagePct}% 使用</div>
+          <div style="background:#fff;border-radius:4px;height:6px;margin-top:6px;overflow:hidden;">
+            <div style="background:${h.color};height:6px;width:${Math.min(100, snap.budgetUsagePct)}%;transition:width 0.4s;"></div>
+          </div>
+        </div>
+      </div>
+
+      <div style="padding:10px 14px;background:${h.bg};border-left:4px solid ${h.color};border-radius:6px;font-size:12px;color:#2d3748;margin-bottom:12px;">
+        ${h.note}
+      </div>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-light);margin-bottom:6px;">📊 今月のカテゴリ別実コスト</div>
+          ${catListHtml}
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-light);margin-bottom:6px;">💡 経営ヒント</div>
+          <ul style="font-size:11px;color:var(--text-light);padding-left:18px;line-height:1.7;">
+            <li><strong>発行責務</strong> が大きすぎる場合、将来の引当金として意識してください</li>
+            <li><strong>月間発行額</strong> が <strong>予算</strong> を常に超えているなら、基本レートを下げるか消費イベントを強化</li>
+            <li><strong>実コスト</strong> が予算内なら健全。景品カタログの魅力を高めて消費を促進してください</li>
+            <li>原価未設定の景品は <strong>pt × レート</strong> で概算しています</li>
+          </ul>
+        </div>
+      </div>
+    `;
+
+    // オーナーなら編集欄に現在値をロード
+    if (window.currentUserRole === 'owner') {
+      const rates = await PointRatesDB.get();
+      if (document.getElementById('rateYenPerPoint')) document.getElementById('rateYenPerPoint').value = rates.yenPerPoint;
+      if (document.getElementById('rateMonthlyBudget')) document.getElementById('rateMonthlyBudget').value = rates.monthlyRewardBudgetYen;
+    }
+  } catch (e) {
+    console.error('[economyBalance] error:', e);
+    container.innerHTML = '<p style="color:var(--danger);font-size:12px;">読み込み失敗: ' + escapeHtml(e.message || '') + '</p>';
+  }
+}
+
+async function savePointRates() {
+  const status = document.getElementById('rateStatus');
+  if (window.currentUserRole !== 'owner') {
+    status.textContent = '❌ オーナーのみ編集可能';
+    return;
+  }
+  status.textContent = '保存中...';
+  try {
+    const yenPerPoint = parseFloat(document.getElementById('rateYenPerPoint').value) || 1;
+    const monthlyRewardBudgetYen = parseInt(document.getElementById('rateMonthlyBudget').value) || 75000;
+    await PointRatesDB.save({ yenPerPoint, monthlyRewardBudgetYen });
+    status.textContent = '✅ 保存しました';
+    await loadEconomyBalance();
+    setTimeout(() => { status.textContent = ''; }, 4000);
+  } catch (e) {
+    console.error('[savePointRates]', e);
+    status.textContent = '❌ 失敗: ' + (e.message || '');
+  }
+}
+
+// ============================================
 // Phase F2: 予算上限ダッシュボード
 // ============================================
 const ECONOMY_ROLE_LABELS = {
@@ -5823,13 +6032,14 @@ async function loadEconomy() {
     }
     const [year, month] = monthInput.value.split('-').map(Number);
 
-    // Phase F1 + F2: 並行で各ダッシュボードをロード
+    // Phase F1 + F2 + R3: 並行で各ダッシュボードをロード
     Promise.all([
       loadEconomyDailyChart(year, month),
       loadEconomyBreakdown(year, month),
       loadEconomyStudentRanking(year, month),
       loadEconomyLog(),
       loadBudgetDashboard(),
+      loadEconomyBalance(),
     ]).catch(e => console.warn('[economy dashboards]', e));
 
     // 月間サマリー
