@@ -2436,6 +2436,15 @@ function generateStudentNarration(student, station, boss, streak, level, logs) {
 // ============================================
 // Phase S1: 集団目標 (生徒画面)
 // ============================================
+
+// HTML エスケープ (student.html 内で使用)
+function escapeHtml(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
 async function loadHomeCollectiveGoals() {
   const container = document.getElementById('homeCollectiveGoals');
   if (!container) return;
