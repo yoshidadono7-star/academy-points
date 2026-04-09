@@ -359,6 +359,14 @@ service cloud.firestore {
       allow write: if true;
     }
 
+    // Feature 12 Phase X1: 個人目標
+    // personalGoals: 生徒が自分で立てる週次目標
+    // 生徒が作成、教室長が承認、システムが判定・ペナルティ実行
+    match /personalGoals/{goalId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
     // handoffLog: 階層間の申し送り（生徒バディ → 講師 → 教室長 → オーナー）。
     // 講師ポータル/オーナーポータルから書き込み（PIN ログインなのでクライアントから自由に）。
     // 将来的に Firestore Rules で role ベースの絞り込みを検討。

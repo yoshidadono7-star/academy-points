@@ -34,7 +34,7 @@
       }
     };
 
-    const [student, todaySlots, weekSlots, activeTasks, completions, comments, messages] = await Promise.all([
+    const [student, todaySlots, weekSlots, activeTasks, completions, comments, messages, personalGoals] = await Promise.all([
       safeCall(() => StudentsDB.getById(studentId), null),
       safeCall(() => ScheduleSlotsDB.getByStudent(studentId, today, today), []),
       safeCall(() => ScheduleSlotsDB.getByStudent(studentId, today, weekLaterStr(today)), []),
@@ -42,6 +42,8 @@
       safeCall(() => TasksDB.getCompletions(studentId), []),
       safeCall(() => TeacherCommentsDB.getByStudent(studentId, 5), []),
       safeCall(() => (MessagesDB.getByStudentRecent ? MessagesDB.getByStudentRecent(studentId, 5) : []), []),
+      // Phase X5: 個人目標の進捗をコンテキストに含める
+      safeCall(() => (typeof PersonalGoalsDB !== 'undefined' ? PersonalGoalsDB.getCurrentWeekByStudent(studentId) : []), []),
     ]);
 
     // 生徒バディには buddyVisible フラグによるフィルタ適用
@@ -63,6 +65,17 @@
     const completedTaskIds = new Set(completions.map(c => c.taskId));
     const pendingTasks = activeTasks.filter(t => !completedTaskIds.has(t.id));
 
+    // Phase X5: 個人目標の進捗を計算
+    let goalsWithProgress = [];
+    try {
+      if (personalGoals.length > 0 && typeof PersonalGoalsDB !== 'undefined') {
+        goalsWithProgress = await Promise.all(personalGoals.map(async g => ({
+          ...g,
+          _progress: await PersonalGoalsDB.calculateProgress(g),
+        })));
+      }
+    } catch(e) { console.warn('[getStudentContext] goals progress failed:', e); }
+
     return {
       student,
       today,
@@ -72,6 +85,7 @@
       pendingTasks,
       recentComments: visibleComments,
       recentMessages: messages,
+      personalGoals: goalsWithProgress,
     };
   }
 
@@ -141,6 +155,31 @@
     }
     if (ctx.student && ctx.student.targetStation) {
       lines.push(`■ 志望高校: ${ctx.student.targetStation}`);
+    }
+
+    // Phase X5: 個人目標の進捗 (バディの励ましに使用)
+    if (ctx.personalGoals && ctx.personalGoals.length > 0) {
+      lines.push('■ 今週の個人目標');
+      ctx.personalGoals.forEach(g => {
+        const pct = g._progress ? Math.round(g._progress.pct || 0) : 0;
+        const statusLabel = g.status === 'pending_approval' ? '承認待ち'
+          : g.status === 'achieved' ? '🎉達成!'
+          : g.status === 'missed' ? '😢未達成'
+          : `進捗${pct}%`;
+        const remaining = g._progress ? `(現在 ${(Math.round((g._progress.current || 0) * 10) / 10)} / 目標 ${g.target} ${g.unit || ''})` : '';
+        lines.push(`  ・${g.title || g.type}: ${statusLabel} ${remaining}`);
+        if (g.consecutiveMisses >= 2 && viewerRole !== 'student') {
+          lines.push(`    ⚠️ ${g.consecutiveMisses}週連続未達成 — コーチング介入推奨`);
+        }
+      });
+      // 生徒向け: 進捗が低い場合は励ましヒントを追加
+      if (viewerRole === 'student') {
+        const activeGoals = ctx.personalGoals.filter(g => g.status === 'active');
+        const lowProgress = activeGoals.filter(g => g._progress && g._progress.pct < 50);
+        if (lowProgress.length > 0) {
+          lines.push('  → まだ半分に達していない目標があります。この生徒にポジティブに励ましの声をかけてください。');
+        }
+      }
     }
 
     // 講師からの直接メッセージ（未読）
