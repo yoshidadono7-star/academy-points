@@ -2790,14 +2790,18 @@ async function submitPersonalGoal() {
   const units = { time: '時間', pomodoro: '回', sessions: '回', custom: '' };
 
   try {
-    await PersonalGoalsDB.create({
+    const result = await PersonalGoalsDB.create({
       studentId: currentStudent.id,
       studentName: currentStudent.callsign || currentStudent.nickname || currentStudent.name,
       type, title, target, unit: units[type] || '',
       description, reward, penalty,
     });
     document.getElementById('createGoalModal').remove();
-    showToast('✉️ 目標を教室長に申請しました');
+    if (result.autoApproved) {
+      showToast('🎯 目標が自動承認されました！今週がんばろう！');
+    } else {
+      showToast('✉️ 目標を教室長に申請しました');
+    }
     loadHomePersonalGoals();
   } catch (e) {
     console.error('[submitPersonalGoal]', e);
