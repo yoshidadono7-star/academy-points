@@ -1706,6 +1706,7 @@ body.theme-space {
       <div class="home-stat">
         <div class="home-stat-value" id="homePoints">0</div>
         <div class="home-stat-label">ポイント</div>
+        <div id="homeYearlyPoints" style="font-size:9px;opacity:0.7;margin-top:-2px;"></div>
       </div>
       <div class="home-stat">
         <div class="home-stat-value" id="homeLevel">1</div>
@@ -2878,6 +2879,12 @@ async function loadHome() {
   document.getElementById('homeGreeting').textContent = greeting;
   document.getElementById('homeName').textContent = (s.callsign || s.nickname || s.name) + ' さん';
   document.getElementById('homePoints').textContent = (s.currentPoints || 0).toLocaleString();
+  const yearlyEl = document.getElementById('homeYearlyPoints');
+  if (yearlyEl) {
+    const yp = s.yearlyPoints || 0;
+    const tp = s.totalPoints || 0;
+    yearlyEl.textContent = yp > 0 ? `今年度 ${yp.toLocaleString()} / 累計 ${tp.toLocaleString()}` : '';
+  }
   const level = calcLevel(s.totalPoints || 0);
   document.getElementById('homeLevel').textContent = level;
   document.getElementById('homeStreak').textContent = s.streak || 0;
