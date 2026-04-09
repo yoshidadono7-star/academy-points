@@ -1388,6 +1388,21 @@
       <div id="goalJudgementResult" style="margin-top:12px;font-size:12px;"></div>
     </div>
 
+    <!-- Phase Y: 年度進級リセット -->
+    <div class="card" id="yearlyResetCard">
+      <div class="card-title"><span class="icon">🎓</span> 年度進級リセット</div>
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:10px;">
+        毎年4月1日に実行。yearlyPoints と currentPoints（残高）をゼロにリセットし、totalPoints（永続累計）は維持します。
+        リセット前の記録は各生徒の yearlyArchive に自動保存されます。
+      </p>
+      <div id="yearlyResetStatus" style="margin-bottom:10px;"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn" style="background:#e53e3e;color:white;" onclick="executeYearlyReset()">🎓 年度リセットを実行</button>
+        <span style="font-size:11px;color:var(--text-light);align-self:center;">⚠️ オーナーのみ。取り消し不可。</span>
+      </div>
+      <div id="yearlyResetResult" style="margin-top:12px;font-size:12px;"></div>
+    </div>
+
     <!-- Phase S1: 集団目標 -->
     <div class="card" id="collectiveGoalsCard">
       <div class="card-title" style="display:flex;align-items:center;gap:10px;">
@@ -5370,6 +5385,9 @@ async function initApp() {
     // B1: 時間帯ブーストステータスのロード
     loadTimeBoostStatus().catch(e => console.warn('[timeBoost]', e));
 
+    // Y: 年度リセットステータスのロード
+    loadYearlyResetStatus().catch(e => console.warn('[yearlyReset]', e));
+
   } catch (e) {
     console.error('初期化エラー:', e);
   }
@@ -6994,6 +7012,72 @@ async function saveTimeBoosts() {
   } catch (e) {
     console.error('[saveTimeBoosts]', e);
     status.textContent = '❌ 失敗: ' + (e.message || '');
+  }
+}
+
+// ============================================
+// Phase Y: 年度進級リセット
+// ============================================
+async function loadYearlyResetStatus() {
+  const statusEl = document.getElementById('yearlyResetStatus');
+  if (!statusEl) return;
+  try {
+    const now = new Date();
+    const currentFiscalYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+    const isDone = await StudentsDB.isYearlyResetDone(currentFiscalYear);
+
+    if (isDone) {
+      const doc = await db.collection('settings').doc('yearlyReset').get();
+      const data = doc.data() || {};
+      const at = data.lastResetAt ? (data.lastResetAt.toDate ? data.lastResetAt.toDate() : new Date(data.lastResetAt)) : null;
+      statusEl.innerHTML = `<div style="padding:8px 12px;background:#f0fff4;border:1px solid #9ae6b4;border-radius:8px;font-size:12px;">
+        ✅ ${currentFiscalYear}年度リセット済み (${at ? at.toLocaleDateString('ja-JP') : ''}、${data.studentCount || 0}名)</div>`;
+    } else {
+      statusEl.innerHTML = `<div style="padding:8px 12px;background:#fffbeb;border:1px solid #fbd38d;border-radius:8px;font-size:12px;">
+        ⏳ ${currentFiscalYear}年度のリセットはまだ実行されていません</div>`;
+    }
+  } catch (e) { console.warn('[yearlyReset status]', e); }
+}
+
+async function executeYearlyReset() {
+  if (window.currentUserRole !== 'owner') {
+    showToast('オーナーのみ実行可能です', 'error');
+    return;
+  }
+  const now = new Date();
+  const currentFiscalYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  const isDone = await StudentsDB.isYearlyResetDone(currentFiscalYear);
+  if (isDone) {
+    showToast(`${currentFiscalYear}年度リセットは既に実行済みです`, 'error');
+    return;
+  }
+
+  if (!confirm(`⚠️ ${currentFiscalYear}年度の進級リセットを実行しますか？\n\n以下がリセットされます:\n・yearlyPoints → 0\n・currentPoints（残高） → 0\n・streak → 0\n\n以下は維持されます:\n・totalPoints（永続累計）\n・level, rank\n・全ての学習ログ・バッジ\n\nリセット前の記録は yearlyArchive に保存されます。\nこの操作は取り消せません。`)) return;
+
+  const resultEl = document.getElementById('yearlyResetResult');
+  resultEl.innerHTML = '<div style="color:var(--text-light);padding:10px;">リセット実行中...</div>';
+
+  try {
+    const result = await StudentsDB.yearlyReset();
+    let html = `<div style="padding:12px;background:#f0fff4;border:2px solid #9ae6b4;border-radius:8px;margin-bottom:8px;">
+      <strong>🎓 ${result.resetYear}年度リセット完了!</strong> ${result.count}名の生徒をリセットしました。
+    </div>`;
+    if (result.results.length > 0) {
+      html += '<div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;font-size:12px;">';
+      html += result.results.map(r =>
+        `<div style="display:flex;justify-content:space-between;padding:4px 10px;border-bottom:1px solid #edf2f7;">
+          <span>${escapeHtml(r.name)}</span>
+          <span style="color:var(--text-light);">年度 ${r.yearlyPoints}pt / 残高 ${r.currentPoints}pt → 0</span>
+        </div>`
+      ).join('');
+      html += '</div>';
+    }
+    resultEl.innerHTML = html;
+    loadYearlyResetStatus();
+    showToast(`🎓 年度リセット完了: ${result.count}名`);
+  } catch (e) {
+    console.error('[yearlyReset]', e);
+    resultEl.innerHTML = `<div style="color:var(--danger);padding:10px;">❌ リセット失敗: ${escapeHtml(e.message || '')}</div>`;
   }
 }
 

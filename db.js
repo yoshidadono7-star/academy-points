@@ -39,6 +39,7 @@ const StudentsDB = {
       ...data,
       classroomId: data.classroomId || currentClassroomId(),
       totalPoints: data.totalPoints || 0,
+      yearlyPoints: data.yearlyPoints || 0,
       currentPoints: data.currentPoints || 0,
       totalEarned: data.totalEarned || 0,
       totalSpent: data.totalSpent || 0,
@@ -91,6 +92,7 @@ const StudentsDB = {
   async addPoints(id, points, meta = null) {
     await db.collection('students').doc(id).update({
       totalPoints: firebase.firestore.FieldValue.increment(points),
+      yearlyPoints: firebase.firestore.FieldValue.increment(points),
       currentPoints: firebase.firestore.FieldValue.increment(points)
     });
     // 監査ログ書き込み（失敗しても本体は継続）
@@ -124,7 +126,71 @@ const StudentsDB = {
         });
       }
     } catch (e) { console.warn('[spendPoints] coin log failed:', e); }
-  }
+  },
+  // Phase Y: 年度リセット（4/1実行）
+  // - yearlyPoints → 0 にリセット
+  // - currentPoints → 0 にリセット
+  // - totalPoints は永続（変更しない）
+  // - streak → 0 にリセット（新年度の心機一転）
+  // - rank は維持（永続累計ベース）
+  // - リセット前の値を yearlyArchive に保存
+  async yearlyReset() {
+    const students = await this.getAll();
+    const results = [];
+    const fiscalYear = new Date().getFullYear();
+    // 4月なら今年度、1-3月なら前年度
+    const resetYear = new Date().getMonth() < 3 ? fiscalYear - 1 : fiscalYear;
+
+    for (const s of students) {
+      const archive = {
+        year: resetYear,
+        yearlyPoints: s.yearlyPoints || 0,
+        currentPoints: s.currentPoints || 0,
+        totalPoints: s.totalPoints || 0,
+        streak: s.streak || 0,
+        bestStreak: s.bestStreak || 0,
+        level: s.level || 1,
+        rank: s.rank || 'rookie',
+        archivedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      };
+
+      await db.collection('students').doc(s.id).update({
+        yearlyPoints: 0,
+        currentPoints: 0,
+        streak: 0,
+        // totalPoints, totalEarned, totalSpent, level, rank は維持
+      });
+
+      // アーカイブをサブコレクションに保存
+      await db.collection('students').doc(s.id).collection('yearlyArchive').add(archive);
+
+      results.push({ id: s.id, name: s.name, yearlyPoints: archive.yearlyPoints, currentPoints: archive.currentPoints });
+    }
+
+    // リセット実行記録
+    await db.collection('settings').doc('yearlyReset').set({
+      lastResetYear: resetYear,
+      lastResetAt: firebase.firestore.FieldValue.serverTimestamp(),
+      studentCount: results.length,
+    }, { merge: true });
+
+    return { resetYear, count: results.length, results };
+  },
+
+  // 年度リセット済みかチェック
+  async isYearlyResetDone(year) {
+    try {
+      const doc = await db.collection('settings').doc('yearlyReset').get();
+      if (doc.exists && doc.data().lastResetYear >= year) return true;
+    } catch (e) {}
+    return false;
+  },
+
+  // 年度アーカイブ取得
+  async getYearlyArchive(studentId) {
+    const snap = await db.collection('students').doc(studentId).collection('yearlyArchive').orderBy('year', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
 };
 
 // --- 学習ログ ---
