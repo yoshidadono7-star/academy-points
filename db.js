@@ -498,7 +498,7 @@ const MessagesDB = {
 // 学年混成 (小中高混在) でメンター文化を促進。
 const GUILD_THEMES = [
   { id: 'orion',     name: 'オリオン',     icon: '🌟', color: '#3b82f6',  motto: '勇敢なる狩人' },
-  { id: 'sirius',    name: 'シリウス',     icon: '⭐', color: '#f1f5f9',  motto: '最も明るい星' },
+  { id: 'sirius',    name: 'シリウス',     icon: '⭐', color: '#60a5fa',  motto: '最も明るい星' },
   { id: 'cassiopeia',name: 'カシオペア',   icon: '👑', color: '#a855f7',  motto: '気高き女王' },
   { id: 'pegasus',   name: 'ペガサス',     icon: '🦄', color: '#eab308',  motto: '翼ある飛躍' },
   { id: 'andromeda', name: 'アンドロメダ', icon: '🌌', color: '#ec4899',  motto: '銀河の広がり' },
