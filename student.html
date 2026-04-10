@@ -919,6 +919,46 @@ body.buddy-on .buddy-chatbar { display: flex; }
 }
 .home-level-text { font-size: 11px; opacity: 0.85; margin-top: 4px; text-align: right; }
 
+/* ===== ボタン通知バッジ + 光るアニメーション ===== */
+.touch-notify {
+  position: relative;
+}
+.touch-notify .notify-badge {
+  position: absolute; top: -4px; right: -4px;
+  background: #fc8181; color: white;
+  font-size: 11px; font-weight: 800;
+  min-width: 20px; height: 20px;
+  border-radius: 10px; display: flex; align-items: center; justify-content: center;
+  padding: 0 5px; box-shadow: 0 2px 6px rgba(252,129,129,0.5);
+  z-index: 5;
+}
+.touch-notify .notify-dot {
+  position: absolute; top: 6px; right: 6px;
+  width: 10px; height: 10px;
+  background: #fc8181; border-radius: 50%;
+  box-shadow: 0 0 8px rgba(252,129,129,0.6);
+  animation: notifyPulse 1.5s ease-in-out infinite;
+  z-index: 5;
+}
+@keyframes notifyPulse {
+  0%, 100% { box-shadow: 0 0 6px rgba(252,129,129,0.4); transform: scale(1); }
+  50% { box-shadow: 0 0 14px rgba(252,129,129,0.8); transform: scale(1.2); }
+}
+.touch-glow {
+  animation: touchGlow 2s ease-in-out infinite;
+}
+@keyframes touchGlow {
+  0%, 100% { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+  50% { box-shadow: 0 2px 20px rgba(102,126,234,0.35), 0 0 30px rgba(102,126,234,0.15); }
+}
+.touch-glow-gold {
+  animation: touchGlowGold 2s ease-in-out infinite;
+}
+@keyframes touchGlowGold {
+  0%, 100% { box-shadow: 0 2px 12px rgba(0,0,0,0.06); }
+  50% { box-shadow: 0 2px 20px rgba(255,215,0,0.5), 0 0 30px rgba(255,215,0,0.2); }
+}
+
 /* ===== ラーメン屋式 タッチパネルUI ===== */
 .touch-menu {
   display: flex; flex-direction: column; gap: 12px;
@@ -1861,39 +1901,39 @@ body.theme-space {
       <span class="touch-btn-icon">😊</span>
       <span class="touch-btn-label">今日の気分</span>
     </button>
-    <button class="touch-grid-btn" onclick="navigate('goals')">
+    <button class="touch-grid-btn touch-notify" id="homeBtnGoals" onclick="navigate('goals')">
       <span class="touch-btn-icon">🎯</span>
       <span class="touch-btn-label">目標</span>
     </button>
-    <button class="touch-grid-btn" onclick="navigate('studyHistory')">
+    <button class="touch-grid-btn" id="homeBtnHistory" onclick="navigate('studyHistory')">
       <span class="touch-btn-icon">📖</span>
       <span class="touch-btn-label">学習履歴</span>
     </button>
-    <button class="touch-grid-btn" onclick="navigate('ranking')">
+    <button class="touch-grid-btn" id="homeBtnRanking" onclick="navigate('ranking')">
       <span class="touch-btn-icon">🏆</span>
       <span class="touch-btn-label">ランキング</span>
     </button>
-    <button class="touch-grid-btn" onclick="navigate('raidBoss')">
+    <button class="touch-grid-btn" id="homeBtnBoss" onclick="navigate('raidBoss')">
       <span class="touch-btn-icon">👹</span>
       <span class="touch-btn-label">レイドボス</span>
     </button>
-    <button class="touch-grid-btn" onclick="navigate('prizes')">
+    <button class="touch-grid-btn touch-notify" id="homeBtnPrizes" onclick="navigate('prizes')">
       <span class="touch-btn-icon">🎁</span>
       <span class="touch-btn-label">景品交換</span>
     </button>
-    <button class="touch-grid-btn" onclick="navigate('tasks')">
+    <button class="touch-grid-btn touch-notify" id="homeBtnTasks" onclick="navigate('tasks')">
       <span class="touch-btn-icon">✅</span>
       <span class="touch-btn-label">タスク</span>
     </button>
-    <button class="touch-grid-btn" onclick="navigate('messages')">
+    <button class="touch-grid-btn touch-notify" id="homeBtnMessages" onclick="navigate('messages')">
       <span class="touch-btn-icon">💬</span>
       <span class="touch-btn-label">メッセージ</span>
     </button>
-    <button class="touch-grid-btn" onclick="navigate('badges')">
+    <button class="touch-grid-btn touch-notify" id="homeBtnBadges" onclick="navigate('badges')">
       <span class="touch-btn-icon">🏅</span>
       <span class="touch-btn-label">バッジ</span>
     </button>
-    <button class="touch-grid-btn" onclick="navigate('settings')">
+    <button class="touch-grid-btn" id="homeBtnSettings" onclick="navigate('settings')">
       <span class="touch-btn-icon">⚙️</span>
       <span class="touch-btn-label">設定</span>
     </button>
@@ -3054,6 +3094,76 @@ async function submitPersonalGoal() {
 }
 
 // 学習中ならホームのボタンを「学習中」表示に切り替え
+// ===== ホーム画面の通知バッジ・光りアニメーション =====
+function setButtonNotify(btnId, type, value) {
+  // type: 'badge' (数字), 'dot' (赤い点), 'glow' (光る), 'glow-gold' (金色に光る), 'clear' (消す)
+  const btn = document.getElementById(btnId);
+  if (!btn) return;
+  // 既存の通知要素を削除
+  btn.querySelectorAll('.notify-badge,.notify-dot').forEach(e => e.remove());
+  btn.classList.remove('touch-glow', 'touch-glow-gold');
+
+  if (type === 'badge' && value) {
+    const badge = document.createElement('span');
+    badge.className = 'notify-badge';
+    badge.textContent = value;
+    btn.appendChild(badge);
+    btn.classList.add('touch-glow');
+  } else if (type === 'dot') {
+    const dot = document.createElement('span');
+    dot.className = 'notify-dot';
+    btn.appendChild(dot);
+    btn.classList.add('touch-glow');
+  } else if (type === 'glow') {
+    btn.classList.add('touch-glow');
+  } else if (type === 'glow-gold') {
+    btn.classList.add('touch-glow-gold');
+  }
+}
+
+async function updateHomeNotifications() {
+  if (!currentStudent) return;
+  try {
+    // 未読メッセージ
+    const msgs = await MessagesDB.getByStudent(currentStudent.id);
+    const unread = msgs.filter(m => !m.read && m.fromType === 'teacher');
+    if (unread.length > 0) setButtonNotify('homeBtnMessages', 'badge', unread.length);
+    else setButtonNotify('homeBtnMessages', 'clear');
+
+    // 未完了タスク
+    const tasks = await TasksDB.getAll();
+    const completions = await TasksDB.getCompletions(currentStudent.id);
+    const completedIds = new Set(completions.map(c => c.taskId));
+    const pendingTasks = tasks.filter(t => !completedIds.has(t.id));
+    if (pendingTasks.length > 0) setButtonNotify('homeBtnTasks', 'badge', pendingTasks.length);
+    else setButtonNotify('homeBtnTasks', 'clear');
+
+    // 交換可能な景品
+    const pts = currentStudent.currentPoints || 0;
+    const rewards = await RewardsDB.getAll();
+    const affordable = rewards.filter(r => r.cost <= pts);
+    if (affordable.length > 0) setButtonNotify('homeBtnPrizes', 'glow-gold');
+    else setButtonNotify('homeBtnPrizes', 'clear');
+
+    // 目標（達成あり or 未設定）
+    const goals = await PersonalGoalsDB.getCurrentWeekByStudent(currentStudent.id);
+    const achieved = goals.filter(g => g.status === 'achieved');
+    if (achieved.length > 0) setButtonNotify('homeBtnGoals', 'glow-gold');
+    else if (goals.length === 0) setButtonNotify('homeBtnGoals', 'dot');
+    else setButtonNotify('homeBtnGoals', 'clear');
+
+    // 新しいバッジ（今日獲得）
+    const today = new Date().toISOString().split('T')[0];
+    const badges = await BadgesDB.getByStudent(currentStudent.id);
+    const todayBadges = badges.filter(b => {
+      const d = b.awardedAt && b.awardedAt.toDate ? b.awardedAt.toDate().toISOString().split('T')[0] : '';
+      return d === today;
+    });
+    if (todayBadges.length > 0) setButtonNotify('homeBtnBadges', 'glow-gold');
+    else setButtonNotify('homeBtnBadges', 'clear');
+  } catch(e) { console.warn('[homeNotify]', e); }
+}
+
 function updateHomeStudyButton() {
   const btn = document.getElementById('homeStudyBtn');
   const icon = document.getElementById('homeStudyIcon');
@@ -3095,6 +3205,9 @@ async function loadHome() {
 
   // 学習中ボタンの表示更新
   updateHomeStudyButton();
+
+  // 通知バッジの更新（非同期、バックグラウンド）
+  updateHomeNotifications();
 
   // Refresh student data
   try {
