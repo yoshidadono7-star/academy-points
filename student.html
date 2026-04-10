@@ -668,11 +668,14 @@ body.buddy-on .buddy-chatbar { display: flex; }
 .chat-buddy-name { font-size: 18px; font-weight: 800; }
 .chat-buddy-title { font-size: 12px; opacity: 0.7; }
 .chat-close-btn {
-  background: rgba(255,255,255,0.15);
-  border: none; color: #fff;
-  width: 40px; height: 40px;
-  border-radius: 50%;
-  font-size: 20px; cursor: pointer;
+  background: linear-gradient(180deg, rgba(255,255,255,0.25), rgba(255,255,255,0.1));
+  border: 1px solid rgba(255,255,255,0.3);
+  color: #fff; padding: 8px 14px;
+  border-radius: 12px;
+  font-size: 14px; font-weight: 700; cursor: pointer;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.3);
+  display: flex; align-items: center; gap: 4px;
+  min-height: 40px;
 }
 /* 旧ヘッダー（chat-buddy-headerに移行） */
 .chat-modal-header { display: none; }
@@ -774,9 +777,18 @@ body.buddy-on .buddy-chatbar { display: flex; }
 }
 .header-title { font-size: 18px; font-weight: 700; }
 .header-back {
-  background: none; border: none; color: white; font-size: 22px;
-  cursor: pointer; padding: 4px 8px; margin-left: -8px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.25), rgba(255,255,255,0.1));
+  border: 1px solid rgba(255,255,255,0.3);
+  color: white; font-size: 14px; font-weight: 700;
+  cursor: pointer; padding: 8px 14px; margin-left: -4px;
+  border-radius: 12px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.3);
+  display: flex; align-items: center; gap: 4px;
+  transition: transform 0.15s;
+  min-height: 40px;
 }
+.header-back:active { transform: scale(0.95); box-shadow: 0 1px 3px rgba(0,0,0,0.2); }
+.header-back::before { content: '◀'; font-size: 11px; }
 .header-action {
   background: rgba(255,255,255,0.2); border: none; color: white;
   padding: 6px 12px; border-radius: 20px; font-size: 13px; cursor: pointer;
@@ -1684,7 +1696,7 @@ body.theme-space {
         <div class="chat-buddy-name" id="chatBuddyName">ルカ</div>
         <div class="chat-buddy-title" id="chatBuddyTitle">宇宙AI型ロボット</div>
       </div>
-      <button class="chat-close-btn" onclick="ChatUI.closeModal()">←</button>
+      <button class="chat-close-btn" onclick="ChatUI.closeModal()">◀ 戻る</button>
     </div>
     <!-- チャット本体 -->
     <div class="chat-modal-body" id="chatModalBody">
@@ -1927,23 +1939,47 @@ body.theme-space {
     </button>
   </div>
 
-  <!-- 目標セクション（個人・ギルド・集団を統合表示） -->
-  <div class="home-section-title" style="display:flex;align-items:center;gap:10px;">
-    🎯 目標
-    <button onclick="openCreatePersonalGoalModal()" style="margin-left:auto;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:16px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">+ 目標を立てる</button>
-  </div>
-  <div id="homePersonalGoals" style="margin-bottom:8px;"></div>
-  <div id="homeGuildGoal" style="margin-bottom:8px;"></div>
-  <div id="homeCollectiveGoals" style="margin-bottom:16px;"></div>
+  <!-- ホーム画面はタッチメニューのみ。目標・学習履歴は専用画面に移動 -->
+  <!-- 目標・集団目標の要素ID（JSから参照されるためID維持、非表示） -->
+  <div id="homePersonalGoals" style="display:none;"></div>
+  <div id="homeGuildGoal" style="display:none;"></div>
+  <div id="homeCollectiveGoals" style="display:none;"></div>
+  <div id="homeRecentLogs" style="display:none;"></div>
+</div>
 
-  <div class="home-section-title">最近の学習</div>
-  <div id="homeRecentLogs"></div>
+<!-- ========== 目標画面（専用） ========== -->
+<div id="screenGoals" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="navigate('home')">戻る</button>
+    <div class="header-title">🎯 目標</div>
+    <button onclick="openCreatePersonalGoalModal()" style="background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:16px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">+ 目標を立てる</button>
+  </div>
+  <div style="padding:16px;">
+    <div style="font-size:15px;font-weight:700;margin-bottom:8px;">📋 今週の個人目標</div>
+    <div id="goalsPersonalGoals" style="margin-bottom:16px;"></div>
+    <div style="font-size:15px;font-weight:700;margin-bottom:8px;">⚔️ ギルド目標</div>
+    <div id="goalsGuildGoal" style="margin-bottom:16px;"></div>
+    <div style="font-size:15px;font-weight:700;margin-bottom:8px;">🏫 教室の集団目標</div>
+    <div id="goalsCollectiveGoals" style="margin-bottom:16px;"></div>
+  </div>
+</div>
+
+<!-- ========== 学習履歴画面（専用） ========== -->
+<div id="screenStudyHistory" class="screen">
+  <div class="header">
+    <button class="header-back" onclick="navigate('home')">戻る</button>
+    <div class="header-title">📖 最近の学習</div>
+    <div></div>
+  </div>
+  <div style="padding:16px;">
+    <div id="studyHistoryLogs"></div>
+  </div>
 </div>
 
 <!-- ========== 3. コンディション記録 ========== -->
 <div id="screenCondition" class="screen">
   <div class="header">
-    <button class="header-back" onclick="navigate('home')">←</button>
+    <button class="header-back" onclick="navigate('home')">戻る</button>
     <div class="header-title">コンディション記録</div>
     <div></div>
   </div>
@@ -1989,7 +2025,7 @@ body.theme-space {
 <!-- ========== 4. タスク一覧 ========== -->
 <div id="screenTasks" class="screen">
   <div class="header">
-    <button class="header-back" onclick="navigate('home')">←</button>
+    <button class="header-back" onclick="navigate('home')">戻る</button>
     <div class="header-title">タスク一覧</div>
     <div></div>
   </div>
@@ -1999,7 +2035,7 @@ body.theme-space {
 <!-- ========== 5. 学習モード選択 ========== -->
 <div id="screenStudyMode" class="screen">
   <div class="header">
-    <button class="header-back" onclick="navigate('home')">←</button>
+    <button class="header-back" onclick="navigate('home')">戻る</button>
     <div class="header-title">学習モード選択</div>
     <div></div>
   </div>
@@ -2042,7 +2078,7 @@ body.theme-space {
 <div id="screenTimer" class="screen" style="padding-bottom:0;">
   <div style="background:var(--gradient);min-height:100vh;color:white;padding-top:20px;">
     <div class="header" style="background:transparent;">
-      <button class="header-back" onclick="confirmStopStudy()">←</button>
+      <button class="header-back" onclick="confirmStopStudy()">戻る</button>
       <div class="header-title">学習中</div>
       <div></div>
     </div>
@@ -2109,10 +2145,18 @@ body.theme-space {
 <!-- ========== サブメニュー（もっと見る） ========== -->
 <div id="screenSubmenu" class="screen">
   <div class="screen-header">
-    <button class="header-back" onclick="navigate('home')">←</button>
+    <button class="header-back" onclick="navigate('home')">戻る</button>
     <div class="header-title">もっと見る</div>
   </div>
   <div class="touch-grid">
+    <button class="touch-grid-btn" onclick="navigate('goals')">
+      <span class="touch-btn-icon">🎯</span>
+      <span class="touch-btn-label">目標</span>
+    </button>
+    <button class="touch-grid-btn" onclick="navigate('studyHistory')">
+      <span class="touch-btn-icon">📖</span>
+      <span class="touch-btn-label">学習履歴</span>
+    </button>
     <button class="touch-grid-btn" onclick="navigate('ranking')">
       <span class="touch-btn-icon">🏆</span>
       <span class="touch-btn-label">ランキング</span>
@@ -2133,13 +2177,13 @@ body.theme-space {
       <span class="touch-btn-icon">💬</span>
       <span class="touch-btn-label">メッセージ</span>
     </button>
-    <button class="touch-grid-btn" onclick="navigate('base')">
-      <span class="touch-btn-icon">🚀</span>
-      <span class="touch-btn-label">マイ基地</span>
-    </button>
     <button class="touch-grid-btn" onclick="navigate('badges')">
       <span class="touch-btn-icon">🏅</span>
       <span class="touch-btn-label">バッジ</span>
+    </button>
+    <button class="touch-grid-btn" onclick="navigate('base')">
+      <span class="touch-btn-icon">🚀</span>
+      <span class="touch-btn-label">マイ基地</span>
     </button>
     <button class="touch-grid-btn" onclick="navigate('combo')">
       <span class="touch-btn-icon">⚡</span>
@@ -2165,7 +2209,7 @@ body.theme-space {
 <!-- ========== 9. 景品画面 ========== -->
 <div id="screenPrizes" class="screen">
   <div class="header">
-    <button class="header-back" onclick="navigate('home')">←</button>
+    <button class="header-back" onclick="navigate('home')">戻る</button>
     <div class="header-title">景品交換</div>
     <div></div>
   </div>
@@ -2176,7 +2220,7 @@ body.theme-space {
 <!-- ========== 10. 履歴画面 ========== -->
 <div id="screenHistory" class="screen">
   <div class="header">
-    <button class="header-back" onclick="navigate('home')">←</button>
+    <button class="header-back" onclick="navigate('home')">戻る</button>
     <div class="header-title">学習履歴</div>
     <div></div>
   </div>
@@ -2186,7 +2230,7 @@ body.theme-space {
 <!-- ========== 11. バッジ画面 ========== -->
 <div id="screenBadges" class="screen">
   <div class="header">
-    <button class="header-back" onclick="navigate('home')">←</button>
+    <button class="header-back" onclick="navigate('home')">戻る</button>
     <div class="header-title">バッジコレクション</div>
     <div></div>
   </div>
@@ -2197,7 +2241,7 @@ body.theme-space {
 <!-- ========== 12. メッセージ画面 ========== -->
 <div id="screenMessages" class="screen">
   <div class="header">
-    <button class="header-back" onclick="navigate('home')">←</button>
+    <button class="header-back" onclick="navigate('home')">戻る</button>
     <div class="header-title">メッセージ</div>
     <div></div>
   </div>
@@ -2211,7 +2255,7 @@ body.theme-space {
 <!-- ========== 13. ギルド画面 ========== -->
 <div id="screenGuild" class="screen">
   <div class="header">
-    <button class="header-back" onclick="navigate('home')">←</button>
+    <button class="header-back" onclick="navigate('home')">戻る</button>
     <div class="header-title">ギルド</div>
     <div></div>
   </div>
@@ -2221,7 +2265,7 @@ body.theme-space {
 <!-- ========== 14. レイドボス画面 ========== -->
 <div id="screenRaidBoss" class="screen">
   <div class="header">
-    <button class="header-back" onclick="navigate('home')">←</button>
+    <button class="header-back" onclick="navigate('home')">戻る</button>
     <div class="header-title">レイドボス</div>
     <div></div>
   </div>
@@ -2231,7 +2275,7 @@ body.theme-space {
 <!-- ========== Combo Encyclopedia ========== -->
 <div id="screenCombo" class="screen">
   <div class="header">
-    <button class="header-back" onclick="navigate('home')">←</button>
+    <button class="header-back" onclick="navigate('home')">戻る</button>
     <div class="header-title">コンボ図鑑</div>
     <div></div>
   </div>
@@ -2242,7 +2286,7 @@ body.theme-space {
 <!-- ========== Phase 14c: 宇宙基地 ========== -->
 <div id="screenBase" class="screen">
   <div class="header">
-    <button class="header-back" onclick="navigate('home')">←</button>
+    <button class="header-back" onclick="navigate('home')">戻る</button>
     <div class="header-title">🚀 マイ宇宙基地</div>
     <button class="header-action" onclick="renameBaseDialog()">名前変更</button>
   </div>
@@ -2356,6 +2400,8 @@ function navigate(screen) {
     case 'raidBoss': loadRaidBoss(); break;
     case 'combo': loadComboEncyclopedia(); break;
     case 'base': loadBaseScreen(); break;
+    case 'goals': loadGoalsScreen(); break;
+    case 'studyHistory': loadStudyHistoryScreen(); break;
   }
 }
 
@@ -2851,6 +2897,79 @@ async function loadHomeGuildGoal() {
     </div>`;
   }
   container.innerHTML = html;
+}
+
+// 目標画面（専用スクリーン）のデータロード
+async function loadGoalsScreen() {
+  if (!currentStudent) return;
+  // 個人目標
+  try {
+    const goals = await PersonalGoalsDB.getCurrentWeekByStudent(currentStudent.id);
+    const container = document.getElementById('goalsPersonalGoals');
+    if (container) {
+      if (goals.length === 0) {
+        container.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:12px;">今週の個人目標はまだありません</div>';
+      } else {
+        container.innerHTML = goals.map(g => {
+          const statusLabel = g.status === 'pending_approval' ? '⏳承認待ち' : g.status === 'achieved' ? '🎉達成!' : g.status === 'missed' ? '😢未達' : '進行中';
+          return `<div style="padding:10px 12px;background:#fff;border-radius:10px;margin-bottom:8px;border-left:4px solid ${g.status === 'achieved' ? '#48bb78' : g.status === 'missed' ? '#fc8181' : '#667eea'};">
+            <div style="font-weight:700;font-size:14px;">${escapeHtml(g.title)}</div>
+            <div style="font-size:12px;color:#718096;margin-top:2px;">${statusLabel} · 報酬 +${g.reward}pt</div>
+          </div>`;
+        }).join('');
+      }
+    }
+  } catch(e) { console.error(e); }
+  // ギルド目標
+  try { await loadHomeGuildGoal(); document.getElementById('goalsGuildGoal').innerHTML = document.getElementById('homeGuildGoal').innerHTML; } catch(e) {}
+  // 集団目標
+  try {
+    const goals = await CollectiveGoalsDB.getActive();
+    const container = document.getElementById('goalsCollectiveGoals');
+    if (container && goals.length > 0) {
+      container.innerHTML = goals.map(g => {
+        const pct = g.thresholdPoints > 0 ? Math.min(100, Math.round((g.currentPoints || 0) / g.thresholdPoints * 100)) : 0;
+        return `<div style="padding:10px 12px;background:#fff;border-radius:10px;margin-bottom:8px;">
+          <div style="font-weight:700;font-size:14px;">${escapeHtml(g.name)}</div>
+          <div style="display:flex;align-items:center;gap:8px;margin-top:6px;">
+            <div style="flex:1;background:#e2e8f0;border-radius:4px;height:8px;"><div style="background:#48bb78;border-radius:4px;height:8px;width:${pct}%;"></div></div>
+            <span style="font-size:12px;color:#718096;">${(g.currentPoints||0).toLocaleString()} / ${g.thresholdPoints.toLocaleString()}</span>
+          </div>
+        </div>`;
+      }).join('');
+    } else if (container) {
+      container.innerHTML = '<div style="color:#94a3b8;font-size:13px;padding:12px;">集団目標はまだありません</div>';
+    }
+  } catch(e) { console.error(e); }
+}
+
+// 学習履歴画面のデータロード
+async function loadStudyHistoryScreen() {
+  if (!currentStudent) return;
+  const container = document.getElementById('studyHistoryLogs');
+  if (!container) return;
+  try {
+    const logs = await StudyLogsDB.getByStudent(currentStudent.id, 20);
+    if (logs.length === 0) {
+      container.innerHTML = '<div style="text-align:center;color:#94a3b8;padding:40px;">まだ学習記録がありません</div>';
+      return;
+    }
+    const SUBJECT_ICONS = { '数学':'📐', '英語':'🔤', '国語':'📕', '理科':'🔬', '社会':'🌍', '速読':'📚' };
+    container.innerHTML = logs.map(l => {
+      const icon = SUBJECT_ICONS[l.subject] || '📗';
+      const date = l.createdAt && l.createdAt.toDate ? l.createdAt.toDate().toLocaleDateString('ja-JP') : '';
+      return `<div style="display:flex;align-items:center;gap:12px;padding:12px 14px;background:#fff;border-radius:10px;margin-bottom:8px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+        <span style="font-size:28px;">${icon}</span>
+        <div style="flex:1;">
+          <div style="font-weight:700;font-size:14px;">${escapeHtml(l.subject || '学習')}</div>
+          <div style="font-size:11px;color:#718096;">${date} / ${l.duration || 0}分 / ${l.location || '塾'}${l.pomodoroCount ? ' / 🍅' + l.pomodoroCount + '回' : ''}</div>
+        </div>
+        <div style="font-size:16px;font-weight:800;color:#48bb78;">+${l.points || 0}pt</div>
+      </div>`;
+    }).join('');
+  } catch(e) {
+    container.innerHTML = '<div style="color:#fc8181;">読み込み失敗</div>';
+  }
 }
 
 // 目標作成モーダル
