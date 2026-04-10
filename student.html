@@ -642,38 +642,60 @@ body.buddy-on .buddy-chatbar { display: flex; }
 .chat-modal {
   display: none;
   position: fixed; inset: 0;
-  background: rgba(0,0,0,0.7);
+  background: #f0f4f8;
   z-index: 9000;
-  align-items: flex-end;
-  justify-content: center;
 }
-.chat-modal.active { display: flex; }
+.chat-modal.active { display: flex; flex-direction: column; }
 .chat-modal-content {
-  width: 100%; max-width: 600px;
-  height: 80vh;
-  background: #fff;
-  border-radius: 24px 24px 0 0;
+  width: 100%; max-width: 600px; margin: 0 auto;
+  height: 100vh; height: 100dvh;
+  background: #f0f4f8;
   display: flex; flex-direction: column;
   overflow: hidden;
-  animation: chatSlideUp 0.3s ease-out;
 }
-@keyframes chatSlideUp {
-  from { transform: translateY(100%); }
-  to { transform: translateY(0); }
+/* バディプロフィールヘッダー */
+.chat-buddy-header {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  color: #fff; padding: 16px 20px;
+  display: flex; align-items: center; gap: 14px;
+  flex-shrink: 0;
 }
-.chat-modal-header {
-  background: linear-gradient(135deg, #667eea, #764ba2);
-  color: #fff;
-  padding: 16px 20px;
-  display: flex; align-items: center; justify-content: space-between;
+.chat-buddy-avatar {
+  font-size: 48px;
+  filter: drop-shadow(0 0 12px rgba(102,126,234,0.5));
 }
-.chat-modal-title { font-size: 16px; font-weight: 700; }
-.chat-modal-close {
-  background: rgba(255,255,255,0.2);
+.chat-buddy-info { flex: 1; }
+.chat-buddy-name { font-size: 18px; font-weight: 800; }
+.chat-buddy-title { font-size: 12px; opacity: 0.7; }
+.chat-close-btn {
+  background: rgba(255,255,255,0.15);
   border: none; color: #fff;
-  width: 32px; height: 32px;
+  width: 40px; height: 40px;
   border-radius: 50%;
-  font-size: 18px; cursor: pointer;
+  font-size: 20px; cursor: pointer;
+}
+/* 旧ヘッダー（chat-buddy-headerに移行） */
+.chat-modal-header { display: none; }
+.chat-modal-title { display: none; }
+.chat-modal-close { display: none; }
+
+/* メッセージのアバター表示 */
+.chat-msg-avatar {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; flex-shrink: 0;
+  margin-top: 4px;
+}
+.chat-message.buddy .chat-msg-avatar,
+.chat-message.teacher .chat-msg-avatar {
+  background: linear-gradient(135deg, #1a1a2e, #16213e);
+  margin-right: 8px;
+}
+.chat-message.student .chat-msg-avatar {
+  background: linear-gradient(135deg, #667eea, #764ba2);
+  color: white;
+  margin-left: 8px; order: 2;
 }
 .chat-modal-body {
   flex: 1;
@@ -1652,22 +1674,29 @@ body.theme-space {
   </div>
 </div>
 
-<!-- Phase 14: チャット履歴モーダル -->
+<!-- Phase 14: チャット全画面（バディに相談） -->
 <div class="chat-modal" id="chatModal">
   <div class="chat-modal-content">
-    <div class="chat-modal-header">
-      <div class="chat-modal-title">💬 ルカとのお話</div>
-      <button class="chat-modal-close" onclick="ChatUI.closeModal()">✕</button>
+    <!-- バディプロフィールヘッダー（大きな顔 + 名前） -->
+    <div class="chat-buddy-header">
+      <span class="chat-buddy-avatar" id="chatBuddyAvatar">🤖</span>
+      <div class="chat-buddy-info">
+        <div class="chat-buddy-name" id="chatBuddyName">ルカ</div>
+        <div class="chat-buddy-title" id="chatBuddyTitle">宇宙AI型ロボット</div>
+      </div>
+      <button class="chat-close-btn" onclick="ChatUI.closeModal()">←</button>
     </div>
+    <!-- チャット本体 -->
     <div class="chat-modal-body" id="chatModalBody">
-      <div style="text-align:center;color:#a0aec0;padding:20px;">読み込み中...</div>
+      <div style="text-align:center;color:#a0aec0;padding:40px;">読み込み中...</div>
     </div>
+    <!-- 入力エリア -->
     <div class="chat-modal-footer">
       <input type="text" class="chat-modal-input" id="chatModalInput"
         placeholder="メッセージを入力..."
         onkeydown="if(event.key==='Enter'){event.preventDefault();ChatUI.sendFromModal();}">
-      <button class="buddy-chat-btn" id="chatModalMicBtn" onclick="ChatUI.toggleVoiceInput('modal')">🎤</button>
-      <button class="buddy-chat-btn" onclick="ChatUI.sendFromModal()">➤</button>
+      <button class="buddy-chat-btn" id="chatModalMicBtn" onclick="ChatUI.toggleVoiceInput('modal')" style="width:40px;height:40px;">🎤</button>
+      <button class="buddy-chat-btn" onclick="ChatUI.sendFromModal()" style="width:40px;height:40px;">➤</button>
     </div>
   </div>
 </div>
@@ -7219,18 +7248,53 @@ const ChatUI = (() => {
     }
   }
 
+  // チャットモーダルを開く時にバディ&生徒情報を反映
+  function updateChatHeader() {
+    const buddy = (typeof BuddySystem !== 'undefined' && BuddySystem.getCurrentBuddy)
+      ? BuddySystem.getCurrentBuddy() : { name: 'ルカ', avatar: '🤖', title: '宇宙AI型ロボット' };
+    const av = document.getElementById('chatBuddyAvatar');
+    const nm = document.getElementById('chatBuddyName');
+    const tt = document.getElementById('chatBuddyTitle');
+    if (av) av.textContent = buddy.avatar || '🤖';
+    if (nm) nm.textContent = buddy.name || 'ルカ';
+    if (tt) tt.textContent = buddy.title || 'バディ';
+    // 入力欄のプレースホルダーも更新
+    const input = document.getElementById('chatModalInput');
+    if (input) input.placeholder = `${buddy.name}に話しかけてみよう...`;
+  }
+
+  function getStudentAvatarHtml() {
+    if (!currentStudent) return '<span>👤</span>';
+    if (currentStudent.avatarEmoji) return `<span>${currentStudent.avatarEmoji}</span>`;
+    const name = currentStudent.callsign || currentStudent.nickname || currentStudent.name || '?';
+    return `<span style="font-size:12px;font-weight:700;color:#fff;">${name.charAt(0)}</span>`;
+  }
+
+  function getBuddyAvatarHtml() {
+    const buddy = (typeof BuddySystem !== 'undefined' && BuddySystem.getCurrentBuddy)
+      ? BuddySystem.getCurrentBuddy() : { avatar: '🤖' };
+    return `<span>${buddy.avatar || '🤖'}</span>`;
+  }
+
   function renderMessages(messages) {
     const body = document.getElementById('chatModalBody');
+    updateChatHeader();
     if (!messages || messages.length === 0) {
       body.innerHTML = '<div style="text-align:center;color:#a0aec0;padding:40px;">まだお話してないね。<br>下の入力欄から話しかけてみよう！</div>';
       return;
     }
+    const studentName = currentStudent ? (currentStudent.callsign || currentStudent.nickname || '') : '';
     body.innerHTML = messages.map((m, idx) => {
       const time = m.createdAt && m.createdAt.toDate ? m.createdAt.toDate() : null;
       const timeStr = time ? `${time.getHours()}:${String(time.getMinutes()).padStart(2,'0')}` : '';
-      const senderName = m.sender === 'student' ? '' :
-        m.sender === 'teacher' ? `<div class="chat-message-sender">👨‍🏫 ${m.senderName || '先生'}</div>` :
-        '<div class="chat-message-sender">🤖 ルカ</div>';
+      const senderAvatar = m.sender === 'student'
+        ? `<div class="chat-msg-avatar">${getStudentAvatarHtml()}</div>`
+        : m.sender === 'teacher'
+        ? '<div class="chat-msg-avatar">👨‍🏫</div>'
+        : `<div class="chat-msg-avatar">${getBuddyAvatarHtml()}</div>`;
+      const senderName = m.sender === 'student' ? `<div class="chat-message-sender">${escapeChatHtml(studentName)}</div>` :
+        m.sender === 'teacher' ? `<div class="chat-message-sender">${m.senderName || '先生'}</div>` :
+        `<div class="chat-message-sender">${(typeof BuddySystem !== 'undefined' && BuddySystem.getCurrentBuddy) ? BuddySystem.getCurrentBuddy().name : 'ルカ'}</div>`;
       const imageHtml = m.imageUrl
         ? `<img src="${escapeChatHtml(m.imageUrl)}" onclick="openImageViewer('${encodeURI(m.imageUrl)}')" style="max-width:200px;max-height:200px;border-radius:10px;margin-top:6px;cursor:pointer;display:block;object-fit:cover;">`
         : '';
@@ -7240,6 +7304,7 @@ const ChatUI = (() => {
         : `<div class="chat-message-bubble">${escapeChatHtml(m.text)}</div>`;
       return `
         <div class="chat-message ${m.sender}">
+          ${senderAvatar}
           <div>
             ${senderName}
             ${bubbleContent}
