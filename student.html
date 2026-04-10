@@ -1773,26 +1773,8 @@ body.theme-space {
   </div>
 </div>
 
-<!-- ========== タブナビ（上部固定） ========== -->
-<nav id="bottomNav" class="bottom-nav" style="display:none;">
-  <button class="nav-item active" onclick="navTo('home')">
-    <span class="nav-icon">🏠</span>
-    <span class="nav-label">ホーム</span>
-  </button>
-  <button class="nav-item" onclick="navTo('studyMode')">
-    <span class="nav-icon">📚</span>
-    <span class="nav-label">学習</span>
-  </button>
-  <button class="nav-item" onclick="navTo('ranking')">
-    <span class="nav-icon">🏆</span>
-    <span class="nav-label">ランキング</span>
-  </button>
-  <button class="nav-item" style="position:relative" onclick="navTo('profile')">
-    <span class="nav-icon">👤</span>
-    <span class="nav-label">マイページ</span>
-    <span id="navMsgBadge" class="nav-badge" style="display:none">0</span>
-  </button>
-</nav>
+<!-- タブナビ廃止: ホーム画面のタッチメニューが唯一のナビゲーション -->
+<nav id="bottomNav" style="display:none !important;"></nav>
 
 <!-- ========== 2. ホーム画面 ========== -->
 <div id="screenHome" class="screen">
@@ -1840,8 +1822,9 @@ body.theme-space {
   <div id="homeMissionSection" style="display:none;"><div id="homeMissionCards"></div><div id="homeMissionAccepted"></div></div>
   <div id="missionBriefing" style="display:none;"><div id="briefingArrival"></div><div id="briefingPlan"><div id="briefingPhases"></div><div id="briefingAction"></div></div><div id="briefingSpeedReading"><div id="speedReadTitle"></div><div id="speedReadTimer"></div></div></div>
 
-  <!-- ===== ラーメン屋式 タッチパネルメニュー ===== -->
+  <!-- ===== タッチメニュー（唯一のナビゲーション） ===== -->
   <div class="touch-menu">
+    <!-- メイン: 学習スタート -->
     <button class="touch-btn touch-btn-primary" onclick="navigate('studyMode')">
       <span class="touch-btn-icon">📚</span>
       <span class="touch-btn-text">
@@ -1851,6 +1834,7 @@ body.theme-space {
       <span class="touch-btn-arrow">→</span>
     </button>
 
+    <!-- チェックイン（未到着時のみ表示） -->
     <button class="touch-btn" id="touchCheckin" onclick="doCheckIn()" style="display:none;border-color:#48bb78;">
       <span class="touch-btn-icon">🚀</span>
       <span class="touch-btn-text">
@@ -1860,6 +1844,7 @@ body.theme-space {
       <span class="touch-btn-arrow">→</span>
     </button>
 
+    <!-- バディ -->
     <button class="touch-btn" onclick="ChatUI.openModal()">
       <span class="touch-btn-icon">🤖</span>
       <span class="touch-btn-text">
@@ -1868,28 +1853,53 @@ body.theme-space {
       </span>
       <span class="touch-btn-arrow">→</span>
     </button>
+  </div>
 
-    <button class="touch-btn" onclick="navigate('condition')">
+  <!-- その他メニュー（2列グリッド） -->
+  <div class="touch-grid" style="padding-top:8px;">
+    <button class="touch-grid-btn" onclick="navigate('condition')">
       <span class="touch-btn-icon">😊</span>
-      <span class="touch-btn-text">
-        <span class="touch-btn-label">今日の気分</span>
-        <span class="touch-btn-sub">コンディションを記録しよう</span>
-      </span>
-      <span class="touch-btn-arrow">→</span>
+      <span class="touch-btn-label">今日の気分</span>
     </button>
-
-    <button class="touch-btn" onclick="navigate('submenu')">
-      <span class="touch-btn-icon">📋</span>
-      <span class="touch-btn-text">
-        <span class="touch-btn-label">もっと見る</span>
-        <span class="touch-btn-sub">ランキング・ボス・景品・タスク...</span>
-      </span>
-      <span class="touch-btn-arrow">→</span>
+    <button class="touch-grid-btn" onclick="navigate('goals')">
+      <span class="touch-btn-icon">🎯</span>
+      <span class="touch-btn-label">目標</span>
+    </button>
+    <button class="touch-grid-btn" onclick="navigate('studyHistory')">
+      <span class="touch-btn-icon">📖</span>
+      <span class="touch-btn-label">学習履歴</span>
+    </button>
+    <button class="touch-grid-btn" onclick="navigate('ranking')">
+      <span class="touch-btn-icon">🏆</span>
+      <span class="touch-btn-label">ランキング</span>
+    </button>
+    <button class="touch-grid-btn" onclick="navigate('raidBoss')">
+      <span class="touch-btn-icon">👹</span>
+      <span class="touch-btn-label">レイドボス</span>
+    </button>
+    <button class="touch-grid-btn" onclick="navigate('prizes')">
+      <span class="touch-btn-icon">🎁</span>
+      <span class="touch-btn-label">景品交換</span>
+    </button>
+    <button class="touch-grid-btn" onclick="navigate('tasks')">
+      <span class="touch-btn-icon">✅</span>
+      <span class="touch-btn-label">タスク</span>
+    </button>
+    <button class="touch-grid-btn" onclick="navigate('messages')">
+      <span class="touch-btn-icon">💬</span>
+      <span class="touch-btn-label">メッセージ</span>
+    </button>
+    <button class="touch-grid-btn" onclick="navigate('badges')">
+      <span class="touch-btn-icon">🏅</span>
+      <span class="touch-btn-label">バッジ</span>
+    </button>
+    <button class="touch-grid-btn" onclick="navigate('settings')">
+      <span class="touch-btn-icon">⚙️</span>
+      <span class="touch-btn-label">設定</span>
     </button>
   </div>
 
-  <!-- ホーム画面はタッチメニューのみ。目標・学習履歴は専用画面に移動 -->
-  <!-- 目標・集団目標の要素ID（JSから参照されるためID維持、非表示） -->
+  <!-- 非表示データ保持用（JS参照） -->
   <div id="homePersonalGoals" style="display:none;"></div>
   <div id="homeGuildGoal" style="display:none;"></div>
   <div id="homeCollectiveGoals" style="display:none;"></div>
@@ -2091,55 +2101,59 @@ body.theme-space {
 </div>
 
 <!-- ========== 8. ランキング画面 ========== -->
-<!-- ========== サブメニュー（もっと見る） ========== -->
-<div id="screenSubmenu" class="screen">
-  <div class="screen-header">
+<!-- ========== 設定画面 ========== -->
+<div id="screenSettings" class="screen">
+  <div class="header">
     <button class="header-back" onclick="navigate('home')">戻る</button>
-    <div class="header-title">もっと見る</div>
+    <div class="header-title">⚙️ 設定</div>
+    <div></div>
   </div>
-  <div class="touch-grid">
-    <button class="touch-grid-btn" onclick="navigate('goals')">
-      <span class="touch-btn-icon">🎯</span>
-      <span class="touch-btn-label">目標</span>
+  <div class="touch-menu">
+    <button class="touch-btn" onclick="openBuddySelect(false)">
+      <span class="touch-btn-icon">🤖</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">バディ変更</span>
+        <span class="touch-btn-sub">一緒に冒険するパートナーを選ぶ</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
     </button>
-    <button class="touch-grid-btn" onclick="navigate('studyHistory')">
-      <span class="touch-btn-icon">📖</span>
-      <span class="touch-btn-label">学習履歴</span>
+    <button class="touch-btn" onclick="openAvatarCustomize()">
+      <span class="touch-btn-icon">🎨</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">アバター変更</span>
+        <span class="touch-btn-sub">自分のアイコンをカスタマイズ</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
     </button>
-    <button class="touch-grid-btn" onclick="navigate('ranking')">
-      <span class="touch-btn-icon">🏆</span>
-      <span class="touch-btn-label">ランキング</span>
+    <button class="touch-btn" onclick="toggleBuddyVoice()">
+      <span class="touch-btn-icon">🔊</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">音声 ON/OFF</span>
+        <span class="touch-btn-sub">バディの声の読み上げ設定</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
     </button>
-    <button class="touch-grid-btn" onclick="navigate('raidBoss')">
-      <span class="touch-btn-icon">👹</span>
-      <span class="touch-btn-label">レイドボス</span>
-    </button>
-    <button class="touch-grid-btn" onclick="navigate('prizes')">
-      <span class="touch-btn-icon">🎁</span>
-      <span class="touch-btn-label">景品交換</span>
-    </button>
-    <button class="touch-grid-btn" onclick="navigate('tasks')">
-      <span class="touch-btn-icon">✅</span>
-      <span class="touch-btn-label">タスク</span>
-    </button>
-    <button class="touch-grid-btn" onclick="navigate('messages')">
-      <span class="touch-btn-icon">💬</span>
-      <span class="touch-btn-label">メッセージ</span>
-    </button>
-    <button class="touch-grid-btn" onclick="navigate('badges')">
-      <span class="touch-btn-icon">🏅</span>
-      <span class="touch-btn-label">バッジ</span>
-    </button>
-    <button class="touch-grid-btn" onclick="navigate('base')">
-      <span class="touch-btn-icon">🚀</span>
-      <span class="touch-btn-label">マイ基地</span>
-    </button>
-    <button class="touch-grid-btn" onclick="navigate('combo')">
+    <button class="touch-btn" onclick="navigate('combo')">
       <span class="touch-btn-icon">⚡</span>
-      <span class="touch-btn-label">コンボ図鑑</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">コンボ図鑑</span>
+        <span class="touch-btn-sub">発見したコンボを確認</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
+    </button>
+    <button class="touch-btn" onclick="navigate('base')">
+      <span class="touch-btn-icon">🚀</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">マイ基地</span>
+        <span class="touch-btn-sub">自分の基地をカスタマイズ</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
     </button>
   </div>
 </div>
+
+<!-- 旧サブメニュー（後方互換） -->
+<div id="screenSubmenu" class="screen" style="display:none !important;"></div>
 
 <div id="screenRanking" class="screen">
   <div class="header">
@@ -2351,12 +2365,13 @@ function navigate(screen) {
     case 'base': loadBaseScreen(); break;
     case 'goals': loadGoalsScreen(); break;
     case 'studyHistory': loadStudyHistoryScreen(); break;
+    case 'settings': break; // 静的画面、ロード不要
   }
 }
 
 function navTo(target) {
   if (target === 'profile') {
-    showProfileMenu();
+    navigate('settings');
     return;
   }
   navigate(target);
