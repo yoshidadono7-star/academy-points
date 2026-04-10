@@ -4929,10 +4929,17 @@ const VoiceSystem = (() => {
     // 既に喋っているのを中断して新しい台詞を再生（元の動作）
     speechSynthesis.cancel();
 
-    // タグや絵文字を簡略除去
+    // タグや絵文字を簡略除去 + 英単語のTTS対策
     const clean = String(text)
       .replace(/<[^>]*>/g, '')
       .replace(/[\u{1F300}-\u{1F9FF}\u{2600}-\u{27BF}]/gu, '')
+      // 英単語（カタカナ読み）パターン → カタカナだけ残す（TTS二重読み防止）
+      // 例: "hesitate（ヘジテイト）" → "ヘジテイト"
+      // 例: "I hesitate to speak up."（アイ ヘジテイト トゥ スピーク アップ）→ "アイ ヘジテイト トゥ スピーク アップ"
+      .replace(/[A-Za-z][A-Za-z\s.'",;:!?-]*[（\(]([^）\)]+)[）\)]/g, '$1')
+      // 残った単独の英単語（3文字以上）も除去（カタカナ併記がない場合の安全策）
+      .replace(/\b[A-Za-z]{3,}\b/g, '')
+      .replace(/\s+/g, ' ')
       .trim();
     if (!clean) return;
 
