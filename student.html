@@ -31,7 +31,8 @@
   --shadow-lg: 0 10px 30px rgba(102, 126, 234, 0.2);
   --radius: 16px;
   --radius-sm: 10px;
-  --bottom-nav-h: 70px;
+  --bottom-nav-h: 0px; /* 下ナビ廃止、上ナビに移行 */
+  --top-nav-h: 56px;
   --buddy-h: 240px;
 }
 
@@ -46,7 +47,7 @@ body {
   -webkit-tap-highlight-color: transparent;
 }
 
-.screen { display: none; padding-bottom: calc(var(--bottom-nav-h) + 20px); }
+.screen { display: none; padding-bottom: 20px; }
 .screen.active { display: block; }
 .screen-login { padding-bottom: 0; }
 
@@ -796,13 +797,12 @@ body.buddy-on .buddy-chatbar { display: flex; }
 
 /* ===== Bottom Navigation ===== */
 .bottom-nav {
-  position: fixed; bottom: 0; left: 0; right: 0;
-  height: var(--bottom-nav-h);
+  position: sticky; top: 0; left: 0; right: 0;
+  height: var(--top-nav-h);
   background: white;
   display: flex; align-items: center; justify-content: space-around;
-  box-shadow: 0 -4px 20px rgba(0,0,0,0.08);
+  box-shadow: 0 4px 12px rgba(0,0,0,0.06);
   z-index: 200;
-  padding-bottom: env(safe-area-inset-bottom, 0);
 }
 .nav-item {
   display: flex; flex-direction: column; align-items: center;
@@ -1131,7 +1131,7 @@ body.buddy-on .buddy-chatbar { display: flex; }
 .msg-reply-box {
   display: flex; gap: 8px; padding: 12px 16px;
   background: white; border-top: 1px solid #eee;
-  position: fixed; bottom: var(--bottom-nav-h); left: 0; right: 0;
+  position: fixed; bottom: 0; left: 0; right: 0;
 }
 .msg-reply-input {
   flex: 1; border: 2px solid #e2e8f0; border-radius: 20px;
@@ -1214,7 +1214,7 @@ body.buddy-on .buddy-chatbar { display: flex; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .toast {
-  position: fixed; bottom: calc(var(--bottom-nav-h) + 20px);
+  position: fixed; bottom: 20px;
   left: 50%; transform: translateX(-50%) translateY(100px);
   background: #2d3748; color: white; padding: 12px 24px;
   border-radius: 12px; font-size: 14px; font-weight: 500;
@@ -1451,7 +1451,7 @@ body.theme-space {
 }
 @media (min-width: 768px) {
   body { max-width: 480px; margin: 0 auto; }
-  .bottom-nav { max-width: 480px; left: 50%; transform: translateX(-50%); }
+  .bottom-nav { max-width: 480px; margin: 0 auto; }
 }
 
 /* ===== World Select Screen ===== */
@@ -1718,6 +1718,27 @@ body.theme-space {
   </div>
 </div>
 
+<!-- ========== タブナビ（上部固定） ========== -->
+<nav id="bottomNav" class="bottom-nav" style="display:none;">
+  <button class="nav-item active" onclick="navTo('home')">
+    <span class="nav-icon">🏠</span>
+    <span class="nav-label">ホーム</span>
+  </button>
+  <button class="nav-item" onclick="navTo('studyMode')">
+    <span class="nav-icon">📚</span>
+    <span class="nav-label">学習</span>
+  </button>
+  <button class="nav-item" onclick="navTo('ranking')">
+    <span class="nav-icon">🏆</span>
+    <span class="nav-label">ランキング</span>
+  </button>
+  <button class="nav-item" style="position:relative" onclick="navTo('profile')">
+    <span class="nav-icon">👤</span>
+    <span class="nav-label">マイページ</span>
+    <span id="navMsgBadge" class="nav-badge" style="display:none">0</span>
+  </button>
+</nav>
+
 <!-- ========== 2. ホーム画面 ========== -->
 <div id="screenHome" class="screen">
   <div class="home-hero">
@@ -1746,17 +1767,16 @@ body.theme-space {
     <div class="home-level-text" id="homeLevelText"></div>
   </div>
 
-  <!-- ナレーション -->
-  <div id="homeNarration" style="background:#f0f4ff;border:1px solid #d6deff;border-radius:14px;padding:14px 16px;margin:12px 16px;font-size:13px;line-height:1.7;color:#2d3748;min-height:60px;">
-    <span style="font-size:16px;margin-right:4px;">📖</span>
-    <span id="homeNarrationText">状況を読み込んでいます...</span>
-  </div>
-
-  <!-- テストカウントダウン -->
   <!-- イベント発動中バナー（リアルタイム） -->
   <div id="homeEventBanner" style="display:none;margin:0 16px 12px;"></div>
 
-  <!-- 現在出撃中の仲間（リアルタイム） -->
+  <!-- テストカウントダウン -->
+  <div id="examCountdown" style="margin:0 16px 12px;display:none;"></div>
+
+  <!-- ナレーション（非表示、データは裏でロード） -->
+  <div id="homeNarration" style="display:none;"><span id="homeNarrationText"></span></div>
+
+  <!-- 以下はマイページタブに移動: 出撃中仲間・学習ルート・教材進捗 -->
   <div id="liveCrewSection" style="display:none;margin:0 16px 12px;">
     <div style="background:linear-gradient(135deg,#1e293b,#0f172a);border:1px solid rgba(0,212,255,0.3);border-radius:12px;padding:12px 14px;">
       <div style="font-size:12px;font-weight:700;color:#00d4ff;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
@@ -1767,9 +1787,6 @@ body.theme-space {
     </div>
   </div>
 
-  <div id="examCountdown" style="margin:0 16px 12px;display:none;"></div>
-
-  <!-- 学習ルート進捗 -->
   <div id="routeProgress" style="margin:0 16px 12px;display:none;"></div>
 
   <!-- ミッションブリーフィング（到着〜速読〜学習ガイド） -->
@@ -1801,28 +1818,20 @@ body.theme-space {
     </div>
   </div>
 
-  <!-- Space Map -->
   <!-- 教材進捗カード -->
   <div id="materialProgressCards" style="margin:0 16px 12px;display:none;"></div>
 
-  <div id="homeSpaceMap" class="space-map">
-    <div class="space-map-stars">. * . . * . * . .</div>
-    <div class="space-map-station">
-      <div class="space-map-icon" id="spaceMapIcon">🌍</div>
-      <div class="space-map-info">
-        <div class="space-map-name" id="spaceMapName">地球</div>
-        <div class="space-map-desc" id="spaceMapDesc">旅の始まり</div>
-      </div>
-    </div>
-    <div class="space-map-progress">
-      <div class="space-map-progress-fill" id="spaceMapFill" style="width:0%"></div>
-    </div>
-    <div class="space-map-next" id="spaceMapNext"></div>
+  <!-- 宇宙マップ（簡略表示: アイコン+ステーション名のみ） -->
+  <div id="homeSpaceMap" style="margin:0 16px 8px;display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f0f4ff;border-radius:12px;font-size:13px;">
+    <span id="spaceMapIcon" style="font-size:24px;">🌍</span>
+    <span id="spaceMapName" style="font-weight:700;">地球</span>
+    <span id="spaceMapDesc" style="color:#718096;font-size:11px;"></span>
+    <span id="spaceMapNext" style="color:#667eea;font-size:11px;margin-left:auto;"></span>
+    <div id="spaceMapFill" style="display:none;"></div>
   </div>
 
-  <!-- Daily Missions -->
+  <!-- デイリーミッション（マイページに移動、ここにはIDだけ残す） -->
   <div id="homeMissionSection" class="mission-section" style="display:none">
-    <div class="mission-section-title">🎯 今日のミッション</div>
     <div id="homeMissionCards" class="mission-cards"></div>
     <div id="homeMissionAccepted" style="display:none"></div>
   </div>
@@ -2166,25 +2175,7 @@ body.theme-space {
 </div>
 
 <!-- ========== Bottom Navigation ========== -->
-<nav id="bottomNav" class="bottom-nav" style="display:none;">
-  <button class="nav-item active" onclick="navTo('home')">
-    <span class="nav-icon">🏠</span>
-    <span class="nav-label">ホーム</span>
-  </button>
-  <button class="nav-item" onclick="navTo('studyMode')">
-    <span class="nav-icon">📚</span>
-    <span class="nav-label">学習</span>
-  </button>
-  <button class="nav-item" onclick="navTo('ranking')">
-    <span class="nav-icon">🏆</span>
-    <span class="nav-label">ランキング</span>
-  </button>
-  <button class="nav-item" style="position:relative" onclick="navTo('profile')">
-    <span class="nav-icon">👤</span>
-    <span class="nav-label">マイページ</span>
-    <span id="navMsgBadge" class="nav-badge" style="display:none">0</span>
-  </button>
-</nav>
+<!-- nav は screenHome 直前に移動済み -->
 
 <!-- Firebase SDKs -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
