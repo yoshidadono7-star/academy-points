@@ -2134,6 +2134,30 @@ body.theme-space {
     <div id="completeBadges"></div>
     <div id="completeRaid"></div>
     <div id="completeMission" style="display:none"></div>
+
+    <!-- アクティブリコール誘導 -->
+    <div id="completeRecallSection" style="margin:16px;padding:20px;background:linear-gradient(135deg,#f0fff4,#e6fffa);border:2px solid #9ae6b4;border-radius:16px;">
+      <div style="font-size:18px;font-weight:800;color:#2d3748;margin-bottom:6px;">🧠 今やった内容を振り返ろう！</div>
+      <div style="font-size:13px;color:#718096;margin-bottom:12px;">
+        教科書を閉じて思い出すだけで、記憶の定着が2倍になるよ。<br>
+        バディに「今日やった内容」を教えてみよう！
+      </div>
+      <div style="display:flex;gap:10px;">
+        <button onclick="startActiveRecall()" style="flex:2;padding:14px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;">
+          🤖 バディに話す
+        </button>
+        <button onclick="skipRecallAndGoHome()" style="flex:1;padding:14px;background:#e2e8f0;color:#718096;border:none;border-radius:14px;font-size:13px;font-weight:600;cursor:pointer;">
+          あとで
+        </button>
+      </div>
+    </div>
+
+    <!-- 復習スケジュール表示 -->
+    <div id="completeReviewSchedule" style="margin:0 16px 16px;padding:14px 16px;background:#f0f4ff;border-radius:12px;font-size:13px;">
+      <div style="font-weight:700;margin-bottom:6px;">📅 復習スケジュールを自動作成しました</div>
+      <div id="completeReviewDates" style="color:#718096;"></div>
+    </div>
+
     <div style="padding:0 16px 20px;">
       <button class="btn btn-primary btn-block btn-lg" onclick="navigate('home')">ホームに戻る</button>
     </div>
@@ -3164,6 +3188,72 @@ async function updateHomeNotifications() {
   } catch(e) { console.warn('[homeNotify]', e); }
 }
 
+// ===== アクティブリコール =====
+function startActiveRecall() {
+  // バディチャットを開き、リコール用のプロンプトを自動入力
+  const subject = (studySession && studySession.subject) || '学習';
+  ChatUI.openModal();
+  // 少し待ってから入力欄にプレースホルダーを設定
+  setTimeout(() => {
+    const input = document.getElementById('chatModalInput');
+    if (input) {
+      input.placeholder = `${subject}で今日やった内容を思い出して話してみよう...`;
+      input.focus();
+    }
+    // バディから振り返りの声かけ
+    const buddy = (typeof BuddySystem !== 'undefined' && BuddySystem.getCurrentBuddy)
+      ? BuddySystem.getCurrentBuddy() : { name: 'ルカ' };
+    showToast(`${subject}の振り返りタイム！覚えてることを全部教えて`, { duration: 4000 });
+  }, 500);
+}
+
+function skipRecallAndGoHome() {
+  showToast('あとでバディに話しかけてね', { duration: 2000 });
+  navigate('home');
+}
+
+// ===== 復習リマインダー（ホーム画面用） =====
+async function loadReviewReminders() {
+  if (!currentStudent) return;
+  const reviews = await ReviewScheduleDB.getTodayReviews(currentStudent.id);
+  if (reviews.length === 0) return;
+
+  // ホーム画面にリマインダーカードを表示
+  const existing = document.getElementById('homeReviewReminder');
+  if (existing) existing.remove();
+
+  const card = document.createElement('div');
+  card.id = 'homeReviewReminder';
+  card.style.cssText = 'margin:0 16px 12px;padding:14px 16px;background:linear-gradient(135deg,#fffbeb,#fef3c7);border:2px solid #fbd38d;border-radius:14px;';
+  card.innerHTML = `
+    <div style="font-size:15px;font-weight:800;color:#92400e;margin-bottom:8px;">📌 今日の復習 (${reviews.length}件)</div>
+    ${reviews.map(r => `
+      <div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid rgba(0,0,0,0.06);">
+        <span style="font-size:13px;flex:1;"><strong>${r.subject}</strong> — ${r.intervalDays}日前に学習 (${r.step}/${r.totalSteps}回目)</span>
+        <button onclick="startReviewRecall('${r.id}','${r.subject}')" style="padding:6px 12px;background:#667eea;color:#fff;border:none;border-radius:8px;font-size:12px;font-weight:700;cursor:pointer;">復習する</button>
+      </div>
+    `).join('')}
+  `;
+
+  // タッチメニューの前に挿入
+  const menu = document.querySelector('.touch-menu');
+  if (menu) menu.parentNode.insertBefore(card, menu);
+}
+
+function startReviewRecall(reviewId, subject) {
+  // 復習をdoneにしてバディチャットを開く
+  ReviewScheduleDB.markDone(reviewId).catch(e => console.warn(e));
+  ChatUI.openModal();
+  setTimeout(() => {
+    const input = document.getElementById('chatModalInput');
+    if (input) {
+      input.placeholder = `${subject}の復習！前に学んだ内容を思い出してみよう...`;
+      input.focus();
+    }
+    showToast(`${subject}の復習タイム！忘れかけた今がゴールデンタイム`, { duration: 4000 });
+  }, 500);
+}
+
 function updateHomeStudyButton() {
   const btn = document.getElementById('homeStudyBtn');
   const icon = document.getElementById('homeStudyIcon');
@@ -3208,6 +3298,9 @@ async function loadHome() {
 
   // 通知バッジの更新（非同期、バックグラウンド）
   updateHomeNotifications();
+
+  // 分散学習: 今日の復習リマインダー
+  loadReviewReminders().catch(e => console.warn('[reviewReminder]', e));
 
   // Refresh student data
   try {
@@ -4478,6 +4571,22 @@ function showCompleteScreen(duration, points, newBadges, raidResults, comboResul
     missionEl.style.display = 'none';
     missionEl.innerHTML = '';
   }
+
+  // 分散学習: 復習スケジュールを自動生成
+  try {
+    const today = new Date().toISOString().split('T')[0];
+    const subject = studySession.subject || '学習';
+    await ReviewScheduleDB.create(currentStudent.id, subject, today, '');
+    // 復習日を表示
+    const reviewDatesEl = document.getElementById('completeReviewDates');
+    if (reviewDatesEl) {
+      const dates = ReviewScheduleDB.INTERVALS.map(d => {
+        const dt = new Date(); dt.setDate(dt.getDate() + d);
+        return `${d}日後 (${dt.getMonth()+1}/${dt.getDate()})`;
+      });
+      reviewDatesEl.textContent = `${subject}: ${dates.join(' → ')}`;
+    }
+  } catch(e) { console.warn('[reviewSchedule]', e); }
 
   navigate('complete');
   fireConfetti();

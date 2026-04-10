@@ -367,6 +367,12 @@ service cloud.firestore {
       allow write: if true;
     }
 
+    // 分散学習: 復習スケジュール
+    match /reviewSchedules/{scheduleId} {
+      allow read: if true;
+      allow write: if true;
+    }
+
     // X4: guildGoals: ギルド（チーム）単位の週次目標
     match /guildGoals/{goalId} {
       allow read: if true;

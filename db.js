@@ -4607,6 +4607,70 @@ const GrantTemplatesDB = {
   },
 };
 
+// --- 分散学習スケジュール (Spaced Repetition Reminders) ---
+// 学習完了時に自動で復習スケジュールを生成。間隔: 1日→3日→7日→14日→30日
+const ReviewScheduleDB = {
+  INTERVALS: [1, 3, 7, 14, 30], // 日数
+
+  async create(studentId, subject, studyDate, notes) {
+    const base = new Date(studyDate);
+    const schedules = this.INTERVALS.map((days, i) => {
+      const reviewDate = new Date(base);
+      reviewDate.setDate(reviewDate.getDate() + days);
+      return {
+        studentId,
+        subject,
+        originalStudyDate: studyDate,
+        reviewDate: reviewDate.toISOString().split('T')[0],
+        intervalDays: days,
+        step: i + 1,
+        totalSteps: this.INTERVALS.length,
+        status: 'pending', // 'pending' | 'done' | 'skipped'
+        notes: notes || '',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      };
+    });
+    for (const s of schedules) {
+      await db.collection('reviewSchedules').add(s);
+    }
+    return schedules.length;
+  },
+
+  async getTodayReviews(studentId) {
+    const today = new Date().toISOString().split('T')[0];
+    const snap = await db.collection('reviewSchedules')
+      .where('studentId', '==', studentId)
+      .where('reviewDate', '==', today)
+      .where('status', '==', 'pending')
+      .get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+
+  async getUpcoming(studentId, days) {
+    const today = new Date();
+    const end = new Date(today);
+    end.setDate(end.getDate() + (days || 7));
+    const snap = await db.collection('reviewSchedules')
+      .where('studentId', '==', studentId)
+      .where('status', '==', 'pending')
+      .get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(r => r.reviewDate >= today.toISOString().split('T')[0] && r.reviewDate <= end.toISOString().split('T')[0])
+      .sort((a, b) => a.reviewDate.localeCompare(b.reviewDate));
+  },
+
+  async markDone(id) {
+    await db.collection('reviewSchedules').doc(id).update({
+      status: 'done',
+      completedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  },
+
+  async markSkipped(id) {
+    await db.collection('reviewSchedules').doc(id).update({ status: 'skipped' });
+  },
+};
+
 // --- Phase B1: 時間帯/曜日ブースト ---
 // Firestore settings/timeBoosts で管理。未設定時は DEFAULTS を使用。
 const TimeBoostsDB = {
