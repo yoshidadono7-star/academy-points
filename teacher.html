@@ -101,6 +101,37 @@ body {
 .tab-content { display: none; padding: 16px; }
 .tab-content.active { display: block; }
 
+/* ラーメン屋式タッチボタン */
+.touch-menu { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+.touch-btn {
+  display: flex; align-items: center; gap: 14px;
+  background: white; border-radius: 16px; padding: 18px 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06); cursor: pointer;
+  transition: transform 0.15s; border: 2px solid transparent;
+  font-family: inherit; width: 100%; text-align: left; min-height: 70px;
+}
+.touch-btn:active { transform: scale(0.97); }
+.touch-btn-primary {
+  background: linear-gradient(135deg, var(--primary), #764ba2);
+  color: white; border: none;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+}
+.touch-btn-icon { font-size: 28px; flex-shrink: 0; }
+.touch-btn-text { flex: 1; }
+.touch-btn-label { font-size: 16px; font-weight: 800; }
+.touch-btn-primary .touch-btn-label { font-size: 18px; }
+.touch-btn-sub { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+.touch-btn-arrow { font-size: 18px; opacity: 0.4; flex-shrink: 0; }
+.touch-btn-primary .touch-btn-arrow { opacity: 0.7; }
+.touch-btn-badge { background: #fc8181; color: white; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+.touch-back-btn {
+  background: linear-gradient(180deg, rgba(102,126,234,0.15), rgba(102,126,234,0.05));
+  border: 1px solid rgba(102,126,234,0.3); color: #667eea;
+  padding: 8px 14px; border-radius: 12px; font-size: 14px; font-weight: 700;
+  cursor: pointer; margin-bottom: 12px; display: flex; align-items: center; gap: 4px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
 .card {
   background: var(--card); border-radius: var(--radius); padding: 20px;
   margin-bottom: 16px; box-shadow: var(--shadow);
@@ -202,33 +233,82 @@ body {
     </div>
   </div>
 
-  <div class="tabs">
-    <div class="tab-cat-row">
-      <button class="tab-cat-btn active" data-cat="daily">📈 日常</button>
-      <button class="tab-cat-btn" data-cat="analytics">📊 分析</button>
-      <button class="tab-cat-btn" data-cat="operation">⚙️ 運営</button>
-    </div>
-    <div class="tab-sub-row">
-      <div class="tab-sub-group active" data-cat="daily">
-        <button class="tab-btn active" data-tab="today">📅 今日のスケジュール</button>
-        <button class="tab-btn" data-tab="buddychat" style="position:relative;">💬 バディ会話<span id="teacherBuddyChatBadge" style="display:none;position:absolute;top:4px;right:4px;background:#fc8181;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;">0</span></button>
-        <button class="tab-btn" data-tab="comment">📝 生徒コメント</button>
-        <button class="tab-btn" data-tab="aibuddy">🤖 AI相談</button>
-        <button class="tab-btn" data-tab="handoff" style="position:relative;">📬 申し送り<span id="handoffBadge" style="display:none;position:absolute;top:4px;right:4px;background:#fc8181;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;">0</span></button>
-      </div>
-      <div class="tab-sub-group" data-cat="analytics">
-        <button class="tab-btn" data-tab="stats">📊 統計</button>
-      </div>
-      <div class="tab-sub-group" data-cat="operation">
-        <button class="tab-btn" data-tab="approval">🏠 家庭学習承認</button>
-        <button class="tab-btn" data-tab="goalApproval" style="position:relative;">🎯 目標承認<span id="goalApprovalBadge" style="display:none;position:absolute;top:4px;right:4px;background:#fc8181;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;">0</span></button>
-        <button class="tab-btn" data-tab="shifts">📅 シフト確認</button>
-      </div>
-    </div>
+  <!-- ラーメン屋式メニュー -->
+  <div class="touch-menu" id="teacherHomeMenu">
+    <button class="touch-btn touch-btn-primary" onclick="showTeacherPanel('today')">
+      <span class="touch-btn-icon">📅</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">今日のスケジュール</span>
+        <span class="touch-btn-sub">本日の授業と担当生徒</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
+    </button>
+    <button class="touch-btn" onclick="showTeacherPanel('comment')">
+      <span class="touch-btn-icon">📝</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">生徒コメント</span>
+        <span class="touch-btn-sub">授業後のコメントを記入</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
+    </button>
+    <button class="touch-btn" onclick="showTeacherPanel('aibuddy')">
+      <span class="touch-btn-icon">🤖</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">AI相談</span>
+        <span class="touch-btn-sub">指導の相談や生徒の悩みを相談</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
+    </button>
+    <button class="touch-btn" onclick="showTeacherPanel('approval')">
+      <span class="touch-btn-icon">🏠</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">家庭学習承認</span>
+        <span class="touch-btn-sub">生徒の自宅学習を承認/却下</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
+    </button>
+    <button class="touch-btn" onclick="showTeacherPanel('handoff')">
+      <span class="touch-btn-icon">📬</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">申し送り</span>
+        <span class="touch-btn-sub">バディからの報告と連絡事項</span>
+      </span>
+      <span id="handoffBadge" style="display:none;" class="touch-btn-badge">0</span>
+      <span class="touch-btn-arrow">→</span>
+    </button>
+    <button class="touch-btn" onclick="showTeacherPanel('goalApproval')">
+      <span class="touch-btn-icon">🎯</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">目標承認</span>
+        <span class="touch-btn-sub">生徒の個人目標を承認</span>
+      </span>
+      <span id="goalApprovalBadge" style="display:none;" class="touch-btn-badge">0</span>
+      <span class="touch-btn-arrow">→</span>
+    </button>
+    <button class="touch-btn" onclick="showTeacherPanel('shifts')">
+      <span class="touch-btn-icon">📆</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">シフト確認</span>
+        <span class="touch-btn-sub">今週のシフトを確認</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
+    </button>
+    <button class="touch-btn" onclick="showTeacherPanel('stats')">
+      <span class="touch-btn-icon">📊</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">統計</span>
+        <span class="touch-btn-sub">指導実績を確認</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
+    </button>
   </div>
 
+  <!-- 旧タブ（非表示） -->
+  <div class="tabs" style="display:none;"></div>
+
   <!-- 今日のスケジュール -->
-  <div class="tab-content active" id="tab-today">
+  <div class="tab-content" id="tab-today">
+    <button class="touch-back-btn" onclick="backToTeacherHome()">◀ 戻る</button>
     <div class="card">
       <h3 id="todayDateTitle">今日のスケジュール</h3>
       <div id="todayScheduleList" class="schedule-grid">
@@ -239,6 +319,7 @@ body {
 
   <!-- 家庭学習承認 -->
   <div class="tab-content" id="tab-approval">
+    <button class="touch-back-btn" onclick="backToTeacherHome()">◀ 戻る</button>
     <div class="card">
       <h3>承認待ちの家庭学習 <span id="pendingCount" style="color:var(--warning);"></span></h3>
       <div id="pendingList">
@@ -249,6 +330,7 @@ body {
 
   <!-- 生徒コメント -->
   <div class="tab-content" id="tab-comment">
+    <button class="touch-back-btn" onclick="backToTeacherHome()">◀ 戻る</button>
     <div class="card">
       <h3>生徒コメント記入</h3>
       <div class="comment-form">
@@ -311,6 +393,7 @@ body {
 
   <!-- AI 相談 (講師バディ / 教室長バディ) -->
   <div class="tab-content" id="tab-aibuddy">
+    <button class="touch-back-btn" onclick="backToTeacherHome()">◀ 戻る</button>
     <div class="card" style="height:75vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
       <div style="padding:14px 18px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,#f8fafc,#f0f4ff);">
         <div style="font-size:16px;font-weight:700;color:#2d3748;">🤖 <span id="aiBuddyTitle">AI バディ</span></div>
@@ -336,6 +419,7 @@ body {
 
   <!-- 申し送り Inbox -->
   <div class="tab-content" id="tab-handoff">
+    <button class="touch-back-btn" onclick="backToTeacherHome()">◀ 戻る</button>
     <div class="card">
       <h3 style="display:flex;align-items:center;gap:8px;">📬 申し送り Inbox <span style="font-size:11px;font-weight:normal;color:var(--text-light);">あなたに関係する情報を一覧で</span></h3>
       <div id="handoffInboxList">
@@ -346,6 +430,7 @@ body {
 
   <!-- Phase X1: 個人目標の承認 -->
   <div class="tab-content" id="tab-goalApproval">
+    <button class="touch-back-btn" onclick="backToTeacherHome()">◀ 戻る</button>
     <div class="card">
       <h3>🎯 個人目標の承認</h3>
       <p style="font-size:12px;color:#718096;margin-bottom:14px;">
@@ -369,6 +454,7 @@ body {
 
   <!-- シフト確認 -->
   <div class="tab-content" id="tab-shifts">
+    <button class="touch-back-btn" onclick="backToTeacherHome()">◀ 戻る</button>
     <div class="card">
       <h3>今週のシフト</h3>
       <div id="weekShiftsList" class="schedule-grid">
@@ -379,6 +465,7 @@ body {
 
   <!-- 統計 -->
   <div class="tab-content" id="tab-stats">
+    <button class="touch-back-btn" onclick="backToTeacherHome()">◀ 戻る</button>
     <div class="card">
       <h3>今月の統計</h3>
       <div class="stat-grid" id="teacherStats">
@@ -392,6 +479,7 @@ body {
 
   <!-- バディ会話タブ -->
   <div class="tab-content" id="tab-buddychat">
+    <button class="touch-back-btn" onclick="backToTeacherHome()">◀ 戻る</button>
     <div class="card" style="padding:0;height:75vh;display:flex;overflow:hidden;">
       <!-- 左側: 生徒一覧 -->
       <div style="width:240px;border-right:1px solid var(--border);display:flex;flex-direction:column;background:#f7fafc;">
@@ -482,51 +570,39 @@ function teacherLogout() {
 }
 
 // --- Tab Navigation (2段タブ) ---
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    btn.classList.add('active');
-    const tab = btn.dataset.tab;
-    document.getElementById(`tab-${tab}`).classList.add('active');
+// ラーメン屋式: パネル切替
+const TEACHER_LOADERS = {
+  today: typeof loadTodaySchedule !== 'undefined' ? loadTodaySchedule : null,
+  approval: typeof loadPendingApprovals !== 'undefined' ? loadPendingApprovals : null,
+  comment: typeof loadRecentComments !== 'undefined' ? loadRecentComments : null,
+  shifts: typeof loadWeekShifts !== 'undefined' ? loadWeekShifts : null,
+  stats: typeof loadTeacherStats !== 'undefined' ? loadTeacherStats : null,
+  buddychat: typeof loadTeacherBuddyChat !== 'undefined' ? loadTeacherBuddyChat : null,
+  aibuddy: typeof loadAIBuddyChat !== 'undefined' ? loadAIBuddyChat : null,
+  handoff: typeof loadHandoffInbox !== 'undefined' ? loadHandoffInbox : null,
+  goalApproval: typeof loadGoalApprovalTab !== 'undefined' ? loadGoalApprovalTab : null,
+};
 
-    // サブタブが属するカテゴリを同期してアクティブにする
-    const parentGroup = btn.closest('.tab-sub-group');
-    if (parentGroup) {
-      const cat = parentGroup.dataset.cat;
-      document.querySelectorAll('.tab-cat-btn').forEach(b => b.classList.remove('active'));
-      const catBtn = document.querySelector(`.tab-cat-btn[data-cat="${cat}"]`);
-      if (catBtn) catBtn.classList.add('active');
-      document.querySelectorAll('.tab-sub-group').forEach(g => g.classList.remove('active'));
-      parentGroup.classList.add('active');
-    }
+function showTeacherPanel(tabId) {
+  const menu = document.getElementById('teacherHomeMenu');
+  if (menu) menu.style.display = 'none';
+  document.querySelectorAll('.tab-content').forEach(c => { c.classList.remove('active'); c.style.display = 'none'; });
+  const panel = document.getElementById('tab-' + tabId);
+  if (panel) { panel.classList.add('active'); panel.style.display = 'block'; }
+  // データロード
+  try {
+    const loaders = { today: loadTodaySchedule, approval: loadPendingApprovals, comment: loadRecentComments,
+      shifts: loadWeekShifts, stats: loadTeacherStats, buddychat: loadTeacherBuddyChat,
+      aibuddy: loadAIBuddyChat, handoff: loadHandoffInbox, goalApproval: loadGoalApprovalTab };
+    if (loaders[tabId]) loaders[tabId]();
+  } catch(e) { console.warn('[showTeacherPanel]', e); }
+}
 
-    const loaders = {
-      today: loadTodaySchedule,
-      approval: loadPendingApprovals,
-      comment: loadRecentComments,
-      shifts: loadWeekShifts,
-      stats: loadTeacherStats,
-      buddychat: loadTeacherBuddyChat,
-      aibuddy: loadAIBuddyChat,
-      handoff: loadHandoffInbox,
-      goalApproval: loadGoalApprovalTab,
-    };
-    if (loaders[tab]) loaders[tab]();
-  });
-});
-
-// カテゴリ行クリック → サブタブグループ切替
-document.querySelectorAll('.tab-cat-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const cat = btn.dataset.cat;
-    document.querySelectorAll('.tab-cat-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.querySelectorAll('.tab-sub-group').forEach(g => g.classList.remove('active'));
-    const group = document.querySelector(`.tab-sub-group[data-cat="${cat}"]`);
-    if (group) group.classList.add('active');
-  });
-});
+function backToTeacherHome() {
+  document.querySelectorAll('.tab-content').forEach(c => { c.classList.remove('active'); c.style.display = 'none'; });
+  const menu = document.getElementById('teacherHomeMenu');
+  if (menu) menu.style.display = 'flex';
+}
 
 // --- バディ会話（リアルタイム） ---
 let teacherChatListUnsub = null;

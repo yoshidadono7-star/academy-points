@@ -154,6 +154,28 @@
     .tab-nav-btn .tab-nav-icon { font-size: 20px; }
     .tab-nav-btn .tab-nav-label { font-size: 11px; }
 
+    /* ラーメン屋式タッチボタン */
+    .touch-btn {
+      display: flex; align-items: center; gap: 14px;
+      background: white; border-radius: 16px; padding: 18px 20px;
+      box-shadow: 0 2px 12px rgba(0,0,0,0.06); cursor: pointer;
+      transition: transform 0.15s; border: 2px solid transparent;
+      font-family: inherit; width: 100%; text-align: left; min-height: 72px;
+    }
+    .touch-btn:active { transform: scale(0.97); }
+    .touch-btn-primary {
+      background: linear-gradient(135deg, #667eea, #764ba2);
+      color: white; border: none;
+      box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+    }
+    .touch-btn-icon { font-size: 32px; flex-shrink: 0; }
+    .touch-btn-text { flex: 1; }
+    .touch-btn-label { font-size: 16px; font-weight: 800; }
+    .touch-btn-primary .touch-btn-label { font-size: 18px; }
+    .touch-btn-sub { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+    .touch-btn-arrow { font-size: 18px; opacity: 0.4; flex-shrink: 0; }
+    .touch-btn-primary .touch-btn-arrow { opacity: 0.7; }
+
     /* 旧タブ後方互換 */
     .tab-cat-btn, .tab-sub-row, .tab-sub-group, .tab-btn { display: none; }
 
@@ -222,40 +244,55 @@
 
       <!-- リアルタイム学習状態 -->
       <div id="childStatusBadge" style="display:none;margin-bottom:12px;"></div>
-
       <!-- イベント発動中バナー -->
-      <div id="parentEventBanner" style="display:none;margin-bottom:12px;"></div>
+      <div id="parentEventBanner" style="display:none;margin-bottom:8px;"></div>
+      <!-- ナレーション（非表示、データ保持用） -->
+      <div id="parentNarration" style="display:none;"><span id="parentNarrationText"></span></div>
 
-      <!-- ナレーション -->
-      <div id="parentNarration" class="card" style="background:#f8fafc;border-left:3px solid #667eea;">
-        <div style="font-size:13px;line-height:1.7;color:#4a5568;">
-          <span style="font-size:16px;margin-right:4px;">📖</span>
-          <span id="parentNarrationText">お子さんの状況を読み込んでいます...</span>
+      <!-- ===== ラーメン屋式メニュー ===== -->
+      <div id="parentHomeMenu">
+        <div style="display:flex;flex-direction:column;gap:10px;">
+          <button class="touch-btn touch-btn-primary" onclick="showParentPanel('today')">
+            <span class="touch-btn-icon">📡</span>
+            <span class="touch-btn-text">
+              <span class="touch-btn-label">今日のようす</span>
+              <span class="touch-btn-sub">出席・学習状況をリアルタイムで確認</span>
+            </span>
+            <span class="touch-btn-arrow">→</span>
+          </button>
+          <button class="touch-btn" onclick="showParentPanel('study')">
+            <span class="touch-btn-icon">📊</span>
+            <span class="touch-btn-text">
+              <span class="touch-btn-label">学習の記録</span>
+              <span class="touch-btn-sub">30日間のサマリー・科目別・教材進捗</span>
+            </span>
+            <span class="touch-btn-arrow">→</span>
+          </button>
+          <button class="touch-btn" onclick="showParentPanel('results')">
+            <span class="touch-btn-icon">📝</span>
+            <span class="touch-btn-text">
+              <span class="touch-btn-label">成績・バッジ</span>
+              <span class="touch-btn-sub">テスト結果と獲得バッジ</span>
+            </span>
+            <span class="touch-btn-arrow">→</span>
+          </button>
+          <button class="touch-btn" onclick="showParentPanel('contact')">
+            <span class="touch-btn-icon">💬</span>
+            <span class="touch-btn-text">
+              <span class="touch-btn-label">先生からの連絡</span>
+              <span class="touch-btn-sub">メッセージ・バディ会話・面談記録</span>
+            </span>
+            <span class="touch-btn-arrow">→</span>
+          </button>
         </div>
       </div>
 
-      <!-- 4タブ簡略ナビ -->
-      <div class="tab-nav-simple">
-        <button class="tab-nav-btn active" onclick="switchParentTab('today')">
-          <span class="tab-nav-icon">📡</span>
-          <span class="tab-nav-label">今日</span>
-        </button>
-        <button class="tab-nav-btn" onclick="switchParentTab('study')">
-          <span class="tab-nav-icon">📊</span>
-          <span class="tab-nav-label">学習</span>
-        </button>
-        <button class="tab-nav-btn" onclick="switchParentTab('results')">
-          <span class="tab-nav-icon">📝</span>
-          <span class="tab-nav-label">成績</span>
-        </button>
-        <button class="tab-nav-btn" onclick="switchParentTab('contact')">
-          <span class="tab-nav-icon">💬</span>
-          <span class="tab-nav-label">連絡</span>
-        </button>
-      </div>
+      <!-- 旧タブナビ（非表示） -->
+      <div class="tab-nav-simple" style="display:none;"></div>
 
-      <!-- ===== 今日タブ（今日のようす + スケジュール） ===== -->
-      <div class="tab-panel active" id="panel-today">
+      <!-- ===== 今日パネル ===== -->
+      <div class="tab-panel" id="panel-today" style="display:none;">
+        <button onclick="backToParentHome()" style="background:linear-gradient(180deg,rgba(102,126,234,0.15),rgba(102,126,234,0.05));border:1px solid rgba(102,126,234,0.3);color:#667eea;padding:8px 14px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:12px;display:flex;align-items:center;gap:4px;box-shadow:0 2px 6px rgba(0,0,0,0.08);">◀ 戻る</button>
         <div id="parentExamCountdown" style="margin-bottom:12px;"></div>
         <div class="card">
           <div class="card-title">📡 今日のようす</div>
@@ -272,8 +309,9 @@
         </div>
       </div>
 
-      <!-- ===== 学習タブ（サマリー + 教材進捗 + 学習ルート） ===== -->
-      <div class="tab-panel" id="panel-study">
+      <!-- ===== 学習パネル ===== -->
+      <div class="tab-panel" id="panel-study" style="display:none;">
+        <button onclick="backToParentHome()" style="background:linear-gradient(180deg,rgba(102,126,234,0.15),rgba(102,126,234,0.05));border:1px solid rgba(102,126,234,0.3);color:#667eea;padding:8px 14px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:12px;display:flex;align-items:center;gap:4px;box-shadow:0 2px 6px rgba(0,0,0,0.08);">◀ 戻る</button>
         <div class="card">
           <div class="card-title">📅 直近30日間の学習</div>
           <div class="stats-grid">
@@ -331,8 +369,9 @@
       <!-- 旧 summary パネル（後方互換、非表示） -->
       <div class="tab-panel" id="panel-summary" style="display:none!important;"></div>
 
-      <!-- ===== 成績タブ（テスト + バッジ + コンディション） ===== -->
-      <div class="tab-panel" id="panel-results">
+      <!-- ===== 成績パネル ===== -->
+      <div class="tab-panel" id="panel-results" style="display:none;">
+        <button onclick="backToParentHome()" style="background:linear-gradient(180deg,rgba(102,126,234,0.15),rgba(102,126,234,0.05));border:1px solid rgba(102,126,234,0.3);color:#667eea;padding:8px 14px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:12px;display:flex;align-items:center;gap:4px;box-shadow:0 2px 6px rgba(0,0,0,0.08);">◀ 戻る</button>
         <div class="card">
           <div class="card-title">📝 テスト結果</div>
           <div id="examsList"></div>
@@ -351,8 +390,9 @@
       <div class="tab-panel" id="panel-exams" style="display:none!important;"></div>
       <div class="tab-panel" id="panel-badges" style="display:none!important;"></div>
 
-      <!-- ===== 連絡タブ（メッセージ + バディ会話 + 面談） ===== -->
-      <div class="tab-panel" id="panel-contact">
+      <!-- ===== 連絡パネル ===== -->
+      <div class="tab-panel" id="panel-contact" style="display:none;">
+        <button onclick="backToParentHome()" style="background:linear-gradient(180deg,rgba(102,126,234,0.15),rgba(102,126,234,0.05));border:1px solid rgba(102,126,234,0.3);color:#667eea;padding:8px 14px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;margin-bottom:12px;display:flex;align-items:center;gap:4px;box-shadow:0 2px 6px rgba(0,0,0,0.08);">◀ 戻る</button>
         <div class="card">
           <div class="card-title">💬 先生からのメッセージ</div>
           <div id="messagesList"></div>
@@ -622,8 +662,32 @@ async function generateParentNarration() {
 }
 
 // ===== タブ切替 =====
-// 新4タブナビ
+// ラーメン屋式: パネル表示切替
+function showParentPanel(panelId) {
+  // ホームメニューを隠す
+  const home = document.getElementById('parentHomeMenu');
+  if (home) home.style.display = 'none';
+  // 全パネルを非表示
+  document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+  // 指定パネルを表示
+  const panel = document.getElementById('panel-' + panelId);
+  if (panel) panel.style.display = 'block';
+}
+
+function backToParentHome() {
+  // 全パネルを非表示
+  document.querySelectorAll('.tab-panel').forEach(p => p.style.display = 'none');
+  // ホームメニューを表示
+  const home = document.getElementById('parentHomeMenu');
+  if (home) home.style.display = 'block';
+}
+
+// 旧タブナビ（後方互換）
 function switchParentTab(tabId) {
+  showParentPanel(tabId);
+}
+// 旧4タブナビ（後方互換）
+function _oldSwitchParentTab(tabId) {
   document.querySelectorAll('.tab-nav-btn').forEach(b => b.classList.remove('active'));
   const activeBtn = document.querySelector(`.tab-nav-btn[onclick*="'${tabId}'"]`);
   if (activeBtn) activeBtn.classList.add('active');
