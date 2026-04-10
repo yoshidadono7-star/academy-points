@@ -1824,12 +1824,12 @@ body.theme-space {
 
   <!-- ===== タッチメニュー（唯一のナビゲーション） ===== -->
   <div class="touch-menu">
-    <!-- メイン: 学習スタート -->
-    <button class="touch-btn touch-btn-primary" onclick="navigate('studyMode')">
-      <span class="touch-btn-icon">📚</span>
+    <!-- メイン: 学習スタート / 学習中表示 -->
+    <button class="touch-btn touch-btn-primary" id="homeStudyBtn" onclick="homeStudyAction()">
+      <span class="touch-btn-icon" id="homeStudyIcon">📚</span>
       <span class="touch-btn-text">
-        <span class="touch-btn-label">学習スタート</span>
-        <span class="touch-btn-sub">科目を選んで冒険に出発！</span>
+        <span class="touch-btn-label" id="homeStudyLabel">学習スタート</span>
+        <span class="touch-btn-sub" id="homeStudySub">科目を選んで冒険に出発！</span>
       </span>
       <span class="touch-btn-arrow">→</span>
     </button>
@@ -3053,8 +3053,49 @@ async function submitPersonalGoal() {
   }
 }
 
+// 学習中ならホームのボタンを「学習中」表示に切り替え
+function updateHomeStudyButton() {
+  const btn = document.getElementById('homeStudyBtn');
+  const icon = document.getElementById('homeStudyIcon');
+  const label = document.getElementById('homeStudyLabel');
+  const sub = document.getElementById('homeStudySub');
+  if (!btn || !icon || !label || !sub) return;
+
+  if (timerState.running || timerState.elapsed > 0) {
+    // 学習中
+    const m = Math.floor(timerState.elapsed / 60);
+    const s = timerState.elapsed % 60;
+    const timeStr = String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    const subject = (studySession && studySession.subject) || '学習';
+    icon.textContent = '⏱️';
+    label.textContent = `${subject} 学習中 ${timeStr}`;
+    sub.textContent = timerState.running ? 'タップしてタイマーに戻る' : '⏸ 一時停止中 — タップして再開';
+    btn.style.background = 'linear-gradient(135deg, #48bb78, #38a169)';
+    btn.onclick = () => navigate('timer');
+  } else {
+    // 未学習
+    icon.textContent = '📚';
+    label.textContent = '学習スタート';
+    sub.textContent = '科目を選んで冒険に出発！';
+    btn.style.background = '';
+    btn.onclick = () => navigate('studyMode');
+  }
+}
+
+function homeStudyAction() {
+  if (timerState.running || timerState.elapsed > 0) {
+    navigate('timer');
+  } else {
+    navigate('studyMode');
+  }
+}
+
 async function loadHome() {
   if (!currentStudent) return;
+
+  // 学習中ボタンの表示更新
+  updateHomeStudyButton();
+
   // Refresh student data
   try {
     const fresh = await StudentsDB.getById(currentStudent.id);
@@ -3892,6 +3933,8 @@ function resumeTimer() {
     } else {
       updateTimerDisplay(timerState.elapsed);
     }
+    // ホーム画面のボタンもリアルタイム更新
+    updateHomeStudyButton();
   }, 1000);
 }
 
