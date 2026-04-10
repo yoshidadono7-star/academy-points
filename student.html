@@ -613,25 +613,25 @@ body.buddy-on .buddy-chatbar { display: flex; }
 }
 .buddy-chat-history-btn .badge.show { display: flex; }
 
-/* スマホ画面対応: ボタンとフォント縮小 */
+/* スマホ画面対応: 最小タッチターゲット44px維持 */
 @media (max-width: 500px) {
   .buddy-chatbar { padding: 0 6px; gap: 4px; }
   .buddy-chat-btn, .buddy-chat-history-btn {
-    width: 32px; height: 32px; font-size: 14px;
+    width: 40px; height: 40px; font-size: 16px;
   }
-  .buddy-chat-input { padding: 7px 12px; font-size: 13px; }
+  .buddy-chat-input { padding: 8px 12px; font-size: 14px; }
 }
 @media (max-width: 400px) {
   .buddy-chatbar { padding: 0 4px; gap: 3px; }
   .buddy-chat-btn, .buddy-chat-history-btn {
-    width: 30px; height: 30px; font-size: 13px;
+    width: 40px; height: 40px; font-size: 15px;
   }
-  .buddy-chat-input { padding: 6px 10px; font-size: 12px; }
+  .buddy-chat-input { padding: 7px 10px; font-size: 13px; }
 }
 @media (max-width: 360px) {
   .buddy-chatbar { padding: 0 3px; gap: 2px; }
   .buddy-chat-btn, .buddy-chat-history-btn {
-    width: 28px; height: 28px; font-size: 12px;
+    width: 38px; height: 38px; font-size: 14px;
   }
   .buddy-chat-input { padding: 5px 8px; font-size: 11px; }
 }
@@ -813,7 +813,7 @@ body.buddy-on .buddy-chatbar { display: flex; }
 }
 .nav-item.active { color: var(--primary); }
 .nav-icon { font-size: 24px; }
-.nav-label { font-size: 10px; font-weight: 600; }
+.nav-label { font-size: 12px; font-weight: 600; }
 .nav-badge {
   position: absolute; top: 2px; right: 2px;
   background: var(--danger); color: white;
@@ -868,7 +868,7 @@ body.buddy-on .buddy-chatbar { display: flex; }
   backdrop-filter: blur(10px);
 }
 .home-stat-value { font-size: 22px; font-weight: 900; }
-.home-stat-label { font-size: 10px; opacity: 0.85; margin-top: 2px; }
+.home-stat-label { font-size: 12px; opacity: 0.85; margin-top: 2px; }
 .home-guild-badge {
   display: inline-flex; align-items: center; gap: 6px;
   background: rgba(255,255,255,0.2); padding: 6px 14px;
@@ -885,17 +885,39 @@ body.buddy-on .buddy-chatbar { display: flex; }
 .home-level-text { font-size: 11px; opacity: 0.85; margin-top: 4px; text-align: right; }
 
 .quick-actions {
-  display: grid; grid-template-columns: 1fr 1fr;
-  gap: 10px; margin: 0 16px; padding-top: 24px;
+  display: flex; flex-direction: column; gap: 10px; margin: 0 16px; padding-top: 20px;
+}
+.quick-action-main {
+  background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+  border-radius: 16px; padding: 20px; text-align: center;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3); cursor: pointer;
+  transition: transform 0.2s; border: none; font-family: inherit; color: white; width: 100%;
+}
+.quick-action-main:active { transform: scale(0.97); }
+.quick-action-main .quick-action-icon { font-size: 40px; margin-bottom: 4px; }
+.quick-action-main .quick-action-label { font-size: 18px; font-weight: 800; }
+.quick-action-main .quick-action-sub { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+
+.quick-action-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
 }
 .quick-action {
-  background: white; border-radius: var(--radius); padding: 18px 14px;
+  background: white; border-radius: var(--radius); padding: 16px 12px;
   text-align: center; box-shadow: var(--shadow); cursor: pointer;
   transition: transform 0.2s; border: none; font-family: inherit;
 }
 .quick-action:active { transform: scale(0.96); }
-.quick-action-icon { font-size: 32px; margin-bottom: 6px; }
+.quick-action-icon { font-size: 28px; margin-bottom: 4px; }
 .quick-action-label { font-size: 13px; font-weight: 600; color: var(--text); }
+
+.quick-action-more {
+  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
+}
+.quick-action-more .quick-action {
+  padding: 12px 8px;
+}
+.quick-action-more .quick-action-icon { font-size: 22px; }
+.quick-action-more .quick-action-label { font-size: 11px; }
 
 .home-section-title {
   font-size: 16px; font-weight: 700; padding: 20px 20px 8px;
@@ -1423,7 +1445,8 @@ body.theme-space {
 /* ===== Responsive ===== */
 @media (min-width: 480px) {
   .badge-grid { grid-template-columns: repeat(4, 1fr); }
-  .quick-actions { grid-template-columns: 1fr 1fr 1fr; max-width: 480px; margin: 0 auto; padding-top: 24px; }
+  .quick-actions { max-width: 480px; margin: 0 auto; padding-top: 20px; }
+  .quick-action-more { grid-template-columns: 1fr 1fr 1fr; }
   .mission-card { flex: 0 0 calc(100% / 3 - 6px); }
 }
 @media (min-width: 768px) {
@@ -1805,52 +1828,62 @@ body.theme-space {
   </div>
 
   <div class="quick-actions">
-    <button class="quick-action" onclick="navigate('condition')">
-      <div class="quick-action-icon">😊</div>
-      <div class="quick-action-label">コンディション</div>
-    </button>
-    <button class="quick-action" onclick="navigate('studyMode')">
+    <!-- メインアクション: 最も重要な1つ -->
+    <button class="quick-action-main" onclick="navigate('studyMode')">
       <div class="quick-action-icon">📚</div>
       <div class="quick-action-label">学習スタート</div>
+      <div class="quick-action-sub">科目を選んで冒険に出発！</div>
     </button>
-    <button class="quick-action" onclick="navigate('tasks')">
-      <div class="quick-action-icon">✅</div>
-      <div class="quick-action-label">タスク</div>
-    </button>
-    <button class="quick-action" onclick="navigate('prizes')">
-      <div class="quick-action-icon">🎁</div>
-      <div class="quick-action-label">景品交換</div>
-    </button>
-    <button class="quick-action" onclick="navigate('raidBoss')">
-      <div class="quick-action-icon">👹</div>
-      <div class="quick-action-label">レイドボス</div>
-    </button>
-    <button class="quick-action" onclick="navigate('messages')">
-      <div class="quick-action-icon">💬</div>
-      <div class="quick-action-label">メッセージ</div>
-    </button>
-    <button class="quick-action" onclick="ChatUI.openModal()">
-      <div class="quick-action-icon">🤖</div>
-      <div class="quick-action-label">バディ会話履歴</div>
-    </button>
-    <button class="quick-action" onclick="navigate('base')">
-      <div class="quick-action-icon">🚀</div>
-      <div class="quick-action-label">マイ基地</div>
-    </button>
+
+    <!-- セカンダリ: よく使う2つ -->
+    <div class="quick-action-row">
+      <button class="quick-action" onclick="navigate('condition')">
+        <div class="quick-action-icon">😊</div>
+        <div class="quick-action-label">コンディション</div>
+      </button>
+      <button class="quick-action" onclick="ChatUI.openModal()">
+        <div class="quick-action-icon">🤖</div>
+        <div class="quick-action-label">バディに相談</div>
+      </button>
+    </div>
+
+    <!-- その他: 小さく表示 -->
+    <div class="quick-action-more">
+      <button class="quick-action" onclick="navigate('ranking')">
+        <div class="quick-action-icon">🏆</div>
+        <div class="quick-action-label">ランキング</div>
+      </button>
+      <button class="quick-action" onclick="navigate('raidBoss')">
+        <div class="quick-action-icon">👹</div>
+        <div class="quick-action-label">ボス</div>
+      </button>
+      <button class="quick-action" onclick="navigate('prizes')">
+        <div class="quick-action-icon">🎁</div>
+        <div class="quick-action-label">景品</div>
+      </button>
+      <button class="quick-action" onclick="navigate('tasks')">
+        <div class="quick-action-icon">✅</div>
+        <div class="quick-action-label">タスク</div>
+      </button>
+      <button class="quick-action" onclick="navigate('messages')">
+        <div class="quick-action-icon">💬</div>
+        <div class="quick-action-label">メッセージ</div>
+      </button>
+      <button class="quick-action" onclick="navigate('base')">
+        <div class="quick-action-icon">🚀</div>
+        <div class="quick-action-label">基地</div>
+      </button>
+    </div>
   </div>
 
-  <!-- Phase S1: 集団目標セクション -->
-  <div class="home-section-title">🏫 教室の集団目標</div>
-  <div id="homeCollectiveGoals" style="margin-bottom:16px;"></div>
-
-  <!-- Phase X1: 個人目標 (今週の目標) -->
+  <!-- 目標セクション（個人・ギルド・集団を統合表示） -->
   <div class="home-section-title" style="display:flex;align-items:center;gap:10px;">
-    🎯 今週の目標
-    <button onclick="openCreatePersonalGoalModal()" style="margin-left:auto;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:16px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;">+ 目標を立てる</button>
+    🎯 目標
+    <button onclick="openCreatePersonalGoalModal()" style="margin-left:auto;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:16px;padding:6px 14px;font-size:12px;font-weight:700;cursor:pointer;">+ 目標を立てる</button>
   </div>
-  <div id="homePersonalGoals" style="margin-bottom:16px;"></div>
-
-  <div id="homeGuildGoal" style="margin-bottom:16px;"></div>
+  <div id="homePersonalGoals" style="margin-bottom:8px;"></div>
+  <div id="homeGuildGoal" style="margin-bottom:8px;"></div>
+  <div id="homeCollectiveGoals" style="margin-bottom:16px;"></div>
 
   <div class="home-section-title">最近の学習</div>
   <div id="homeRecentLogs"></div>
