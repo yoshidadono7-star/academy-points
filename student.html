@@ -3154,13 +3154,15 @@ async function updateHomeNotifications() {
     if (unread.length > 0) setButtonNotify('homeBtnMessages', 'badge', unread.length);
     else setButtonNotify('homeBtnMessages', 'clear');
 
-    // 未完了タスク
-    const tasks = await TasksDB.getAll();
-    const completions = await TasksDB.getCompletions(currentStudent.id);
-    const completedIds = new Set(completions.map(c => c.taskId));
-    const pendingTasks = tasks.filter(t => !completedIds.has(t.id));
-    if (pendingTasks.length > 0) setButtonNotify('homeBtnTasks', 'badge', pendingTasks.length);
-    else setButtonNotify('homeBtnTasks', 'clear');
+    // 未完了タスク（アクティブなタスクのみ。全件ではなく画面と同じ条件）
+    try {
+      const tasks = await TasksDB.getActive();
+      const completions = await TasksDB.getCompletions(currentStudent.id);
+      const completedIds = new Set(completions.map(c => c.taskId));
+      const pendingTasks = tasks.filter(t => !completedIds.has(t.id));
+      if (pendingTasks.length > 0) setButtonNotify('homeBtnTasks', 'badge', pendingTasks.length);
+      else setButtonNotify('homeBtnTasks', 'clear');
+    } catch(e) { setButtonNotify('homeBtnTasks', 'clear'); }
 
     // 交換可能な景品
     const pts = currentStudent.currentPoints || 0;
