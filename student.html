@@ -1853,6 +1853,22 @@ body.theme-space {
   <!-- イベントバナー（あれば表示。コンパクト） -->
   <div id="homeEventBanner" style="display:none;margin:0 16px 8px;"></div>
 
+  <!-- ===== ナッジゾーン（感情を動かす情報） ===== -->
+
+  <!-- ③損失回避: ストリーク警告 -->
+  <div id="homeStreakNudge" style="display:none;margin:0 16px 8px;"></div>
+
+  <!-- ②社会的証明: 今勉強中の仲間 -->
+  <div id="homeLiveCrew" style="display:none;margin:0 16px 8px;"></div>
+
+  <!-- ①変動報酬: ラッキーミッション -->
+  <div id="homeLuckyMission" style="margin:0 16px 8px;"></div>
+
+  <!-- ⑤所属感: ギルド進捗 -->
+  <div id="homeGuildNudge" style="display:none;margin:0 16px 8px;"></div>
+
+  <!-- 復習リマインダー（既存） -->
+
   <!-- 非表示データ保持用（JS参照） -->
   <div id="homeGuildBadge" style="display:none;"></div>
   <div id="homeYearlyPoints" style="display:none;"></div>
@@ -3150,6 +3166,133 @@ async function submitPersonalGoal() {
 }
 
 // 学習中ならホームのボタンを「学習中」表示に切り替え
+// ===== ナッジゾーン（行動経済学的動機づけ） =====
+async function loadNudgeZone() {
+  if (!currentStudent) return;
+  const s = currentStudent;
+
+  // ③ 損失回避: ストリーク警告
+  const streakEl = document.getElementById('homeStreakNudge');
+  if (streakEl) {
+    const streak = s.streak || 0;
+    if (streak >= 2) {
+      const nextBonus = streak >= 19 ? 60 : streak >= 9 ? 40 : streak >= 4 ? 20 : 10;
+      const daysToBonus = streak < 3 ? (3 - streak) : streak < 5 ? (5 - streak) : streak < 10 ? (10 - streak) : streak < 20 ? (20 - streak) : 0;
+      streakEl.style.display = 'block';
+      streakEl.innerHTML = `<div style="padding:12px 16px;background:linear-gradient(135deg,#fff5f5,#fed7d7);border:2px solid #fc8181;border-radius:14px;display:flex;align-items:center;gap:12px;">
+        <span style="font-size:32px;">🔥</span>
+        <div style="flex:1;">
+          <div style="font-size:15px;font-weight:800;color:#c53030;">${streak}日連続！途切れないで！</div>
+          <div style="font-size:12px;color:#e53e3e;">今日やれば${streak+1}日目${daysToBonus > 0 ? ` → あと${daysToBonus}日でボーナス+${nextBonus}pt` : ' → ボーナス+' + nextBonus + 'pt！'}</div>
+        </div>
+      </div>`;
+    } else if (streak === 1) {
+      streakEl.style.display = 'block';
+      streakEl.innerHTML = `<div style="padding:10px 16px;background:#fffbeb;border:1px solid #fbd38d;border-radius:14px;display:flex;align-items:center;gap:10px;">
+        <span style="font-size:24px;">🔥</span>
+        <div style="font-size:13px;color:#d69e2e;font-weight:700;">昨日もがんばったね！今日もやれば2日連続！</div>
+      </div>`;
+    } else {
+      streakEl.style.display = 'none';
+    }
+  }
+
+  // ② 社会的証明: 今勉強中の仲間
+  const liveEl = document.getElementById('homeLiveCrew');
+  if (liveEl) {
+    try {
+      const sessions = await ActiveSessionsDB.getAll();
+      const active = sessions.filter(a => a.studentId !== s.id && a.status === 'active');
+      if (active.length > 0) {
+        liveEl.style.display = 'block';
+        const names = active.slice(0, 3).map(a => a.callsign || a.studentName || '仲間').join('、');
+        const extra = active.length > 3 ? `ほか${active.length - 3}人` : '';
+        liveEl.innerHTML = `<div style="padding:10px 16px;background:linear-gradient(135deg,#1a1a2e,#16213e);border:1px solid rgba(0,212,255,0.3);border-radius:14px;display:flex;align-items:center;gap:10px;">
+          <span style="display:inline-block;width:10px;height:10px;background:#00ff88;border-radius:50%;animation:notifyPulse 1.5s infinite;"></span>
+          <div style="flex:1;">
+            <div style="font-size:13px;font-weight:700;color:#00d4ff;">📡 今${active.length}人が勉強中！</div>
+            <div style="font-size:11px;color:#a0aec0;">${names}${extra}</div>
+          </div>
+        </div>`;
+      } else {
+        liveEl.style.display = 'none';
+      }
+    } catch(e) { liveEl.style.display = 'none'; }
+  }
+
+  // ① 変動報酬: ラッキーミッション
+  const luckyEl = document.getElementById('homeLuckyMission');
+  if (luckyEl) {
+    try {
+      const draw = currentMissionDraw || (typeof DailyMissionsDB !== 'undefined' ? await DailyMissionsDB.getDraw(s.id) : null);
+      if (draw && draw.choices && draw.choices.length > 0 && !draw.accepted) {
+        // まだ選んでない → ガチャカード表示
+        luckyEl.innerHTML = `<div onclick="navigate('goals')" style="padding:14px 16px;background:linear-gradient(135deg,#fef3c7,#fde68a);border:2px solid #f6ad55;border-radius:14px;cursor:pointer;">
+          <div style="font-size:15px;font-weight:800;color:#92400e;margin-bottom:8px;">🎲 今日のラッキーミッション</div>
+          <div style="display:flex;gap:8px;justify-content:center;">
+            ${draw.choices.map(c => {
+              const m = typeof DailyMissionsDB !== 'undefined' ? DailyMissionsDB.getMissionById(c) : null;
+              return `<div style="flex:1;background:white;border-radius:10px;padding:10px 6px;text-align:center;box-shadow:0 2px 8px rgba(0,0,0,0.08);">
+                <div style="font-size:24px;">${m ? (m.icon || '🎯') : '❓'}</div>
+                <div style="font-size:11px;font-weight:700;margin-top:4px;">${m ? m.title : '???'}</div>
+                <div style="font-size:10px;color:#48bb78;font-weight:700;">${m ? '+' + m.points + 'pt' : ''}</div>
+              </div>`;
+            }).join('')}
+          </div>
+          <div style="text-align:center;font-size:12px;color:#92400e;margin-top:8px;">タップして1つ選ぼう！</div>
+        </div>`;
+      } else if (draw && draw.accepted) {
+        // 受注済み → 進捗表示
+        const m = typeof DailyMissionsDB !== 'undefined' ? DailyMissionsDB.getMissionById(draw.accepted) : null;
+        if (m) {
+          luckyEl.innerHTML = `<div style="padding:10px 16px;background:#f0fff4;border:1px solid #9ae6b4;border-radius:14px;display:flex;align-items:center;gap:10px;">
+            <span style="font-size:24px;">${m.icon || '🎯'}</span>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:700;color:#2d3748;">🎲 ${m.title}</div>
+              <div style="font-size:11px;color:#48bb78;">+${m.points}pt — ${draw.completed ? '✅ 達成！' : '進行中...'}</div>
+            </div>
+          </div>`;
+        } else { luckyEl.innerHTML = ''; }
+      } else { luckyEl.innerHTML = ''; }
+    } catch(e) { luckyEl.innerHTML = ''; }
+  }
+
+  // ⑤ 所属感: ギルド進捗
+  const guildEl = document.getElementById('homeGuildNudge');
+  if (guildEl && s.guildId) {
+    try {
+      const guild = await GuildsDB.getById(s.guildId);
+      if (guild) {
+        const theme = (typeof GUILD_THEMES !== 'undefined') ? GUILD_THEMES.find(t => t.id === guild.themeId) : null;
+        const icon = theme ? theme.icon : '⚔️';
+        const name = theme ? theme.name : guild.name;
+        const color = theme ? theme.color : '#667eea';
+        // ギルド目標チェック
+        let goalHtml = '';
+        try {
+          const goals = await GuildGoalsDB.getActiveByGuild(s.guildId);
+          if (goals.length > 0) {
+            const g = goals[0];
+            const progress = await GuildGoalsDB.calculateProgress(g);
+            const remaining = Math.max(0, g.target - progress.current);
+            goalHtml = `<div style="font-size:11px;color:${color};margin-top:2px;">🎯 ${g.title}: あと${remaining}で達成 → 全員+${g.reward}pt</div>`;
+          }
+        } catch(e) {}
+        guildEl.style.display = 'block';
+        guildEl.innerHTML = `<div style="padding:10px 16px;background:white;border:2px solid ${color}44;border-left:4px solid ${color};border-radius:14px;">
+          <div style="display:flex;align-items:center;gap:8px;">
+            <span style="font-size:22px;">${icon}</span>
+            <div style="flex:1;">
+              <div style="font-size:13px;font-weight:700;">${name} — ${(guild.totalPoints||0).toLocaleString()}pt</div>
+              ${goalHtml}
+            </div>
+          </div>
+        </div>`;
+      } else { guildEl.style.display = 'none'; }
+    } catch(e) { guildEl.style.display = 'none'; }
+  }
+}
+
 // ===== ホーム画面の通知バッジ・光りアニメーション =====
 function setButtonNotify(btnId, type, value) {
   // type: 'badge' (数字), 'dot' (赤い点), 'glow' (光る), 'glow-gold' (金色に光る), 'clear' (消す)
@@ -3393,6 +3536,9 @@ async function loadHome() {
   // 分散学習: 今日の復習リマインダー
   loadReviewReminders().catch(e => console.warn('[reviewReminder]', e));
 
+  // ナッジゾーン: 感情を動かす情報
+  loadNudgeZone().catch(e => console.warn('[nudge]', e));
+
   // Refresh student data
   try {
     const fresh = await StudentsDB.getById(currentStudent.id);
@@ -3470,7 +3616,13 @@ async function loadHome() {
   const pts = s.totalPoints || 0;
   const progress = Math.min(100, ((pts - currentThreshold) / (nextThreshold - currentThreshold)) * 100);
   document.getElementById('homeLevelFill').style.width = progress + '%';
-  document.getElementById('homeLevelText').textContent = `Lv.${level} → Lv.${level + 1} まであと ${Math.max(0, nextThreshold - pts)} ポイント`;
+  const remaining = Math.max(0, nextThreshold - pts);
+  const levelText = document.getElementById('homeLevelText');
+  if (remaining <= 50) {
+    levelText.innerHTML = `<span style="color:#ffd700;font-weight:900;">✨ あと ${remaining}pt でLv.${level + 1}！もう少し！</span>`;
+  } else {
+    levelText.textContent = `Lv.${level} → Lv.${level + 1} まであと ${remaining} ポイント`;
+  }
 
   // Apply world theme
   applyWorldTheme(s.worldId || 'space');
