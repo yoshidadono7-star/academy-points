@@ -1820,12 +1820,15 @@ body.theme-space {
 <div id="screenHome" class="screen">
   <!-- コンパクトステータスバー -->
   <div style="margin:0 16px 12px;padding:16px 18px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));border-radius:16px;color:white;">
-    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
-      <div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px;">
+      <!-- 生徒アバター -->
+      <div id="homeStudentAvatar" style="width:48px;height:48px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:24px;flex-shrink:0;border:2px solid rgba(255,255,255,0.4);">👤</div>
+      <div style="flex:1;">
         <div style="font-size:13px;opacity:0.8;" id="homeGreeting">こんにちは！</div>
         <div style="font-size:22px;font-weight:900;" id="homeName">---</div>
       </div>
-      <div id="homeRankBadge" style="font-size:13px;opacity:0.9;"></div>
+      <!-- バディ顔 -->
+      <div id="homeBuddyFace" style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0;" title="バディ">🤖</div>
     </div>
     <div style="display:flex;gap:8px;">
       <div style="flex:1;background:rgba(255,255,255,0.15);border-radius:10px;padding:8px;text-align:center;">
@@ -2057,6 +2060,13 @@ body.theme-space {
       <button class="mode-btn" onclick="selectMode('location','塾',this)"><div class="mode-btn-icon">🏫</div><div class="mode-btn-label">塾</div></button>
       <button class="mode-btn" onclick="selectMode('location','自宅',this)"><div class="mode-btn-icon">🏠</div><div class="mode-btn-label">自宅</div></button>
       <button class="mode-btn" onclick="selectLocationZoom(this)"><div class="mode-btn-icon">💻</div><div class="mode-btn-label">Zoom</div></button>
+    </div>
+  </div>
+
+  <div class="mode-section">
+    <div class="mode-section-title">📦 教材を選択</div>
+    <div class="mode-grid" id="materialGrid" style="grid-template-columns:1fr 1fr 1fr;">
+      <!-- JSで生徒の登録教材から動的生成 -->
     </div>
   </div>
 
@@ -3397,6 +3407,27 @@ async function loadHome() {
 
   document.getElementById('homeGreeting').textContent = greeting;
   document.getElementById('homeName').textContent = (s.callsign || s.nickname || s.name) + ' さん';
+
+  // 生徒アバター表示
+  const studentAv = document.getElementById('homeStudentAvatar');
+  if (studentAv) {
+    if (s.avatarEmoji) {
+      studentAv.textContent = s.avatarEmoji;
+    } else {
+      const initial = (s.callsign || s.nickname || s.name || '?').charAt(0);
+      studentAv.textContent = initial;
+      studentAv.style.fontSize = '20px';
+      studentAv.style.fontWeight = '900';
+    }
+  }
+  // バディ顔表示
+  const buddyFace = document.getElementById('homeBuddyFace');
+  if (buddyFace) {
+    const buddy = (typeof BuddySystem !== 'undefined' && BuddySystem.getCurrentBuddy)
+      ? BuddySystem.getCurrentBuddy() : null;
+    if (buddy) buddyFace.textContent = buddy.avatar || '🤖';
+  }
+
   document.getElementById('homePoints').textContent = (s.currentPoints || 0).toLocaleString();
   const yearlyEl = document.getElementById('homeYearlyPoints');
   if (yearlyEl) {
@@ -4070,9 +4101,44 @@ async function doCompleteTask(taskId, points) {
 // Study Mode Selection
 // ============================================
 function resetStudyMode() {
-  studySession = { subject: null, location: null, method: null };
+  studySession = { subject: null, location: null, method: null, material: null, materialNote: null };
   document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
   document.getElementById('startStudyBtn').disabled = true;
+
+  // 生徒の登録教材から教材グリッドを動的生成
+  const grid = document.getElementById('materialGrid');
+  if (grid && currentStudent) {
+    const MATERIAL_INFO = {
+      srj_sokudoku: { name: 'SRJ速読', icon: '📚' },
+      srj_eigo: { name: 'SRJ英語', icon: '🔤' },
+      srj_sansu: { name: 'SRJ算数', icon: '🔢' },
+      srj_kokugo: { name: 'SRJ国語', icon: '📕' },
+      atama_plus: { name: 'atama+', icon: '💡' },
+      edu_plus: { name: 'edu+', icon: '📱' },
+      manabi_aid: { name: '学びエイド', icon: '🎓' },
+      monoxer: { name: 'Monoxer', icon: '🧠' },
+      ikushin: { name: '育伸テスト', icon: '📝' },
+      miyazaki_moshi: { name: '宮崎模試', icon: '📋' },
+      paper_other: { name: 'その他紙教材', icon: '📄' },
+    };
+    const mats = (currentStudent.materials && currentStudent.materials.length > 0)
+      ? currentStudent.materials
+      : Object.keys(MATERIAL_INFO); // 未登録なら全教材表示
+    grid.innerHTML = mats.map(id => {
+      const info = MATERIAL_INFO[id] || { name: id, icon: '📦' };
+      return `<button class="mode-btn" onclick="selectMaterial('${id}','${info.name}',this)"><div class="mode-btn-icon">${info.icon}</div><div class="mode-btn-label">${info.name}</div></button>`;
+    }).join('') + `<button class="mode-btn" onclick="selectMaterial('none','教材なし',this)"><div class="mode-btn-icon">✏️</div><div class="mode-btn-label">教材なし</div></button>`;
+  }
+}
+
+function selectMaterial(id, name, btn) {
+  studySession.material = id === 'none' ? null : id;
+  studySession.materialNote = id === 'none' ? null : name;
+  const grid = btn.parentElement;
+  grid.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('selected'));
+  btn.classList.add('selected');
+  document.getElementById('startStudyBtn').disabled =
+    !(studySession.subject && studySession.location && studySession.method);
 }
 
 function selectMode(type, value, btn) {
