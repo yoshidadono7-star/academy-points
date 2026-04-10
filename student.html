@@ -2150,9 +2150,21 @@ body.theme-space {
     </div>
 
     <!-- 復習スケジュール表示 -->
-    <div id="completeReviewSchedule" style="margin:0 16px 16px;padding:14px 16px;background:#f0f4ff;border-radius:12px;font-size:13px;">
-      <div style="font-weight:700;margin-bottom:6px;">📅 復習スケジュールを自動作成しました</div>
-      <div id="completeReviewDates" style="color:#718096;"></div>
+    <div id="completeReviewSchedule" style="margin:0 16px 16px;">
+      <!-- 次の復習（大きく） -->
+      <div style="padding:16px 18px;background:linear-gradient(135deg,#667eea,#764ba2);border-radius:14px;color:white;text-align:center;margin-bottom:8px;">
+        <div style="font-size:13px;opacity:0.8;">次の復習</div>
+        <div style="font-size:24px;font-weight:900;" id="completeNextReviewDate">明日</div>
+        <div style="font-size:12px;opacity:0.7;margin-top:2px;" id="completeNextReviewSubject"></div>
+      </div>
+      <!-- 全スケジュール -->
+      <div style="padding:12px 14px;background:#f0f4ff;border-radius:12px;font-size:12px;">
+        <div style="font-weight:700;margin-bottom:6px;">📅 復習スケジュール（自動作成）</div>
+        <div id="completeReviewDates" style="color:#718096;"></div>
+        <button onclick="addReviewToCalendar()" style="margin-top:10px;width:100%;padding:10px;background:white;border:2px solid #667eea;border-radius:10px;color:#667eea;font-size:13px;font-weight:700;cursor:pointer;">
+          📆 カレンダーに登録する
+        </button>
+      </div>
     </div>
 
     <!-- バッジ・コンボ・ボス等は振り返りの下 -->
@@ -2521,6 +2533,9 @@ async function handleLogin() {
         else if (hour >= 18) BuddySystem.react('evening', { name: studentName });
         else BuddySystem.react('welcome', { name: studentName });
       }, 1500);
+
+      // 復習リマインド
+      setTimeout(() => { buddyReviewReminder(student.id); }, 3500);
     }
 
     if (checkWorldSelectNeeded()) {
@@ -2573,6 +2588,9 @@ async function tryAutoLogin() {
         else if (hour >= 18) BuddySystem.react('evening', { name: studentName });
         else BuddySystem.react('welcome', { name: studentName });
       }, 1500);
+
+      // 復習リマインド: ログイン3秒後にバディが声かけ
+      setTimeout(() => { buddyReviewReminder(student.id); }, 3500);
 
       if (checkWorldSelectNeeded()) {
         renderWorldSelect(true);
@@ -3203,6 +3221,55 @@ async function updateHomeNotifications() {
 }
 
 // ===== アクティブリコール =====
+// ログイン時のバディ復習リマインド
+async function buddyReviewReminder(studentId) {
+  try {
+    const reviews = await ReviewScheduleDB.getTodayReviews(studentId);
+    if (reviews.length === 0) return;
+
+    // 科目をまとめる
+    const subjects = [...new Set(reviews.map(r => r.subject))];
+    const subjectText = subjects.join('と');
+    const stepInfo = reviews[0] ? `(${reviews[0].step}回目/${reviews[0].totalSteps}回)` : '';
+
+    // バディが声かけ
+    const messages = [
+      `${subjectText}の復習タイミングだよ${stepInfo}！忘れかけた今がゴールデンタイム！`,
+      `昨日の${subjectText}、覚えてる？ちょっと思い出してみよう${stepInfo}`,
+      `${subjectText}の復習${stepInfo}。教科書見ないで、何を学んだか思い出してみて！`,
+    ];
+    const msg = messages[Math.floor(Math.random() * messages.length)];
+    BuddySystem.say(msg, { duration: 6000 });
+  } catch(e) { console.warn('[buddyReviewReminder]', e); }
+}
+
+// カレンダーに復習スケジュールを登録（.icsファイルダウンロード）
+function addReviewToCalendar() {
+  const subject = window._lastStudySubject || '学習';
+  const today = window._lastStudyDate || new Date().toISOString().split('T')[0];
+
+  let icsContent = 'BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//HEROS Academy//Review//JA\n';
+
+  ReviewScheduleDB.INTERVALS.forEach((days, i) => {
+    const dt = new Date(today);
+    dt.setDate(dt.getDate() + days);
+    const dateStr = dt.toISOString().split('T')[0].replace(/-/g, '');
+    icsContent += `BEGIN:VEVENT\nDTSTART;VALUE=DATE:${dateStr}\nSUMMARY:📖 ${subject}の復習 (${i+1}/${ReviewScheduleDB.INTERVALS.length}回目)\nDESCRIPTION:HERO'S Academy 分散学習リマインダー\\n忘れかけた今がゴールデンタイム！\nEND:VEVENT\n`;
+  });
+
+  icsContent += 'END:VCALENDAR';
+
+  const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `review_${subject}_${today}.ics`;
+  a.click();
+  URL.revokeObjectURL(url);
+
+  showToast('📆 カレンダーファイルをダウンロードしました');
+}
+
 function startActiveRecall() {
   // バディチャットを開き、リコール用のプロンプトを自動入力
   const subject = (studySession && studySession.subject) || '学習';
@@ -4592,14 +4659,29 @@ function showCompleteScreen(duration, points, newBadges, raidResults, comboResul
       const today = new Date().toISOString().split('T')[0];
       const subject = studySession.subject || '学習';
       await ReviewScheduleDB.create(currentStudent.id, subject, today, '');
+      // 次の復習日を大きく表示
+      const nextDate = new Date(); nextDate.setDate(nextDate.getDate() + 1);
+      const nextDateEl = document.getElementById('completeNextReviewDate');
+      const nextSubEl = document.getElementById('completeNextReviewSubject');
+      if (nextDateEl) nextDateEl.textContent = `明日 ${nextDate.getMonth()+1}/${nextDate.getDate()}`;
+      if (nextSubEl) nextSubEl.textContent = `${subject} の復習`;
+      // 全スケジュール
       const reviewDatesEl = document.getElementById('completeReviewDates');
       if (reviewDatesEl) {
-        const dates = ReviewScheduleDB.INTERVALS.map(d => {
+        reviewDatesEl.innerHTML = ReviewScheduleDB.INTERVALS.map((d, i) => {
           const dt = new Date(); dt.setDate(dt.getDate() + d);
-          return `${d}日後 (${dt.getMonth()+1}/${dt.getDate()})`;
-        });
-        reviewDatesEl.textContent = `${subject}: ${dates.join(' → ')}`;
+          const dateStr = `${dt.getMonth()+1}/${dt.getDate()}`;
+          const label = d === 1 ? '明日' : `${d}日後`;
+          return `<div style="display:flex;align-items:center;gap:8px;padding:4px 0;${i === 0 ? 'font-weight:700;color:#667eea;' : ''}">
+            <span style="width:16px;height:16px;border-radius:50%;background:${i === 0 ? '#667eea' : '#cbd5e0'};display:inline-flex;align-items:center;justify-content:center;color:white;font-size:9px;font-weight:700;">${i+1}</span>
+            <span>${label} (${dateStr})</span>
+            <span style="margin-left:auto;font-size:11px;color:#a0aec0;">${subject}</span>
+          </div>`;
+        }).join('');
       }
+      // カレンダー用にデータを保存
+      window._lastStudySubject = subject;
+      window._lastStudyDate = today;
     } catch(e) { console.warn('[reviewSchedule]', e); }
   })();
 
