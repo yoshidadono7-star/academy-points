@@ -3149,10 +3149,12 @@ async function updateHomeNotifications() {
   if (!currentStudent) return;
   try {
     // 未読メッセージ
-    const msgs = await MessagesDB.getByStudent(currentStudent.id);
-    const unread = msgs.filter(m => !m.read && m.fromType === 'teacher');
-    if (unread.length > 0) setButtonNotify('homeBtnMessages', 'badge', unread.length);
-    else setButtonNotify('homeBtnMessages', 'clear');
+    try {
+      const msgs = await MessagesDB.getByStudentRecent(currentStudent.id, 20);
+      const unread = msgs.filter(m => !m.read && m.fromType === 'teacher');
+      if (unread.length > 0) setButtonNotify('homeBtnMessages', 'badge', unread.length);
+      else setButtonNotify('homeBtnMessages', 'clear');
+    } catch(e) { setButtonNotify('homeBtnMessages', 'clear'); }
 
     // 未完了タスク（アクティブなタスクのみ。全件ではなく画面と同じ条件）
     try {
@@ -3165,28 +3167,34 @@ async function updateHomeNotifications() {
     } catch(e) { setButtonNotify('homeBtnTasks', 'clear'); }
 
     // 交換可能な景品
-    const pts = currentStudent.currentPoints || 0;
-    const rewards = await RewardsDB.getAll();
-    const affordable = rewards.filter(r => r.cost <= pts);
-    if (affordable.length > 0) setButtonNotify('homeBtnPrizes', 'glow-gold');
-    else setButtonNotify('homeBtnPrizes', 'clear');
+    try {
+      const pts = currentStudent.currentPoints || 0;
+      const rewards = await RewardsDB.getAll();
+      const affordable = rewards.filter(r => r.cost <= pts);
+      if (affordable.length > 0) setButtonNotify('homeBtnPrizes', 'glow-gold');
+      else setButtonNotify('homeBtnPrizes', 'clear');
+    } catch(e) { setButtonNotify('homeBtnPrizes', 'clear'); }
 
     // 目標（達成あり or 未設定）
-    const goals = await PersonalGoalsDB.getCurrentWeekByStudent(currentStudent.id);
-    const achieved = goals.filter(g => g.status === 'achieved');
-    if (achieved.length > 0) setButtonNotify('homeBtnGoals', 'glow-gold');
-    else if (goals.length === 0) setButtonNotify('homeBtnGoals', 'dot');
-    else setButtonNotify('homeBtnGoals', 'clear');
+    try {
+      const goals = await PersonalGoalsDB.getCurrentWeekByStudent(currentStudent.id);
+      const achieved = goals.filter(g => g.status === 'achieved');
+      if (achieved.length > 0) setButtonNotify('homeBtnGoals', 'glow-gold');
+      else if (goals.length === 0) setButtonNotify('homeBtnGoals', 'dot');
+      else setButtonNotify('homeBtnGoals', 'clear');
+    } catch(e) { setButtonNotify('homeBtnGoals', 'clear'); }
 
     // 新しいバッジ（今日獲得）
-    const today = new Date().toISOString().split('T')[0];
-    const badges = await BadgesDB.getByStudent(currentStudent.id);
-    const todayBadges = badges.filter(b => {
-      const d = b.awardedAt && b.awardedAt.toDate ? b.awardedAt.toDate().toISOString().split('T')[0] : '';
-      return d === today;
-    });
-    if (todayBadges.length > 0) setButtonNotify('homeBtnBadges', 'glow-gold');
-    else setButtonNotify('homeBtnBadges', 'clear');
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const badges = await BadgesDB.getByStudent(currentStudent.id);
+      const todayBadges = badges.filter(b => {
+        const d = b.awardedAt && b.awardedAt.toDate ? b.awardedAt.toDate().toISOString().split('T')[0] : '';
+        return d === today;
+      });
+      if (todayBadges.length > 0) setButtonNotify('homeBtnBadges', 'glow-gold');
+      else setButtonNotify('homeBtnBadges', 'clear');
+    } catch(e) { setButtonNotify('homeBtnBadges', 'clear'); }
   } catch(e) { console.warn('[homeNotify]', e); }
 }
 
