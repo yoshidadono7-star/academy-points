@@ -884,40 +884,52 @@ body.buddy-on .buddy-chatbar { display: flex; }
 }
 .home-level-text { font-size: 11px; opacity: 0.85; margin-top: 4px; text-align: right; }
 
-.quick-actions {
-  display: flex; flex-direction: column; gap: 10px; margin: 0 16px; padding-top: 20px;
+/* ===== ラーメン屋式 タッチパネルUI ===== */
+.touch-menu {
+  display: flex; flex-direction: column; gap: 12px;
+  margin: 0 16px; padding-top: 16px;
 }
-.quick-action-main {
+.touch-btn {
+  display: flex; align-items: center; gap: 16px;
+  background: white; border-radius: 16px; padding: 20px 24px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06); cursor: pointer;
+  transition: transform 0.15s, box-shadow 0.15s;
+  border: 2px solid transparent; font-family: inherit; width: 100%;
+  text-align: left; min-height: 80px;
+}
+.touch-btn:active { transform: scale(0.97); box-shadow: 0 1px 6px rgba(0,0,0,0.1); }
+.touch-btn-primary {
   background: linear-gradient(135deg, var(--primary), var(--primary-dark));
-  border-radius: 16px; padding: 20px; text-align: center;
-  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3); cursor: pointer;
-  transition: transform 0.2s; border: none; font-family: inherit; color: white; width: 100%;
+  color: white; border: none;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+  min-height: 90px;
 }
-.quick-action-main:active { transform: scale(0.97); }
-.quick-action-main .quick-action-icon { font-size: 40px; margin-bottom: 4px; }
-.quick-action-main .quick-action-label { font-size: 18px; font-weight: 800; }
-.quick-action-main .quick-action-sub { font-size: 12px; opacity: 0.8; margin-top: 2px; }
+.touch-btn-icon { font-size: 36px; flex-shrink: 0; }
+.touch-btn-text { flex: 1; }
+.touch-btn-label { font-size: 18px; font-weight: 800; }
+.touch-btn-primary .touch-btn-label { font-size: 20px; }
+.touch-btn-sub { font-size: 12px; opacity: 0.7; margin-top: 2px; }
+.touch-btn-arrow { font-size: 20px; opacity: 0.4; flex-shrink: 0; }
+.touch-btn-primary .touch-btn-arrow { opacity: 0.7; }
 
-.quick-action-row {
-  display: grid; grid-template-columns: 1fr 1fr; gap: 10px;
+/* サブメニュー用グリッド（2列） */
+.touch-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  margin: 0 16px; padding-top: 16px;
 }
-.quick-action {
-  background: white; border-radius: var(--radius); padding: 16px 12px;
-  text-align: center; box-shadow: var(--shadow); cursor: pointer;
-  transition: transform 0.2s; border: none; font-family: inherit;
+.touch-grid-btn {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; background: white; border-radius: 16px; padding: 24px 12px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06); cursor: pointer;
+  transition: transform 0.15s; border: 2px solid transparent;
+  font-family: inherit; min-height: 100px;
 }
-.quick-action:active { transform: scale(0.96); }
-.quick-action-icon { font-size: 28px; margin-bottom: 4px; }
-.quick-action-label { font-size: 13px; font-weight: 600; color: var(--text); }
+.touch-grid-btn:active { transform: scale(0.96); }
+.touch-grid-btn .touch-btn-icon { font-size: 32px; }
+.touch-grid-btn .touch-btn-label { font-size: 15px; font-weight: 700; color: var(--text); }
 
-.quick-action-more {
-  display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px;
-}
-.quick-action-more .quick-action {
-  padding: 12px 8px;
-}
-.quick-action-more .quick-action-icon { font-size: 22px; }
-.quick-action-more .quick-action-label { font-size: 11px; }
+/* 旧クイックアクション（後方互換） */
+.quick-actions, .quick-action-main, .quick-action-row, .quick-action-more, .quick-action { display: none; }
 
 .home-section-title {
   font-size: 16px; font-weight: 700; padding: 20px 20px 8px;
@@ -1836,53 +1848,52 @@ body.theme-space {
     <div id="homeMissionAccepted" style="display:none"></div>
   </div>
 
-  <div class="quick-actions">
-    <!-- メインアクション: 最も重要な1つ -->
-    <button class="quick-action-main" onclick="navigate('studyMode')">
-      <div class="quick-action-icon">📚</div>
-      <div class="quick-action-label">学習スタート</div>
-      <div class="quick-action-sub">科目を選んで冒険に出発！</div>
+  <!-- ===== ラーメン屋式 タッチパネルメニュー ===== -->
+  <div class="touch-menu">
+    <button class="touch-btn touch-btn-primary" onclick="navigate('studyMode')">
+      <span class="touch-btn-icon">📚</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">学習スタート</span>
+        <span class="touch-btn-sub">科目を選んで冒険に出発！</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
     </button>
 
-    <!-- セカンダリ: よく使う2つ -->
-    <div class="quick-action-row">
-      <button class="quick-action" onclick="navigate('condition')">
-        <div class="quick-action-icon">😊</div>
-        <div class="quick-action-label">コンディション</div>
-      </button>
-      <button class="quick-action" onclick="ChatUI.openModal()">
-        <div class="quick-action-icon">🤖</div>
-        <div class="quick-action-label">バディに相談</div>
-      </button>
-    </div>
+    <button class="touch-btn" id="touchCheckin" onclick="doCheckIn()" style="display:none;border-color:#48bb78;">
+      <span class="touch-btn-icon">🚀</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">到着！冒険をはじめる</span>
+        <span class="touch-btn-sub">出席を記録してポイントゲット</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
+    </button>
 
-    <!-- その他: 小さく表示 -->
-    <div class="quick-action-more">
-      <button class="quick-action" onclick="navigate('ranking')">
-        <div class="quick-action-icon">🏆</div>
-        <div class="quick-action-label">ランキング</div>
-      </button>
-      <button class="quick-action" onclick="navigate('raidBoss')">
-        <div class="quick-action-icon">👹</div>
-        <div class="quick-action-label">ボス</div>
-      </button>
-      <button class="quick-action" onclick="navigate('prizes')">
-        <div class="quick-action-icon">🎁</div>
-        <div class="quick-action-label">景品</div>
-      </button>
-      <button class="quick-action" onclick="navigate('tasks')">
-        <div class="quick-action-icon">✅</div>
-        <div class="quick-action-label">タスク</div>
-      </button>
-      <button class="quick-action" onclick="navigate('messages')">
-        <div class="quick-action-icon">💬</div>
-        <div class="quick-action-label">メッセージ</div>
-      </button>
-      <button class="quick-action" onclick="navigate('base')">
-        <div class="quick-action-icon">🚀</div>
-        <div class="quick-action-label">基地</div>
-      </button>
-    </div>
+    <button class="touch-btn" onclick="ChatUI.openModal()">
+      <span class="touch-btn-icon">🤖</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">バディに相談</span>
+        <span class="touch-btn-sub">勉強の相談や雑談ができるよ</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
+    </button>
+
+    <button class="touch-btn" onclick="navigate('condition')">
+      <span class="touch-btn-icon">😊</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">今日の気分</span>
+        <span class="touch-btn-sub">コンディションを記録しよう</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
+    </button>
+
+    <button class="touch-btn" onclick="navigate('submenu')">
+      <span class="touch-btn-icon">📋</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">もっと見る</span>
+        <span class="touch-btn-sub">ランキング・ボス・景品・タスク...</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
+    </button>
   </div>
 
   <!-- 目標セクション（個人・ギルド・集団を統合表示） -->
@@ -2064,6 +2075,48 @@ body.theme-space {
 </div>
 
 <!-- ========== 8. ランキング画面 ========== -->
+<!-- ========== サブメニュー（もっと見る） ========== -->
+<div id="screenSubmenu" class="screen">
+  <div class="screen-header">
+    <button class="header-back" onclick="navigate('home')">←</button>
+    <div class="header-title">もっと見る</div>
+  </div>
+  <div class="touch-grid">
+    <button class="touch-grid-btn" onclick="navigate('ranking')">
+      <span class="touch-btn-icon">🏆</span>
+      <span class="touch-btn-label">ランキング</span>
+    </button>
+    <button class="touch-grid-btn" onclick="navigate('raidBoss')">
+      <span class="touch-btn-icon">👹</span>
+      <span class="touch-btn-label">レイドボス</span>
+    </button>
+    <button class="touch-grid-btn" onclick="navigate('prizes')">
+      <span class="touch-btn-icon">🎁</span>
+      <span class="touch-btn-label">景品交換</span>
+    </button>
+    <button class="touch-grid-btn" onclick="navigate('tasks')">
+      <span class="touch-btn-icon">✅</span>
+      <span class="touch-btn-label">タスク</span>
+    </button>
+    <button class="touch-grid-btn" onclick="navigate('messages')">
+      <span class="touch-btn-icon">💬</span>
+      <span class="touch-btn-label">メッセージ</span>
+    </button>
+    <button class="touch-grid-btn" onclick="navigate('base')">
+      <span class="touch-btn-icon">🚀</span>
+      <span class="touch-btn-label">マイ基地</span>
+    </button>
+    <button class="touch-grid-btn" onclick="navigate('badges')">
+      <span class="touch-btn-icon">🏅</span>
+      <span class="touch-btn-label">バッジ</span>
+    </button>
+    <button class="touch-grid-btn" onclick="navigate('combo')">
+      <span class="touch-btn-icon">⚡</span>
+      <span class="touch-btn-label">コンボ図鑑</span>
+    </button>
+  </div>
+</div>
+
 <div id="screenRanking" class="screen">
   <div class="header">
     <div></div>
