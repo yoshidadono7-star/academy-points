@@ -4582,21 +4582,22 @@ function showCompleteScreen(duration, points, newBadges, raidResults, comboResul
     missionEl.innerHTML = '';
   }
 
-  // 分散学習: 復習スケジュールを自動生成
-  try {
-    const today = new Date().toISOString().split('T')[0];
-    const subject = studySession.subject || '学習';
-    await ReviewScheduleDB.create(currentStudent.id, subject, today, '');
-    // 復習日を表示
-    const reviewDatesEl = document.getElementById('completeReviewDates');
-    if (reviewDatesEl) {
-      const dates = ReviewScheduleDB.INTERVALS.map(d => {
-        const dt = new Date(); dt.setDate(dt.getDate() + d);
-        return `${d}日後 (${dt.getMonth()+1}/${dt.getDate()})`;
-      });
-      reviewDatesEl.textContent = `${subject}: ${dates.join(' → ')}`;
-    }
-  } catch(e) { console.warn('[reviewSchedule]', e); }
+  // 分散学習: 復習スケジュールを自動生成（非同期、awaitなし）
+  (async () => {
+    try {
+      const today = new Date().toISOString().split('T')[0];
+      const subject = studySession.subject || '学習';
+      await ReviewScheduleDB.create(currentStudent.id, subject, today, '');
+      const reviewDatesEl = document.getElementById('completeReviewDates');
+      if (reviewDatesEl) {
+        const dates = ReviewScheduleDB.INTERVALS.map(d => {
+          const dt = new Date(); dt.setDate(dt.getDate() + d);
+          return `${d}日後 (${dt.getMonth()+1}/${dt.getDate()})`;
+        });
+        reviewDatesEl.textContent = `${subject}: ${dates.join(' → ')}`;
+      }
+    } catch(e) { console.warn('[reviewSchedule]', e); }
+  })();
 
   navigate('complete');
   fireConfetti();
