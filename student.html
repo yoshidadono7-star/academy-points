@@ -1796,100 +1796,49 @@ body.theme-space {
 
 <!-- ========== 2. ホーム画面 ========== -->
 <div id="screenHome" class="screen">
-  <div class="home-hero">
-    <div class="home-greeting" id="homeGreeting">こんにちは！</div>
-    <div class="home-name" id="homeName">---</div>
-    <div id="homeGuildBadge" class="home-guild-badge" style="display:none"></div>
-    <div id="homeRankBadge" style="margin-bottom:8px;font-size:14px;opacity:0.9"></div>
-    <div class="home-stats">
-      <div class="home-stat">
-        <div class="home-stat-value" id="homePoints">0</div>
-        <div class="home-stat-label">ポイント</div>
-        <div id="homeYearlyPoints" style="font-size:9px;opacity:0.7;margin-top:-2px;"></div>
+  <!-- コンパクトステータスバー -->
+  <div style="margin:0 16px 12px;padding:16px 18px;background:linear-gradient(135deg,var(--primary),var(--primary-dark));border-radius:16px;color:white;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;">
+      <div>
+        <div style="font-size:13px;opacity:0.8;" id="homeGreeting">こんにちは！</div>
+        <div style="font-size:22px;font-weight:900;" id="homeName">---</div>
       </div>
-      <div class="home-stat">
-        <div class="home-stat-value" id="homeLevel">1</div>
-        <div class="home-stat-label">レベル</div>
+      <div id="homeRankBadge" style="font-size:13px;opacity:0.9;"></div>
+    </div>
+    <div style="display:flex;gap:8px;">
+      <div style="flex:1;background:rgba(255,255,255,0.15);border-radius:10px;padding:8px;text-align:center;">
+        <div style="font-size:20px;font-weight:900;" id="homePoints">0</div>
+        <div style="font-size:10px;opacity:0.8;">ポイント</div>
       </div>
-      <div class="home-stat">
-        <div class="home-stat-value" id="homeStreak">0</div>
-        <div class="home-stat-label">🔥 連続日数</div>
+      <div style="flex:1;background:rgba(255,255,255,0.15);border-radius:10px;padding:8px;text-align:center;">
+        <div style="font-size:20px;font-weight:900;" id="homeLevel">1</div>
+        <div style="font-size:10px;opacity:0.8;">レベル</div>
+      </div>
+      <div style="flex:1;background:rgba(255,255,255,0.15);border-radius:10px;padding:8px;text-align:center;">
+        <div style="font-size:20px;font-weight:900;" id="homeStreak">0</div>
+        <div style="font-size:10px;opacity:0.8;">🔥連続</div>
       </div>
     </div>
-    <div class="home-level-bar">
-      <div class="home-level-fill" id="homeLevelFill" style="width:0%"></div>
+    <div style="margin-top:8px;background:rgba(255,255,255,0.2);border-radius:6px;height:6px;">
+      <div id="homeLevelFill" style="background:rgba(255,255,255,0.8);border-radius:6px;height:6px;width:0%;transition:width 0.3s;"></div>
     </div>
-    <div class="home-level-text" id="homeLevelText"></div>
+    <div id="homeLevelText" style="font-size:10px;opacity:0.7;margin-top:4px;text-align:right;"></div>
   </div>
 
-  <!-- イベント発動中バナー（リアルタイム） -->
-  <div id="homeEventBanner" style="display:none;margin:0 16px 12px;"></div>
+  <!-- イベントバナー（あれば表示。コンパクト） -->
+  <div id="homeEventBanner" style="display:none;margin:0 16px 8px;"></div>
 
-  <!-- テストカウントダウン -->
-  <div id="examCountdown" style="margin:0 16px 12px;display:none;"></div>
-
-  <!-- ナレーション（非表示、データは裏でロード） -->
+  <!-- 非表示データ保持用（JS参照） -->
+  <div id="homeGuildBadge" style="display:none;"></div>
+  <div id="homeYearlyPoints" style="display:none;"></div>
   <div id="homeNarration" style="display:none;"><span id="homeNarrationText"></span></div>
-
-  <!-- 以下はマイページタブに移動: 出撃中仲間・学習ルート・教材進捗 -->
-  <div id="liveCrewSection" style="display:none;margin:0 16px 12px;">
-    <div style="background:linear-gradient(135deg,#1e293b,#0f172a);border:1px solid rgba(0,212,255,0.3);border-radius:12px;padding:12px 14px;">
-      <div style="font-size:12px;font-weight:700;color:#00d4ff;margin-bottom:8px;display:flex;align-items:center;gap:6px;">
-        <span style="display:inline-block;width:8px;height:8px;background:#00ff88;border-radius:50%;animation:pulse 1.5s infinite;"></span>
-        📡 現在出撃中 <span id="liveCrewCount" style="color:#00ff88;"></span>
-      </div>
-      <div id="liveCrewList" style="display:flex;flex-direction:column;gap:4px;"></div>
-    </div>
-  </div>
-
-  <div id="routeProgress" style="margin:0 16px 12px;display:none;"></div>
-
-  <!-- ミッションブリーフィング（到着〜速読〜学習ガイド） -->
-  <div id="missionBriefing" style="margin:0 16px 12px;display:none;">
-
-    <!-- 未到着: チェックインボタン -->
-    <div id="briefingArrival" style="display:none;">
-      <button onclick="doCheckIn()" style="width:100%;padding:16px;background:linear-gradient(135deg,#667eea,#764ba2);color:#fff;border:none;border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:8px;">
-        🚀 到着！冒険をはじめる
-      </button>
-    </div>
-
-    <!-- 到着済み: 今日のプラン表示 -->
-    <div id="briefingPlan" style="display:none;background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;">
-      <div style="font-size:14px;font-weight:700;color:#2d3748;margin-bottom:12px;">🗺️ 今日のミッション</div>
-      <div id="briefingPhases"></div>
-      <div id="briefingAction" style="margin-top:12px;"></div>
-    </div>
-
-    <!-- 速読中 -->
-    <div id="briefingSpeedReading" style="display:none;background:linear-gradient(135deg,#fef3c7,#fde68a);border-radius:14px;padding:20px;text-align:center;">
-      <div style="font-size:32px;margin-bottom:8px;">📚</div>
-      <div style="font-size:16px;font-weight:700;color:#78350f;margin-bottom:4px;" id="speedReadTitle">速読トレーニング中</div>
-      <div style="font-size:28px;font-weight:900;color:#92400e;font-family:'Orbitron',monospace;" id="speedReadTimer">00:00</div>
-      <div style="font-size:12px;color:#92400e;margin:8px 0;">専用アプリで速読を行ってください</div>
-      <button onclick="completeSpeedReading()" style="margin-top:8px;padding:12px 32px;background:#92400e;color:#fff;border:none;border-radius:10px;font-size:14px;font-weight:700;cursor:pointer;">
-        ✅ 速読完了
-      </button>
-    </div>
-  </div>
-
-  <!-- 教材進捗カード -->
-  <div id="materialProgressCards" style="margin:0 16px 12px;display:none;"></div>
-
-  <!-- 宇宙マップ（簡略表示: アイコン+ステーション名のみ） -->
-  <div id="homeSpaceMap" style="margin:0 16px 8px;display:flex;align-items:center;gap:10px;padding:10px 14px;background:#f0f4ff;border-radius:12px;font-size:13px;">
-    <span id="spaceMapIcon" style="font-size:24px;">🌍</span>
-    <span id="spaceMapName" style="font-weight:700;">地球</span>
-    <span id="spaceMapDesc" style="color:#718096;font-size:11px;"></span>
-    <span id="spaceMapNext" style="color:#667eea;font-size:11px;margin-left:auto;"></span>
-    <div id="spaceMapFill" style="display:none;"></div>
-  </div>
-
-  <!-- デイリーミッション（マイページに移動、ここにはIDだけ残す） -->
-  <div id="homeMissionSection" class="mission-section" style="display:none">
-    <div id="homeMissionCards" class="mission-cards"></div>
-    <div id="homeMissionAccepted" style="display:none"></div>
-  </div>
+  <div id="examCountdown" style="display:none;"></div>
+  <div id="liveCrewSection" style="display:none;"><div id="liveCrewCount"></div><div id="liveCrewList"></div></div>
+  <div id="routeProgress" style="display:none;"></div>
+  <div id="materialProgressCards" style="display:none;"></div>
+  <div id="homeSpaceMap" style="display:none;"><span id="spaceMapIcon"></span><span id="spaceMapName"></span><span id="spaceMapDesc"></span><span id="spaceMapNext"></span><div id="spaceMapFill"></div></div>
+  <div id="homeMissionSection" style="display:none;"><div id="homeMissionCards"></div><div id="homeMissionAccepted"></div></div>
+  <div id="missionBriefing" style="display:none;"><div id="briefingArrival"></div><div id="briefingPlan"><div id="briefingPhases"></div><div id="briefingAction"></div></div><div id="briefingSpeedReading"><div id="speedReadTitle"></div><div id="speedReadTimer"></div></div></div>
 
   <!-- ===== ラーメン屋式 タッチパネルメニュー ===== -->
   <div class="touch-menu">
