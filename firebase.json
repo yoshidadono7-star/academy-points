@@ -30,6 +30,11 @@
       "HANDOFF_v4.md",
       "HANDOFF_v5_continuation.md",
       "DEPLOY.md",
+      "HANDOFF_Session_*.md",
+      "firestore.rules",
+      "firestore.indexes.json",
+      "storage.rules",
+      "seed-data.js",
       "*.docx",
       "*.pdf"
     ],

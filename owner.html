@@ -513,13 +513,27 @@ ${contextText || '（取得失敗）'}
   async function ask(userMessage) {
     if (!config) await loadConfig();
     if (!isEnabled()) throw new Error('Claude AI が無効です。管理画面で API キーを設定してください。');
+    // 入力検証: 空メッセージは API に送らない（400 防止）
+    if (!userMessage || !userMessage.trim()) throw new Error('メッセージを入力してください');
     history.push({ role: 'user', content: userMessage });
     if (history.length > 20) history = history.slice(-20);
 
     const contextText = await buildContext();
-    let model = (config.models && config.models.owner) || config.model || 'claude-opus-4-6';
 
-    // 529/503 自動リトライ
+    // モデル名の検証（古い/無効なモデル名による 400 を防止）
+    const VALID_MODELS = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-6'];
+    let model = (config.models && config.models.owner) || config.model || 'claude-opus-4-6';
+    if (!VALID_MODELS.includes(model)) {
+      console.warn(`[AIBuddyOwner] invalid model "${model}", falling back to opus`);
+      model = 'claude-opus-4-6';
+    }
+
+    // messages の検証: 空 content を除去、先頭が user であることを保証
+    const msgs = history.slice(-10).filter(m => m && m.content && m.content.trim());
+    while (msgs.length > 0 && msgs[0].role !== 'user') msgs.shift();
+    if (msgs.length === 0) throw new Error('有効なメッセージがありません');
+
+    // 529/503/429 自動リトライ
     const fetchOpts = {
       method: 'POST',
       headers: {
@@ -535,13 +549,13 @@ ${contextText || '（取得失敗）'}
           { type: 'text', text: buildStaticGuide(), cache_control: { type: 'ephemeral' } },
           { type: 'text', text: buildDynamicPrompt(contextText) }
         ],
-        messages: history.slice(-10)
+        messages: msgs
       })
     };
     let res;
     for (let attempt = 0; attempt < 3; attempt++) {
       res = await fetch('https://api.anthropic.com/v1/messages', fetchOpts);
-      if (res.status !== 529 && res.status !== 503) break;
+      if (res.status !== 529 && res.status !== 503 && res.status !== 429) break;
       if (attempt < 2) {
         const delay = 1500 * (attempt + 1);
         console.warn(`[AIBuddyOwner] Anthropic ${res.status} overloaded, retrying in ${delay}ms (${attempt+1}/2)`);
@@ -549,7 +563,13 @@ ${contextText || '（取得失敗）'}
       }
     }
     const data = await res.json();
-    if (!res.ok || data.error) throw new Error(data.error?.message || 'API エラー');
+    if (!res.ok || data.error) {
+      console.error(`[AIBuddyOwner] API error (HTTP ${res.status}):`, data.error || data);
+      if (res.status === 400) {
+        console.error('[AIBuddyOwner] 400 details - model:', model, 'msgs:', msgs.length);
+      }
+      throw new Error(data.error?.message || `API エラー (${res.status})`);
+    }
     if (data.usage) {
       console.log('[AIBuddyOwner] usage:', {
         input: data.usage.input_tokens,

@@ -1136,8 +1136,8 @@ body {
 </div>
 
 <!-- Firebase SDK -->
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.22.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
 <script src="firebase-config.js"></script>
 <script src="db.js"></script>
 
@@ -1790,9 +1790,12 @@ async function commanderGenerateWithAI(ctx) {
     ? `ストーリー「${ctx.story.currentChapter.title || ctx.story.title || ''}」進行中`
     : '';
 
-  const systemPrompt = `あなたは学習塾 HERO'S ACADEMY の宇宙戦艦「ミッションコントロール」の艦長マイケル。` +
-    `教室の大型モニターに常時表示されるブリーフィング画面の上部で、一日のメインメッセージをクルー（生徒）に向けて語る役目。` +
-    `キャラクター像: 歴戦の宇宙艦長、口髭の紳士、威厳と温かさを併せ持つ、時々ジョークを交える、生徒を「諸君」「クルー」と呼ぶ。` +
+  const systemPrompt = `あなたは学習塾 HERO'S ACADEMY の宇宙戦艦「ミッションコントロール」の艦長マイケル・ステラ・グランドー。` +
+    `銀河連邦アカデミー第7期卒業生にして、伝説の探査艦「ヒーローズ号」の艦長。30年間で128の星系を航行した歴戦の指揮官。` +
+    `かつて「ガルヴァトン大戦」を生き延びた唯一の艦長として知られるが、本人は「クルーが優秀だっただけだ」と笑う。` +
+    `キャラクター像: 口髭を撫でる癖がある紳士。威厳と温かさを併せ持ち、時々宇宙ジョークを交える。` +
+    `生徒を「諸君」「クルー」と呼び、一人一人を自分のクルーとして本気で大切にしている。` +
+    `座右の銘は「航路は星が示す、だが舵を握るのは君だ」。` +
     `制約: 必ず 80 文字以内の日本語 1〜2 文。絵文字は最大 2 個まで。宇宙・航海の比喩を交える。質問や対話形式は禁止、一方的な宣言のみ。`;
 
   const userPrompt = `現在の艦隊状況:\n` +
@@ -1805,7 +1808,17 @@ async function commanderGenerateWithAI(ctx) {
     (storyText ? `- ${storyText}\n` : '') +
     `\n上記を踏まえて、今日のメインメッセージを 80 文字以内で 1〜2 文、艦長マイケルらしい口調で述べよ。`;
 
-  const res = await fetch('https://api.anthropic.com/v1/messages', {
+  // モデル名の検証（古い/無効なモデル名による 400 を防止）
+  const VALID_MODELS = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-6'];
+  let model = config.model || 'claude-haiku-4-5-20251001';
+  if (!VALID_MODELS.includes(model)) {
+    console.warn(`[commander] invalid model "${model}", falling back to haiku`);
+    model = 'claude-haiku-4-5-20251001';
+  }
+
+  // 529/503/429 自動リトライ
+  let res;
+  const fetchOpts = {
     method: 'POST',
     headers: {
       'x-api-key': config.apiKey,
@@ -1814,15 +1827,27 @@ async function commanderGenerateWithAI(ctx) {
       'content-type': 'application/json'
     },
     body: JSON.stringify({
-      model: config.model || 'claude-haiku-4-5-20251001',
+      model: model,
       max_tokens: 250,
       system: systemPrompt,
       messages: [{ role: 'user', content: userPrompt }]
     })
-  });
+  };
+  for (let attempt = 0; attempt < 3; attempt++) {
+    res = await fetch('https://api.anthropic.com/v1/messages', fetchOpts);
+    if (res.status !== 529 && res.status !== 503 && res.status !== 429) break;
+    if (attempt < 2) {
+      const delay = 1500 * (attempt + 1);
+      console.warn(`[commander] Anthropic ${res.status}, retrying in ${delay}ms`);
+      await new Promise(r => setTimeout(r, delay));
+    }
+  }
 
-  if (!res.ok) throw new Error(`Claude API ${res.status}`);
   const data = await res.json();
+  if (!res.ok || data.error) {
+    console.error(`[commander] API error (HTTP ${res.status}):`, data.error || data);
+    throw new Error(`Claude API ${res.status}: ${data.error?.message || '不明なエラー'}`);
+  }
   const text = (data.content && data.content[0] && data.content[0].text || '').trim();
   if (!text) throw new Error('空レスポンス');
   return text;

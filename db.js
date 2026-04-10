@@ -1407,37 +1407,53 @@ function checkBalanceCap(currentPoints) {
 
 // ===== 宇宙マップ (Space Map) =====
 const SPACE_STATIONS = [
-  { id: 'earth',    level: 1,  points: 0,    name: '地球',           icon: '🌍', desc: '冒険の始まり' },
-  { id: 'moon',     level: 2,  points: 50,   name: '月面基地',       icon: '🌙', desc: '宇宙への第一歩' },
-  { id: 'mars',     level: 3,  points: 200,  name: '火星コロニー',   icon: '🔴', desc: '赤い星の開拓者' },
-  { id: 'asteroid', level: 4,  points: 400,  name: '小惑星帯',       icon: '☄️', desc: '混沌を泳ぐ' },
-  { id: 'jupiter',  level: 5,  points: 700,  name: '木星ステーション', icon: '🟤', desc: 'ガス巨星の前哨' },
-  { id: 'saturn',   level: 6,  points: 1000, name: '土星の輪',       icon: '💫', desc: 'リングランナー' },
-  { id: 'uranus',   level: 7,  points: 1500, name: '天王星基地',     icon: '🧊', desc: '氷の世界の探検家' },
-  { id: 'neptune',  level: 8,  points: 2000, name: '海王星深部',     icon: '🔵', desc: '深宇宙ダイバー' },
-  { id: 'pluto',    level: 9,  points: 3000, name: '冥王星前線',     icon: '⚫', desc: '既知宇宙の果て' },
-  { id: 'galaxy',   level: 10, points: 5000, name: '銀河の果て',     icon: '🌌', desc: '宇宙の伝説' },
+  { id: 'earth',    level: 1,  points: 0,    name: '地球',           icon: '🌍', desc: '冒険の始まり',
+    lore: 'すべての飛行士はここから旅立つ。アカデミーの訓練場で基礎を学び、星の海へ漕ぎ出す準備をせよ。' },
+  { id: 'moon',     level: 2,  points: 50,   name: '月面基地ルナ',   icon: '🌙', desc: '宇宙への第一歩',
+    lore: '地球の重力を振り切った者だけが辿り着く静謐の大地。クレーターに建つ基地で、宇宙の広さを初めて実感する場所。' },
+  { id: 'mars',     level: 3,  points: 200,  name: '火星コロニー・アレス', icon: '🔴', desc: '赤い砂塵を征く開拓者',
+    lore: '鉄錆色の嵐が吹き荒れる過酷な星。だがここで鍛えられた者は、どんな困難にも動じない精神を手にする。' },
+  { id: 'asteroid', level: 4,  points: 400,  name: '小惑星帯ケレス', icon: '☄️', desc: '無数の岩塊を縫う航路',
+    lore: '数百万の小惑星が渦巻く危険海域。正確な判断力と集中力がなければ一瞬で砕け散る。真の操縦技術が試される。' },
+  { id: 'jupiter',  level: 5,  points: 700,  name: '木星ステーション・ゼウス', icon: '🟤', desc: 'ガス巨星の眼',
+    lore: '大赤斑の嵐を見下ろす軌道上の巨大ステーション。ここは太陽系中の情報が集まる「知の交差点」。' },
+  { id: 'saturn',   level: 6,  points: 1000, name: '土星の輪・リングポート', icon: '💫', desc: '氷と光の環を駆ける',
+    lore: '何十億もの氷の粒が織りなす壮麗なリング。その中を滑るように飛ぶ感覚は「宇宙で最も美しい瞬間」と讃えられる。' },
+  { id: 'uranus',   level: 7,  points: 1500, name: '天王星基地ウラヌス', icon: '🧊', desc: '極寒の静寂に挑む',
+    lore: '横倒しに自転する蒼い氷の星。極限の寒さが精神を研ぎ澄ませる。ここを超えれば、もう後戻りはできない。' },
+  { id: 'neptune',  level: 8,  points: 2000, name: '海王星深部・トリトン', icon: '🔵', desc: '深淵を泳ぐ探索者',
+    lore: '太陽の光がほとんど届かない暗黒の海域。衛星トリトンの氷の間欠泉が、暗闇に青白い花火を打ち上げる。' },
+  { id: 'pluto',    level: 9,  points: 3000, name: '冥王星前線・カロン', icon: '⚫', desc: '既知宇宙の最前線',
+    lore: 'かつて惑星と呼ばれた辺境の哨戒地。ここから先は人類未踏の領域。覚悟はあるか、飛行士よ。' },
+  { id: 'galaxy',   level: 10, points: 5000, name: '銀河の果て・ホライズン', icon: '🌌', desc: '宇宙の伝説となった者',
+    lore: '無数の星々を超え、銀河の果てに到達した伝説の飛行士。その名はアカデミーの歴史に永遠に刻まれる。' },
 ];
 
 const HIDDEN_AREAS = [
   { id: 'comet_cave',    name: '彗星の洞窟',   icon: '☄️', afterStation: 'mars',
     condition: 'comboDiscoveryCount >= 5', conditionFn: (s) => s.comboDiscoveryCount >= 5,
-    reward: { title: 'コンボハンター' } },
+    reward: { title: 'コンボハンター' },
+    lore: '火星軌道の影に潜む氷の洞窟。壁面に刻まれた古代文字は、科目を組み合わせた者だけが読み解ける暗号だった。' },
   { id: 'wormhole',      name: 'ワームホール', icon: '🕳️', afterStation: 'asteroid',
     condition: 'bestStreak >= 14', conditionFn: (s) => s.bestStreak >= 14,
-    reward: { title: '時空の旅人' } },
+    reward: { title: '時空の旅人' },
+    lore: '14日間の連続航行によって初めて共鳴する時空の裂け目。一瞬で銀河の反対側を垣間見る者もいるという。' },
   { id: 'alien_ruins',   name: '異星人の遺跡', icon: '👽', afterStation: 'jupiter',
     condition: 'allTimeSubjectCount >= 5', conditionFn: (s) => s.allTimeSubjectCount >= 5,
-    reward: { title: 'マルチスペシャリスト' } },
+    reward: { title: 'マルチスペシャリスト' },
+    lore: '木星の衛星エウロパの氷の下に眠る、太古の知的生命体の遺構。5つ以上の知識領域を持つ者にだけ門が開く。' },
   { id: 'meteor_shower', name: '流星群エリア', icon: '🌠', afterStation: 'saturn',
     condition: 'totalPomodoros >= 50', conditionFn: (s) => s.totalPomodoros >= 50,
-    reward: { title: 'ポモドーロの星' } },
+    reward: { title: 'ポモドーロの星' },
+    lore: '50回の集中航行を達成した飛行士の前にだけ現れる、虹色の流星群。星の雨の中を飛ぶ者は、不思議な充実感に包まれる。' },
   { id: 'pirate_base',   name: '宇宙海賊基地', icon: '🏴‍☠️', afterStation: 'uranus',
     condition: 'legendaryMissionCleared >= 1', conditionFn: (s) => s.legendaryMissionCleared >= 1,
-    reward: { title: '伝説の冒険者' } },
+    reward: { title: '伝説の冒険者' },
+    lore: '天王星の裏側に隠された無法者たちの砦。伝説級のミッションを成し遂げた者だけが「挑戦者」として招かれる。' },
   { id: 'observatory',   name: '観測所オメガ', icon: '🔭', afterStation: 'neptune',
     condition: 'raidBossKills >= 3', conditionFn: (s) => s.raidBossKills >= 3,
-    reward: { title: '宇宙の観測者' } },
+    reward: { title: '宇宙の観測者' },
+    lore: '海王星軌道上に浮かぶ最終観測所。3体以上の宇宙怪獣を討伐した歴戦の勇士が、銀河の全貌を見渡す場所。' },
 ];
 
 function getStation(totalPoints) {
@@ -1667,48 +1683,67 @@ const ComboDB = {
 
 // ===== デイリーミッション (Daily Random Missions) =====
 const DAILY_MISSION_POOL = [
-  // Common (50%)
-  { id: 'dm_pomo2', name: 'ポモドーロ2回', desc: 'ポモドーロを2回完走', rarity: 'common', points: 15, icon: '🍅',
+  // Common (50%) — 基本訓練指令
+  { id: 'dm_pomo2', name: '船外活動 x2', desc: 'ポモドーロを2回完走せよ', rarity: 'common', points: 15, icon: '🍅',
+    flavor: '艦長マイケル「集中の反復こそ航海術の基本だ。2回完走してみせろ、クルー」',
     checkType: 'auto_daily', conditionFn: (ds) => ds.totalPomodoros >= 2 },
-  { id: 'dm_30min', name: '30分学習', desc: '合計30分以上学習', rarity: 'common', points: 10, icon: '⏱️',
+  { id: 'dm_30min', name: '30分航行', desc: '合計30分以上学習', rarity: 'common', points: 10, icon: '⏱️',
+    flavor: '管制塔より通達：本日の最低航行時間は30分。エンジン始動を確認せよ',
     checkType: 'auto_daily', conditionFn: (ds) => ds.totalMinutes >= 30 },
-  { id: 'dm_condition', name: 'コンディション記録', desc: 'コンディションを記録', rarity: 'common', points: 5, icon: '😊',
+  { id: 'dm_condition', name: 'バイタルサイン報告', desc: 'コンディションを記録', rarity: 'common', points: 5, icon: '😊',
+    flavor: '医療班より：全クルーはバイタルサインの記録を。心身の状態把握は宇宙航行の鉄則',
     checkType: 'auto_daily', conditionFn: (ds) => ds.conditionRecorded },
-  { id: 'dm_task1', name: 'タスク1つ', desc: 'タスクを1つ完了', rarity: 'common', points: 10, icon: '✅',
+  { id: 'dm_task1', name: '任務遂行 x1', desc: 'タスクを1つ完了', rarity: 'common', points: 10, icon: '✅',
+    flavor: '司令部より：本日割り当てのタスクを1つ以上完了し、報告書を提出せよ',
     checkType: 'auto_daily', conditionFn: (ds) => ds.tasksCompleted >= 1 },
-  { id: 'dm_review', name: '振り返りノート', desc: '学習を振り返って記録', rarity: 'common', points: 10, icon: '📝',
+  { id: 'dm_review', name: '航海日誌', desc: '学習を振り返って記録', rarity: 'common', points: 10, icon: '📝',
+    flavor: '艦長マイケル「優れた飛行士は必ず航海日誌をつける。今日の航路を振り返れ」',
     checkType: 'manual', conditionFn: null },
-  { id: 'dm_preview', name: '予習チャレンジ', desc: '翌日の授業科目を予習', rarity: 'common', points: 10, icon: '📖',
+  { id: 'dm_preview', name: '偵察任務', desc: '翌日の授業科目を予習', rarity: 'common', points: 10, icon: '📖',
+    flavor: '戦術班より：明日の宙域に関する事前偵察を実施せよ。備えあれば憂いなし',
     checkType: 'manual', conditionFn: null },
-  // Uncommon (30%)
-  { id: 'dm_weak20', name: '苦手科目20分', desc: '苦手科目を20分以上', rarity: 'uncommon', points: 25, icon: '💪',
+  // Uncommon (30%) — 実戦訓練指令
+  { id: 'dm_weak20', name: '弱点克服訓練', desc: '苦手科目を20分以上', rarity: 'uncommon', points: 25, icon: '💪',
+    flavor: '訓練教官より：苦手宙域の航行訓練20分。逃げずに向き合った者だけが強くなる',
     checkType: 'auto_daily', conditionFn: (ds) => ds.weakSubjectMinutes >= 20 },
-  { id: 'dm_pomo3', name: 'ポモドーロ3連続', desc: 'ポモドーロ3回連続完走', rarity: 'uncommon', points: 30, icon: '🍅',
+  { id: 'dm_pomo3', name: '三連船外活動', desc: 'ポモドーロ3回連続完走', rarity: 'uncommon', points: 30, icon: '🍅',
+    flavor: '耐久試験：連続3回の船外活動を完遂せよ。集中力の持続が鍵だ',
     checkType: 'auto_daily', conditionFn: (ds) => ds.totalPomodoros >= 3 },
-  { id: 'dm_2subj', name: '2教科学習', desc: '2教科以上学習', rarity: 'uncommon', points: 20, icon: '📚',
+  { id: 'dm_2subj', name: 'マルチ宙域航行', desc: '2教科以上学習', rarity: 'uncommon', points: 20, icon: '📚',
+    flavor: '航行計画：異なる2つの宙域を横断せよ。視野の広さが優れた飛行士の証',
     checkType: 'auto_daily', conditionFn: (ds) => ds.subjectCount >= 2 },
-  { id: 'dm_60min', name: '60分マラソン', desc: '60分以上学習', rarity: 'uncommon', points: 30, icon: '⏱️',
+  { id: 'dm_60min', name: '長距離航行', desc: '60分以上学習', rarity: 'uncommon', points: 30, icon: '⏱️',
+    flavor: '艦長マイケル「60分の長距離航行を完遂できるか？ 真の飛行士の実力が問われる」',
     checkType: 'auto_daily', conditionFn: (ds) => ds.totalMinutes >= 60 },
-  { id: 'dm_home', name: '自宅学習', desc: '自宅から学習セッション完了', rarity: 'uncommon', points: 20, icon: '🏠',
+  { id: 'dm_home', name: '遠隔操縦訓練', desc: '自宅から学習セッション完了', rarity: 'uncommon', points: 20, icon: '🏠',
+    flavor: '通信班より：母艦から離れた状態での遠隔操縦訓練。どこにいても飛行士であれ',
     checkType: 'auto_daily', conditionFn: (ds) => ds.homeStudied },
-  // Rare (15%)
-  { id: 'dm_3subj', name: '3教科チャレンジ', desc: '3教科以上学習', rarity: 'rare', points: 50, icon: '🌟',
+  // Rare (15%) — 特殊作戦指令
+  { id: 'dm_3subj', name: 'トライスター航路', desc: '3教科以上学習', rarity: 'rare', points: 50, icon: '🌟',
+    flavor: '特殊指令：3つの星系を1日で巡回するトライスター航路に挑戦せよ',
     checkType: 'auto_daily', conditionFn: (ds) => ds.subjectCount >= 3 },
-  { id: 'dm_morning', name: '早朝ミッション', desc: '12時前に学習開始', rarity: 'rare', points: 40, icon: '🌅',
+  { id: 'dm_morning', name: '黎明作戦', desc: '12時前に学習開始', rarity: 'rare', points: 40, icon: '🌅',
+    flavor: '最高機密：夜明けの時間帯に出撃せよ。早起きの飛行士は星を制する',
     checkType: 'auto_daily', conditionFn: (ds) => ds.earliestHour < 12 },
-  { id: 'dm_pomo5', name: 'ポモドーロ5回', desc: 'ポモドーロ5回完走', rarity: 'rare', points: 60, icon: '🍅',
+  { id: 'dm_pomo5', name: '五連星突破', desc: 'ポモドーロ5回完走', rarity: 'rare', points: 60, icon: '🍅',
+    flavor: '上級試験：5連続の船外活動完遂。これを達成すれば、もはや一人前の飛行士だ',
     checkType: 'auto_daily', conditionFn: (ds) => ds.totalPomodoros >= 5 },
-  { id: 'dm_boss_weak', name: 'ボス弱点攻撃', desc: 'ボスの弱点科目を45分', rarity: 'rare', points: 55, icon: '🎯',
+  { id: 'dm_boss_weak', name: '急所狙撃', desc: 'ボスの弱点科目を45分', rarity: 'rare', points: 55, icon: '🎯',
+    flavor: '戦術班より緊急指令：敵の弱点属性で45分間の集中砲火を敢行せよ',
     checkType: 'auto_daily', conditionFn: (ds) => ds.bossWeaknessMinutes >= 45 },
-  // Epic (4%)
-  { id: 'dm_5day_clear', name: '5日連続クリア', desc: 'ミッション5日連続達成', rarity: 'epic', points: 100, icon: '🔥',
+  // Epic (4%) — 英雄級指令
+  { id: 'dm_5day_clear', name: '五日間の航跡', desc: 'ミッション5日連続達成', rarity: 'epic', points: 100, icon: '🔥',
+    flavor: '艦長マイケル「5日連続の完遂...お前は本物の飛行士だ。誇りに思う」',
     checkType: 'auto_daily', conditionFn: (ds) => ds.missionStreak >= 5 },
-  { id: 'dm_perfect', name: 'パーフェクトデイ', desc: '全活動を完了', rarity: 'epic', points: 80, icon: '💎',
+  { id: 'dm_perfect', name: '完全無欠の一日', desc: '全活動を完了', rarity: 'epic', points: 80, icon: '💎',
+    flavor: '全セクションの活動を完了する完璧な一日。達成者は艦内放送で称えられる',
     checkType: 'auto_daily', conditionFn: (ds) => ds.conditionRecorded && ds.totalMinutes >= 30 && ds.tasksCompleted >= 1 },
-  // Legendary (1%)
-  { id: 'dm_weekly_king', name: 'ウィークリーキング', desc: '週6日以上出席', rarity: 'legendary', points: 200, icon: '👑',
+  // Legendary (1%) — 伝説級指令
+  { id: 'dm_weekly_king', name: '銀河の覇者', desc: '週6日以上出席', rarity: 'legendary', points: 200, icon: '👑',
+    flavor: '歴史的記録：週6日以上の連続出撃。その名は銀河アカデミーの殿堂に刻まれる',
     checkType: 'auto_daily', conditionFn: (ds) => ds.weeklyAttendance >= 6 },
   { id: 'dm_hidden1', name: '???', desc: '???', rarity: 'legendary', points: 150, icon: '🌌',
+    flavor: '暗号化された極秘指令。条件を満たした者だけがその内容を知る...',
     checkType: 'auto_daily', hidden: true, conditionFn: (ds) => ds.totalPomodoros >= 7 && ds.subjectCount >= 4 },
 ];
 
@@ -2360,6 +2395,7 @@ function getCurrentStoryTheme() {
 const WORLD_THEMES = {
   legend: {
     id: 'legend', name: '伝説の冒険者', icon: '⚔️', colorPrimary: '#d97706', colorBg: '#fffbeb',
+    lore: '太古の予言が告げた勇者の目覚め。魔王の影が大地を覆い始めた今、剣と知恵を携えて旅立つ者がいる。その名は──君だ。',
     roles: {
       player: '勇者', teacher: '導きの大賢者', friendMulti: 'パーティメンバー',
       friendSolo: '精霊の相棒', parent: '故郷の王'
@@ -2373,6 +2409,7 @@ const WORLD_THEMES = {
   },
   tactical: {
     id: 'tactical', name: '特殊部隊作戦', icon: '🎯', colorPrimary: '#38bdf8', colorBg: '#0f172a',
+    lore: '世界を裏で支配する暗号組織「シャドウ・プロトコル」。その陰謀を阻止できるのは、極秘養成機関「アカデミー」で鍛え上げられた精鋭エージェントだけだ。',
     roles: {
       player: 'エージェント', teacher: '司令官(HQ)', friendMulti: '戦術分隊',
       friendSolo: 'サポートAI', parent: '後方支援部隊'
@@ -2386,6 +2423,7 @@ const WORLD_THEMES = {
   },
   heroine: {
     id: 'heroine', name: 'ヒロインの物語', icon: '👑', colorPrimary: '#f43f5e', colorBg: '#fff1f2',
+    lore: '夢のステージ「スターライト・ドーム」。その頂点に立つのは、才能ではなく努力と輝きを磨き続けた者。今日もレッスン室の鏡の前で、未来の自分と目が合う。',
     roles: {
       player: 'ヒロイン', teacher: '敏腕プロデューサー', friendMulti: 'ユニット仲間',
       friendSolo: '鏡の妖精', parent: 'ファン第一号'
@@ -2399,6 +2437,7 @@ const WORLD_THEMES = {
   },
   academia: {
     id: 'academia', name: '真理の探究者', icon: '📜', colorPrimary: '#57534e', colorBg: '#fafaf9',
+    lore: '大図書館アレクサンドリア・ノヴァ。その奥には「究極の問い」への答えが眠る。だが真理の扉は、数多の問いに挑み続けた者にしか開かない。',
     roles: {
       player: '研究生', teacher: '主任教授', friendMulti: '共同研究チーム',
       friendSolo: '使い魔のフクロウ', parent: 'パトロン'
@@ -2412,6 +2451,7 @@ const WORLD_THEMES = {
   },
   cozy: {
     id: 'cozy', name: '星の庭師', icon: '🌱', colorPrimary: '#4ade80', colorBg: '#f0fdf4',
+    lore: '星屑が降り注ぐ小さな庭。ここでは急がなくていい。毎日すこしずつお水をやり、光を浴びせ、やがて花が咲く。それがあなたの庭の物語。',
     roles: {
       player: '庭師', teacher: '見守りの大樹', friendMulti: 'お隣の庭師たち',
       friendSolo: '森の小動物たち', parent: 'お日様と大地'
@@ -2425,6 +2465,7 @@ const WORLD_THEMES = {
   },
   space: {
     id: 'space', name: '星海の探検家', icon: '🚀', colorPrimary: '#818cf8', colorBg: '#0c0a20',
+    lore: '西暦2187年、人類は太陽系を超えた。銀河連邦アカデミーで訓練を受けた飛行士たちが、未知の星海を切り拓く。艦長マイケルの号令の下、ヒーローズ号は今日も新たな航路へ。',
     roles: {
       player: '飛行士', teacher: '管制塔', friendMulti: '艦隊クルー',
       friendSolo: 'ナビ・ドロイド', parent: '地球の通信基地'

@@ -1012,6 +1012,10 @@ ${handoffInstruction}`;
     if (!currentTeacher) {
       throw new Error('講師としてログインしてください');
     }
+    // 入力検証: 空メッセージは API に送らない（400 防止）
+    if (!userMessage || !userMessage.trim()) {
+      throw new Error('メッセージを入力してください');
+    }
 
     history.push({ role: 'user', content: userMessage });
     if (history.length > 20) history = history.slice(-20);
@@ -1020,14 +1024,24 @@ ${handoffInstruction}`;
     const role = ctxResult.role;
     const contextText = ctxResult.text;
 
-    // ロール別モデル選択（無ければデフォルト or sonnet）
+    // ロール別モデル選択（無ければデフォルト or sonnet）+ 検証
+    const VALID_MODELS = ['claude-haiku-4-5-20251001', 'claude-sonnet-4-6', 'claude-opus-4-6'];
     let model = config.model || 'claude-sonnet-4-6';
     if (config.models) {
       if (role === 'director' && config.models.director) model = config.models.director;
       else if (role === 'teacher' && config.models.teacher) model = config.models.teacher;
     }
+    if (!VALID_MODELS.includes(model)) {
+      console.warn(`[AIBuddyTeacher] invalid model "${model}", falling back to sonnet`);
+      model = 'claude-sonnet-4-6';
+    }
 
-    // 529/503 自動リトライ（Anthropic overloaded 対策）
+    // messages の検証: 空 content を除去、先頭が user であることを保証
+    const msgs = history.slice(-10).filter(m => m && m.content && m.content.trim());
+    while (msgs.length > 0 && msgs[0].role !== 'user') msgs.shift();
+    if (msgs.length === 0) throw new Error('有効なメッセージがありません');
+
+    // 529/503/429 自動リトライ（Anthropic overloaded 対策）
     const fetchOpts = {
       method: 'POST',
       headers: {
@@ -1043,13 +1057,13 @@ ${handoffInstruction}`;
           { type: 'text', text: buildStaticGuide(), cache_control: { type: 'ephemeral' } },
           { type: 'text', text: buildDynamicSystemPrompt(role, contextText) }
         ],
-        messages: history.slice(-10)
+        messages: msgs
       })
     };
     let res;
     for (let attempt = 0; attempt < 3; attempt++) {
       res = await fetch('https://api.anthropic.com/v1/messages', fetchOpts);
-      if (res.status !== 529 && res.status !== 503) break;
+      if (res.status !== 529 && res.status !== 503 && res.status !== 429) break;
       if (attempt < 2) {
         const delay = 1500 * (attempt + 1);
         console.warn(`[AIBuddyTeacher] Anthropic ${res.status} overloaded, retrying in ${delay}ms (${attempt+1}/2)`);
@@ -1059,8 +1073,11 @@ ${handoffInstruction}`;
 
     const data = await res.json();
     if (!res.ok || data.error) {
-      console.error('[AIBuddyTeacher] API error:', data.error || data);
-      throw new Error(data.error?.message || 'API エラー');
+      console.error(`[AIBuddyTeacher] API error (HTTP ${res.status}):`, data.error || data);
+      if (res.status === 400) {
+        console.error('[AIBuddyTeacher] 400 details - model:', model, 'msgs:', msgs.length);
+      }
+      throw new Error(data.error?.message || `API エラー (${res.status})`);
     }
     if (data.usage) {
       console.log('[AIBuddyTeacher] usage:', {
