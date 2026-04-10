@@ -157,6 +157,24 @@
       lines.push(`■ 志望高校: ${ctx.student.targetStation}`);
     }
 
+    // 使用教材（バディが教材コーチングする際の最重要情報）
+    if (ctx.student && ctx.student.materials && ctx.student.materials.length > 0) {
+      lines.push('■ この生徒が使っている教材');
+      const materialNames = {
+        srj_sokudoku: 'SRJ速読速解力講座', srj_eigo: 'SRJ速読聴英語講座',
+        srj_sansu: 'SRJ算数的思考力', srj_kokugo: 'SRJ新国語講座',
+        atama_plus: 'atama+', edu_plus: 'edu+', manabi_aid: '学びエイド',
+        monoxer: 'Monoxer', ikushin: '育伸社学力テスト', miyazaki_moshi: '宮崎県統一模試',
+        paper_other: 'その他紙教材',
+      };
+      ctx.student.materials.forEach(m => {
+        lines.push(`  ・${materialNames[m] || m}`);
+      });
+      lines.push('  → バディはこの教材の中からだけ提案すること。使っていない教材を勧めない');
+    } else {
+      lines.push('■ 使用教材: 未登録（管理画面で教材を設定してもらうよう案内してください）');
+    }
+
     // Phase X5: 個人目標の進捗 (バディの励ましに使用)
     if (ctx.personalGoals && ctx.personalGoals.length > 0) {
       lines.push('■ 今週の個人目標');
