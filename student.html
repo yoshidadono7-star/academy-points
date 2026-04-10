@@ -5136,7 +5136,7 @@ function renderDailyMissions(draw) {
 async function acceptMission(drawId, missionId) {
   const mDef = DailyMissionsDB.getMissionDef(missionId);
   const name = mDef ? mDef.name : missionId;
-  showModal('🎯', 'ミッション受注', `「${name}」を今日のミッションにしますか？`, `
+  showModal('🎯', 'ミッション受注', `「${name}」をラッキーミッションにしますか？`, `
     <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
     <button class="btn btn-primary" onclick="closeModal();doAcceptMission('${drawId}','${missionId}')">受注する！</button>
   `, true);
@@ -5594,7 +5594,7 @@ const BuddySystem = (() => {
     bossDefeat:      { desc: 'レイドボス「{boss}」を倒しました！一緒に喜んでください', emotion: 'excited', duration: 8000 },
     badge:           { desc: '新バッジ「{badge}」を獲得しました。称賛してください', emotion: 'happy', duration: 6000 },
     questAccept:     { desc: 'クエスト「{quest}」を受注しました。期待を伝えてください', emotion: 'happy', duration: 5000 },
-    missionComplete: { desc: 'デイリーミッションを達成しました！褒めてください', emotion: 'excited', duration: 5000 },
+    missionComplete: { desc: 'ラッキーミッションを達成しました！褒めてください', emotion: 'excited', duration: 5000 },
     encourage:       { desc: '生徒がバディに話しかけてきました。優しく応援してください', emotion: 'idle', duration: 5000 },
   };
 

@@ -70,7 +70,7 @@ const StudentsDB = {
       certGoals: data.certGoals || [],             // [{examId, targetLevel}] 検定目標（全学年共通）
       targetQualifications: data.targetQualifications || [], // [{name, memo}] 目標資格（社会人用）
       role: data.role || 'student',             // 'student' | 'supporter'(私立合格後)
-      missionStreak: data.missionStreak || 0,   // デイリーミッション連続達成数
+      missionStreak: data.missionStreak || 0,   // ラッキーミッション連続達成数
       // --- AI バディ設定 ---
       aiModel: data.aiModel || null,            // null=デフォルト, 'claude-haiku-4-5-20251001'|'claude-sonnet-4-6'|'claude-opus-4-6'
       responseLength: data.responseLength || null, // null=デフォルト, 'short'|'medium'|'long' 返答の長さ
@@ -1816,7 +1816,7 @@ const COMBO_DEFINITIONS = [
     conditionFn: (ctx) => ctx.todaySubjects.includes('国語') && ctx.todaySubjects.includes('英語'),
     reward: { type: 'bonus', points: 20 } },
   { id: 'thunder_chain', name: 'サンダーチェイン', icon: '⚡',
-    desc: '5日連続でデイリーミッションクリア', hidden: true, cooldown: 'weekly', category: 'mission',
+    desc: '5日連続でラッキーミッションクリア', hidden: true, cooldown: 'weekly', category: 'mission',
     conditionFn: (ctx) => ctx.missionStreak >= 5,
     reward: { type: 'bonus', points: 80 } },
   { id: 'home_hero', name: 'ホームヒーロー', icon: '🏠',
@@ -1957,7 +1957,7 @@ const ComboDB = {
   }
 };
 
-// ===== デイリーミッション (Daily Random Missions) =====
+// ===== ラッキーミッション (Daily Random Missions) =====
 const DAILY_MISSION_POOL = [
   // Common (50%)
   { id: 'dm_pomo2', name: 'ポモドーロ2回', desc: 'ポモドーロを2回完走', rarity: 'common', points: 15, icon: '🍅',
@@ -2107,7 +2107,7 @@ const DailyMissionsDB = {
       });
       await StudentsDB.addPoints(studentId, mission.points, {
         category: 'mission',
-        description: `デイリーミッション: ${mission.title || mission.id || ''}`,
+        description: `ラッキーミッション: ${mission.title || mission.id || ''}`,
         grantedBy: 'system',
       });
       // missionStreak更新
@@ -2130,7 +2130,7 @@ const DailyMissionsDB = {
     });
     if (mission) await StudentsDB.addPoints(draw.studentId, mission.points, {
       category: 'mission',
-      description: `デイリーミッション達成: ${mission.title || mission.id || ''}`,
+      description: `ラッキーミッション達成: ${mission.title || mission.id || ''}`,
       grantedBy: 'system',
     });
   },
