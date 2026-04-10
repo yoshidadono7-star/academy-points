@@ -2090,8 +2090,10 @@ body.theme-space {
       <div class="timer-pomodoro-info" id="timerPomodoroInfo" style="display:none"></div>
       <div class="timer-controls">
         <button class="timer-btn timer-btn-start" id="timerStartBtn" onclick="toggleTimer()">▶</button>
-        <button class="timer-btn timer-btn-stop" onclick="confirmStopStudy()">■</button>
       </div>
+      <button onclick="confirmStopStudy()" style="margin-top:20px;padding:14px 32px;background:rgba(255,255,255,0.2);color:white;border:2px solid rgba(255,255,255,0.4);border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;width:80%;max-width:300px;">
+        ⏹ 学習を終了する
+      </button>
     </div>
   </div>
 </div>
@@ -2129,13 +2131,8 @@ body.theme-space {
       <div style="font-size:16px;margin-bottom:4px;">&#9203; 承認待ち</div>
       <div style="font-size:13px;color:#718096;">自宅学習のため、講師の承認後にポイントが付与されます</div>
     </div>
-    <div id="completeEventBonus" style="display:none;"></div>
-    <div id="completeCombos"></div>
-    <div id="completeBadges"></div>
-    <div id="completeRaid"></div>
-    <div id="completeMission" style="display:none"></div>
 
-    <!-- アクティブリコール誘導 -->
+    <!-- アクティブリコール誘導（最優先で上部に表示） -->
     <div id="completeRecallSection" style="margin:16px;padding:20px;background:linear-gradient(135deg,#f0fff4,#e6fffa);border:2px solid #9ae6b4;border-radius:16px;">
       <div style="font-size:18px;font-weight:800;color:#2d3748;margin-bottom:6px;">🧠 今やった内容を振り返ろう！</div>
       <div style="font-size:13px;color:#718096;margin-bottom:12px;">
@@ -2157,6 +2154,13 @@ body.theme-space {
       <div style="font-weight:700;margin-bottom:6px;">📅 復習スケジュールを自動作成しました</div>
       <div id="completeReviewDates" style="color:#718096;"></div>
     </div>
+
+    <!-- バッジ・コンボ・ボス等は振り返りの下 -->
+    <div id="completeEventBonus" style="display:none;"></div>
+    <div id="completeCombos"></div>
+    <div id="completeBadges"></div>
+    <div id="completeRaid"></div>
+    <div id="completeMission" style="display:none"></div>
 
     <div style="padding:0 16px 20px;">
       <button class="btn btn-primary btn-block btn-lg" onclick="navigate('home')">ホームに戻る</button>
