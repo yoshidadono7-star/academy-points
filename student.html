@@ -52,8 +52,9 @@ body {
 .screen-login { padding-bottom: 0; }
 
 /* ===== Phase 14: バディキャラクター（常駐パネル） ===== */
-body.buddy-on { padding-top: calc(var(--buddy-h) + 50px); }
-body.buddy-on .header { top: calc(var(--buddy-h) + 50px); }
+/* バディパネル非表示化に伴いパディング不要 */
+body.buddy-on { padding-top: 0; }
+body.buddy-on .header { top: 0; }
 
 .buddy-panel {
   display: none;
@@ -1226,11 +1227,12 @@ body.buddy-on .buddy-chatbar { display: flex; }
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .toast {
-  position: fixed; bottom: 20px;
+  position: fixed; bottom: 30px;
   left: 50%; transform: translateX(-50%) translateY(100px);
-  background: #2d3748; color: white; padding: 12px 24px;
-  border-radius: 12px; font-size: 14px; font-weight: 500;
+  background: #2d3748; color: white; padding: 14px 24px;
+  border-radius: 16px; font-size: 15px; font-weight: 600;
   z-index: 600; opacity: 0; transition: all 0.3s;
+  max-width: 90%; text-align: center;
   max-width: calc(100% - 40px); text-align: center;
 }
 .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
@@ -1591,8 +1593,8 @@ body.theme-space {
   </div>
 </div>
 
-<!-- Phase 14: バディキャラクター（常駐パネル） -->
-<div id="buddyPanel" class="buddy-panel">
+<!-- Phase 14: バディキャラクター（常駐パネル → 非表示化。全画面チャットに移行） -->
+<div id="buddyPanel" class="buddy-panel" style="display:none !important;">
   <div class="buddy-status">
     <div class="buddy-status-item" id="buddyStatusLevel"><span class="icon">⭐</span>Lv.1</div>
     <div class="buddy-status-item" id="buddyStatusPoints"><span class="icon">💎</span>0pt</div>
@@ -1622,8 +1624,8 @@ body.theme-space {
   </div>
 </div>
 
-<!-- Phase 14: チャット入力バー -->
-<div id="buddyChatbar" class="buddy-chatbar">
+<!-- Phase 14: チャット入力バー（常駐から非表示に。全画面チャットに移行） -->
+<div id="buddyChatbar" class="buddy-chatbar" style="display:none !important;">
   <button class="buddy-chat-history-btn" onclick="ChatUI.openModal()" title="チャット履歴">
     💬
     <span class="badge" id="chatTeacherBadge">!</span>
@@ -4655,11 +4657,16 @@ async function loadRaidBoss() {
 function showLoading() { document.getElementById('loadingOverlay').classList.add('show'); }
 function hideLoading() { document.getElementById('loadingOverlay').classList.remove('show'); }
 
-function showToast(msg) {
+function showToast(msg, options) {
   const t = document.getElementById('toast');
-  t.textContent = msg;
+  // バディの顔を自動付与（options.noBuddy で抑制可能）
+  const buddy = (typeof BuddySystem !== 'undefined' && BuddySystem.getCurrentBuddy)
+    ? BuddySystem.getCurrentBuddy() : null;
+  const face = (buddy && buddy.avatar && !(options && options.noBuddy)) ? buddy.avatar + ' ' : '';
+  t.textContent = face + msg;
   t.classList.add('show');
-  setTimeout(() => t.classList.remove('show'), 2500);
+  const dur = (options && options.duration) || 2500;
+  setTimeout(() => t.classList.remove('show'), dur);
 }
 
 function showModal(icon, title, text, btnsHtml, rawBtns) {
@@ -5531,28 +5538,23 @@ const BuddySystem = (() => {
 
   function say(message, opts) {
     opts = opts || {};
-    const duration = opts.duration || 5000;
-    const emotion = opts.emotion || 'idle';
+    const duration = opts.duration || 4000;
 
-    // 注意: VoiceSystem.stop() は呼ばない。
-    // 複数のメッセージはキューイングされて順番に再生される。
-    // ユーザーが手動で止めたい時は吹き出しタップで stop() が呼ばれる。
+    // バディパネル非表示のため、トーストで表示（バディの顔付き）
+    showToast(message, { duration });
 
-    setEmotion(emotion);
-    showTyping();
+    // 音声も再生
+    if (!opts.skipVoice) {
+      setTimeout(() => VoiceSystem.speak(message), 300);
+    }
 
-    setTimeout(() => {
-      removeTyping();
+    // チャット履歴にも記録（全画面チャットで確認可能）
+    try {
       pushConvLine('buddy', currentBuddy.name, escapeMsg(message));
-      if (!opts.skipVoice) VoiceSystem.speak(message);
-    }, 600);
+    } catch(e) {}
 
     isShowing = true;
-
-    setTimeout(() => {
-      setEmotion('idle');
-      isShowing = false;
-    }, duration);
+    setTimeout(() => { isShowing = false; }, duration);
   }
 
   // 生徒の発言を会話エリアに追加
