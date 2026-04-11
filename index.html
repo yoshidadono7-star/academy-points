@@ -2105,6 +2105,7 @@
 // ============================================
 let allStudents = [];
 let allGuilds = [];
+let allRpgLinks = {}; // { academyStudentId: { googleUid, linkedAt } }
 let chartInstances = {};
 
 // ============================================
@@ -2745,14 +2746,22 @@ async function editPrize(id) {
 async function loadStudents() {
   try {
     allStudents = await StudentsDB.getAll();
+    // RPG 紐付け一覧を取得してキャッシュ
+    try {
+      const links = typeof RpgBridgeDB !== 'undefined' ? await RpgBridgeDB.getAllLinks() : [];
+      allRpgLinks = {};
+      links.forEach(l => { allRpgLinks[l.academyStudentId] = l; });
+    } catch (e) { console.warn('RPG links load failed:', e); allRpgLinks = {}; }
     document.getElementById('studentsTable').innerHTML = allStudents.length === 0
       ? '<tr><td colspan="10" style="text-align:center;color:var(--text-light)">生徒がいません</td></tr>'
       : allStudents.map(s => {
           const ri = getRankInfo(s.rank || 'rookie');
           const roleTag = s.role === 'supporter' ? '<span style="background:#fbbf24;color:#78350f;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:4px">&#128588;サポーター</span>' : '';
+          const rpgLinked = !!(allRpgLinks[s.id] && allRpgLinks[s.id].googleUid);
+          const rpgTag = rpgLinked ? '<span style="background:#d1fae5;color:#047857;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:4px" title="RPG紐付け済み">🎮連携</span>' : '';
           const matIcons = (s.materials || []).map(mid => { const m = getMaterialById(mid); return m ? m.icon : ''; }).join('');
           return `<tr>
-          <td><strong>${escapeHtml(s.name)}</strong> <span style="color:#6366f1;font-size:11px;">${escapeHtml(s.callsign || s.nickname || '')}</span>${roleTag}</td>
+          <td><strong>${escapeHtml(s.name)}</strong> <span style="color:#6366f1;font-size:11px;">${escapeHtml(s.callsign || s.nickname || '')}</span>${roleTag}${rpgTag}</td>
           <td>${escapeHtml(s.callsign || s.nickname || '-')}</td>
           <td>${escapeHtml(s.grade || '-')}</td>
           <td style="font-size:11px;">${(() => {
@@ -2795,6 +2804,7 @@ async function loadStudents() {
             <div class="btn-group">
               <button class="btn btn-secondary btn-sm" onclick="editStudent('${s.id}')">編集</button>
               <button class="btn btn-sm" style="background:#ebf8ff;color:#3182ce;font-size:10px" onclick="openStudentKarte('${s.id}')" title="生徒カルテ">&#128203;カルテ</button>
+              <button class="btn btn-sm" style="background:${rpgLinked ? '#d1fae5' : '#fef3c7'};color:${rpgLinked ? '#047857' : '#92400e'};font-size:10px" onclick="openRpgLinkModal('${s.id}')" title="RPG紐付け">🎮${rpgLinked ? '連携済' : '未連携'}</button>
               <button class="btn btn-sm" style="background:${s.role === 'supporter' ? '#fbbf24' : '#e2e8f0'};color:${s.role === 'supporter' ? '#78350f' : 'var(--text)'};font-size:10px" onclick="toggleStudentRole('${s.id}','${s.role || 'student'}')" title="${s.role === 'supporter' ? '生徒に戻す' : 'サポーターに変更'}">${s.role === 'supporter' ? '&#128588;' : '&#128100;'}</button>
               <button class="btn btn-danger btn-sm" onclick="deleteStudent('${s.id}')">削除</button>
             </div>
@@ -3424,6 +3434,114 @@ async function saveStudent(id) {
 async function editStudent(id) {
   const student = await StudentsDB.getById(id);
   if (student) openStudentModal(student);
+}
+
+// ============================================
+// RPG アカウント紐付けモーダル
+// ============================================
+async function openRpgLinkModal(studentId) {
+  const student = allStudents.find(s => s.id === studentId);
+  if (!student) { showToast('生徒が見つかりません', 'error'); return; }
+
+  // 最新の紐付け状態を取得
+  let currentLink = null;
+  try {
+    const doc = await db.collection('rpg_account_links').doc(studentId).get();
+    if (doc.exists) currentLink = doc.data();
+  } catch (e) { console.warn('link fetch failed:', e); }
+
+  const name = student.callsign || student.nickname || student.name;
+  const linked = currentLink && currentLink.googleUid;
+  const linkedDate = linked && currentLink.linkedAt
+    ? (currentLink.linkedAt.toDate ? currentLink.linkedAt.toDate().toLocaleString('ja-JP') : '')
+    : '';
+
+  const bodyHtml = `
+    <div style="font-size:13px;line-height:1.6;">
+      <div style="background:#f7fafc;padding:12px;border-radius:8px;margin-bottom:16px;">
+        <div style="font-size:11px;color:#718096;">生徒</div>
+        <div style="font-size:16px;font-weight:700;">${escapeHtml(name)} <span style="font-size:12px;color:#a0aec0;">(${escapeHtml(student.name)})</span></div>
+        <div style="font-size:10px;color:#cbd5e0;font-family:monospace;margin-top:4px;">ID: ${studentId}</div>
+      </div>
+
+      ${linked ? `
+        <div style="background:#d1fae5;padding:12px;border-radius:8px;margin-bottom:16px;border-left:4px solid #10b981;">
+          <div style="font-weight:700;color:#047857;margin-bottom:4px;">🎮 連携済み</div>
+          <div style="font-size:11px;color:#064e3b;">Google UID: <code style="background:#fff;padding:2px 6px;border-radius:4px;">${escapeHtml(currentLink.googleUid)}</code></div>
+          ${linkedDate ? `<div style="font-size:10px;color:#6b7280;margin-top:4px;">登録日: ${linkedDate}</div>` : ''}
+        </div>
+        <p style="color:#4a5568;margin-bottom:12px;">この生徒の学習報酬は上記のGoogleアカウントのRPGに反映されます。</p>
+      ` : `
+        <div style="background:#fef3c7;padding:12px;border-radius:8px;margin-bottom:16px;border-left:4px solid #f59e0b;">
+          <div style="font-weight:700;color:#92400e;">⚠️ 未連携</div>
+          <div style="font-size:11px;color:#78350f;margin-top:4px;">この生徒はまだRPGアカウントと紐付いていません。</div>
+        </div>
+
+        <div style="background:#eff6ff;padding:12px;border-radius:8px;margin-bottom:16px;border-left:4px solid #3b82f6;">
+          <div style="font-weight:700;color:#1e40af;margin-bottom:6px;">📝 紐付け手順</div>
+          <ol style="font-size:12px;color:#1e40af;padding-left:20px;line-height:1.8;">
+            <li>生徒に <a href="https://hero-s-points-rpg.web.app" target="_blank" style="color:#2563eb;">https://hero-s-points-rpg.web.app</a> を開いてもらう</li>
+            <li>Googleアカウントでログインしてもらう</li>
+            <li>ブラウザで F12 → Console タブで <code style="background:#fff;padding:2px 4px;border-radius:4px;">firebase.auth().currentUser.uid</code> を実行</li>
+            <li>表示されたGoogle UID（文字列）をコピーして下の欄に貼り付け</li>
+            <li>「紐付け登録」をクリック</li>
+          </ol>
+        </div>
+      `}
+
+      <div style="margin-top:16px;">
+        <label style="display:block;font-weight:700;font-size:12px;color:#4a5568;margin-bottom:4px;">Google UID</label>
+        <input type="text" id="rpgLinkUidInput" class="form-control"
+               placeholder="例: G8DutIDrdRZboRo6s6W7sp9o33B2"
+               value="${linked ? escapeHtml(currentLink.googleUid) : ''}"
+               style="font-family:monospace;font-size:12px;">
+        <div style="font-size:10px;color:#a0aec0;margin-top:4px;">※ 生徒がRPGにGoogleログインした時のUID</div>
+      </div>
+    </div>
+  `;
+
+  const footerHtml = `
+    <button class="btn btn-secondary" onclick="closeModal()">キャンセル</button>
+    ${linked ? `<button class="btn" style="background:#fee2e2;color:#dc2626;" onclick="unlinkRpgAccount('${studentId}')">紐付け解除</button>` : ''}
+    <button class="btn btn-primary" onclick="saveRpgLink('${studentId}')">${linked ? '変更を保存' : '紐付け登録'}</button>
+  `;
+
+  openModal(`🎮 RPGアカウント紐付け: ${name}`, bodyHtml, footerHtml);
+}
+
+async function saveRpgLink(studentId) {
+  const input = document.getElementById('rpgLinkUidInput');
+  const googleUid = input.value.trim();
+  if (!googleUid) {
+    showToast('Google UIDを入力してください', 'error');
+    return;
+  }
+  if (googleUid.length < 8) {
+    showToast('Google UIDが短すぎます', 'error');
+    return;
+  }
+  try {
+    await RpgBridgeDB.linkAccount(studentId, googleUid);
+    showToast('🎮 RPG紐付けを保存しました');
+    closeModal();
+    loadStudents();
+  } catch (e) {
+    console.error('RPG link save failed:', e);
+    showToast('保存に失敗しました: ' + e.message, 'error');
+  }
+}
+
+async function unlinkRpgAccount(studentId) {
+  if (!confirm('この生徒のRPG紐付けを解除しますか？\n（これまで付与された報酬データは残ります）')) return;
+  try {
+    await RpgBridgeDB.unlinkAccount(studentId);
+    showToast('紐付けを解除しました');
+    closeModal();
+    loadStudents();
+  } catch (e) {
+    console.error('RPG unlink failed:', e);
+    showToast('解除に失敗しました: ' + e.message, 'error');
+  }
 }
 
 async function deleteStudent(id) {
