@@ -3605,9 +3605,10 @@ async function loadHome() {
   document.getElementById('homeLevel').textContent = level;
   document.getElementById('homeStreak').textContent = s.streak || 0;
 
-  // ランクバッジ
+  // ランクバッジ (新UIでは非表示なので null チェック)
   const rankInfo = getRankInfo(s.rank || 'rookie');
-  document.getElementById('homeRankBadge').innerHTML = `${rankInfo.icon} ${rankInfo.name}`;
+  const rankBadgeEl = document.getElementById('homeRankBadge');
+  if (rankBadgeEl) rankBadgeEl.innerHTML = `${rankInfo.icon} ${rankInfo.name}`;
 
   // ストリーク表示（0日の時は「前回の記録」を表示）
   if ((s.streak || 0) === 0 && (s.bestStreak || 0) > 0) {
