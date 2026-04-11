@@ -1,109 +1,108 @@
-# Academy RPG 連携: 次のステップ
+# Academy RPG 連携: 完了状況と今後
 
-## Step 5 完了内容 (2026-04-11)
+## ✅ 完了した実装 (2026-04-11)
 
-### academy-points 側の実装
+### Step 5 (初期版)
+- academy-points から rpg_* コレクションへ報酬書き込み
+- `RpgBridgeDB` ヘルパーを db.js に追加
+- ポモドーロ完走時の自動報酬付与 (student.html)
+- Firestore Rules の `rpg_*` 権限追加
 
-1. **firestore.rules 更新** — `rpg_*` コレクションへの admin 書き込み権限を追加
-2. **db.js に RpgBridgeDB 追加** — RPG 側へ報酬を反映するヘルパー
-   - `awardForPomodoro(studentId, pomodoroCount, minutes, subject)` — ポモドーロ完走時の報酬
-   - `resolveRpgUid(studentId)` — academy-points 生徒ID → RPG Google UID の紐付け解決
-   - `linkAccount(studentId, googleUid)` — アカウント紐付け
-   - `unlinkAccount(studentId)` — 紐付け解除
-   - `getAllLinks()` — 全紐付け一覧
-3. **student.html** — ポモドーロ完走時に `RpgBridgeDB.awardForPomodoro` を自動呼び出し
+### Step 5.1 (PIN ログイン切り替え)
+- RPG を Google ログインから **PIN ログイン** に切替
+- Cloud Function `createRpgAuthToken` を追加 (academy-rpg 側)
+- nickname + pin → student.id を UID とした Custom Token を発行
+- LoginScene, FirebaseSync, HomeTownScene を改修
+- **結果**: RPG の Firebase Auth UID = academy-points の student.id
 
-### 報酬レート
-
-| 項目 | 1ポモドーロあたり |
-|------|-------------------|
-| XP | +20 |
-| Gold | +10 |
-| Standard チケット | +1 |
-
-academy-rpg 側の `functions/awardStudyReward.js` と同じレート。
+### Step 5.2 (クリーンアップ)
+- RpgBridgeDB.resolveRpgUid を簡素化 (常に student.id を返すだけ)
+- 管理画面の RPG 紐付けUI を非表示化 (コードは残存、style:display:none)
+- 🎮連携バッジも非表示化
 
 ---
 
-## 未解決の課題
+## 🎯 現在の動作
 
-### 1. アカウント紐付けの UI が未実装
+```
+生徒が RPG にアクセス
+  ↓
+ニックネーム + PIN でログイン
+  ↓
+Cloud Function createRpgAuthToken が students コレクションを検索
+  ↓
+student.id を UID とした Custom Token を発行
+  ↓
+RPG は signInWithCustomToken で認証
+  ↓
+firebase.auth().currentUser.uid === student.id ✅
 
-現状、生徒が RPG を Google ログインで使うと、RPG UID (例: `google_abc123`) と
-academy-points 生徒ID (例: `student_xyz789`) が別物になる。
-
-`RpgBridgeDB.resolveRpgUid()` は `rpg_account_links/{academyStudentId}` を見に行くが、
-現時点ではそのドキュメントを作る UI が無い。
-
-そのため今は、`rpg_account_links` が空の状態では
-**academy-points 生徒ID のまま RPG 側コレクションに書き込まれる**。
-つまり生徒が Google ログインした RPG では、まだ報酬が見えない状態。
-
-### 2. 必要な実装
-
-#### A. 管理画面 (index.html) にアカウント紐付け UI
-
-以下のような画面を追加:
-
-- 生徒一覧 (`students` コレクション)
-- 各生徒の隣に「RPG アカウント紐付け」ボタン
-- クリック → モーダル → 「生徒の Google ログイン UID を入力」
-- 保存 → `RpgBridgeDB.linkAccount(studentId, googleUid)` 呼び出し
-
-Google UID は RPG ログイン後に生徒に伝えてもらう方式で OK。
-もしくは、RPG 側に「自分の Google UID を表示」ボタンを置く。
-
-#### B. RPG 側 (academy-rpg) にマージロジック
-
-現状の `FirebaseSync.createProfile` は `rpg_profiles/{googleUid}` を作る。
-紐付けがあれば `rpg_profiles/{academyStudentId}` にマージする仕組みが必要。
-
-案:
-1. LoginScene で Google ログイン直後、`rpg_account_links` を逆引き
-2. 自分の googleUid が紐付けられている `academyStudentId` を探す
-3. 見つかれば `rpg_profiles/{academyStudentId}` を読んで UI に反映
-4. 見つからなければ新規プロフィール作成 (現状の挙動)
-
-もしくは、LoginScene に「アカウント紐付け」ボタンを追加:
-- 生徒自身に academy-points の PIN を入力してもらう
-- サーバで PIN → 生徒ID を逆引きし、`rpg_account_links` に書き込む
-
-### 3. その他の将来タスク
-
-- `rollGacha` Cloud Function 実装 (サーバ権威のガチャ)
-- ミニゲーム3種 (MathFlash / MemoryMatch / TypingHero)
-- Inventory シーン (獲得装備・バディ一覧)
-- 科目別スキルレート (`rpg_skill_rates`) 連動の強化バフ
+勉強 (academy-points)
+  ↓
+RpgBridgeDB.awardForPomodoro(student.id, ...)
+  ↓
+Firestore: rpg_wallet/{student.id}, rpg_profiles/{student.id} 等に書き込み
+  ↓
+RPG 画面が onSnapshot で即時反映
+```
 
 ---
 
-## Firestore Rules の同期
+## 🔮 今後のタスク
 
-**重要**: academy-points と academy-rpg の両方が同じ Firestore を使っているので、
-`firestore.rules` はどちらか片方しか有効にならない (最後にデプロイしたほうが勝つ)。
+### B. ミニゲーム3種実装 (ローカル Claude)
+- MathFlash (30秒計算バトル)
+- MemoryMatch (1分記憶カード)
+- TypingHero (45秒タイピング)
+- MinigameHubScene (選択画面)
 
-### 対応方針
+### C. 日本語化 + デザイン磨き上げ (ローカル Claude)
+- 全UIテキストを日本語化
+- アイテム名を世界観に合わせた和名に
+- 配色・フォント・演出調整
 
-- **Single Source of Truth**: academy-points 側の `firestore.rules` をマスターとし、
-  academy-rpg 側のルールは **空** または同じ内容を保つ
-- または、academy-rpg 側からはルールをデプロイしない運用にする
+### D. rollGacha サーバ権威化 (ローカル Claude)
+- ガチャ抽選を Cloud Function に移動
+- チート防止
 
-### 今回追加した rpg_* ルール (academy-points/firestore.rules 末尾)
+### E. 塾長向け使い方ガイド (クラウド Claude)
+- 生徒・保護者・スタッフ向け操作説明
+- トラブルシューティング
 
-```
-match /rpg_profiles/{uid} { ... }
-match /rpg_wallet/{uid} { ... }
-match /rpg_gacha_tickets/{uid} { ... }
-match /rpg_daily_stats/{uid}/days/{dateId} { ... }
-match /rpg_inventory/{uid}/items/{itemId} { ... }
-match /rpg_account_links/{academyStudentId} { ... }
-match /rpg_minigame_results/{docId} { ... }
-match /rpg_transactions/{docId} { ... }
-match /rpg_skill_rates/{uid} { ... }
-```
+---
 
-academy-rpg 側にデプロイされている rules は古いので、必ず academy-points 側を
-最後にデプロイすること。
+## 🗑️ 廃止・非推奨
+
+### `rpg_account_links` コレクション
+- PIN ログイン導入前は academy-points 生徒ID と Google UID の紐付けに使っていた
+- PIN ログイン後は不要
+- 既存データはそのまま残してOK (害は無い)
+
+### 管理画面の RPG 紐付けUI
+- `openRpgLinkModal`, `saveRpgLink`, `unlinkRpgAccount` 関数
+- `🎮連携済/未連携` ボタン
+- すべて display:none で非表示化、将来不要なら削除
+
+### RpgBridgeDB.resolveRpgUid
+- 互換性のために残してあるが、常に studentId を返すだけ
+- 将来的に削除してもよい
+
+---
+
+## 📝 運用メモ
+
+### 古い rpg_profiles データ (Google UID 期)
+先に Google ログインでテストしていた時のデータが残っている:
+- `rpg_profiles/G8DutIDrdRZboRo6s6W7sp9o33B2` (先生のGoogle UID)
+- `rpg_wallet/G8DutIDrdRZboRo6s6W7sp9o33B2`
+- `rpg_gacha_tickets/G8DutIDrdRZboRo6s6W7sp9o33B2`
+
+PIN ログイン後はこのデータにアクセスされない。放置してよいが、
+気になるなら Firebase Console から手動削除可能。
+
+### Firestore Rules の single source of truth
+academy-points/firestore.rules が SSOT。
+academy-rpg 側からは今後 rules をデプロイしないこと。
 
 ```bash
 cd ~/academy-points

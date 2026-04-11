@@ -2757,8 +2757,10 @@ async function loadStudents() {
       : allStudents.map(s => {
           const ri = getRankInfo(s.rank || 'rookie');
           const roleTag = s.role === 'supporter' ? '<span style="background:#fbbf24;color:#78350f;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:4px">&#128588;サポーター</span>' : '';
+          // PIN ログイン導入後、全生徒が自動的に student.id で RPG と連携するため、
+          // rpgLinked バッジは非表示化 (データは互換性のため読み込んでいる)
           const rpgLinked = !!(allRpgLinks[s.id] && allRpgLinks[s.id].googleUid);
-          const rpgTag = rpgLinked ? '<span style="background:#d1fae5;color:#047857;font-size:10px;padding:1px 6px;border-radius:4px;margin-left:4px" title="RPG紐付け済み">🎮連携</span>' : '';
+          const rpgTag = '';
           const matIcons = (s.materials || []).map(mid => { const m = getMaterialById(mid); return m ? m.icon : ''; }).join('');
           return `<tr>
           <td><strong>${escapeHtml(s.name)}</strong> <span style="color:#6366f1;font-size:11px;">${escapeHtml(s.callsign || s.nickname || '')}</span>${roleTag}${rpgTag}</td>
@@ -2804,7 +2806,8 @@ async function loadStudents() {
             <div class="btn-group">
               <button class="btn btn-secondary btn-sm" onclick="editStudent('${s.id}')">編集</button>
               <button class="btn btn-sm" style="background:#ebf8ff;color:#3182ce;font-size:10px" onclick="openStudentKarte('${s.id}')" title="生徒カルテ">&#128203;カルテ</button>
-              <button class="btn btn-sm" style="background:${rpgLinked ? '#d1fae5' : '#fef3c7'};color:${rpgLinked ? '#047857' : '#92400e'};font-size:10px" onclick="openRpgLinkModal('${s.id}')" title="RPG紐付け">🎮${rpgLinked ? '連携済' : '未連携'}</button>
+              <!-- PIN ログイン導入後、RPG 紐付けUI は不要になったため非表示。必要なら style を外す -->
+              <button class="btn btn-sm" style="display:none;background:${rpgLinked ? '#d1fae5' : '#fef3c7'};color:${rpgLinked ? '#047857' : '#92400e'};font-size:10px" onclick="openRpgLinkModal('${s.id}')" title="RPG紐付け">🎮${rpgLinked ? '連携済' : '未連携'}</button>
               <button class="btn btn-sm" style="background:${s.role === 'supporter' ? '#fbbf24' : '#e2e8f0'};color:${s.role === 'supporter' ? '#78350f' : 'var(--text)'};font-size:10px" onclick="toggleStudentRole('${s.id}','${s.role || 'student'}')" title="${s.role === 'supporter' ? '生徒に戻す' : 'サポーターに変更'}">${s.role === 'supporter' ? '&#128588;' : '&#128100;'}</button>
               <button class="btn btn-danger btn-sm" onclick="deleteStudent('${s.id}')">削除</button>
             </div>

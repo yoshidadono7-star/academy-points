@@ -5036,13 +5036,12 @@ async function migrateClassroomId() {
 // ============================================
 // academy-rpg (https://hero-s-points-rpg.web.app) 側で生徒に報酬を反映する。
 //
-// 【設計】
-// - academy-points は admin@heros.jp で Firebase Auth にログインしている想定
-// - 生徒IDは currentStudent.id (Firestore ドキュメントID)
-// - RPG 側の rpg_* コレクションに直接書き込む (Firestore rules で admin 許可)
-// - 生徒が RPG (Google ログイン) を使う場合、rpg_account_links で UID 紐付け
-// - 紐付けが無い場合は academy-points 生徒IDをそのまま RPG UID として使う
-//   → 後で紐付けが作られた時に正しい UID にマージ可能
+// 【設計】(2026-04-11 PIN ログイン化で更新)
+// - RPG は academy-points の student.id を Firebase Auth UID として使う
+//   (createRpgAuthToken Cloud Function で PIN 認証 → Custom Token 発行)
+// - これにより rpg_* コレクションのキーは全て student.id で統一
+// - academy-points から書き込む時も student.id をそのまま使えばよい
+// - 古いアカウント紐付け (rpg_account_links) は不要だが、残っていても害は無い
 //
 // 【ポモドーロ報酬レート】 academy-rpg の functions/awardStudyReward.js と同じ
 const RPG_XP_PER_POMODORO = 20;
@@ -5058,16 +5057,9 @@ const RpgBridgeDB = {
     return jst.toISOString().slice(0, 10);
   },
 
-  // academy-points 生徒ID に紐付く RPG UID を取得 (無ければ academy-points ID を返す)
+  // [非推奨] PIN ログイン導入後は student.id をそのまま使うため不要。
+  // 既存の呼び出し元のため互換性として残してあるが、常に studentId をそのまま返す。
   async resolveRpgUid(academyStudentId) {
-    try {
-      const doc = await db.collection('rpg_account_links').doc(academyStudentId).get();
-      if (doc.exists && doc.data().googleUid) {
-        return doc.data().googleUid;
-      }
-    } catch (e) {
-      console.warn('[RpgBridge] resolveRpgUid failed:', e);
-    }
     return academyStudentId;
   },
 
@@ -5076,7 +5068,8 @@ const RpgBridgeDB = {
   async awardForPomodoro(academyStudentId, pomodoroCount, totalMinutes, subject) {
     if (!academyStudentId || pomodoroCount <= 0) return null;
 
-    const rpgUid = await this.resolveRpgUid(academyStudentId);
+    // PIN ログイン導入後: student.id = RPG UID なのでそのまま使う
+    const rpgUid = academyStudentId;
     const xpGain = RPG_XP_PER_POMODORO * pomodoroCount;
     const goldGain = RPG_GOLD_PER_POMODORO * pomodoroCount;
     const ticketGain = RPG_TICKETS_PER_POMODORO * pomodoroCount;
