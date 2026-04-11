@@ -101,6 +101,37 @@ body {
 .tab-content { display: none; padding: 16px; }
 .tab-content.active { display: block; }
 
+/* ラーメン屋式タッチボタン */
+.touch-menu { display: flex; flex-direction: column; gap: 10px; padding: 16px; }
+.touch-btn {
+  display: flex; align-items: center; gap: 14px;
+  background: white; border-radius: 16px; padding: 18px 20px;
+  box-shadow: 0 2px 12px rgba(0,0,0,0.06); cursor: pointer;
+  transition: transform 0.15s; border: 2px solid transparent;
+  font-family: inherit; width: 100%; text-align: left; min-height: 70px;
+}
+.touch-btn:active { transform: scale(0.97); }
+.touch-btn-primary {
+  background: linear-gradient(135deg, var(--primary), #764ba2);
+  color: white; border: none;
+  box-shadow: 0 4px 20px rgba(102, 126, 234, 0.3);
+}
+.touch-btn-icon { font-size: 28px; flex-shrink: 0; }
+.touch-btn-text { flex: 1; }
+.touch-btn-label { font-size: 16px; font-weight: 800; }
+.touch-btn-primary .touch-btn-label { font-size: 18px; }
+.touch-btn-sub { font-size: 11px; opacity: 0.6; margin-top: 2px; }
+.touch-btn-arrow { font-size: 18px; opacity: 0.4; flex-shrink: 0; }
+.touch-btn-primary .touch-btn-arrow { opacity: 0.7; }
+.touch-btn-badge { background: #fc8181; color: white; font-size: 11px; font-weight: 700; padding: 2px 8px; border-radius: 10px; }
+.touch-back-btn {
+  background: linear-gradient(180deg, rgba(102,126,234,0.15), rgba(102,126,234,0.05));
+  border: 1px solid rgba(102,126,234,0.3); color: #667eea;
+  padding: 8px 14px; border-radius: 12px; font-size: 14px; font-weight: 700;
+  cursor: pointer; margin-bottom: 12px; display: flex; align-items: center; gap: 4px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.08);
+}
+
 .card {
   background: var(--card); border-radius: var(--radius); padding: 20px;
   margin-bottom: 16px; box-shadow: var(--shadow);
@@ -202,32 +233,82 @@ body {
     </div>
   </div>
 
-  <div class="tabs">
-    <div class="tab-cat-row">
-      <button class="tab-cat-btn active" data-cat="daily">📈 日常</button>
-      <button class="tab-cat-btn" data-cat="analytics">📊 分析</button>
-      <button class="tab-cat-btn" data-cat="operation">⚙️ 運営</button>
-    </div>
-    <div class="tab-sub-row">
-      <div class="tab-sub-group active" data-cat="daily">
-        <button class="tab-btn active" data-tab="today">📅 今日のスケジュール</button>
-        <button class="tab-btn" data-tab="buddychat" style="position:relative;">💬 バディ会話<span id="teacherBuddyChatBadge" style="display:none;position:absolute;top:4px;right:4px;background:#fc8181;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;">0</span></button>
-        <button class="tab-btn" data-tab="comment">📝 生徒コメント</button>
-        <button class="tab-btn" data-tab="aibuddy">🤖 AI相談</button>
-        <button class="tab-btn" data-tab="handoff" style="position:relative;">📬 申し送り<span id="handoffBadge" style="display:none;position:absolute;top:4px;right:4px;background:#fc8181;color:#fff;font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;">0</span></button>
-      </div>
-      <div class="tab-sub-group" data-cat="analytics">
-        <button class="tab-btn" data-tab="stats">📊 統計</button>
-      </div>
-      <div class="tab-sub-group" data-cat="operation">
-        <button class="tab-btn" data-tab="approval">🏠 家庭学習承認</button>
-        <button class="tab-btn" data-tab="shifts">📅 シフト確認</button>
-      </div>
-    </div>
+  <!-- ラーメン屋式メニュー -->
+  <div class="touch-menu" id="teacherHomeMenu">
+    <button class="touch-btn touch-btn-primary" onclick="showTeacherPanel('today')">
+      <span class="touch-btn-icon">📅</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">今日のスケジュール</span>
+        <span class="touch-btn-sub">本日の授業と担当生徒</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
+    </button>
+    <button class="touch-btn" onclick="showTeacherPanel('comment')">
+      <span class="touch-btn-icon">📝</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">生徒コメント</span>
+        <span class="touch-btn-sub">授業後のコメントを記入</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
+    </button>
+    <button class="touch-btn" onclick="showTeacherPanel('aibuddy')">
+      <span class="touch-btn-icon">🤖</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">AI相談</span>
+        <span class="touch-btn-sub">指導の相談や生徒の悩みを相談</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
+    </button>
+    <button class="touch-btn" onclick="showTeacherPanel('approval')">
+      <span class="touch-btn-icon">🏠</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">家庭学習承認</span>
+        <span class="touch-btn-sub">生徒の自宅学習を承認/却下</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
+    </button>
+    <button class="touch-btn" onclick="showTeacherPanel('handoff')">
+      <span class="touch-btn-icon">📬</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">申し送り</span>
+        <span class="touch-btn-sub">バディからの報告と連絡事項</span>
+      </span>
+      <span id="handoffBadge" style="display:none;" class="touch-btn-badge">0</span>
+      <span class="touch-btn-arrow">→</span>
+    </button>
+    <button class="touch-btn" onclick="showTeacherPanel('goalApproval')">
+      <span class="touch-btn-icon">🎯</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">目標承認</span>
+        <span class="touch-btn-sub">生徒の個人目標を承認</span>
+      </span>
+      <span id="goalApprovalBadge" style="display:none;" class="touch-btn-badge">0</span>
+      <span class="touch-btn-arrow">→</span>
+    </button>
+    <button class="touch-btn" onclick="showTeacherPanel('shifts')">
+      <span class="touch-btn-icon">📆</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">シフト確認</span>
+        <span class="touch-btn-sub">今週のシフトを確認</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
+    </button>
+    <button class="touch-btn" onclick="showTeacherPanel('stats')">
+      <span class="touch-btn-icon">📊</span>
+      <span class="touch-btn-text">
+        <span class="touch-btn-label">統計</span>
+        <span class="touch-btn-sub">指導実績を確認</span>
+      </span>
+      <span class="touch-btn-arrow">→</span>
+    </button>
   </div>
 
+  <!-- 旧タブ（非表示） -->
+  <div class="tabs" style="display:none;"></div>
+
   <!-- 今日のスケジュール -->
-  <div class="tab-content active" id="tab-today">
+  <div class="tab-content" id="tab-today">
+    <button class="touch-back-btn" onclick="backToTeacherHome()">◀ 戻る</button>
     <div class="card">
       <h3 id="todayDateTitle">今日のスケジュール</h3>
       <div id="todayScheduleList" class="schedule-grid">
@@ -238,6 +319,7 @@ body {
 
   <!-- 家庭学習承認 -->
   <div class="tab-content" id="tab-approval">
+    <button class="touch-back-btn" onclick="backToTeacherHome()">◀ 戻る</button>
     <div class="card">
       <h3>承認待ちの家庭学習 <span id="pendingCount" style="color:var(--warning);"></span></h3>
       <div id="pendingList">
@@ -248,6 +330,7 @@ body {
 
   <!-- 生徒コメント -->
   <div class="tab-content" id="tab-comment">
+    <button class="touch-back-btn" onclick="backToTeacherHome()">◀ 戻る</button>
     <div class="card">
       <h3>生徒コメント記入</h3>
       <div class="comment-form">
@@ -310,6 +393,7 @@ body {
 
   <!-- AI 相談 (講師バディ / 教室長バディ) -->
   <div class="tab-content" id="tab-aibuddy">
+    <button class="touch-back-btn" onclick="backToTeacherHome()">◀ 戻る</button>
     <div class="card" style="height:75vh;display:flex;flex-direction:column;padding:0;overflow:hidden;">
       <div style="padding:14px 18px;border-bottom:1px solid var(--border);background:linear-gradient(135deg,#f8fafc,#f0f4ff);">
         <div style="font-size:16px;font-weight:700;color:#2d3748;">🤖 <span id="aiBuddyTitle">AI バディ</span></div>
@@ -335,6 +419,7 @@ body {
 
   <!-- 申し送り Inbox -->
   <div class="tab-content" id="tab-handoff">
+    <button class="touch-back-btn" onclick="backToTeacherHome()">◀ 戻る</button>
     <div class="card">
       <h3 style="display:flex;align-items:center;gap:8px;">📬 申し送り Inbox <span style="font-size:11px;font-weight:normal;color:var(--text-light);">あなたに関係する情報を一覧で</span></h3>
       <div id="handoffInboxList">
@@ -343,8 +428,33 @@ body {
     </div>
   </div>
 
+  <!-- Phase X1: 個人目標の承認 -->
+  <div class="tab-content" id="tab-goalApproval">
+    <button class="touch-back-btn" onclick="backToTeacherHome()">◀ 戻る</button>
+    <div class="card">
+      <h3>🎯 個人目標の承認</h3>
+      <p style="font-size:12px;color:#718096;margin-bottom:14px;">
+        生徒が立てた今週の目標を承認してください。目標は現実的な範囲か、レベルに合ったポイント設定かを確認し、必要なら却下も可能です。
+      </p>
+      <div id="pendingGoalsList">
+        <div class="empty-state">読み込み中...</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:16px;">
+      <h3>📋 承認済み・進行中の目標</h3>
+      <p style="font-size:12px;color:#718096;margin-bottom:14px;">
+        現在進行中の目標。手動で達成 or 未達成としてマークできます (自動判定は週次で実行)。
+      </p>
+      <div id="activeGoalsList">
+        <div class="empty-state">読み込み中...</div>
+      </div>
+    </div>
+  </div>
+
   <!-- シフト確認 -->
   <div class="tab-content" id="tab-shifts">
+    <button class="touch-back-btn" onclick="backToTeacherHome()">◀ 戻る</button>
     <div class="card">
       <h3>今週のシフト</h3>
       <div id="weekShiftsList" class="schedule-grid">
@@ -355,6 +465,7 @@ body {
 
   <!-- 統計 -->
   <div class="tab-content" id="tab-stats">
+    <button class="touch-back-btn" onclick="backToTeacherHome()">◀ 戻る</button>
     <div class="card">
       <h3>今月の統計</h3>
       <div class="stat-grid" id="teacherStats">
@@ -368,6 +479,7 @@ body {
 
   <!-- バディ会話タブ -->
   <div class="tab-content" id="tab-buddychat">
+    <button class="touch-back-btn" onclick="backToTeacherHome()">◀ 戻る</button>
     <div class="card" style="padding:0;height:75vh;display:flex;overflow:hidden;">
       <!-- 左側: 生徒一覧 -->
       <div style="width:240px;border-right:1px solid var(--border);display:flex;flex-direction:column;background:#f7fafc;">
@@ -458,50 +570,39 @@ function teacherLogout() {
 }
 
 // --- Tab Navigation (2段タブ) ---
-document.querySelectorAll('.tab-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-    btn.classList.add('active');
-    const tab = btn.dataset.tab;
-    document.getElementById(`tab-${tab}`).classList.add('active');
+// ラーメン屋式: パネル切替
+const TEACHER_LOADERS = {
+  today: typeof loadTodaySchedule !== 'undefined' ? loadTodaySchedule : null,
+  approval: typeof loadPendingApprovals !== 'undefined' ? loadPendingApprovals : null,
+  comment: typeof loadRecentComments !== 'undefined' ? loadRecentComments : null,
+  shifts: typeof loadWeekShifts !== 'undefined' ? loadWeekShifts : null,
+  stats: typeof loadTeacherStats !== 'undefined' ? loadTeacherStats : null,
+  buddychat: typeof loadTeacherBuddyChat !== 'undefined' ? loadTeacherBuddyChat : null,
+  aibuddy: typeof loadAIBuddyChat !== 'undefined' ? loadAIBuddyChat : null,
+  handoff: typeof loadHandoffInbox !== 'undefined' ? loadHandoffInbox : null,
+  goalApproval: typeof loadGoalApprovalTab !== 'undefined' ? loadGoalApprovalTab : null,
+};
 
-    // サブタブが属するカテゴリを同期してアクティブにする
-    const parentGroup = btn.closest('.tab-sub-group');
-    if (parentGroup) {
-      const cat = parentGroup.dataset.cat;
-      document.querySelectorAll('.tab-cat-btn').forEach(b => b.classList.remove('active'));
-      const catBtn = document.querySelector(`.tab-cat-btn[data-cat="${cat}"]`);
-      if (catBtn) catBtn.classList.add('active');
-      document.querySelectorAll('.tab-sub-group').forEach(g => g.classList.remove('active'));
-      parentGroup.classList.add('active');
-    }
+function showTeacherPanel(tabId) {
+  const menu = document.getElementById('teacherHomeMenu');
+  if (menu) menu.style.display = 'none';
+  document.querySelectorAll('.tab-content').forEach(c => { c.classList.remove('active'); c.style.display = 'none'; });
+  const panel = document.getElementById('tab-' + tabId);
+  if (panel) { panel.classList.add('active'); panel.style.display = 'block'; }
+  // データロード
+  try {
+    const loaders = { today: loadTodaySchedule, approval: loadPendingApprovals, comment: loadRecentComments,
+      shifts: loadWeekShifts, stats: loadTeacherStats, buddychat: loadTeacherBuddyChat,
+      aibuddy: loadAIBuddyChat, handoff: loadHandoffInbox, goalApproval: loadGoalApprovalTab };
+    if (loaders[tabId]) loaders[tabId]();
+  } catch(e) { console.warn('[showTeacherPanel]', e); }
+}
 
-    const loaders = {
-      today: loadTodaySchedule,
-      approval: loadPendingApprovals,
-      comment: loadRecentComments,
-      shifts: loadWeekShifts,
-      stats: loadTeacherStats,
-      buddychat: loadTeacherBuddyChat,
-      aibuddy: loadAIBuddyChat,
-      handoff: loadHandoffInbox
-    };
-    if (loaders[tab]) loaders[tab]();
-  });
-});
-
-// カテゴリ行クリック → サブタブグループ切替
-document.querySelectorAll('.tab-cat-btn').forEach(btn => {
-  btn.addEventListener('click', () => {
-    const cat = btn.dataset.cat;
-    document.querySelectorAll('.tab-cat-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
-    document.querySelectorAll('.tab-sub-group').forEach(g => g.classList.remove('active'));
-    const group = document.querySelector(`.tab-sub-group[data-cat="${cat}"]`);
-    if (group) group.classList.add('active');
-  });
-});
+function backToTeacherHome() {
+  document.querySelectorAll('.tab-content').forEach(c => { c.classList.remove('active'); c.style.display = 'none'; });
+  const menu = document.getElementById('teacherHomeMenu');
+  if (menu) menu.style.display = 'flex';
+}
 
 // --- バディ会話（リアルタイム） ---
 let teacherChatListUnsub = null;
@@ -967,18 +1068,101 @@ const AIBuddyTeacher = (() => {
 - 才能を褒めず過程を褒める（成長マインドセット）
 - 新人講師でも自信を持って指導できるよう、具体的な声かけ例を示す
 
+【アドラー心理学に基づくコーチング原則】
+■ 5大原則（講師の対話の土台）
+1) 目的論: 「なぜできなかった？」ではなく「何のために？」「どうなりたい？」と問う
+2) 全体論: 感情・思考・行動は一体。「やる気がない」のではなく「やらない目的がある」
+3) 主体論: 生徒は自分の人生を自分で選んでいる。命令ではなく選択肢を提示する
+4) 対人関係論: 所属感・信頼感・貢献感が満たされれば人は成長する
+5) 共同体感覚: 「ここにいていい」「役に立てる」という感覚を育む
+
+■ 勇気づけ vs 勇気くじき（講師指導の最重要区分）
+✅ 勇気づけ: 過程に注目、貢献に感謝、存在を認める、主体性尊重、Iメッセージ
+❌ 勇気くじき: 才能評価、他者比較、条件付き承認、命令、同情（上からの憐れみ）、原因追及
+- 「ほめる」（条件付き・上から評価）と「勇気づけ」（無条件・対等な共感）は違う
+- 失敗時こそ勇気づけの出番: 「チャレンジした勇気がすごい。次はどうする？」
+
+■ ベイシック・ミステイクス（生徒の思考の罠5パターン）
+1. 決めつけ「どうせ無理」 2. 誇張「全部わからない」 3. 見落とし「何もできてない」
+4. 過度の一般化「数学ダメ→全部ダメ」 5. 誤った価値観「自分は価値がない」
+→ 「本当にそう？」「例外はない？」と優しく問い、証拠を一緒に探す
+
+■ 課題の分離
+- 「勉強するか」は生徒の課題。講師の課題は「環境と選択肢を用意する」こと
+- 相手が相談してきた時のみ「共同の課題」になる
+- 踏み込みすぎない。先回りしない。でも関心は向け続ける
+
+■ 怒り = 二次感情
+- 生徒の怒り・反抗の裏には不安・寂しさ・落胆がある
+- 「イライラしてるんだね。何が心配？」と一次感情にアプローチする
+
+【コーチング実践ツール（45期コーチングスクール準拠）】
+■ コーチング最重要質問
+1位: 「どうなったらいいの？」（状態を聞く。問題ではなく理想に焦点）
+2位: 「そのためにどうすればいい？」（行動を引き出す）
+この2つだけでコーチングの骨格は成立する
+
+■ 3つのモード（感情→事実→未来の順に進む）
+1) ぐち聞き: 共感・受容。「そっかぁ」「他には？」解決策を出さない
+2) 真剣: 事実確認。「例えば？」「一言で言うと？」メタ認知を促す
+3) ノリノリ: 未来志向。「何のために？」「いいね！」小さな一歩を決める
+
+■ 6つの基本質問
+もっと教えて？/ 他には？/ 例えば？/ 一言で言うと？/ 何のために？/ 言ってみてどう？
+
+■ SPACEモデル（生徒の状態を見立てる5要素）
+S(環境) P(身体) A(感情) C(思考) E(行動) — 一つ変えると全てが連鎖的に変わる
+例: 席を移る(S)→姿勢が変わる(P)→気分が変わる(A)→考えが変わる(C)→行動が変わる(E)
+
+■ 自己効力感の回復法
+- 小さな成功体験の積み重ね。「来ただけで偉い」「1問解けたね」から始める
+- 成長曲線はS字カーブ。最初は変化が見えにくい→転換点から急に伸びる
+- 「頑張ってるのに伸びない」は転換点の手前。保護者にもこの理解を共有する
+
+■ MUST→MAY/CAN転換
+- 「勉強しなきゃ」(MUST) → 「してもいい」(MAY) / 「どこならできる？」(CAN)
+- 選択肢を広げることで生徒の心理的柔軟性を育てる
+
+■ フォーカシング簡易版（モヤモヤへの対応）
+「そのモヤモヤ、何て言いたがってる？」→「他には？」→「一番は？」
+
+■ ディズニー・ストラテジー（目標設定時）
+Dreamer（制約なしに夢を描く）→ Realist（現実サイズに落とす）→ Critic（検証する）
+生徒が「どうせ無理」のRealistモードにいる時は、まずDreamerを引き出す
+
+■ YMO問題（やる気のない生徒）
+- 「やる気がない」＝「やらされている」と感じている
+- 無条件の肯定的関心: 何をしようがしなかろうが関心を向け続ける
+- 「やらなかったらマイナス」ではなく「やったらプラス」の声かけに徹する
+
+【科学的学習法の指導ガイド（講師が生徒に伝えるべきこと）】
+■ 効果が高い方法を生徒に自然に使わせる
+- アクティブリコール: 「教科書閉じて思い出してみて」と声をかける
+- 分散学習: 「前回の内容、覚えてる？」で毎回冒頭に復習
+- インターリービング: 1つの単元だけでなく複数を混ぜた演習を設計
+- 精緻化: 「なぜそうなる？自分の言葉で説明できる？」と問う
+- プロテジェ効果: 「これ、隣の子に教えてあげて」で理解が深まる
+- テスト効果: 小テストは「評価」ではなく「学習ツール」として活用
+
+■ 効果が低い方法を穏やかに正す
+- 繰り返し読むだけ / ノートまとめだけ / ハイライトだけ → 流暢性の錯覚に注意
+- 否定せず「それに加えて○○もやってみよう」と提案する
+
 【よくある相談タイプと対応の指針】
 1. 「この生徒どう接したら？」→ 過去のコメント・態度・理解度から推察し、具体的な声かけ例を1-2個提示
 2. 「次の授業で何やる？」→ 未完了タスクや弱点を踏まえて提案
 3. 「保護者にどう伝える？」→ 事実と解釈を分けて、ポジティブな面から始める言い回しを提示
 4. 「シフト・運営の相談（教室長向け）」→ データを根拠に複数の選択肢を提示
-5. 「自分の指導が合っているか不安」→ 振り返りを促し、否定しない
+5. 「自分の指導が合っているか不安」→ 振り返りを促し、否定しない。不完全でいい、100セッションこなすことに価値がある
+6. 「生徒が反抗的」→ 怒りは二次感情。裏の一次感情（不安・寂しさ）を探る
+7. 「生徒が自信を失っている」→ ベイシック・ミステイクスをチェック。ヨイ出しで自己効力感を回復
 
 【教室長 (director) 向けの追加責務】
 - 講師の人事・シフト管理を意識した助言
 - 全生徒の進捗・継続率・出席率などの教室 KPI を意識
 - 「困った」相談には、より上位の判断（保護者連絡、面談、退会防止など）を提示
 - オーナー（経営者）への申し送りが必要そうなら明示
+- 7つの設計原則を意識: (1)環境が人を変える (2)小さな行動→自己効力感 (3)「どうなったらいいの？」が始まり (4)やらせるのではなく結果を可視化 (5)コーチ自身がリソースフル (6)不完全でいい (7)信念は書き換えられる
 
 【返答のスタイル】
 - 200-400 文字程度を目安に
@@ -1183,6 +1367,197 @@ async function sendAIBuddyMessage() {
 // ============================================
 // Phase 2: 申し送り Inbox
 // ============================================
+// ============================================
+// Phase X1: 個人目標の承認 (教師画面)
+// ============================================
+function escapeHtmlTeacher(s) {
+  if (s == null) return '';
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+  }[c]));
+}
+
+const GOAL_TYPE_LABELS = {
+  time: '⏱ 学習時間',
+  pomodoro: '🍅 ポモドーロ回数',
+  sessions: '📚 セッション数',
+  task: '✅ タスク',
+  custom: '📝 自由目標',
+};
+
+async function loadGoalApprovalTab() {
+  await Promise.all([loadPendingGoals(), loadActiveGoals()]);
+}
+
+async function loadPendingGoals() {
+  const container = document.getElementById('pendingGoalsList');
+  if (!container) return;
+  try {
+    const pending = await PersonalGoalsDB.getPendingApprovals();
+    updateGoalApprovalBadge(pending.length);
+    if (pending.length === 0) {
+      container.innerHTML = '<div class="empty-state">承認待ちの目標はありません</div>';
+      return;
+    }
+    // Load students for level calculation
+    const students = await StudentsDB.getAll();
+    const sMap = {};
+    students.forEach(s => { sMap[s.id] = s; });
+
+    container.innerHTML = pending.map(g => {
+      const student = sMap[g.studentId];
+      const level = student ? calcLevel(student.totalPoints || 0) : 1;
+      const typeLabel = GOAL_TYPE_LABELS[g.type] || g.type;
+      return `
+        <div style="background:#fffbeb;border:2px solid #fbd38d;border-radius:10px;padding:14px;margin-bottom:10px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:8px;">
+            <div>
+              <div style="font-size:15px;font-weight:700;">${escapeHtmlTeacher(g.title)}</div>
+              <div style="font-size:11px;color:#718096;">${escapeHtmlTeacher(g.studentName)} (Lv${level}) · ${escapeHtmlTeacher(typeLabel)}</div>
+            </div>
+            <div style="text-align:right;font-size:11px;color:#718096;">
+              週: ${escapeHtmlTeacher(g.week || '-')}
+            </div>
+          </div>
+          <div style="padding:8px 12px;background:#fff;border-radius:6px;margin-bottom:8px;font-size:13px;">
+            目標: <strong>${g.target} ${g.unit || ''}</strong>
+            ${g.description ? '<br><span style="font-size:11px;color:#718096;">' + escapeHtmlTeacher(g.description) + '</span>' : ''}
+          </div>
+          <div style="display:flex;gap:10px;font-size:11px;margin-bottom:10px;">
+            <span>達成: <strong style="color:#48bb78;">+${g.reward} pt</strong></span>
+            <span>未達: <strong style="color:#e53e3e;">-${g.penalty} pt</strong></span>
+          </div>
+          <div style="display:flex;gap:8px;">
+            <button class="btn btn-primary btn-sm" style="flex:1;" onclick="approveGoal('${g.id}')">✅ 承認</button>
+            <button class="btn btn-sm" style="flex:1;background:#fff5f5;color:#c53030;border:1px solid #fc8181;" onclick="rejectGoal('${g.id}')">❌ 却下</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch(e) {
+    console.error('[loadPendingGoals]', e);
+    container.innerHTML = '<div class="empty-state" style="color:#e53e3e;">読み込み失敗: ' + escapeHtmlTeacher(e.message || '') + '</div>';
+  }
+}
+
+async function loadActiveGoals() {
+  const container = document.getElementById('activeGoalsList');
+  if (!container) return;
+  try {
+    const all = await PersonalGoalsDB.getAll();
+    const week = PersonalGoalsDB.getCurrentWeek();
+    const active = all.filter(g => g.status === 'active' && g.week === week);
+    if (active.length === 0) {
+      container.innerHTML = '<div class="empty-state">今週の進行中目標はありません</div>';
+      return;
+    }
+
+    const students = await StudentsDB.getAll();
+    const sMap = {};
+    students.forEach(s => { sMap[s.id] = s; });
+
+    // 各目標の進捗を計算
+    const withProgress = await Promise.all(active.map(async g => ({
+      ...g,
+      _progress: await PersonalGoalsDB.calculateProgress(g),
+      _student: sMap[g.studentId],
+    })));
+
+    container.innerHTML = withProgress.map(g => {
+      const rawPct = g._progress.pct || 0;
+      const pct = Math.min(100, rawPct);
+      const barColor = pct >= 100 ? '#48bb78' : pct >= 70 ? '#ed8936' : '#667eea';
+      const pctLabel = rawPct <= 0 ? '0%' : rawPct < 1 ? '< 1%' : rawPct < 10 ? (Math.round(rawPct * 10) / 10) + '%' : rawPct >= 100 ? '100%' : Math.round(rawPct) + '%';
+      const level = g._student ? calcLevel(g._student.totalPoints || 0) : 1;
+      return `
+        <div style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:10px;padding:12px;margin-bottom:8px;">
+          <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px;margin-bottom:6px;">
+            <div>
+              <div style="font-size:13px;font-weight:700;">${escapeHtmlTeacher(g.title)}</div>
+              <div style="font-size:11px;color:#718096;">${escapeHtmlTeacher(g.studentName)} (Lv${level})</div>
+            </div>
+            <div style="font-size:12px;font-weight:700;color:${barColor};">${pctLabel}</div>
+          </div>
+          <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px;">
+            <span>進捗</span>
+            <span style="font-family:monospace;">${(Math.round(g._progress.current * 10) / 10)} / ${g.target} ${g.unit || ''}</span>
+          </div>
+          <div style="background:rgba(0,0,0,0.06);border-radius:4px;height:8px;overflow:hidden;margin-bottom:8px;">
+            <div style="background:${barColor};height:8px;width:${Math.max(pct, rawPct > 0 ? 1 : 0)}%;"></div>
+          </div>
+          <div style="display:flex;gap:6px;">
+            <button class="btn btn-sm btn-primary" style="flex:1;" onclick="markGoalAchievedManual('${g.id}')">🎉 達成にする</button>
+            <button class="btn btn-sm" style="flex:1;background:#fff5f5;color:#c53030;border:1px solid #fc8181;" onclick="markGoalMissedManual('${g.id}')">😢 未達にする</button>
+          </div>
+        </div>
+      `;
+    }).join('');
+  } catch(e) {
+    console.error('[loadActiveGoals]', e);
+    container.innerHTML = '<div class="empty-state" style="color:#e53e3e;">読み込み失敗: ' + escapeHtmlTeacher(e.message || '') + '</div>';
+  }
+}
+
+function updateGoalApprovalBadge(count) {
+  const badge = document.getElementById('goalApprovalBadge');
+  if (!badge) return;
+  if (count > 0) {
+    badge.textContent = count;
+    badge.style.display = 'inline-block';
+  } else {
+    badge.style.display = 'none';
+  }
+}
+
+async function approveGoal(id) {
+  try {
+    await PersonalGoalsDB.approve(id, currentTeacher?.name || '教室長');
+    showToast('✅ 承認しました');
+    loadGoalApprovalTab();
+  } catch(e) { showToast('承認失敗', 'error'); }
+}
+
+async function rejectGoal(id) {
+  const reason = prompt('却下理由 (任意):');
+  if (reason === null) return;
+  try {
+    await PersonalGoalsDB.reject(id, reason);
+    showToast('却下しました');
+    loadGoalApprovalTab();
+  } catch(e) { showToast('却下失敗', 'error'); }
+}
+
+async function markGoalAchievedManual(id) {
+  if (!confirm('この目標を「達成」にマークしますか？ 報酬ポイントが生徒に付与されます。')) return;
+  try {
+    const goal = await PersonalGoalsDB.getById(id);
+    const student = await StudentsDB.getById(goal.studentId);
+    await PersonalGoalsDB.markAchieved(id, student);
+    showToast('🎉 達成としてマークしました');
+    loadGoalApprovalTab();
+  } catch(e) {
+    console.error(e);
+    showToast('失敗: ' + (e.message || ''), 'error');
+  }
+}
+
+async function markGoalMissedManual(id) {
+  if (!confirm('この目標を「未達成」にマークしますか？ レベルに応じたペナルティが適用されます (Lv1-2 は保護、1 週目は警告のみ)。')) return;
+  try {
+    const goal = await PersonalGoalsDB.getById(id);
+    const student = await StudentsDB.getById(goal.studentId);
+    const result = await PersonalGoalsDB.markMissed(id, student);
+    const msg = result.penalty > 0
+      ? `😢 未達としてマーク (Lv${result.level}, ${result.consecutiveMisses}週目連続, -${result.penalty} pt)`
+      : `😢 未達としてマーク (Lv${result.level}, 警告のみ)`;
+    showToast(msg);
+    loadGoalApprovalTab();
+  } catch(e) {
+    console.error(e);
+    showToast('失敗: ' + (e.message || ''), 'error');
+  }
+}
+
 async function loadHandoffInbox() {
   if (!currentTeacher) return;
   const container = document.getElementById('handoffInboxList');

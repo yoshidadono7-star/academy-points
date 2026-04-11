@@ -39,6 +39,7 @@ const StudentsDB = {
       ...data,
       classroomId: data.classroomId || currentClassroomId(),
       totalPoints: data.totalPoints || 0,
+      yearlyPoints: data.yearlyPoints || 0,
       currentPoints: data.currentPoints || 0,
       totalEarned: data.totalEarned || 0,
       totalSpent: data.totalSpent || 0,
@@ -69,7 +70,7 @@ const StudentsDB = {
       certGoals: data.certGoals || [],             // [{examId, targetLevel}] 検定目標（全学年共通）
       targetQualifications: data.targetQualifications || [], // [{name, memo}] 目標資格（社会人用）
       role: data.role || 'student',             // 'student' | 'supporter'(私立合格後)
-      missionStreak: data.missionStreak || 0,   // デイリーミッション連続達成数
+      missionStreak: data.missionStreak || 0,   // ラッキーミッション連続達成数
       // --- AI バディ設定 ---
       aiModel: data.aiModel || null,            // null=デフォルト, 'claude-haiku-4-5-20251001'|'claude-sonnet-4-6'|'claude-opus-4-6'
       responseLength: data.responseLength || null, // null=デフォルト, 'short'|'medium'|'long' 返答の長さ
@@ -91,6 +92,7 @@ const StudentsDB = {
   async addPoints(id, points, meta = null) {
     await db.collection('students').doc(id).update({
       totalPoints: firebase.firestore.FieldValue.increment(points),
+      yearlyPoints: firebase.firestore.FieldValue.increment(points),
       currentPoints: firebase.firestore.FieldValue.increment(points)
     });
     // 監査ログ書き込み（失敗しても本体は継続）
@@ -124,7 +126,71 @@ const StudentsDB = {
         });
       }
     } catch (e) { console.warn('[spendPoints] coin log failed:', e); }
-  }
+  },
+  // Phase Y: 年度リセット（4/1実行）
+  // - yearlyPoints → 0 にリセット
+  // - currentPoints → 0 にリセット
+  // - totalPoints は永続（変更しない）
+  // - streak → 0 にリセット（新年度の心機一転）
+  // - rank は維持（永続累計ベース）
+  // - リセット前の値を yearlyArchive に保存
+  async yearlyReset() {
+    const students = await this.getAll();
+    const results = [];
+    const fiscalYear = new Date().getFullYear();
+    // 4月なら今年度、1-3月なら前年度
+    const resetYear = new Date().getMonth() < 3 ? fiscalYear - 1 : fiscalYear;
+
+    for (const s of students) {
+      const archive = {
+        year: resetYear,
+        yearlyPoints: s.yearlyPoints || 0,
+        currentPoints: s.currentPoints || 0,
+        totalPoints: s.totalPoints || 0,
+        streak: s.streak || 0,
+        bestStreak: s.bestStreak || 0,
+        level: s.level || 1,
+        rank: s.rank || 'rookie',
+        archivedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      };
+
+      await db.collection('students').doc(s.id).update({
+        yearlyPoints: 0,
+        currentPoints: 0,
+        streak: 0,
+        // totalPoints, totalEarned, totalSpent, level, rank は維持
+      });
+
+      // アーカイブをサブコレクションに保存
+      await db.collection('students').doc(s.id).collection('yearlyArchive').add(archive);
+
+      results.push({ id: s.id, name: s.name, yearlyPoints: archive.yearlyPoints, currentPoints: archive.currentPoints });
+    }
+
+    // リセット実行記録
+    await db.collection('settings').doc('yearlyReset').set({
+      lastResetYear: resetYear,
+      lastResetAt: firebase.firestore.FieldValue.serverTimestamp(),
+      studentCount: results.length,
+    }, { merge: true });
+
+    return { resetYear, count: results.length, results };
+  },
+
+  // 年度リセット済みかチェック
+  async isYearlyResetDone(year) {
+    try {
+      const doc = await db.collection('settings').doc('yearlyReset').get();
+      if (doc.exists && doc.data().lastResetYear >= year) return true;
+    } catch (e) {}
+    return false;
+  },
+
+  // 年度アーカイブ取得
+  async getYearlyArchive(studentId) {
+    const snap = await db.collection('students').doc(studentId).collection('yearlyArchive').orderBy('year', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
 };
 
 // --- 学習ログ ---
@@ -493,13 +559,19 @@ const MessagesDB = {
 };
 
 // --- ギルド ---
+// Feature 12 Phase X3: 9 ギルド（星座テーマ）に再編
+// 5-6 名 × 9 ギルドでマジカルナンバー 7 の認知単位を実現。
+// 学年混成 (小中高混在) でメンター文化を促進。
 const GUILD_THEMES = [
-  { id: 'fire', name: '炎のギルド', icon: '🔥', color: '#ef4444' },
-  { id: 'water', name: '水のギルド', icon: '💧', color: '#3b82f6' },
-  { id: 'wind', name: '風のギルド', icon: '🌪️', color: '#10b981' },
-  { id: 'earth', name: '大地のギルド', icon: '🏔️', color: '#f59e0b' },
-  { id: 'light', name: '光のギルド', icon: '✨', color: '#8b5cf6' },
-  { id: 'dark', name: '闇のギルド', icon: '🌙', color: '#6366f1' }
+  { id: 'orion',     name: 'オリオン',     icon: '🌟', color: '#3b82f6',  motto: '勇敢なる狩人' },
+  { id: 'sirius',    name: 'シリウス',     icon: '⭐', color: '#60a5fa',  motto: '最も明るい星' },
+  { id: 'cassiopeia',name: 'カシオペア',   icon: '👑', color: '#a855f7',  motto: '気高き女王' },
+  { id: 'pegasus',   name: 'ペガサス',     icon: '🦄', color: '#eab308',  motto: '翼ある飛躍' },
+  { id: 'andromeda', name: 'アンドロメダ', icon: '🌌', color: '#ec4899',  motto: '銀河の広がり' },
+  { id: 'polaris',   name: 'ポラリス',     icon: '✨', color: '#22d3ee',  motto: '導きの北極星' },
+  { id: 'pleiades',  name: 'プレアデス',   icon: '💫', color: '#06b6d4',  motto: '七つ星の調和' },
+  { id: 'draco',     name: 'ドラゴン',     icon: '🐉', color: '#ef4444',  motto: '龍の力' },
+  { id: 'phoenix',   name: 'フェニックス', icon: '🔥', color: '#f97316',  motto: '不死鳥の再生' },
 ];
 
 // ===== リーグ（年齢別競争単位） =====
@@ -587,6 +659,117 @@ const GuildsDB = {
   async getRanking() {
     return this.getProgress(); // 後方互換
   },
+  // Phase X3: 9 ギルドを一括作成 (force=true で既存を全削除して再作成)
+  async initializeGuilds(force) {
+    if (force) {
+      // 既存ギルドを全削除
+      const existing = await this.getAll();
+      const delBatch = db.batch();
+      existing.forEach(g => delBatch.delete(db.collection('guilds').doc(g.id)));
+      await delBatch.commit();
+      // 全生徒の guildId をリセット
+      const students = await StudentsDB.getAll();
+      for (const s of students) {
+        if (s.guildId) await StudentsDB.update(s.id, { guildId: null });
+      }
+    } else {
+      const existing = await this.getAll();
+      if (existing.length > 0) return existing.length;
+    }
+    const batch = db.batch();
+    for (const theme of GUILD_THEMES) {
+      const ref = db.collection('guilds').doc(theme.id);
+      batch.set(ref, {
+        name: theme.name,
+        themeId: theme.id,
+        icon: theme.icon,
+        color: theme.color,
+        motto: theme.motto || '',
+        members: [],
+        totalPoints: 0,
+        milestones: GUILD_MILESTONES.map(m => ({ ...m, unlocked: false })),
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      });
+    }
+    await batch.commit();
+    return GUILD_THEMES.length;
+  },
+  // Phase X3: 全生徒を 9 ギルドに自動割り当て（学年バランス考慮）
+  // grade ごとにシャッフルしてラウンドロビンで均等配分
+  async autoAssignAll() {
+    const students = await StudentsDB.getAll();
+    const guilds = await this.getAll();
+    if (guilds.length === 0) throw new Error('ギルドが作成されていません。先に「ギルド初期化」してください。');
+
+    // 学年グループに分ける
+    const gradeGroups = {};
+    students.forEach(s => {
+      const g = s.grade || '未設定';
+      if (!gradeGroups[g]) gradeGroups[g] = [];
+      gradeGroups[g].push(s);
+    });
+
+    // 各学年グループをシャッフル
+    for (const arr of Object.values(gradeGroups)) {
+      for (let i = arr.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [arr[i], arr[j]] = [arr[j], arr[i]];
+      }
+    }
+
+    // 全生徒をフラットにして学年インターリーブ (小→中→高→小→中→高...)
+    const gradeKeys = Object.keys(gradeGroups).sort();
+    const interleaved = [];
+    let maxLen = Math.max(...Object.values(gradeGroups).map(g => g.length));
+    for (let i = 0; i < maxLen; i++) {
+      for (const key of gradeKeys) {
+        if (i < gradeGroups[key].length) {
+          interleaved.push(gradeGroups[key][i]);
+        }
+      }
+    }
+
+    // ラウンドロビンで 9 ギルドに配分
+    const guildIds = guilds.map(g => g.id);
+    const assignments = {}; // guildId -> [studentId]
+    guildIds.forEach(id => { assignments[id] = []; });
+
+    interleaved.forEach((student, i) => {
+      const guildId = guildIds[i % guildIds.length];
+      assignments[guildId].push(student.id);
+    });
+
+    // Firestore に書き込み
+    for (const [guildId, memberIds] of Object.entries(assignments)) {
+      await db.collection('guilds').doc(guildId).update({
+        members: memberIds,
+      });
+      // 各生徒の guildId を更新
+      for (const sid of memberIds) {
+        await StudentsDB.update(sid, { guildId });
+      }
+    }
+
+    return { guildCount: guildIds.length, studentCount: interleaved.length, assignments };
+  },
+  // 新入生 1 名を最少人数のギルドに自動割り当て（学年バランス考慮）
+  async autoAssignOne(studentId) {
+    const guilds = await this.getAll();
+    if (guilds.length === 0) return null; // ギルド未初期化なら何もしない
+
+    // メンバー数が最も少ないギルドを選ぶ（同数なら先頭=ランダム性はギルド作成順）
+    guilds.sort((a, b) => (a.members || []).length - (b.members || []).length);
+    const target = guilds[0];
+
+    // メンバー配列に追加
+    const members = target.members || [];
+    if (members.includes(studentId)) return target; // 既に所属済み
+    members.push(studentId);
+    await db.collection('guilds').doc(target.id).update({ members });
+    await StudentsDB.update(studentId, { guildId: target.id });
+
+    return target;
+  },
   // リーグ別個人ランキング
   async getLeagueRanking(league) {
     const students = await StudentsDB.getAll();
@@ -602,6 +785,112 @@ const GuildsDB = {
     const studiedMembers = new Set(logs.map(l => l.studentId));
     return guild.members.every(m => studiedMembers.has(m));
   }
+};
+
+// --- Phase X4: ギルド目標 ---
+// ギルド（チーム）単位の週次目標。チームPDCAサイクルを実装。
+const GuildGoalsDB = {
+  async getAll() {
+    const snap = await db.collection('guildGoals').orderBy('createdAt', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getByGuild(guildId) {
+    const snap = await db.collection('guildGoals').where('guildId', '==', guildId).orderBy('createdAt', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getActiveByGuild(guildId) {
+    const snap = await db.collection('guildGoals').where('guildId', '==', guildId).where('status', '==', 'active').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getCurrentWeekAll() {
+    const week = PersonalGoalsDB.getCurrentWeek();
+    const snap = await db.collection('guildGoals').where('week', '==', week).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  // ギルド目標を作成 (教室長が設定)
+  async create(data) {
+    const ref = await db.collection('guildGoals').add({
+      guildId: data.guildId,
+      guildName: data.guildName || '',
+      week: data.week || PersonalGoalsDB.getCurrentWeek(),
+      type: data.type || 'totalPoints',  // 'totalPoints' | 'totalMinutes' | 'totalPomodoros' | 'allStudied' | 'custom'
+      title: data.title || '',
+      description: data.description || '',
+      target: data.target || 0,
+      reward: data.reward || 0,         // 達成時に全メンバーに付与
+      status: 'active',                 // 'active' | 'achieved' | 'missed'
+      progress: 0,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    return ref.id;
+  },
+  // 進捗を計算（週のギルド合算）
+  async calculateProgress(goal) {
+    const guild = await GuildsDB.getById(goal.guildId);
+    if (!guild || !guild.members || guild.members.length === 0) return { current: 0, pct: 0 };
+
+    const weekRange = PersonalGoalsDB.getWeekRange(goal.week);
+    const logs = [];
+    // メンバーの学習ログを集計
+    for (const memberId of guild.members) {
+      const snap = await db.collection('studyLogs')
+        .where('studentId', '==', memberId)
+        .where('createdAt', '>=', weekRange.start)
+        .where('createdAt', '<=', weekRange.end)
+        .get();
+      snap.docs.forEach(d => logs.push(d.data()));
+    }
+
+    let current = 0;
+    switch (goal.type) {
+      case 'totalPoints':
+        current = logs.reduce((s, l) => s + (l.points || 0), 0);
+        break;
+      case 'totalMinutes':
+        current = logs.reduce((s, l) => s + (l.duration || 0), 0);
+        break;
+      case 'totalPomodoros':
+        current = logs.reduce((s, l) => s + (l.pomodoroCount || 0), 0);
+        break;
+      case 'allStudied':
+        // メンバー全員が今週1回以上学習したか
+        const studiedMembers = new Set(logs.map(l => l.studentId));
+        current = studiedMembers.size;
+        break;
+      default:
+        current = 0;
+    }
+
+    const target = goal.target || 1;
+    return { current, pct: Math.min(Math.round((current / target) * 100), 999) };
+  },
+  // 達成判定 → 全メンバーに報酬付与
+  async markAchieved(goalId, guild) {
+    await db.collection('guildGoals').doc(goalId).update({
+      status: 'achieved',
+      judgedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    const goal = await this.getById(goalId);
+    if (goal && goal.reward && guild && guild.members) {
+      for (const memberId of guild.members) {
+        await StudentsDB.addPoints(memberId, goal.reward, {
+          category: 'guild_goal',
+          description: `ギルド目標達成: ${goal.title}`,
+          grantedBy: 'system',
+        });
+      }
+    }
+  },
+  async markMissed(goalId) {
+    await db.collection('guildGoals').doc(goalId).update({
+      status: 'missed',
+      judgedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  },
+  async getById(id) {
+    const doc = await db.collection('guildGoals').doc(id).get();
+    return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  },
 };
 
 // --- レイドボス ---
@@ -1228,12 +1517,14 @@ const StreakManager = {
     });
     await batch.commit();
   },
-  // Phase 10: ストリークボーナス改定
+  // Phase 10→A1: ストリークボーナス（Firestore 管理に移行、後方互換のため同期版も残す）
   getStreakBonus(streakDays) {
-    if (streakDays >= 20) return 60;
-    if (streakDays >= 10) return 40;
-    if (streakDays >= 5) return 20;
-    if (streakDays >= 3) return 10;
+    // 同期版: PointRatesDB のキャッシュがあればそれを使い、なければデフォルト値
+    const r = PointRatesDB._cache || PointRatesDB.DEFAULTS;
+    if (streakDays >= 20) return r.streak20;
+    if (streakDays >= 10) return r.streak10;
+    if (streakDays >= 5) return r.streak5;
+    if (streakDays >= 3) return r.streak3;
     return 0;
   },
   // ストリーク更新（bestStreak保存）
@@ -1393,10 +1684,11 @@ function getRankDisplay(rankId) {
   return `${r.icon} ${r.name}`;
 }
 
-// ポイント残高上限チェック
+// ポイント残高上限チェック（PointRatesDB のキャッシュ優先、未ロード時は COIN_PARAMS フォールバック）
 function checkBalanceCap(currentPoints) {
-  if (currentPoints > COIN_PARAMS.balanceCap) {
-    return { overflow: currentPoints - COIN_PARAMS.balanceCap, capped: COIN_PARAMS.balanceCap };
+  const cap = (PointRatesDB._cache && PointRatesDB._cache.balanceCap) || COIN_PARAMS.balanceCap;
+  if (currentPoints > cap) {
+    return { overflow: currentPoints - cap, capped: cap };
   }
   return { overflow: 0, capped: currentPoints };
 }
@@ -1540,7 +1832,7 @@ const COMBO_DEFINITIONS = [
     conditionFn: (ctx) => ctx.todaySubjects.includes('国語') && ctx.todaySubjects.includes('英語'),
     reward: { type: 'bonus', points: 20 } },
   { id: 'thunder_chain', name: 'サンダーチェイン', icon: '⚡',
-    desc: '5日連続でデイリーミッションクリア', hidden: true, cooldown: 'weekly', category: 'mission',
+    desc: '5日連続でラッキーミッションクリア', hidden: true, cooldown: 'weekly', category: 'mission',
     conditionFn: (ctx) => ctx.missionStreak >= 5,
     reward: { type: 'bonus', points: 80 } },
   { id: 'home_hero', name: 'ホームヒーロー', icon: '🏠',
@@ -1681,7 +1973,7 @@ const ComboDB = {
   }
 };
 
-// ===== デイリーミッション (Daily Random Missions) =====
+// ===== ラッキーミッション (Daily Random Missions) =====
 const DAILY_MISSION_POOL = [
   // Common (50%) — 基本訓練指令
   { id: 'dm_pomo2', name: '船外活動 x2', desc: 'ポモドーロを2回完走せよ', rarity: 'common', points: 15, icon: '🍅',
@@ -1850,7 +2142,7 @@ const DailyMissionsDB = {
       });
       await StudentsDB.addPoints(studentId, mission.points, {
         category: 'mission',
-        description: `デイリーミッション: ${mission.title || mission.id || ''}`,
+        description: `ラッキーミッション: ${mission.title || mission.id || ''}`,
         grantedBy: 'system',
       });
       // missionStreak更新
@@ -1873,7 +2165,7 @@ const DailyMissionsDB = {
     });
     if (mission) await StudentsDB.addPoints(draw.studentId, mission.points, {
       category: 'mission',
-      description: `デイリーミッション達成: ${mission.title || mission.id || ''}`,
+      description: `ラッキーミッション達成: ${mission.title || mission.id || ''}`,
       grantedBy: 'system',
     });
   },
@@ -3804,6 +4096,289 @@ const BudgetLimitsDB = {
   },
 };
 
+// --- Feature 12 Phase X1: 個人目標 ---
+// personalGoals コレクション: 生徒が自分で立てる週次目標
+// 「目標を立てる → 教室長が承認 → 期限到達 → 判定 → 報酬 or ペナルティ」のサイクル
+//
+// フィールド:
+//   studentId, studentName, week (YYYY-WW), type (time/pomodoro/sessions/task/custom),
+//   title, description, target (数値目標), unit (h/回/分...),
+//   reward (達成時の pt), penalty (未達時の pt、レベルで自動スケール),
+//   status: 'pending_approval' | 'active' | 'achieved' | 'missed' | 'cancelled',
+//   approvedBy, approvedAt, rejectedReason,
+//   judgedAt, result (progress %), consecutiveMisses,
+//   createdAt, updatedAt
+//
+// レベル別ペナルティスケール (3 週連続未達 = 本格マイナス):
+//   Lv1-2: 0 pt (完全保護)
+//   Lv3-4: -25 pt
+//   Lv5-6: -50 pt
+//   Lv7-8: -100 pt
+//   Lv9-10: -150 pt
+const PersonalGoalsDB = {
+  // 今週の ISO week 番号 (YYYY-WW) を返す
+  getCurrentWeek() {
+    const now = new Date();
+    const d = new Date(Date.UTC(now.getFullYear(), now.getMonth(), now.getDate()));
+    d.setUTCDate(d.getUTCDate() + 4 - (d.getUTCDay() || 7));
+    const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+    const weekNum = Math.ceil((((d - yearStart) / 86400000) + 1) / 7);
+    return `${d.getUTCFullYear()}-W${String(weekNum).padStart(2, '0')}`;
+  },
+  // 週の期間 (月曜 00:00 〜 日曜 23:59)
+  getWeekRange(weekId) {
+    // weekId は 'YYYY-WWnn' 形式
+    const m = weekId.match(/^(\d{4})-W(\d{2})$/);
+    if (!m) return null;
+    const year = parseInt(m[1]);
+    const weekNum = parseInt(m[2]);
+    const jan4 = new Date(Date.UTC(year, 0, 4));
+    const jan4Dow = jan4.getUTCDay() || 7;
+    const week1Monday = new Date(jan4);
+    week1Monday.setUTCDate(jan4.getUTCDate() - jan4Dow + 1);
+    const weekMonday = new Date(week1Monday);
+    weekMonday.setUTCDate(weekMonday.getUTCDate() + (weekNum - 1) * 7);
+    const weekSunday = new Date(weekMonday);
+    weekSunday.setUTCDate(weekSunday.getUTCDate() + 6);
+    weekSunday.setUTCHours(23, 59, 59, 999);
+    return { start: weekMonday, end: weekSunday };
+  },
+  // レベルから標準ペナルティを算出 (段階 3: 本格マイナス時)
+  calcPenaltyByLevel(level) {
+    if (level <= 2) return 0;
+    if (level <= 4) return 25;
+    if (level <= 6) return 50;
+    if (level <= 8) return 100;
+    return 150;
+  },
+  // レベルから標準報酬を算出 (達成時)
+  calcRewardByLevel(level) {
+    if (level <= 2) return 50;
+    if (level <= 4) return 100;
+    if (level <= 6) return 200;
+    if (level <= 8) return 300;
+    return 500;
+  },
+  async getAll() {
+    const snap = await db.collection('personalGoals').orderBy('createdAt', 'desc').get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getByStudent(studentId, limit = 20) {
+    const snap = await db.collection('personalGoals')
+      .where('studentId', '==', studentId)
+      .orderBy('createdAt', 'desc')
+      .limit(limit).get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getCurrentWeekByStudent(studentId) {
+    const week = this.getCurrentWeek();
+    const snap = await db.collection('personalGoals')
+      .where('studentId', '==', studentId)
+      .where('week', '==', week)
+      .get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getPendingApprovals() {
+    const snap = await db.collection('personalGoals')
+      .where('status', '==', 'pending_approval')
+      .get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+  async getById(id) {
+    const doc = await db.collection('personalGoals').doc(id).get();
+    return doc.exists ? { id: doc.id, ...doc.data() } : null;
+  },
+  // 自動承認の判定 — 量的目標で報酬が合理範囲内なら即承認
+  // custom/task 型、高額報酬、異常値は手動承認に回す
+  AUTO_APPROVE_LIMITS: {
+    time:      { maxTarget: 30,  maxReward: 200 }, // 最大30時間/週, 報酬200pt以下
+    pomodoro:  { maxTarget: 40,  maxReward: 200 }, // 最大40ポモドーロ/週
+    sessions:  { maxTarget: 7,   maxReward: 150 }, // 最大7セッション/週
+  },
+  canAutoApprove(goalData) {
+    const type = goalData.type || 'custom';
+    const limits = this.AUTO_APPROVE_LIMITS[type];
+    if (!limits) return false; // custom/task は手動承認
+    if ((goalData.target || 0) <= 0) return false; // 目標値0以下は異常
+    if ((goalData.target || 0) > limits.maxTarget) return false; // 目標値が上限超過
+    if ((goalData.reward || 0) > limits.maxReward) return false; // 報酬が上限超過
+    if ((goalData.reward || 0) < 0) return false; // マイナス報酬は異常
+    return true;
+  },
+  // 生徒が目標を立てる (量的目標は自動承認、それ以外は pending_approval)
+  async create(data) {
+    const shouldAutoApprove = this.canAutoApprove(data);
+    const ref = await db.collection('personalGoals').add({
+      studentId: data.studentId,
+      studentName: data.studentName || '',
+      week: data.week || this.getCurrentWeek(),
+      type: data.type || 'time',  // 'time' | 'pomodoro' | 'sessions' | 'task' | 'custom'
+      title: data.title || '',
+      description: data.description || '',
+      target: data.target || 0,
+      unit: data.unit || '',
+      reward: data.reward || 0,
+      penalty: data.penalty || 0,
+      status: shouldAutoApprove ? 'active' : 'pending_approval',
+      approvedBy: shouldAutoApprove ? 'auto' : null,
+      approvedAt: shouldAutoApprove ? firebase.firestore.FieldValue.serverTimestamp() : null,
+      consecutiveMisses: 0,
+      createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    return { id: ref.id, autoApproved: shouldAutoApprove };
+  },
+  // 教室長が承認 (status: active)
+  async approve(id, approverName) {
+    await db.collection('personalGoals').doc(id).update({
+      status: 'active',
+      approvedBy: approverName || 'commander',
+      approvedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  },
+  // 教室長が却下
+  async reject(id, reason) {
+    await db.collection('personalGoals').doc(id).update({
+      status: 'cancelled',
+      rejectedReason: reason || '',
+      judgedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  },
+  async update(id, data) {
+    await db.collection('personalGoals').doc(id).update({
+      ...data,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  },
+  async delete(id) {
+    await db.collection('personalGoals').doc(id).delete();
+  },
+  // 目標の進捗を計算 (studyLogs から集計)
+  // 目標の target 値に対する現在の達成率を返す
+  async calculateProgress(goal) {
+    const range = this.getWeekRange(goal.week);
+    if (!range) return { current: 0, target: goal.target, pct: 0 };
+
+    let current = 0;
+    try {
+      const snap = await db.collection('studyLogs')
+        .where('studentId', '==', goal.studentId)
+        .get();
+      snap.forEach(d => {
+        const log = d.data();
+        const ts = log.date ? new Date(log.date) : (log.timestamp?.toDate ? log.timestamp.toDate() : null);
+        if (!ts || ts < range.start || ts > range.end) return;
+        if (log.pending) return; // 未承認ログはカウントしない
+
+        if (goal.type === 'time') {
+          current += (log.duration || 0) / 60; // 分 → 時間
+        } else if (goal.type === 'pomodoro') {
+          current += log.pomodoroCount || 0;
+        } else if (goal.type === 'sessions') {
+          current += 1;
+        }
+        // 'task' / 'custom' は別途判定 (講師が手動で結果を入れる)
+      });
+    } catch(e) { console.warn('[PersonalGoalsDB.calculateProgress]', e); }
+
+    const pct = goal.target > 0 ? Math.min(100, (current / goal.target) * 100) : 0;
+    return { current, target: goal.target, pct };
+  },
+  // 目標を達成として判定
+  async markAchieved(id, student, customResult) {
+    const goal = await this.getById(id);
+    if (!goal) throw new Error('目標が見つかりません');
+    // 報酬付与 (StudentsDB.addPoints が coins 監査ログも自動記録)
+    if (goal.reward > 0) {
+      await StudentsDB.addPoints(goal.studentId, goal.reward, {
+        category: 'goal_achieved',
+        description: `個人目標達成: ${goal.title}`,
+        grantedBy: 'system',
+      });
+    }
+    await db.collection('personalGoals').doc(id).update({
+      status: 'achieved',
+      judgedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      result: customResult || null,
+    });
+  },
+  // 目標を未達として判定 (連続未達成カウント + ペナルティ)
+  async markMissed(id, student) {
+    const goal = await this.getById(id);
+    if (!goal) throw new Error('目標が見つかりません');
+
+    // 連続未達カウントを更新 (前週までの連続値を取得)
+    const prevMisses = await this.getConsecutiveMisses(goal.studentId);
+    const consecutiveMisses = prevMisses + 1;
+
+    // レベルベースのペナルティ算出
+    const level = typeof calcLevel === 'function' ? calcLevel(student?.totalPoints || 0) : 1;
+    const basePenalty = this.calcPenaltyByLevel(level);
+
+    // 段階的スケーリング: 1 週目は警告のみ、2 週目は半額、3 週目以上は全額
+    let penaltyMultiplier = 0;
+    if (consecutiveMisses === 1) penaltyMultiplier = 0;
+    else if (consecutiveMisses === 2) penaltyMultiplier = 0.5;
+    else penaltyMultiplier = 1.0;
+
+    const penalty = Math.floor(basePenalty * penaltyMultiplier);
+
+    // ペナルティ実行 (フロア 0 保護)
+    if (penalty > 0 && student) {
+      const currentPts = student.currentPoints || 0;
+      const actualPenalty = Math.min(penalty, currentPts); // フロア保護
+      if (actualPenalty > 0) {
+        await StudentsDB.spendPoints(goal.studentId, actualPenalty, {
+          category: 'goal_missed',
+          description: `個人目標未達 (Lv${level}, ${consecutiveMisses}週目): ${goal.title}`,
+          grantedBy: 'system',
+        });
+      }
+    }
+
+    await db.collection('personalGoals').doc(id).update({
+      status: 'missed',
+      judgedAt: firebase.firestore.FieldValue.serverTimestamp(),
+      consecutiveMisses,
+      penaltyApplied: penalty,
+      levelAtJudgement: level,
+    });
+
+    // 3 週連続未達成なら handoffLog にアラート生成 (コーチング介入 trigger)
+    if (consecutiveMisses >= 3 && typeof HandoffLogDB !== 'undefined') {
+      try {
+        await HandoffLogDB.create({
+          level: 'commander',
+          type: 'alert',
+          studentId: goal.studentId,
+          studentName: goal.studentName,
+          title: `⚠️ ${goal.studentName}: 3 週連続目標未達成`,
+          content: `${goal.studentName} さんが 3 週連続で個人目標「${goal.title}」を達成できていません。コーチング介入を検討してください。`,
+          visibleTo: ['commander', 'owner'],
+          createdBy: 'system',
+        });
+      } catch(e) { console.warn('[goal handoff alert]', e); }
+    }
+
+    return { penalty, consecutiveMisses, level };
+  },
+  // ある生徒の連続未達成数を取得 (直近 N 週)
+  async getConsecutiveMisses(studentId) {
+    const snap = await db.collection('personalGoals')
+      .where('studentId', '==', studentId)
+      .orderBy('createdAt', 'desc')
+      .limit(10)
+      .get();
+    const goals = snap.docs.map(d => d.data()).filter(g => g.status === 'missed' || g.status === 'achieved');
+
+    let count = 0;
+    for (const g of goals) {
+      if (g.status === 'missed') count++;
+      else break;
+    }
+    return count;
+  },
+};
+
 // --- Feature 11 Phase S1: 集団目標 ---
 // collectiveGoals コレクション: 全員で貢献して閾値に達すると教室全体に特典が降ってくる
 // 例: 日曜開室、ドリンクバー解禁、特別イベント開催 etc.
@@ -4073,40 +4648,224 @@ const GrantTemplatesDB = {
   },
 };
 
+// --- 分散学習スケジュール (Spaced Repetition Reminders) ---
+// 学習完了時に自動で復習スケジュールを生成。間隔: 1日→3日→7日→14日→30日
+const ReviewScheduleDB = {
+  INTERVALS: [1, 3, 7, 14, 30], // 日数
+
+  async create(studentId, subject, studyDate, notes) {
+    const base = new Date(studyDate);
+    const schedules = this.INTERVALS.map((days, i) => {
+      const reviewDate = new Date(base);
+      reviewDate.setDate(reviewDate.getDate() + days);
+      return {
+        studentId,
+        subject,
+        originalStudyDate: studyDate,
+        reviewDate: reviewDate.toISOString().split('T')[0],
+        intervalDays: days,
+        step: i + 1,
+        totalSteps: this.INTERVALS.length,
+        status: 'pending', // 'pending' | 'done' | 'skipped'
+        notes: notes || '',
+        createdAt: firebase.firestore.FieldValue.serverTimestamp(),
+      };
+    });
+    for (const s of schedules) {
+      await db.collection('reviewSchedules').add(s);
+    }
+    return schedules.length;
+  },
+
+  async getTodayReviews(studentId) {
+    const today = new Date().toISOString().split('T')[0];
+    const snap = await db.collection('reviewSchedules')
+      .where('studentId', '==', studentId)
+      .where('reviewDate', '==', today)
+      .where('status', '==', 'pending')
+      .get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }));
+  },
+
+  async getUpcoming(studentId, days) {
+    const today = new Date();
+    const end = new Date(today);
+    end.setDate(end.getDate() + (days || 7));
+    const snap = await db.collection('reviewSchedules')
+      .where('studentId', '==', studentId)
+      .where('status', '==', 'pending')
+      .get();
+    return snap.docs.map(d => ({ id: d.id, ...d.data() }))
+      .filter(r => r.reviewDate >= today.toISOString().split('T')[0] && r.reviewDate <= end.toISOString().split('T')[0])
+      .sort((a, b) => a.reviewDate.localeCompare(b.reviewDate));
+  },
+
+  async markDone(id) {
+    await db.collection('reviewSchedules').doc(id).update({
+      status: 'done',
+      completedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+  },
+
+  async markSkipped(id) {
+    await db.collection('reviewSchedules').doc(id).update({ status: 'skipped' });
+  },
+};
+
+// --- Phase B1: 時間帯/曜日ブースト ---
+// Firestore settings/timeBoosts で管理。未設定時は DEFAULTS を使用。
+const TimeBoostsDB = {
+  DEFAULTS: {
+    enabled: true,
+    // 時間帯ブースト: 早朝・夜の学習を奨励
+    hourly: [
+      { label: '早朝 (5-8時)',   startHour: 5,  endHour: 8,  multiplier: 1.3, emoji: '🌅' },
+      { label: '夜間 (20-23時)', startHour: 20, endHour: 23, multiplier: 1.2, emoji: '🌙' },
+    ],
+    // 曜日ブースト: 土日の自主学習を奨励
+    daily: [
+      { label: '土曜ブースト', dayOfWeek: 6, multiplier: 1.2, emoji: '🌟' },
+      { label: '日曜ブースト', dayOfWeek: 0, multiplier: 1.3, emoji: '✨' },
+    ],
+  },
+
+  _cache: null,
+  _cacheAt: 0,
+
+  async get() {
+    if (this._cache && Date.now() - this._cacheAt < 300000) return this._cache;
+    try {
+      const doc = await db.collection('settings').doc('timeBoosts').get();
+      if (doc.exists) {
+        const data = doc.data() || {};
+        this._cache = {
+          enabled: data.enabled != null ? data.enabled : this.DEFAULTS.enabled,
+          hourly: data.hourly || this.DEFAULTS.hourly,
+          daily: data.daily || this.DEFAULTS.daily,
+        };
+        this._cacheAt = Date.now();
+        return this._cache;
+      }
+    } catch (e) { console.warn('[TimeBoostsDB.get]', e); }
+    this._cache = { ...this.DEFAULTS };
+    this._cacheAt = Date.now();
+    return this._cache;
+  },
+
+  async save(config) {
+    await db.collection('settings').doc('timeBoosts').set({
+      ...config,
+      updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    }, { merge: true });
+    this._cache = null;
+    this._cacheAt = 0;
+  },
+
+  // 現在の時刻と曜日からブースト倍率を計算
+  async getCurrentBoost() {
+    const config = await this.get();
+    if (!config.enabled) return { multiplier: 1, label: null, emoji: null };
+
+    const now = new Date();
+    const hour = now.getHours();
+    const day = now.getDay(); // 0=日, 6=土
+    let totalMultiplier = 1;
+    const activeLabels = [];
+
+    // 時間帯ブースト
+    for (const h of (config.hourly || [])) {
+      if (hour >= h.startHour && hour < h.endHour) {
+        totalMultiplier *= h.multiplier;
+        activeLabels.push({ label: h.label, multiplier: h.multiplier, emoji: h.emoji });
+      }
+    }
+
+    // 曜日ブースト
+    for (const d of (config.daily || [])) {
+      if (day === d.dayOfWeek) {
+        totalMultiplier *= d.multiplier;
+        activeLabels.push({ label: d.label, multiplier: d.multiplier, emoji: d.emoji });
+      }
+    }
+
+    return {
+      multiplier: Math.round(totalMultiplier * 100) / 100,
+      active: activeLabels,
+      label: activeLabels.map(a => `${a.emoji} ${a.label} x${a.multiplier}`).join(' + ') || null,
+    };
+  },
+};
+
 // --- Feature 11 Phase R1: 換金レート ---
 // Firestore settings/pointRates ドキュメントで、1 pt の円換算レートと
 // 月間報酬予算（円）を管理。未設定時は DEFAULTS を使用。
 const PointRatesDB = {
   DEFAULTS: {
-    yenPerPoint: 1,          // 1 pt = ¥1 (塾長の方針)
-    monthlyRewardBudgetYen: 75000,  // 月間報酬予算 ¥75,000
+    // 経済パラメータ
+    yenPerPoint: 1,                    // 1 pt = ¥1
+    monthlyRewardBudgetYen: 75000,     // 月間報酬予算 ¥75,000
+    // 基本ポイント収入
+    basePointsPerMinute: 1,            // 1分 = 1pt
+    pomodoroBonus: 7,                  // ポモドーロ1回ボーナス
+    // ストリークボーナス
+    streak3: 10,                       // 3-4日連続
+    streak5: 20,                       // 5-9日連続
+    streak10: 40,                      // 10-19日連続
+    streak20: 60,                      // 20日+連続
+    // 残高・レベル
+    balanceCap: 3500,                  // ポイント残高上限
+    levelThresholds: [0, 100, 300, 600, 1000, 1500, 2200, 3000, 4500, 7000],
   },
 
+  _cache: null,
+  _cacheAt: 0,
+
   async get() {
+    // 5分キャッシュ（Firestoreの読み取り節約）
+    if (this._cache && Date.now() - this._cacheAt < 300000) return this._cache;
     try {
       const doc = await db.collection('settings').doc('pointRates').get();
       if (doc.exists) {
         const data = doc.data() || {};
-        return {
-          yenPerPoint: data.yenPerPoint != null ? data.yenPerPoint : this.DEFAULTS.yenPerPoint,
-          monthlyRewardBudgetYen: data.monthlyRewardBudgetYen != null ? data.monthlyRewardBudgetYen : this.DEFAULTS.monthlyRewardBudgetYen,
-        };
+        const merged = {};
+        for (const [key, def] of Object.entries(this.DEFAULTS)) {
+          merged[key] = data[key] != null ? data[key] : def;
+        }
+        this._cache = merged;
+        this._cacheAt = Date.now();
+        return merged;
       }
     } catch (e) { console.warn('[PointRatesDB.get]', e); }
-    return { ...this.DEFAULTS };
+    this._cache = { ...this.DEFAULTS };
+    this._cacheAt = Date.now();
+    return this._cache;
   },
+
+  // キャッシュを破棄（save 後に呼ぶ）
+  invalidateCache() { this._cache = null; this._cacheAt = 0; },
 
   async save(rates) {
     await db.collection('settings').doc('pointRates').set({
       ...rates,
       updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
     }, { merge: true });
+    this.invalidateCache();
   },
 
   // pt → ¥ 変換 (便利関数)
   async toYen(points) {
     const rates = await this.get();
     return points * rates.yenPerPoint;
+  },
+
+  // ストリークボーナスを動的に取得
+  async getStreakBonus(streakDays) {
+    const r = await this.get();
+    if (streakDays >= 20) return r.streak20;
+    if (streakDays >= 10) return r.streak10;
+    if (streakDays >= 5) return r.streak5;
+    if (streakDays >= 3) return r.streak3;
+    return 0;
   },
 };
 

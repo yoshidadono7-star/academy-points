@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HERO'S ACADEMY - セッションサマリー (2026/4/10)</title>
+<style>
+  body { font-family: 'Helvetica Neue', sans-serif; max-width: 800px; margin: 0 auto; padding: 20px; background: #f8fafc; color: #2d3748; }
+  h1 { font-size: 22px; border-bottom: 3px solid #667eea; padding-bottom: 8px; }
+  h2 { font-size: 17px; color: #667eea; margin-top: 28px; border-left: 4px solid #667eea; padding-left: 10px; }
+  table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+  th { background: #667eea; color: white; padding: 10px 14px; text-align: left; font-size: 13px; }
+  td { padding: 10px 14px; border-bottom: 1px solid #e2e8f0; font-size: 13px; }
+  tr:hover { background: #f0f4ff; }
+  a { color: #667eea; text-decoration: none; font-weight: 700; }
+  a:hover { text-decoration: underline; }
+  .login-info { background: #fffbeb; border: 1px solid #fbd38d; border-radius: 8px; padding: 12px 16px; margin: 8px 0; font-size: 13px; }
+  .section { background: white; border-radius: 12px; padding: 16px 20px; margin: 12px 0; box-shadow: 0 1px 4px rgba(0,0,0,0.06); }
+  .tag { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 11px; font-weight: 700; margin-right: 4px; }
+  .tag-ui { background: #ebf8ff; color: #3182ce; }
+  .tag-ai { background: #f0fff4; color: #38a169; }
+  .tag-auto { background: #faf5ff; color: #805ad5; }
+  .tag-fix { background: #fff5f5; color: #e53e3e; }
+  .tag-feat { background: #fffbeb; color: #d69e2e; }
+</style>
+</head>
+<body>
+
+<h1>🚀 HERO'S ACADEMY セッションサマリー</h1>
+<p style="color:#718096;font-size:13px;">2026年4月10日 | ブランチ: claude/mission-control-dashboard-ctqvd</p>
+
+<h2>📱 全画面リンク + ログイン情報</h2>
+
+<table>
+  <tr>
+    <th>画面</th>
+    <th>URL</th>
+    <th>ログイン</th>
+  </tr>
+  <tr>
+    <td>🎓 生徒画面</td>
+    <td><a href="https://hero-s-points.web.app/student" target="_blank">hero-s-points.web.app/student</a></td>
+    <td>ニックネーム: <b>ジロー</b> / PIN: <b>2000</b></td>
+  </tr>
+  <tr>
+    <td>👨‍👩‍👧 保護者画面</td>
+    <td><a href="https://hero-s-points.web.app/parent" target="_blank">hero-s-points.web.app/parent</a></td>
+    <td>ニックネーム: <b>ジロー</b> / 保護者PIN: <b>5678</b></td>
+  </tr>
+  <tr>
+    <td>🏛 管理画面</td>
+    <td><a href="https://hero-s-points.web.app/" target="_blank">hero-s-points.web.app/</a></td>
+    <td>メール: <b>admin@heros.jp</b> / PW: <b>0070heros</b></td>
+  </tr>
+  <tr>
+    <td>👨‍🏫 講師画面</td>
+    <td><a href="https://hero-s-points.web.app/teacher" target="_blank">hero-s-points.web.app/teacher</a></td>
+    <td>講師PIN（管理画面で設定）</td>
+  </tr>
+  <tr>
+    <td>📺 教室モニター</td>
+    <td><a href="https://hero-s-points.web.app/briefing" target="_blank">hero-s-points.web.app/briefing</a></td>
+    <td>ログイン不要</td>
+  </tr>
+  <tr>
+    <td>👑 オーナー画面</td>
+    <td><a href="https://hero-s-points.web.app/owner" target="_blank">hero-s-points.web.app/owner</a></td>
+    <td>メール + PW（role=owner）</td>
+  </tr>
+</table>
+
+<h2>🔧 本セッションで実装した内容</h2>
+
+<div class="section">
+<h3>🤖 AIバディ強化</h3>
+<table>
+  <tr><td><span class="tag tag-ai">AI</span> 3資料を全4階層バディに統合</td><td>アドラー心理学 / 45期コーチング / 科学的学習法</td></tr>
+  <tr><td><span class="tag tag-ai">AI</span> 教材活用コーチに転換</td><td>atama+ / edu+ / 学びエイド / Monoxer / SRJ の知識搭載</td></tr>
+  <tr><td><span class="tag tag-ai">AI</span> 生徒別教材リスト連動</td><td>その生徒が使っている教材だけ提案</td></tr>
+  <tr><td><span class="tag tag-ai">AI</span> 3モード柔軟化</td><td>固定順序→状態に合わせて瞬時選択</td></tr>
+  <tr><td><span class="tag tag-ai">AI</span> 英語TTS対策</td><td>カタカナ読み併記 + TTS自動置換</td></tr>
+  <tr><td><span class="tag tag-fix">FIX</span> マイク自動停止 5分→15分</td><td></td></tr>
+</table>
+</div>
+
+<div class="section">
+<h3>📱 UI/UX 全面改修（ラーメン屋式タッチパネル）</h3>
+<table>
+  <tr><td><span class="tag tag-ui">UI</span> 生徒ホーム画面</td><td>タブ廃止 → タッチメニュー1画面。大ボタン+2列グリッド</td></tr>
+  <tr><td><span class="tag tag-ui">UI</span> バディパネル廃止</td><td>常駐パネル→全画面チャット。トーストにバディ顔付き</td></tr>
+  <tr><td><span class="tag tag-ui">UI</span> 全画面チャット</td><td>バディ顔ヘッダー + 生徒アバター + LINE式吹き出し</td></tr>
+  <tr><td><span class="tag tag-ui">UI</span> 保護者画面</td><td>11タブ → 4つの大ボタン + ◀戻る</td></tr>
+  <tr><td><span class="tag tag-ui">UI</span> 講師画面</td><td>8タブ → 8つの大ボタン + ◀戻る</td></tr>
+  <tr><td><span class="tag tag-ui">UI</span> 戻るボタン</td><td>全画面に3D立体「◀ 戻る」ボタン</td></tr>
+  <tr><td><span class="tag tag-ui">UI</span> タッチターゲット</td><td>最小38-44px に統一</td></tr>
+  <tr><td><span class="tag tag-ui">UI</span> 通知バッジ</td><td>メッセージ/タスク/バッジ等のボタンが光る+数字表示</td></tr>
+  <tr><td><span class="tag tag-ui">UI</span> 学習中ボタン</td><td>タイマー中はホームに「⏱️ 数学 学習中 05:23」緑表示</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h3>📚 科学的学習法の実装</h3>
+<table>
+  <tr><td><span class="tag tag-feat">FEAT</span> アクティブリコール</td><td>学習完了→「🧠振り返ろう！」→バディチャットで思い出す練習</td></tr>
+  <tr><td><span class="tag tag-feat">FEAT</span> 分散学習スケジュール</td><td>自動生成: 1日→3日→7日→14日→30日後</td></tr>
+  <tr><td><span class="tag tag-feat">FEAT</span> 次の復習日を大きく表示</td><td>完了画面に紫カードで「次の復習: 明日 4/11」</td></tr>
+  <tr><td><span class="tag tag-feat">FEAT</span> カレンダー登録</td><td>.icsファイルで5回分の復習予定を一括登録</td></tr>
+  <tr><td><span class="tag tag-feat">FEAT</span> バディ自動声かけ</td><td>ログイン時に「数学の復習タイミングだよ！」</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h3>⚙️ 自動化・システム改善</h3>
+<table>
+  <tr><td><span class="tag tag-auto">AUTO</span> ギルド自動配属</td><td>新入生登録時に最少人数のギルドに自動配属</td></tr>
+  <tr><td><span class="tag tag-auto">AUTO</span> 週次目標自動判定</td><td>土曜20時以降に管理画面を開くと自動実行</td></tr>
+  <tr><td><span class="tag tag-auto">AUTO</span> 個人目標AI自動承認</td><td>量的目標(time/pomodoro/sessions)は即active</td></tr>
+  <tr><td><span class="tag tag-feat">FEAT</span> ポイントレート Firestore化</td><td>管理画面から全パラメータ変更可能</td></tr>
+  <tr><td><span class="tag tag-feat">FEAT</span> 時間帯/曜日ブースト</td><td>早朝x1.3 / 夜間x1.2 / 土曜x1.2 / 日曜x1.3</td></tr>
+  <tr><td><span class="tag tag-feat">FEAT</span> ギルド目標</td><td>チーム週次目標 + 管理UI + 生徒表示</td></tr>
+  <tr><td><span class="tag tag-feat">FEAT</span> 進級システム</td><td>yearlyPoints + 年度リセット + アーカイブ</td></tr>
+  <tr><td><span class="tag tag-feat">FEAT</span> ラッキーミッション</td><td>旧デイリーミッションを改名</td></tr>
+</table>
+</div>
+
+<div class="section">
+<h3>ロールバック方法</h3>
+<p style="font-size:13px;color:#718096;">ラーメン屋式UI導入前に戻したい場合:</p>
+<pre style="background:#1a202c;color:#e2e8f0;padding:12px;border-radius:8px;font-size:12px;">git checkout ramen-ya-ni-modosu</pre>
+</div>
+
+</body>
+</html>

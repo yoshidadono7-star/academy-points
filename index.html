@@ -934,8 +934,12 @@
   </div>
 
   <div class="tab-content" id="tab-guilds">
-    <div style="margin-bottom:16px">
+    <!-- Phase X3: ギルド再編ツール -->
+    <div style="margin-bottom:16px;display:flex;gap:10px;flex-wrap:wrap;align-items:center;">
       <button class="btn btn-primary" onclick="openGuildModal()">&#10133; ギルド作成</button>
+      <button class="btn" style="background:#667eea;color:#fff;" onclick="initializeGuilds()">&#127775; 9 ギルドを初期化（星座テーマ）</button>
+      <button class="btn" style="background:#f6ad55;color:#fff;" onclick="autoAssignGuilds()">&#127922; 全員自動割り当て</button>
+      <span style="font-size:11px;color:var(--text-light);">テスト中はデータを入れ替えられます</span>
     </div>
     <div class="guild-grid" id="guildGrid"></div>
 
@@ -947,6 +951,22 @@
           <tbody id="guildRankingTable"></tbody>
         </table>
       </div>
+    </div>
+
+    <!-- X4: ギルド目標 -->
+    <div class="card" style="margin-top:16px">
+      <div class="card-title" style="display:flex;align-items:center;gap:10px;">
+        <span class="icon">🎯</span> ギルド目標（チームPDCA）
+        <span style="font-size:11px;font-weight:normal;color:var(--text-light);margin-left:auto;" id="guildGoalWeekLabel"></span>
+      </div>
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:10px;">
+        各ギルドに週次目標を設定。達成すると全メ���バーに報酬ポイントが付与されます。
+      </p>
+      <div style="margin-bottom:12px;display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="openGuildGoalModal()">🎯 ギルド目標を追加</button>
+        <button class="btn btn-secondary" onclick="runGuildGoalJudgement()">⚡ 一括判定</button>
+      </div>
+      <div id="guildGoalsList"></div>
     </div>
 
     <div class="card" style="margin-top:16px">
@@ -1279,22 +1299,108 @@
         <p style="color:var(--text-light);font-size:12px;">読み込み中...</p>
       </div>
       <div id="economyRateEditor" style="display:none;margin-top:16px;padding-top:16px;border-top:1px solid var(--border);">
-        <div style="font-size:13px;font-weight:700;margin-bottom:8px;">⚙️ 換金レート・月間予算の設定 <span style="font-size:11px;font-weight:normal;color:var(--text-light);">(オーナー専用)</span></div>
+        <div style="font-size:13px;font-weight:700;margin-bottom:8px;">⚙️ 経済パラメータ設定 <span style="font-size:11px;font-weight:normal;color:var(--text-light);">(オーナー専��)</span></div>
+        <div style="font-size:11px;color:var(--text-light);margin-bottom:10px;">変更はリアルタイムに反映されます。生徒は次回ログイン時に新しい値を取得します。</div>
         <div class="form-row">
           <div class="form-group">
             <label>1 pt = ¥ いくら</label>
             <input type="number" class="form-control" id="rateYenPerPoint" step="0.1" min="0">
           </div>
           <div class="form-group">
-            <label>月間報酬予算 (¥)</label>
+            <label>���間報酬予算 (¥)</label>
             <input type="number" class="form-control" id="rateMonthlyBudget" step="1000" min="0">
           </div>
+        </div>
+        <div style="font-size:12px;font-weight:600;margin:14px 0 6px;color:var(--primary);">🎮 ゲームパラ��ータ</div>
+        <div class="form-row">
+          <div class="form-group">
+            <label>ポモドーロボーナス (pt/回)</label>
+            <input type="number" class="form-control" id="ratePomodoroBonus" min="0" max="50">
+          </div>
+          <div class="form-group">
+            <label>残高上限 (pt)</label>
+            <input type="number" class="form-control" id="rateBalanceCap" min="100" step="100">
+          </div>
+        </div>
+        <div style="font-size:12px;font-weight:600;margin:14px 0 6px;color:var(--primary);">🔥 ストリークボーナス</div>
+        <div class="form-row">
+          <div class="form-group"><label>3-4日 (pt)</label><input type="number" class="form-control" id="rateStreak3" min="0"></div>
+          <div class="form-group"><label>5-9日 (pt)</label><input type="number" class="form-control" id="rateStreak5" min="0"></div>
+          <div class="form-group"><label>10-19日 (pt)</label><input type="number" class="form-control" id="rateStreak10" min="0"></div>
+          <div class="form-group"><label>20日+ (pt)</label><input type="number" class="form-control" id="rateStreak20" min="0"></div>
+        </div>
+        <div style="font-size:12px;font-weight:600;margin:14px 0 6px;color:var(--primary);">📊 レベル閾値 (カンマ区切り)</div>
+        <div class="form-group">
+          <input type="text" class="form-control" id="rateLevelThresholds" placeholder="0, 100, 300, 600, 1000, 1500, 2200, 3000, 4500, 7000">
         </div>
         <div style="margin-top:10px;display:flex;gap:10px;align-items:center;">
           <button class="btn btn-primary" onclick="savePointRates()">💾 保存</button>
           <span id="rateStatus" style="font-size:11px;color:var(--text-light);"></span>
         </div>
       </div>
+    </div>
+
+    <!-- B1: 時間帯/曜日ブースト設定 -->
+    <div class="card" id="timeBoostCard">
+      <div class="card-title"><span class="icon">⏰</span> 時間帯/曜日ブースト</div>
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:10px;">
+        特定の時間帯や曜日に自動でポイント倍率を適用します。早朝・夜間・休日の自主学習を奨励する仕組みです。
+      </p>
+      <div id="timeBoostStatus" style="margin-bottom:10px;"></div>
+      <div id="timeBoostEditor" style="display:none;">
+        <div style="font-size:12px;font-weight:600;margin-bottom:6px;">🌅 時間帯ブースト</div>
+        <div class="form-row">
+          <div class="form-group"><label>早朝 開始時</label><input type="number" class="form-control" id="tbHour1Start" min="0" max="23"></div>
+          <div class="form-group"><label>早朝 終了時</label><input type="number" class="form-control" id="tbHour1End" min="0" max="24"></div>
+          <div class="form-group"><label>早朝 倍率</label><input type="number" class="form-control" id="tbHour1Mult" step="0.1" min="1" max="3"></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><label>夜間 開始時</label><input type="number" class="form-control" id="tbHour2Start" min="0" max="23"></div>
+          <div class="form-group"><label>夜間 終了時</label><input type="number" class="form-control" id="tbHour2End" min="0" max="24"></div>
+          <div class="form-group"><label>夜間 倍率</label><input type="number" class="form-control" id="tbHour2Mult" step="0.1" min="1" max="3"></div>
+        </div>
+        <div style="font-size:12px;font-weight:600;margin:10px 0 6px;">📅 曜日ブースト</div>
+        <div class="form-row">
+          <div class="form-group"><label>土曜 倍率</label><input type="number" class="form-control" id="tbDaySat" step="0.1" min="1" max="3"></div>
+          <div class="form-group"><label>日曜 倍率</label><input type="number" class="form-control" id="tbDaySun" step="0.1" min="1" max="3"></div>
+        </div>
+        <div style="margin-top:8px;display:flex;gap:10px;align-items:center;">
+          <button class="btn btn-primary" onclick="saveTimeBoosts()">💾 保存</button>
+          <span id="tbStatus" style="font-size:11px;color:var(--text-light);"></span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Phase X2: 週次目標判定 -->
+    <div class="card" id="goalJudgementCard">
+      <div class="card-title" style="display:flex;align-items:center;gap:10px;">
+        <span class="icon">&#127919;</span> 週次目標判定
+        <span style="font-size:11px;font-weight:normal;color:var(--text-light);margin-left:auto;" id="goalJudgementWeek"></span>
+      </div>
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:10px;">
+        今週の個人目標を一括判定します。量的目標 (学習時間・ポモドーロ・セッション数) は進捗 100% で自動達成判定。自由目標 (custom/task) は講師画面で手動判定してください。
+      </p>
+      <div id="goalJudgementSummary" style="margin-bottom:12px;"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn btn-primary" onclick="runWeeklyGoalJudgement()">&#127919; 自動判定を実行</button>
+        <button class="btn btn-secondary" onclick="loadGoalJudgementSummary()">&#128260; 状況を更新</button>
+      </div>
+      <div id="goalJudgementResult" style="margin-top:12px;font-size:12px;"></div>
+    </div>
+
+    <!-- Phase Y: 年度進級リセット -->
+    <div class="card" id="yearlyResetCard">
+      <div class="card-title"><span class="icon">🎓</span> 年度進級リセット</div>
+      <p style="font-size:11px;color:var(--text-light);margin-bottom:10px;">
+        毎年4月1日に実行。yearlyPoints と currentPoints（残高）をゼロにリセットし、totalPoints（永続累計）は維持します。
+        リセット前の記録は各生徒の yearlyArchive に自動保存されます。
+      </p>
+      <div id="yearlyResetStatus" style="margin-bottom:10px;"></div>
+      <div style="display:flex;gap:10px;flex-wrap:wrap;">
+        <button class="btn" style="background:#e53e3e;color:white;" onclick="executeYearlyReset()">🎓 年度リセットを実行</button>
+        <span style="font-size:11px;color:var(--text-light);align-self:center;">⚠️ オーナーのみ。取り消し不可。</span>
+      </div>
+      <div id="yearlyResetResult" style="margin-top:12px;font-size:12px;"></div>
     </div>
 
     <!-- Phase S1: 集団目標 -->
@@ -2048,10 +2154,15 @@ document.querySelectorAll('.tab-cat-btn').forEach(btn => {
     if (group) {
       group.classList.add('active');
       // 2026-04 UX 改善: このカテゴリ内で最初のサブタブに自動遷移する
-      // (以前は前のカテゴリのコンテンツが残っていて混乱する問題があった)
       const firstSubTab = group.querySelector('.tab-btn');
       if (firstSubTab && firstSubTab.dataset.tab) {
         switchTab(firstSubTab.dataset.tab);
+        // switchTab 後にサブタブの active 状態を明示的に再設定
+        // (分析・運営 等の初回表示時に border-bottom が付かない問題の対策)
+        requestAnimationFrame(() => {
+          group.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+          firstSubTab.classList.add('active');
+        });
       }
     }
   });
@@ -3289,8 +3400,19 @@ async function saveStudent(id) {
       await StudentsDB.update(id, data);
       showToast('生徒情報を更新しました');
     } else {
-      await StudentsDB.add(data);
-      showToast('生徒を追加しました');
+      const newId = await StudentsDB.add(data);
+      // 新入生をギルドに自動割り当て
+      try {
+        const guild = await GuildsDB.autoAssignOne(newId);
+        if (guild) {
+          showToast(`生徒を追加し、${guild.icon || ''}${guild.name}ギルドに配属しました`);
+        } else {
+          showToast('生徒を追加しました（ギルド未初期化のため配属なし）');
+        }
+      } catch (ge) {
+        console.warn('[autoAssignOne] failed:', ge);
+        showToast('生徒を追加しました（ギルド自動配属に失敗）');
+      }
     }
     closeModal();
     loadStudents();
@@ -3317,6 +3439,31 @@ async function deleteStudent(id) {
 // 8. ギルド
 // ============================================
 let currentLeagueTab = 'E';
+
+// Phase X3: ギルド初期化 + 自動割り当て
+async function initializeGuilds() {
+  if (!confirm('既存のギルドを全て削除し、9 ギルド（星座テーマ）で新しく作り直します。\n\nテストデータは全て消えます。続行しますか？')) return;
+  try {
+    const count = await GuildsDB.initializeGuilds(true); // force=true で既存削除
+    showToast(`✅ ${count} ギルドを作成しました`);
+    loadGuilds();
+  } catch(e) {
+    console.error('[initializeGuilds]', e);
+    showToast('❌ 失敗: ' + (e.message || ''), 'error');
+  }
+}
+
+async function autoAssignGuilds() {
+  if (!confirm('全生徒を 9 ギルドに自動割り当てします。学年バランスを考慮してシャッフル配分します。既存のギルド所属は上書きされます。続行しますか？')) return;
+  try {
+    const result = await GuildsDB.autoAssignAll();
+    showToast(`✅ ${result.studentCount} 名を ${result.guildCount} ギルドに割り当てました`);
+    loadGuilds();
+  } catch(e) {
+    console.error('[autoAssignGuilds]', e);
+    showToast('❌ 失敗: ' + (e.message || ''), 'error');
+  }
+}
 
 async function loadGuilds() {
   try {
@@ -3367,6 +3514,9 @@ async function loadGuilds() {
 
     // リーグランキング初期表示
     await loadLeagueRanking(currentLeagueTab);
+
+    // X4: ギルド目標をロード
+    loadGuildGoals().catch(e => console.warn('[guildGoals]', e));
   } catch (e) {
     console.error('ギルド読み込みエラー:', e);
   }
@@ -3395,6 +3545,133 @@ async function loadLeagueRanking(league) {
         <td><strong>${(s.totalPoints || 0).toLocaleString()}</strong> pt</td>
       </tr>`).join('');
   } catch(e) { console.error('League ranking error:', e); }
+}
+
+// ============================================
+// X4: ギルド目標
+// ============================================
+async function loadGuildGoals() {
+  const container = document.getElementById('guildGoalsList');
+  const weekLabel = document.getElementById('guildGoalWeekLabel');
+  if (!container) return;
+
+  const week = PersonalGoalsDB.getCurrentWeek();
+  if (weekLabel) weekLabel.textContent = week;
+
+  const goals = await GuildGoalsDB.getCurrentWeekAll();
+  if (goals.length === 0) {
+    container.innerHTML = '<div style="color:var(--text-light);font-size:12px;padding:10px;text-align:center;">今週のギルド目標はまだありません</div>';
+    return;
+  }
+
+  let html = '<div style="display:flex;flex-direction:column;gap:8px;">';
+  for (const goal of goals) {
+    const progress = await GuildGoalsDB.calculateProgress(goal);
+    const theme = (typeof GUILD_THEMES !== 'undefined') ? GUILD_THEMES.find(t => t.id === (allGuilds.find(g => g.id === goal.guildId) || {}).themeId) : null;
+    const icon = theme ? theme.icon : '⭐';
+    const guildName = goal.guildName || goal.guildId;
+    const color = theme ? theme.color : '#888';
+    const statusBadge = goal.status === 'achieved' ? '<span style="background:#48bb78;color:white;padding:2px 8px;border-radius:10px;font-size:10px;">🎉 達成</span>'
+      : goal.status === 'missed' ? '<span style="background:#e53e3e;color:white;padding:2px 8px;border-radius:10px;font-size:10px;">😢 未達</span>'
+      : `<span style="background:#edf2f7;padding:2px 8px;border-radius:10px;font-size:10px;">${progress.pct}%</span>`;
+    const pct = Math.min(progress.pct, 100);
+    html += `<div style="padding:10px;border:1px solid var(--border);border-radius:8px;border-left:4px solid ${color};">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+        <span style="font-size:16px;">${icon}</span>
+        <strong style="font-size:13px;">${escapeHtml(guildName)}</strong>
+        <span style="font-size:12px;color:var(--text-light);">${escapeHtml(goal.title)}</span>
+        <span style="margin-left:auto;">${statusBadge}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:10px;font-size:11px;">
+        <div style="flex:1;background:#e2e8f0;border-radius:6px;height:8px;">
+          <div style="background:${color};border-radius:6px;height:8px;width:${pct}%;transition:width 0.3s;"></div>
+        </div>
+        <span>${progress.current} / ${goal.target} ${goal.type === 'totalMinutes' ? '分' : goal.type === 'totalPomodoros' ? '回' : 'pt'}</span>
+        <span style="color:var(--text-light);">報酬: +${goal.reward}pt/人</span>
+      </div>
+    </div>`;
+  }
+  html += '</div>';
+  container.innerHTML = html;
+}
+
+function openGuildGoalModal() {
+  const guilds = allGuilds || [];
+  if (guilds.length === 0) { showToast('先にギルドを初期化してください', 'error'); return; }
+  const week = PersonalGoalsDB.getCurrentWeek();
+  const guildOptions = guilds.map(g => {
+    const theme = (typeof GUILD_THEMES !== 'undefined') ? GUILD_THEMES.find(t => t.id === g.themeId) : null;
+    const name = theme ? `${theme.icon} ${theme.name}` : g.name || g.id;
+    return `<option value="${g.id}" data-name="${escapeHtml(theme ? theme.name : g.name || '')}">${name}</option>`;
+  }).join('');
+
+  const html = `<div class="modal-overlay" id="guildGoalModal" onclick="if(event.target===this)this.remove()">
+    <div class="modal" style="max-width:480px;">
+      <div class="modal-header"><h3>🎯 ギルド目標を追加 (${week})</h3><button class="modal-close" onclick="document.getElementById('guildGoalModal').remove()">&times;</button></div>
+      <div class="modal-body">
+        <div class="form-group"><label>ギルド</label><select class="form-control" id="ggGuild">${guildOptions}</select></div>
+        <div class="form-group"><label>目標タイプ</label>
+          <select class="form-control" id="ggType">
+            <option value="totalPoints">合計ポイント</option>
+            <option value="totalMinutes">合計学習時間 (分)</option>
+            <option value="totalPomodoros">合計ポモドーロ回数</option>
+            <option value="allStudied">全員学習達成 (人数)</option>
+          </select>
+        </div>
+        <div class="form-group"><label>目標タイトル</label><input type="text" class="form-control" id="ggTitle" placeholder="例: 今週500pt達成！"></div>
+        <div class="form-group"><label>目標値</label><input type="number" class="form-control" id="ggTarget" min="1" value="500"></div>
+        <div class="form-group"><label>達成時報酬 (pt/人)</label><input type="number" class="form-control" id="ggReward" min="0" value="30"></div>
+      </div>
+      <div class="modal-footer"><button class="btn btn-primary" onclick="submitGuildGoal()">作成</button></div>
+    </div>
+  </div>`;
+  document.body.insertAdjacentHTML('beforeend', html);
+}
+
+async function submitGuildGoal() {
+  const guildId = document.getElementById('ggGuild').value;
+  const guildName = document.getElementById('ggGuild').selectedOptions[0].dataset.name || guildId;
+  const type = document.getElementById('ggType').value;
+  const title = document.getElementById('ggTitle').value.trim() || `${guildName}の週次目標`;
+  const target = parseInt(document.getElementById('ggTarget').value) || 1;
+  const reward = parseInt(document.getElementById('ggReward').value) || 0;
+
+  try {
+    await GuildGoalsDB.create({ guildId, guildName, type, title, target, reward });
+    document.getElementById('guildGoalModal').remove();
+    showToast(`🎯 ${guildName}にギルド目標を設定しました`);
+    loadGuildGoals();
+  } catch (e) {
+    console.error('[submitGuildGoal]', e);
+    showToast('作成に失敗しました', 'error');
+  }
+}
+
+async function runGuildGoalJudgement() {
+  if (!confirm('今週のギルド目標を一括判定しますか？\n\n達成 → 全メンバーに報酬pt付与\n未達 → 記録のみ（ペナルティなし）')) return;
+  try {
+    const goals = await GuildGoalsDB.getCurrentWeekAll();
+    const active = goals.filter(g => g.status === 'active');
+    if (active.length === 0) { showToast('判定対象のギルド目標がありません'); return; }
+
+    let achieved = 0, missed = 0;
+    for (const goal of active) {
+      const progress = await GuildGoalsDB.calculateProgress(goal);
+      const guild = await GuildsDB.getById(goal.guildId);
+      if (progress.pct >= 100) {
+        await GuildGoalsDB.markAchieved(goal.id, guild);
+        achieved++;
+      } else {
+        await GuildGoalsDB.markMissed(goal.id);
+        missed++;
+      }
+    }
+    showToast(`⚡ ギルド目標判定完了: 🎉達成 ${achieved} / 😢未達 ${missed}`);
+    loadGuildGoals();
+  } catch (e) {
+    console.error('[guildGoalJudge]', e);
+    showToast('判定に失敗しました', 'error');
+  }
 }
 
 function openGuildModal() {
@@ -5102,6 +5379,15 @@ async function initApp() {
     // リアルタイム: 教室状況リスナー
     setupAdminLiveListener();
 
+    // 自動化: 週次目標判定 — 土曜 20:00 以降、今週の判定がまだなら自動実行
+    tryAutoWeeklyJudgement().catch(e => console.warn('[autoWeeklyJudgement]', e));
+
+    // B1: 時間帯ブーストステータスのロード
+    loadTimeBoostStatus().catch(e => console.warn('[timeBoost]', e));
+
+    // Y: 年度リセットステータスのロード
+    loadYearlyResetStatus().catch(e => console.warn('[yearlyReset]', e));
+
   } catch (e) {
     console.error('初期化エラー:', e);
   }
@@ -5802,6 +6088,199 @@ async function loadEconomyLog() {
 }
 
 // ============================================
+// Phase X2: 週次目標判定
+// ============================================
+
+async function loadGoalJudgementSummary() {
+  const container = document.getElementById('goalJudgementSummary');
+  const weekEl = document.getElementById('goalJudgementWeek');
+  if (!container) return;
+  try {
+    const week = PersonalGoalsDB.getCurrentWeek();
+    if (weekEl) weekEl.textContent = `対象週: ${week}`;
+
+    const all = await PersonalGoalsDB.getAll();
+    const thisWeek = all.filter(g => g.week === week);
+    const active = thisWeek.filter(g => g.status === 'active');
+    const pendingApproval = thisWeek.filter(g => g.status === 'pending_approval');
+    const achieved = thisWeek.filter(g => g.status === 'achieved');
+    const missed = thisWeek.filter(g => g.status === 'missed');
+
+    // active な目標の進捗を取得
+    const withProgress = await Promise.all(active.map(async g => ({
+      ...g,
+      _progress: await PersonalGoalsDB.calculateProgress(g),
+    })));
+    const autoJudgeable = withProgress.filter(g => g.type !== 'custom' && g.type !== 'task');
+    const wouldAchieve = autoJudgeable.filter(g => g._progress.pct >= 100);
+    const wouldMiss = autoJudgeable.filter(g => g._progress.pct < 100);
+    const manualOnly = withProgress.filter(g => g.type === 'custom' || g.type === 'task');
+
+    container.innerHTML = `
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:10px;">
+        <div style="background:#f0f7ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;color:#667eea;">${thisWeek.length}</div>
+          <div style="font-size:11px;color:var(--text-light);">今週の目標</div>
+        </div>
+        <div style="background:#fffbeb;border:1px solid #fbd38d;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;color:#dd6b20;">${pendingApproval.length}</div>
+          <div style="font-size:11px;color:var(--text-light);">承認待ち</div>
+        </div>
+        <div style="background:#f0f7ff;border:1px solid #90cdf4;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;color:#3182ce;">${active.length}</div>
+          <div style="font-size:11px;color:var(--text-light);">進行中</div>
+        </div>
+        <div style="background:#f0fff4;border:1px solid #9ae6b4;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;color:#48bb78;">${achieved.length}</div>
+          <div style="font-size:11px;color:var(--text-light);">達成</div>
+        </div>
+        <div style="background:#fff5f5;border:1px solid #fc8181;border-radius:8px;padding:10px;text-align:center;">
+          <div style="font-size:22px;font-weight:700;color:#e53e3e;">${missed.length}</div>
+          <div style="font-size:11px;color:var(--text-light);">未達成</div>
+        </div>
+      </div>
+      ${autoJudgeable.length > 0 ? `
+        <div style="margin-top:12px;padding:10px;background:#f7fafc;border-radius:8px;font-size:12px;border:1px solid var(--border);">
+          <strong>自動判定プレビュー</strong> (量的目標 ${autoJudgeable.length} 件):
+          <span style="color:#48bb78;font-weight:700;">🎉 達成見込み ${wouldAchieve.length} 件</span> /
+          <span style="color:#e53e3e;font-weight:700;">😢 未達見込み ${wouldMiss.length} 件</span>
+          ${manualOnly.length > 0 ? `<br><span style="color:#718096;">📝 手動判定必要 ${manualOnly.length} 件 (custom/task 型)</span>` : ''}
+        </div>` : ''}
+    `;
+  } catch(e) {
+    console.error('[goalJudgement] error:', e);
+    container.innerHTML = '<p style="color:var(--danger);font-size:12px;">読み込み失敗: ' + escapeHtml(e.message || '') + '</p>';
+  }
+}
+
+// ============================================
+// 自動化: 週次目標判定（土曜 20:00 以降に自動実行）
+// ============================================
+async function tryAutoWeeklyJudgement() {
+  const now = new Date();
+  const day = now.getDay(); // 0=日, 6=土
+  const hour = now.getHours();
+  // 土曜20時以降 or 日曜 のみ判定を試みる
+  if (!(day === 6 && hour >= 20) && day !== 0) return;
+
+  const currentWeek = PersonalGoalsDB.getCurrentWeek();
+
+  // settings/weeklyJudgement で最終実行週を確認
+  try {
+    const doc = await db.collection('settings').doc('weeklyJudgement').get();
+    const lastWeek = doc.exists ? doc.data().lastJudgedWeek : null;
+    if (lastWeek === currentWeek) return; // 今週は判定済み
+  } catch (e) {
+    console.warn('[autoJudge] settings read failed:', e);
+    return; // 読めなければ安全のためスキップ
+  }
+
+  // 今週のアクティブな量的目標があるか確認
+  const all = await PersonalGoalsDB.getAll();
+  const active = all.filter(g => g.week === currentWeek && g.status === 'active');
+  const autoJudgeable = active.filter(g => g.type !== 'custom' && g.type !== 'task');
+  if (autoJudgeable.length === 0) return; // 判定対象なし
+
+  console.log(`[autoJudge] 自動判定を開始: ${autoJudgeable.length} 件 (week=${currentWeek})`);
+
+  // 判定を実行（runWeeklyGoalJudgement のコアロジックを再利用）
+  let achievedCount = 0, missedCount = 0;
+  for (const goal of autoJudgeable) {
+    const progress = await PersonalGoalsDB.calculateProgress(goal);
+    const student = await StudentsDB.getById(goal.studentId);
+    if (progress.pct >= 100) {
+      await PersonalGoalsDB.markAchieved(goal.id, student);
+      achievedCount++;
+    } else {
+      await PersonalGoalsDB.markMissed(goal.id, student);
+      missedCount++;
+    }
+  }
+
+  // 最終実行週を記録
+  await db.collection('settings').doc('weeklyJudgement').set(
+    { lastJudgedWeek: currentWeek, lastJudgedAt: firebase.firestore.FieldValue.serverTimestamp(), achievedCount, missedCount },
+    { merge: true }
+  );
+
+  console.log(`[autoJudge] 完了: 達成 ${achievedCount}, 未達 ${missedCount}`);
+  showToast(`🎯 週次目標を自動判定しました: 達成 ${achievedCount} 件 / 未達 ${missedCount} 件`);
+
+  // サマリーを更新
+  loadGoalJudgementSummary().catch(() => {});
+}
+
+async function runWeeklyGoalJudgement() {
+  const resultEl = document.getElementById('goalJudgementResult');
+  if (!resultEl) return;
+  if (!confirm('今週の量的目標を一括自動判定しますか？\n\n・進捗 100% 以上 → 🎉 達成（報酬付与）\n・進捗 100% 未満 → 😢 未達（レベル別ペナルティ）\n\n※ custom/task 型は手動判定のみ（ここでは判定されません）')) return;
+
+  resultEl.innerHTML = '<div style="color:var(--text-light);padding:10px;">判定中...</div>';
+
+  try {
+    const week = PersonalGoalsDB.getCurrentWeek();
+    const all = await PersonalGoalsDB.getAll();
+    const active = all.filter(g => g.week === week && g.status === 'active');
+    const autoJudgeable = active.filter(g => g.type !== 'custom' && g.type !== 'task');
+
+    let achievedCount = 0, missedCount = 0, totalReward = 0, totalPenalty = 0;
+    const results = [];
+
+    for (const goal of autoJudgeable) {
+      const progress = await PersonalGoalsDB.calculateProgress(goal);
+      const student = await StudentsDB.getById(goal.studentId);
+
+      if (progress.pct >= 100) {
+        await PersonalGoalsDB.markAchieved(goal.id, student);
+        achievedCount++;
+        totalReward += goal.reward || 0;
+        results.push({ name: goal.studentName, title: goal.title, status: 'achieved', reward: goal.reward, pct: Math.round(progress.pct) });
+      } else {
+        const penaltyResult = await PersonalGoalsDB.markMissed(goal.id, student);
+        missedCount++;
+        totalPenalty += penaltyResult.penalty;
+        results.push({ name: goal.studentName, title: goal.title, status: 'missed', penalty: penaltyResult.penalty, pct: Math.round(progress.pct), consecutiveMisses: penaltyResult.consecutiveMisses, level: penaltyResult.level });
+      }
+    }
+
+    let html = `
+      <div style="padding:12px;background:#f0fff4;border:2px solid #9ae6b4;border-radius:8px;margin-bottom:8px;">
+        <strong>判定完了!</strong>
+        🎉 達成 ${achievedCount} 件 (報酬合計 +${totalReward} pt) /
+        😢 未達 ${missedCount} 件 (ペナルティ合計 -${totalPenalty} pt)
+      </div>`;
+
+    if (results.length > 0) {
+      html += '<div style="max-height:300px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;">';
+      html += results.map(r => {
+        if (r.status === 'achieved') {
+          return `<div style="display:flex;justify-content:space-between;padding:6px 10px;border-bottom:1px solid #edf2f7;background:#f0fff4;">
+            <span>🎉 ${escapeHtml(r.name)} — ${escapeHtml(r.title)} (${r.pct}%)</span>
+            <span style="color:#48bb78;font-weight:700;">+${r.reward} pt</span>
+          </div>`;
+        } else {
+          const penaltyText = r.penalty > 0 ? `-${r.penalty} pt (Lv${r.level}, ${r.consecutiveMisses}週)` : `警告のみ (Lv${r.level})`;
+          return `<div style="display:flex;justify-content:space-between;padding:6px 10px;border-bottom:1px solid #edf2f7;background:#fff5f5;">
+            <span>😢 ${escapeHtml(r.name)} — ${escapeHtml(r.title)} (${r.pct}%)</span>
+            <span style="color:#e53e3e;font-weight:700;">${penaltyText}</span>
+          </div>`;
+        }
+      }).join('');
+      html += '</div>';
+    }
+
+    resultEl.innerHTML = html;
+    // ダッシュボードを更新
+    loadGoalJudgementSummary();
+    loadEconomyBalance().catch(()=>{});
+    loadBudgetDashboard().catch(()=>{});
+  } catch(e) {
+    console.error('[runWeeklyGoalJudgement]', e);
+    resultEl.innerHTML = `<div style="color:var(--danger);padding:10px;background:#fff5f5;border-radius:6px;">❌ 判定失敗: ${escapeHtml(e.message || '')}</div>`;
+  }
+}
+
+// ============================================
 // Phase S1: 集団目標
 // ============================================
 
@@ -5811,6 +6290,16 @@ const COLLECTIVE_CAT_LABELS = {
   event: '🎉 イベント',
   custom: '📝 カスタム',
 };
+
+// 進捗率の表示フォーマット
+// 1% 未満は「< 1%」、10% 未満は小数点 1 桁、それ以上は整数
+function formatGoalPct(rawPct) {
+  if (rawPct <= 0) return '0%';
+  if (rawPct < 1) return '< 1%';
+  if (rawPct < 10) return (Math.round(rawPct * 10) / 10) + '%';
+  if (rawPct >= 100) return '100%';
+  return Math.round(rawPct) + '%';
+}
 
 async function loadCollectiveGoals() {
   const container = document.getElementById('collectiveGoalsList');
@@ -5828,7 +6317,9 @@ async function loadCollectiveGoals() {
     }
 
     container.innerHTML = goals.map(g => {
-      const pct = g.threshold > 0 ? Math.min(100, Math.round((g.currentPoints / g.threshold) * 100)) : 0;
+      const rawPct = g.threshold > 0 ? (g.currentPoints / g.threshold) * 100 : 0;
+      const pct = Math.min(100, rawPct);
+      const pctLabel = formatGoalPct(rawPct);
       const statusBadge = g.status === 'achieved'
         ? '<span style="background:#c6f6d5;color:#22543d;font-size:10px;padding:2px 8px;border-radius:4px;">🎉 達成</span>'
         : g.status === 'expired'
@@ -5852,10 +6343,10 @@ async function loadCollectiveGoals() {
             <span style="font-family:monospace;font-weight:700;">${(g.currentPoints||0).toLocaleString()} / ${g.threshold.toLocaleString()} pt${costText}</span>
           </div>
           <div style="background:rgba(0,0,0,0.05);border-radius:4px;height:10px;overflow:hidden;margin-bottom:6px;">
-            <div style="background:${barColor};height:10px;width:${pct}%;transition:width 0.4s;"></div>
+            <div style="background:${barColor};height:10px;width:${Math.max(pct, rawPct > 0 ? 1 : 0)}%;transition:width 0.4s;"></div>
           </div>
           <div style="display:flex;justify-content:space-between;font-size:10px;color:var(--text-light);margin-bottom:8px;">
-            <span>${pct}%</span>
+            <span>${pctLabel}</span>
             <span>${g.contributorCount || 0} 名が貢献</span>
           </div>
           <div style="font-size:11px;color:#22543d;background:#fff;padding:6px 10px;border-radius:6px;margin-bottom:8px;border:1px solid #9ae6b4;">
@@ -6413,6 +6904,15 @@ async function loadEconomyBalance() {
       const rates = await PointRatesDB.get();
       if (document.getElementById('rateYenPerPoint')) document.getElementById('rateYenPerPoint').value = rates.yenPerPoint;
       if (document.getElementById('rateMonthlyBudget')) document.getElementById('rateMonthlyBudget').value = rates.monthlyRewardBudgetYen;
+      if (document.getElementById('ratePomodoroBonus')) document.getElementById('ratePomodoroBonus').value = rates.pomodoroBonus;
+      if (document.getElementById('rateBalanceCap')) document.getElementById('rateBalanceCap').value = rates.balanceCap;
+      if (document.getElementById('rateStreak3')) document.getElementById('rateStreak3').value = rates.streak3;
+      if (document.getElementById('rateStreak5')) document.getElementById('rateStreak5').value = rates.streak5;
+      if (document.getElementById('rateStreak10')) document.getElementById('rateStreak10').value = rates.streak10;
+      if (document.getElementById('rateStreak20')) document.getElementById('rateStreak20').value = rates.streak20;
+      if (document.getElementById('rateLevelThresholds')) {
+        document.getElementById('rateLevelThresholds').value = (rates.levelThresholds || PointRatesDB.DEFAULTS.levelThresholds).join(', ');
+      }
     }
   } catch (e) {
     console.error('[economyBalance] error:', e);
@@ -6430,13 +6930,154 @@ async function savePointRates() {
   try {
     const yenPerPoint = parseFloat(document.getElementById('rateYenPerPoint').value) || 1;
     const monthlyRewardBudgetYen = parseInt(document.getElementById('rateMonthlyBudget').value) || 75000;
-    await PointRatesDB.save({ yenPerPoint, monthlyRewardBudgetYen });
+    const pomodoroBonus = parseInt(document.getElementById('ratePomodoroBonus').value) || 7;
+    const balanceCap = parseInt(document.getElementById('rateBalanceCap').value) || 3500;
+    const streak3 = parseInt(document.getElementById('rateStreak3').value) || 10;
+    const streak5 = parseInt(document.getElementById('rateStreak5').value) || 20;
+    const streak10 = parseInt(document.getElementById('rateStreak10').value) || 40;
+    const streak20 = parseInt(document.getElementById('rateStreak20').value) || 60;
+    const levelStr = (document.getElementById('rateLevelThresholds').value || '').trim();
+    const levelThresholds = levelStr ? levelStr.split(',').map(s => parseInt(s.trim())).filter(n => !isNaN(n)) : PointRatesDB.DEFAULTS.levelThresholds;
+    await PointRatesDB.save({ yenPerPoint, monthlyRewardBudgetYen, pomodoroBonus, balanceCap, streak3, streak5, streak10, streak20, levelThresholds });
     status.textContent = '✅ 保存しました';
     await loadEconomyBalance();
     setTimeout(() => { status.textContent = ''; }, 4000);
   } catch (e) {
     console.error('[savePointRates]', e);
     status.textContent = '❌ 失敗: ' + (e.message || '');
+  }
+}
+
+// ============================================
+// B1: 時間帯/曜日ブースト
+// ============================================
+async function loadTimeBoostStatus() {
+  const statusEl = document.getElementById('timeBoostStatus');
+  const editorEl = document.getElementById('timeBoostEditor');
+  if (!statusEl) return;
+  try {
+    const config = await TimeBoostsDB.get();
+    const boost = await TimeBoostsDB.getCurrentBoost();
+
+    let statusHtml = '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:8px;">';
+    for (const h of (config.hourly || [])) {
+      statusHtml += `<div style="padding:4px 10px;background:#edf2f7;border-radius:12px;font-size:11px;">${h.emoji} ${h.label}: x${h.multiplier}</div>`;
+    }
+    for (const d of (config.daily || [])) {
+      statusHtml += `<div style="padding:4px 10px;background:#edf2f7;border-radius:12px;font-size:11px;">${d.emoji} ${d.label}: x${d.multiplier}</div>`;
+    }
+    statusHtml += '</div>';
+    if (boost.multiplier > 1) {
+      statusHtml += `<div style="padding:8px 12px;background:#f0fff4;border:1px solid #9ae6b4;border-radius:8px;font-size:12px;font-weight:600;">🔥 現在のブースト: x${boost.multiplier} (${boost.label})</div>`;
+    } else {
+      statusHtml += `<div style="font-size:11px;color:var(--text-light);">現在ブースト適用なし</div>`;
+    }
+    statusEl.innerHTML = statusHtml;
+
+    // オーナーなら編集UIを表示
+    if (window.currentUserRole === 'owner' && editorEl) {
+      editorEl.style.display = 'block';
+      const h = config.hourly || TimeBoostsDB.DEFAULTS.hourly;
+      const d = config.daily || TimeBoostsDB.DEFAULTS.daily;
+      if (h[0]) { document.getElementById('tbHour1Start').value = h[0].startHour; document.getElementById('tbHour1End').value = h[0].endHour; document.getElementById('tbHour1Mult').value = h[0].multiplier; }
+      if (h[1]) { document.getElementById('tbHour2Start').value = h[1].startHour; document.getElementById('tbHour2End').value = h[1].endHour; document.getElementById('tbHour2Mult').value = h[1].multiplier; }
+      const sat = d.find(x => x.dayOfWeek === 6);
+      const sun = d.find(x => x.dayOfWeek === 0);
+      if (sat) document.getElementById('tbDaySat').value = sat.multiplier;
+      if (sun) document.getElementById('tbDaySun').value = sun.multiplier;
+    }
+  } catch (e) { console.error('[timeBoost]', e); }
+}
+
+async function saveTimeBoosts() {
+  const status = document.getElementById('tbStatus');
+  if (window.currentUserRole !== 'owner') { status.textContent = '❌ オーナーのみ'; return; }
+  status.textContent = '保存中...';
+  try {
+    const config = {
+      enabled: true,
+      hourly: [
+        { label: '早朝', startHour: parseInt(document.getElementById('tbHour1Start').value)||5, endHour: parseInt(document.getElementById('tbHour1End').value)||8, multiplier: parseFloat(document.getElementById('tbHour1Mult').value)||1.3, emoji: '🌅' },
+        { label: '夜間', startHour: parseInt(document.getElementById('tbHour2Start').value)||20, endHour: parseInt(document.getElementById('tbHour2End').value)||23, multiplier: parseFloat(document.getElementById('tbHour2Mult').value)||1.2, emoji: '🌙' },
+      ],
+      daily: [
+        { label: '土曜ブースト', dayOfWeek: 6, multiplier: parseFloat(document.getElementById('tbDaySat').value)||1.2, emoji: '🌟' },
+        { label: '日曜ブースト', dayOfWeek: 0, multiplier: parseFloat(document.getElementById('tbDaySun').value)||1.3, emoji: '✨' },
+      ],
+    };
+    await TimeBoostsDB.save(config);
+    status.textContent = '✅ 保存しました';
+    loadTimeBoostStatus();
+    setTimeout(() => { status.textContent = ''; }, 4000);
+  } catch (e) {
+    console.error('[saveTimeBoosts]', e);
+    status.textContent = '❌ 失敗: ' + (e.message || '');
+  }
+}
+
+// ============================================
+// Phase Y: 年度進級リセット
+// ============================================
+async function loadYearlyResetStatus() {
+  const statusEl = document.getElementById('yearlyResetStatus');
+  if (!statusEl) return;
+  try {
+    const now = new Date();
+    const currentFiscalYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+    const isDone = await StudentsDB.isYearlyResetDone(currentFiscalYear);
+
+    if (isDone) {
+      const doc = await db.collection('settings').doc('yearlyReset').get();
+      const data = doc.data() || {};
+      const at = data.lastResetAt ? (data.lastResetAt.toDate ? data.lastResetAt.toDate() : new Date(data.lastResetAt)) : null;
+      statusEl.innerHTML = `<div style="padding:8px 12px;background:#f0fff4;border:1px solid #9ae6b4;border-radius:8px;font-size:12px;">
+        ✅ ${currentFiscalYear}年度リセット済み (${at ? at.toLocaleDateString('ja-JP') : ''}、${data.studentCount || 0}名)</div>`;
+    } else {
+      statusEl.innerHTML = `<div style="padding:8px 12px;background:#fffbeb;border:1px solid #fbd38d;border-radius:8px;font-size:12px;">
+        ⏳ ${currentFiscalYear}年度のリセットはまだ実行されていません</div>`;
+    }
+  } catch (e) { console.warn('[yearlyReset status]', e); }
+}
+
+async function executeYearlyReset() {
+  if (window.currentUserRole !== 'owner') {
+    showToast('オーナーのみ実行可能です', 'error');
+    return;
+  }
+  const now = new Date();
+  const currentFiscalYear = now.getMonth() >= 3 ? now.getFullYear() : now.getFullYear() - 1;
+  const isDone = await StudentsDB.isYearlyResetDone(currentFiscalYear);
+  if (isDone) {
+    showToast(`${currentFiscalYear}年度リセットは既に実行済みです`, 'error');
+    return;
+  }
+
+  if (!confirm(`⚠️ ${currentFiscalYear}年度の進級リセットを実行しますか？\n\n以下がリセットされます:\n・yearlyPoints → 0\n・currentPoints（残高） → 0\n・streak → 0\n\n以下は維持されます:\n・totalPoints（永続累計）\n・level, rank\n・全ての学習ログ・バッジ\n\nリセット前の記録は yearlyArchive に保存されます。\nこの操作は取り消せません。`)) return;
+
+  const resultEl = document.getElementById('yearlyResetResult');
+  resultEl.innerHTML = '<div style="color:var(--text-light);padding:10px;">リセット実行中...</div>';
+
+  try {
+    const result = await StudentsDB.yearlyReset();
+    let html = `<div style="padding:12px;background:#f0fff4;border:2px solid #9ae6b4;border-radius:8px;margin-bottom:8px;">
+      <strong>🎓 ${result.resetYear}年度リセット完了!</strong> ${result.count}名の生徒をリセットしました。
+    </div>`;
+    if (result.results.length > 0) {
+      html += '<div style="max-height:200px;overflow-y:auto;border:1px solid var(--border);border-radius:6px;font-size:12px;">';
+      html += result.results.map(r =>
+        `<div style="display:flex;justify-content:space-between;padding:4px 10px;border-bottom:1px solid #edf2f7;">
+          <span>${escapeHtml(r.name)}</span>
+          <span style="color:var(--text-light);">年度 ${r.yearlyPoints}pt / 残高 ${r.currentPoints}pt → 0</span>
+        </div>`
+      ).join('');
+      html += '</div>';
+    }
+    resultEl.innerHTML = html;
+    loadYearlyResetStatus();
+    showToast(`🎓 年度リセット完了: ${result.count}名`);
+  } catch (e) {
+    console.error('[yearlyReset]', e);
+    resultEl.innerHTML = `<div style="color:var(--danger);padding:10px;">❌ リセット失敗: ${escapeHtml(e.message || '')}</div>`;
   }
 }
 
@@ -6587,6 +7228,7 @@ async function loadEconomy() {
       loadEconomyBalance(),
       loadGrantTemplates(),
       loadCollectiveGoals(),
+      loadGoalJudgementSummary(),
     ]).catch(e => console.warn('[economy dashboards]', e));
 
     // 月間サマリー
