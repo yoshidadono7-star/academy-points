@@ -368,5 +368,69 @@ service cloud.firestore {
       allow update: if true;        // markRead 等
       allow delete: if isAdmin();
     }
+
+    // === Academy RPG 連携 (Step 5) ===
+    // academy-points から RPG 側コレクションへ報酬を書き込むためのルール。
+    // admin (isAdmin) が学習完了時に書き込む想定。本人は読み取りのみ。
+    //
+    // 注意: academy-rpg リポジトリの firestore.rules と整合を取ること。
+    // 最後にデプロイした方が反映されるので、両リポジトリで同じ内容を維持する必要がある。
+
+    // rpg_profiles: 生徒のRPGプロフィール (Lv, XP, avatarId等)
+    match /rpg_profiles/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow create: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // rpg_wallet: ゴールド等の通貨
+    match /rpg_wallet/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // rpg_gacha_tickets: ガチャチケット保有数
+    match /rpg_gacha_tickets/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // rpg_daily_stats: 今日の学習統計 (minutes, pomodoros)
+    match /rpg_daily_stats/{uid}/days/{dateId} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // rpg_inventory: 獲得した装備・バディ
+    match /rpg_inventory/{uid}/items/{itemId} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // rpg_account_links: academy-points 生徒ID → RPG Google UID の紐付け
+    // admin が管理画面から登録。生徒本人は読み取りのみ。
+    match /rpg_account_links/{academyStudentId} {
+      allow read: if true;
+      allow write: if isAdmin();
+    }
+
+    // rpg_minigame_results: ミニゲーム結果記録 (academy-rpg 側で書き込む)
+    match /rpg_minigame_results/{docId} {
+      allow read: if request.auth != null;
+      allow write: if false;
+    }
+
+    // rpg_transactions: ゴールド取得・消費の履歴
+    match /rpg_transactions/{docId} {
+      allow read: if request.auth != null;
+      allow write: if isAdmin();
+    }
+
+    // rpg_skill_rates: 科目別の習熟度レート
+    match /rpg_skill_rates/{uid} {
+      allow read: if request.auth != null && (request.auth.uid == uid || isAdmin());
+      allow write: if isAdmin();
+    }
   }
 }

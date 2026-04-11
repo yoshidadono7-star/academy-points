@@ -4272,9 +4272,165 @@ async function migrateClassroomId() {
   }
 }
 
+// ============================================
+// Academy RPG 連携ブリッジ (Step 5)
+// ============================================
+// academy-rpg (https://hero-s-points-rpg.web.app) 側で生徒に報酬を反映する。
+//
+// 【設計】
+// - academy-points は admin@heros.jp で Firebase Auth にログインしている想定
+// - 生徒IDは currentStudent.id (Firestore ドキュメントID)
+// - RPG 側の rpg_* コレクションに直接書き込む (Firestore rules で admin 許可)
+// - 生徒が RPG (Google ログイン) を使う場合、rpg_account_links で UID 紐付け
+// - 紐付けが無い場合は academy-points 生徒IDをそのまま RPG UID として使う
+//   → 後で紐付けが作られた時に正しい UID にマージ可能
+//
+// 【ポモドーロ報酬レート】 academy-rpg の functions/awardStudyReward.js と同じ
+const RPG_XP_PER_POMODORO = 20;
+const RPG_GOLD_PER_POMODORO = 10;
+const RPG_TICKETS_PER_POMODORO = 1;
+
+const RpgBridgeDB = {
+  // JST 日付を返す (YYYY-MM-DD)
+  _todayJST() {
+    const now = new Date();
+    const jstOffsetMs = 9 * 60 * 60 * 1000;
+    const jst = new Date(now.getTime() + jstOffsetMs - now.getTimezoneOffset() * 60 * 1000);
+    return jst.toISOString().slice(0, 10);
+  },
+
+  // academy-points 生徒ID に紐付く RPG UID を取得 (無ければ academy-points ID を返す)
+  async resolveRpgUid(academyStudentId) {
+    try {
+      const doc = await db.collection('rpg_account_links').doc(academyStudentId).get();
+      if (doc.exists && doc.data().googleUid) {
+        return doc.data().googleUid;
+      }
+    } catch (e) {
+      console.warn('[RpgBridge] resolveRpgUid failed:', e);
+    }
+    return academyStudentId;
+  },
+
+  // ポモドーロ完走時に RPG 側へ報酬を反映
+  // pomodoroCount > 0 の時だけ呼ぶこと
+  async awardForPomodoro(academyStudentId, pomodoroCount, totalMinutes, subject) {
+    if (!academyStudentId || pomodoroCount <= 0) return null;
+
+    const rpgUid = await this.resolveRpgUid(academyStudentId);
+    const xpGain = RPG_XP_PER_POMODORO * pomodoroCount;
+    const goldGain = RPG_GOLD_PER_POMODORO * pomodoroCount;
+    const ticketGain = RPG_TICKETS_PER_POMODORO * pomodoroCount;
+    const today = this._todayJST();
+    const FV = firebase.firestore.FieldValue;
+
+    try {
+      // 1. rpg_profiles: XP とレベル加算
+      const profileRef = db.collection('rpg_profiles').doc(rpgUid);
+      const profileSnap = await profileRef.get();
+      if (profileSnap.exists) {
+        const cur = profileSnap.data();
+        const newXp = (cur.xp || 0) + xpGain;
+        // レベル計算: 100 * 1.2^(level-1) を閾値
+        let level = cur.level || 1;
+        while (newXp >= Math.floor(100 * Math.pow(1.2, level - 1))) {
+          level++;
+          if (level > 99) break;
+        }
+        await profileRef.update({
+          xp: newXp,
+          level: level,
+          updatedAt: FV.serverTimestamp(),
+        });
+      } else {
+        await profileRef.set({
+          displayName: '',
+          level: 1,
+          xp: xpGain,
+          avatarId: 'default',
+          equippedItems: {},
+          buddyId: null,
+          createdAt: FV.serverTimestamp(),
+          updatedAt: FV.serverTimestamp(),
+        });
+      }
+
+      // 2. rpg_wallet: ゴールド加算
+      const walletRef = db.collection('rpg_wallet').doc(rpgUid);
+      await walletRef.set({
+        gold: FV.increment(goldGain),
+        updatedAt: FV.serverTimestamp(),
+      }, { merge: true });
+
+      // 3. rpg_gacha_tickets: スタンダードチケット加算
+      const ticketsRef = db.collection('rpg_gacha_tickets').doc(rpgUid);
+      await ticketsRef.set({
+        standard: FV.increment(ticketGain),
+        updatedAt: FV.serverTimestamp(),
+      }, { merge: true });
+
+      // 4. rpg_daily_stats: 今日の勉強統計
+      const statsRef = db.collection('rpg_daily_stats').doc(rpgUid)
+        .collection('days').doc(today);
+      await statsRef.set({
+        minutes: FV.increment(totalMinutes || 0),
+        pomodoros: FV.increment(pomodoroCount),
+        updatedAt: FV.serverTimestamp(),
+      }, { merge: true });
+
+      // 5. rpg_transactions: 履歴
+      await db.collection('rpg_transactions').add({
+        uid: rpgUid,
+        academyStudentId: academyStudentId,
+        type: 'study_reward',
+        xpGained: xpGain,
+        goldGained: goldGain,
+        ticketsGained: ticketGain,
+        pomodoroCount: pomodoroCount,
+        totalMinutes: totalMinutes || 0,
+        subject: subject || null,
+        createdAt: FV.serverTimestamp(),
+      });
+
+      return {
+        xpGained: xpGain,
+        goldGained: goldGain,
+        ticketsGained: ticketGain,
+        rpgUid: rpgUid,
+      };
+    } catch (e) {
+      console.error('[RpgBridge] awardForPomodoro failed:', e);
+      return null;
+    }
+  },
+
+  // 生徒IDとRPGのGoogle UIDを紐付ける (管理画面用)
+  async linkAccount(academyStudentId, googleUid) {
+    if (!academyStudentId || !googleUid) throw new Error('Both IDs required');
+    await db.collection('rpg_account_links').doc(academyStudentId).set({
+      googleUid: googleUid,
+      linkedAt: firebase.firestore.FieldValue.serverTimestamp(),
+    });
+    return true;
+  },
+
+  // 紐付けを解除
+  async unlinkAccount(academyStudentId) {
+    await db.collection('rpg_account_links').doc(academyStudentId).delete();
+    return true;
+  },
+
+  // 紐付け一覧を取得 (管理画面用)
+  async getAllLinks() {
+    const snap = await db.collection('rpg_account_links').get();
+    return snap.docs.map(d => ({ academyStudentId: d.id, ...d.data() }));
+  },
+};
+
 if (typeof window !== 'undefined') {
   window.ClassroomsDB = ClassroomsDB;
   window.HandoffLogDB = HandoffLogDB;
   window.UsersDB = UsersDB;
+  window.RpgBridgeDB = RpgBridgeDB;
   window.migrateClassroomId = migrateClassroomId;
 }

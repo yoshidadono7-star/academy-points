@@ -3648,6 +3648,24 @@ async function stopStudy(save) {
       }
     }
 
+    // Academy RPG 連携: ポモドーロ完走時に RPG 側へ報酬を反映 (Step 5)
+    // admin@heros.jp 認証経由で rpg_* コレクションに直接書き込む
+    try {
+      if (typeof RpgBridgeDB !== 'undefined' && timerState.pomodoroCount > 0) {
+        const rpgResult = await RpgBridgeDB.awardForPomodoro(
+          currentStudent.id,
+          timerState.pomodoroCount,
+          duration,
+          studySession.subject || null
+        );
+        if (rpgResult) {
+          console.log('[RpgBridge] awarded:', rpgResult);
+        }
+      }
+    } catch (e) {
+      console.warn('[RpgBridge] award failed (non-blocking):', e);
+    }
+
     // Show complete screen
     showCompleteScreen(duration, points, newBadges, raidResults, comboResults, missionResult, appliedEvent, basePoints, eventMultiplier, eventBonusPoints);
   } catch(e) {
