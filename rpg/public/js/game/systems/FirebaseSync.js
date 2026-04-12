@@ -171,6 +171,13 @@ const FirebaseSync = (() => {
       const fn = firebase.functions().httpsCallable('awardSessionResult');
       const result = await fn(params);
       return result.data;
+    },
+
+    // Cloud Functions 呼び出し: rollGacha (サーバ権威ガチャ)
+    async rollGacha(gachaType) {
+      const fn = firebase.functions().httpsCallable('rollGacha');
+      const result = await fn({ gachaType });
+      return result.data;
     }
   };
 })();

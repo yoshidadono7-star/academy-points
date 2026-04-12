@@ -191,15 +191,35 @@ class GachaScene extends Phaser.Scene {
     });
   }
 
-  attemptDraw(gachaType) {
+  async attemptDraw(gachaType) {
     if (!GachaTickets.canRoll(gachaType)) {
       this.showToast('チケットが足りません、クルー。');
       return;
     }
-    GachaTickets.consume(gachaType);
-    this.updateTicketsDisplay();
-    const result = GachaSystem.roll(gachaType);
-    this.playDrawAnimation(result);
+    this.setDrawButtonsEnabled(false);
+    try {
+      const result = await FirebaseSync.rollGacha(gachaType);
+      this.playDrawAnimation(result);
+    } catch (e) {
+      console.error('rollGacha error:', e);
+      const msg = (e.code === 'functions/failed-precondition')
+        ? 'チケットが足りません、クルー。'
+        : '通信エラーです。もう一度お試しください。';
+      this.showToast(msg);
+      this.setDrawButtonsEnabled(true);
+    }
+  }
+
+  setDrawButtonsEnabled(enabled) {
+    this.cards.forEach(c => {
+      if (c.btn) {
+        if (enabled) {
+          c.btn.setAlpha(1).setInteractive({ useHandCursor: true });
+        } else {
+          c.btn.setAlpha(0.5).disableInteractive();
+        }
+      }
+    });
   }
 
   showToast(text) {
@@ -500,6 +520,7 @@ class GachaScene extends Phaser.Scene {
     this.resultShown = false;
     this.skipRequested = false;
     this.cards.forEach(c => c.container.setVisible(true));
+    this.setDrawButtonsEnabled(true);
     this.updateTicketsDisplay();
   }
 
