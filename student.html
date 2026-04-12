@@ -2105,7 +2105,7 @@ body.theme-space {
 <div id="screenTimer" class="screen" style="padding-bottom:0;">
   <div style="background:var(--gradient);min-height:100vh;color:white;padding-top:20px;">
     <div class="header" style="background:transparent;">
-      <button class="header-back" onclick="navigate('home')">戻る</button>
+      <button class="header-back" onclick="confirmStopStudy()">戻る</button>
       <div class="header-title">学習中</div>
       <div></div>
     </div>
@@ -2119,7 +2119,10 @@ body.theme-space {
       <div class="timer-controls">
         <button class="timer-btn timer-btn-start" id="timerStartBtn" onclick="toggleTimer()">▶</button>
       </div>
-      <button onclick="confirmStopStudy()" style="margin-top:20px;padding:14px 32px;background:rgba(255,255,255,0.2);color:white;border:2px solid rgba(255,255,255,0.4);border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;width:80%;max-width:300px;">
+      <button id="skipBreakBtn" onclick="skipBreak()" style="display:none;margin-top:16px;padding:12px 28px;background:rgba(72,187,120,0.3);color:white;border:2px solid rgba(72,187,120,0.6);border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;width:80%;max-width:300px;">
+        🍅 休憩を終わらせて次へ
+      </button>
+      <button onclick="confirmStopStudy()" style="margin-top:12px;padding:14px 32px;background:rgba(255,255,255,0.2);color:white;border:2px solid rgba(255,255,255,0.4);border-radius:14px;font-size:16px;font-weight:700;cursor:pointer;width:80%;max-width:300px;">
         ⏹ 学習を終了する
       </button>
     </div>
@@ -4365,8 +4368,18 @@ async function selectLocationZoom(btn) {
 }
 
 // ============================================
-// Timer
+// Timer (v2: ポモドーロ完了→選択肢UX)
 // ============================================
+
+// --- タイマー全状態をリセット ---
+function resetTimerState() {
+  clearInterval(timerState.interval);
+  timerState = { running: false, elapsed: 0, interval: null, pomodoroCount: 0, pomodoroPhase: 'work', pomodoroTime: 0 };
+  studySession = {};
+  const skipBtn = document.getElementById('skipBreakBtn');
+  if (skipBtn) skipBtn.style.display = 'none';
+}
+
 function startStudy() {
   if (!studySession.subject || !studySession.location || !studySession.method) return;
 
@@ -4380,6 +4393,8 @@ function startStudy() {
   badge.innerHTML = `${SUBJECT_ICONS[studySession.subject] || '📝'} ${studySession.subject} / ${studySession.location}${zoomTag}`;
 
   const pomoInfo = document.getElementById('timerPomodoroInfo');
+  const skipBtn = document.getElementById('skipBreakBtn');
+  if (skipBtn) skipBtn.style.display = 'none';
   if (studySession.method === 'pomodoro') {
     pomoInfo.style.display = 'block';
     pomoInfo.textContent = '🍅 ポモドーロ 1回目 - 作業時間 25:00';
@@ -4397,9 +4412,6 @@ function startStudy() {
   try { ActiveSessionsDB.start(currentStudent.id, studySession.subject, studySession.material || null); } catch(e) {}
 
   navigate('timer');
-
-  // 2026-04 UX 修正: スタートボタン押下で即座にタイマー開始
-  // (以前はタイマー画面で ▶ をもう一度押す必要があったが、それは冗長なので自動開始に戻した)
   resumeTimer();
 }
 
@@ -4412,6 +4424,7 @@ function toggleTimer() {
 }
 
 function resumeTimer() {
+  if (timerState.running) return; // 二重起動防止
   timerState.running = true;
   document.getElementById('timerStartBtn').innerHTML = '⏸';
   document.getElementById('timerStartBtn').className = 'timer-btn timer-btn-pause';
@@ -4438,15 +4451,18 @@ function resumeTimer() {
 
       const pomoInfo = document.getElementById('timerPomodoroInfo');
       if (timerState.pomodoroTime <= 0) {
+        // --- ポモドーロ or 休憩の区切り ---
+        clearInterval(timerState.interval);
+        timerState.running = false;
+        document.getElementById('timerStartBtn').innerHTML = '▶';
+        document.getElementById('timerStartBtn').className = 'timer-btn timer-btn-start';
+
         if (timerState.pomodoroPhase === 'work') {
+          // 作業完了 → 選択肢
           timerState.pomodoroCount++;
-          timerState.pomodoroPhase = 'break';
-          timerState.pomodoroTime = 5 * 60;
-          pomoInfo.textContent = `🍅 ${timerState.pomodoroCount}回完了！ 休憩 5:00`;
-          showToast('ポモドーロ完了！5分休憩です');
           try { navigator.vibrate && navigator.vibrate(500); } catch(e) {}
           try { BuddySystem.react('pomodoroComplete'); } catch(e) {}
-          // RPG報酬を即反映 (1ポモドーロ分をバックグラウンドで送信)
+          // RPG報酬を即反映
           try {
             if (typeof RpgBridgeDB !== 'undefined' && currentStudent) {
               RpgBridgeDB.awardForPomodoro(currentStudent.id, 1, 25, studySession.subject || null)
@@ -4454,15 +4470,24 @@ function resumeTimer() {
                 .catch(e => console.warn('[RpgBridge] pomodoro award failed:', e));
             }
           } catch(e) {}
+          pomoInfo.textContent = `🍅 ${timerState.pomodoroCount}回完了！`;
+          showModal('🍅', 'ポモドーロ完了！', `${timerState.pomodoroCount}回目のポモドーロが終わりました`, `
+            <button class="btn btn-secondary" onclick="closeModal();startPomodoroBreak()">☕ 5分休憩する</button>
+            <button class="btn btn-primary" onclick="closeModal();finishStudy()">⏹ 学習を終了する</button>
+          `, true);
         } else {
-          timerState.pomodoroPhase = 'work';
-          timerState.pomodoroTime = 25 * 60;
-          pomoInfo.textContent = `🍅 ポモドーロ ${timerState.pomodoroCount + 1}回目 - 作業時間 25:00`;
-          showToast('休憩終了！次のポモドーロ開始');
+          // 休憩完了 → 選択肢
           try { navigator.vibrate && navigator.vibrate([200, 100, 200]); } catch(e) {}
-          try { BuddySystem.react('pomodoroBreak'); } catch(e) {}
+          const skipBtn = document.getElementById('skipBreakBtn');
+          if (skipBtn) skipBtn.style.display = 'none';
+          pomoInfo.textContent = `🍅 ${timerState.pomodoroCount}回完了 — 休憩おわり`;
+          showModal('☕', '休憩終了！', 'お疲れさまです', `
+            <button class="btn btn-secondary" onclick="closeModal();startNextPomodoro()">🍅 次のポモドーロへ</button>
+            <button class="btn btn-primary" onclick="closeModal();finishStudy()">⏹ 学習を終了する</button>
+          `, true);
         }
       } else {
+        // カウントダウン中の表示更新
         const phase = timerState.pomodoroPhase === 'work' ? '作業時間' : '休憩';
         pomoInfo.textContent = `🍅 ${timerState.pomodoroPhase === 'work' ? `ポモドーロ ${timerState.pomodoroCount + 1}回目` : `${timerState.pomodoroCount}回完了！`} - ${phase}`;
       }
@@ -4488,9 +4513,41 @@ function updateTimerDisplay(seconds) {
     String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
 }
 
+// --- ポモドーロ: 休憩開始 ---
+function startPomodoroBreak() {
+  timerState.pomodoroPhase = 'break';
+  timerState.pomodoroTime = 5 * 60;
+  document.getElementById('timerPomodoroInfo').textContent = `🍅 ${timerState.pomodoroCount}回完了！ 休憩 5:00`;
+  updateTimerDisplay(timerState.pomodoroTime);
+  const skipBtn = document.getElementById('skipBreakBtn');
+  if (skipBtn) skipBtn.style.display = '';
+  resumeTimer();
+}
+
+// --- ポモドーロ: 次のポモドーロ開始 ---
+function startNextPomodoro() {
+  timerState.pomodoroPhase = 'work';
+  timerState.pomodoroTime = 25 * 60;
+  document.getElementById('timerPomodoroInfo').textContent = `🍅 ポモドーロ ${timerState.pomodoroCount + 1}回目 - 作業時間 25:00`;
+  updateTimerDisplay(timerState.pomodoroTime);
+  const skipBtn = document.getElementById('skipBreakBtn');
+  if (skipBtn) skipBtn.style.display = 'none';
+  resumeTimer();
+}
+
+// --- 休憩スキップ (画面ボタンから) ---
+function skipBreak() {
+  startNextPomodoro();
+}
+
+// --- 学習終了: 記録してホームに戻る ---
+function finishStudy() {
+  stopStudy(true);
+}
+
+// --- 学習終了確認 (戻るボタン / 終了ボタンから) ---
 function confirmStopStudy() {
   if (timerState.elapsed < 60) {
-    // Less than 1 minute, just go back
     stopStudy(false);
     return;
   }
@@ -4502,12 +4559,12 @@ function confirmStopStudy() {
 
 async function stopStudy(save) {
   pauseTimer();
-  clearInterval(timerState.interval);
 
   // アクティブセッション終了
   try { await ActiveSessionsDB.end(currentStudent.id); } catch(e) {}
 
   if (!save || timerState.elapsed < 60) {
+    resetTimerState();
     navigate('home');
     return;
   }
@@ -4753,8 +4810,7 @@ async function stopStudy(save) {
     navigate('home');
   }
   // タイマー状態をリセット (ホームに戻った時に「学習スタート」ボタンに戻る)
-  timerState = { running: false, elapsed: 0, interval: null, pomodoroCount: 0, pomodoroPhase: 'work', pomodoroTime: 0 };
-  studySession = {};
+  resetTimerState();
   hideLoading();
 }
 
