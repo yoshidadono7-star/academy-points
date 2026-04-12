@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <title>HERO'S ACADEMY RPG</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Noto+Sans+JP:wght@400;500;700;900&family=Orbitron:wght@500;700;900&display=swap" rel="stylesheet">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    body {
+      background-color: #0b0b1f;
+      overflow: hidden;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      width: 100vw;
+      height: 100vh;
+      font-family: 'Noto Sans JP', 'Hiragino Sans', sans-serif;
+    }
+    #game-container {
+      width: 100%;
+      height: 100%;
+    }
+    #loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #e5e7eb;
+      font-family: 'Orbitron', 'Noto Sans JP', sans-serif;
+      font-size: 18px;
+      text-align: center;
+      letter-spacing: 2px;
+    }
+    #loading .title {
+      color: #fbbf24;
+      font-weight: 700;
+      font-size: 22px;
+      margin-bottom: 6px;
+    }
+    #loading .dots::after {
+      content: '';
+      animation: dots 1.5s steps(4, end) infinite;
+    }
+    @keyframes dots {
+      0% { content: ''; }
+      25% { content: '.'; }
+      50% { content: '..'; }
+      75% { content: '...'; }
+    }
+  </style>
+</head>
+<body>
+  <div id="game-container">
+    <div id="loading">
+      <p class="title">HERO'S ACADEMY</p>
+      <p>読み込み中<span class="dots"></span></p>
+    </div>
+  </div>
+
+  <!-- Firebase SDK -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-functions-compat.js"></script>
+
+  <!-- Phaser.js -->
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.80.1/dist/phaser.min.js"></script>
+
+  <!-- 既存DB -->
+  <script src="js/db.js"></script>
+
+  <!-- Game Data -->
+  <script src="js/game/data/gachaTables.js"></script>
+
+  <!-- Game Systems -->
+  <script src="js/game/systems/StyleConfig.js"></script>
+  <script src="js/game/systems/FirebaseSync.js"></script>
+  <script src="js/game/systems/GachaSystem.js"></script>
+  <script src="js/game/systems/MinigameHowTo.js"></script>
+  <script src="js/game/systems/MiniResult.js"></script>
+  <script src="js/game/systems/MinigameQuit.js"></script>
+
+  <!-- Game Minigames -->
+  <script src="js/game/minigames/MathBattle.js"></script>
+  <script src="js/game/minigames/MathFlash.js"></script>
+  <script src="js/game/minigames/MemoryMatch.js"></script>
+  <script src="js/game/minigames/TypingHero.js"></script>
+
+  <!-- Game Scenes -->
+  <script src="js/game/scenes/BootScene.js"></script>
+  <script src="js/game/scenes/LoginScene.js"></script>
+  <script src="js/game/scenes/HomeTownScene.js"></script>
+  <script src="js/game/scenes/GachaScene.js"></script>
+  <script src="js/game/scenes/MinigameScene.js"></script>
+  <script src="js/game/scenes/MinigameHubScene.js"></script>
+
+  <!-- Game Config (エントリポイント) -->
+  <script src="js/game/config.js"></script>
+</body>
+</html>

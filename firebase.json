@@ -6,67 +6,65 @@
   "storage": {
     "rules": "storage.rules"
   },
-  "hosting": {
-    "public": ".",
-    "ignore": [
-      "firebase.json",
-      "**/.*",
-      "**/node_modules/**",
-      "README.md",
-      "HANDOFF.md",
-      "CLAUDE_HEROS_STORYTELLING.md",
-      "session-report.html",
-      "session-report-v2.html",
-      "system-overview.html",
-      "game-design-v2.html",
-      "detailed-specs.html",
-      "phase1-plan.html",
-      "storytelling-phase1.html",
-      "annual-plan.html",
-      "STAFF_GUIDE_Feature9.html",
-      "STAFF_GUIDE_Feature9_owner.html",
-      "STAFF_GUIDE_Feature9_staff.html",
-      "NEXT_SESSION_NOTES.md",
-      "HANDOFF_v4.md",
-      "HANDOFF_v5_continuation.md",
-      "DEPLOY.md",
-      "HANDOFF_Session_*.md",
-      "firestore.rules",
-      "firestore.indexes.json",
-      "storage.rules",
-      "seed-data.js",
-      "*.docx",
-      "*.pdf"
-    ],
-    "rewrites": [
-      {
-        "source": "/briefing",
-        "destination": "/briefing.html"
-      },
-      {
-        "source": "/student",
-        "destination": "/student.html"
-      },
-      {
-        "source": "/parent",
-        "destination": "/parent.html"
-      },
-      {
-        "source": "/teacher",
-        "destination": "/teacher.html"
-      },
-      {
-        "source": "/owner",
-        "destination": "/owner.html"
-      },
-      {
-        "source": "/classroom",
-        "destination": "/briefing.html"
-      },
-      {
-        "source": "**",
-        "destination": "/index.html"
-      }
-    ]
-  }
+  "hosting": [
+    {
+      "target": "main",
+      "public": ".",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**",
+        "rpg/**",
+        "functions/**",
+        "README.md",
+        "HANDOFF*.md",
+        "CLAUDE*.md",
+        "docs/**",
+        "session-report.html",
+        "session-report-v2.html",
+        "system-overview.html",
+        "game-design-v2.html",
+        "detailed-specs.html",
+        "phase1-plan.html",
+        "storytelling-phase1.html",
+        "annual-plan.html",
+        "STAFF_GUIDE_Feature9.html",
+        "STAFF_GUIDE_Feature9_owner.html",
+        "STAFF_GUIDE_Feature9_staff.html",
+        "NEXT_SESSION_NOTES.md",
+        "DEPLOY.md",
+        "firestore.rules",
+        "firestore.indexes.json",
+        "storage.rules",
+        "seed-data.js",
+        "*.docx",
+        "*.pdf"
+      ],
+      "rewrites": [
+        { "source": "/briefing", "destination": "/briefing.html" },
+        { "source": "/student", "destination": "/student.html" },
+        { "source": "/parent", "destination": "/parent.html" },
+        { "source": "/teacher", "destination": "/teacher.html" },
+        { "source": "/owner", "destination": "/owner.html" },
+        { "source": "/classroom", "destination": "/briefing.html" },
+        { "source": "**", "destination": "/index.html" }
+      ]
+    },
+    {
+      "target": "rpg",
+      "public": "rpg/public",
+      "ignore": [
+        "firebase.json",
+        "**/.*",
+        "**/node_modules/**"
+      ]
+    }
+  ],
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "runtime": "nodejs20"
+    }
+  ]
 }

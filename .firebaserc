@@ -1,5 +1,13 @@
 {
   "projects": {
     "default": "hero-s-points"
+  },
+  "targets": {
+    "hero-s-points": {
+      "hosting": {
+        "main": ["hero-s-points"],
+        "rpg": ["hero-s-points-rpg"]
+      }
+    }
   }
 }
