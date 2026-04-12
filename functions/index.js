@@ -7,3 +7,4 @@ exports.awardSessionResult = require('./awardSessionResult');
 exports.awardStudyReward = require('./awardStudyReward');
 exports.createRpgAuthToken = require('./createRpgAuthToken');
 exports.rollGacha = require('./rollGacha');
+exports.awardStudyRewardByPin = require('./awardStudyRewardByPin');

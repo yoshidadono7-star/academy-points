@@ -5043,113 +5043,41 @@ async function migrateClassroomId() {
 // - academy-points から書き込む時も student.id をそのまま使えばよい
 // - 古いアカウント紐付け (rpg_account_links) は不要だが、残っていても害は無い
 //
-// 【ポモドーロ報酬レート】 academy-rpg の functions/awardStudyReward.js と同じ
-const RPG_XP_PER_POMODORO = 20;
-const RPG_GOLD_PER_POMODORO = 10;
-const RPG_TICKETS_PER_POMODORO = 1;
-
 const RpgBridgeDB = {
-  // JST 日付を返す (YYYY-MM-DD)
-  _todayJST() {
-    const now = new Date();
-    const jstOffsetMs = 9 * 60 * 60 * 1000;
-    const jst = new Date(now.getTime() + jstOffsetMs - now.getTimezoneOffset() * 60 * 1000);
-    return jst.toISOString().slice(0, 10);
-  },
-
-  // [非推奨] PIN ログイン導入後は student.id をそのまま使うため不要。
-  // 既存の呼び出し元のため互換性として残してあるが、常に studentId をそのまま返す。
-  async resolveRpgUid(academyStudentId) {
-    return academyStudentId;
-  },
-
-  // ポモドーロ完走時に RPG 側へ報酬を反映
-  // pomodoroCount > 0 の時だけ呼ぶこと
+  // ポモドーロ完走時に RPG 側へ報酬を反映 (Cloud Function awardStudyRewardByPin 経由)
+  // Firebase Auth 不要 — PIN をサーバに送って認証・報酬付与を一括処理
+  // httpsCallable ではなく fetch で直接呼ぶ (Messaging SDK の干渉を回避)
   async awardForPomodoro(academyStudentId, pomodoroCount, totalMinutes, subject) {
     if (!academyStudentId || pomodoroCount <= 0) return null;
 
-    // PIN ログイン導入後: student.id = RPG UID なのでそのまま使う
-    const rpgUid = academyStudentId;
-    const xpGain = RPG_XP_PER_POMODORO * pomodoroCount;
-    const goldGain = RPG_GOLD_PER_POMODORO * pomodoroCount;
-    const ticketGain = RPG_TICKETS_PER_POMODORO * pomodoroCount;
-    const today = this._todayJST();
-    const FV = firebase.firestore.FieldValue;
-
     try {
-      // 1. rpg_profiles: XP とレベル加算
-      const profileRef = db.collection('rpg_profiles').doc(rpgUid);
-      const profileSnap = await profileRef.get();
-      if (profileSnap.exists) {
-        const cur = profileSnap.data();
-        const newXp = (cur.xp || 0) + xpGain;
-        // レベル計算: 100 * 1.2^(level-1) を閾値
-        let level = cur.level || 1;
-        while (newXp >= Math.floor(100 * Math.pow(1.2, level - 1))) {
-          level++;
-          if (level > 99) break;
-        }
-        await profileRef.update({
-          xp: newXp,
-          level: level,
-          updatedAt: FV.serverTimestamp(),
-        });
-      } else {
-        await profileRef.set({
-          displayName: '',
-          level: 1,
-          xp: xpGain,
-          avatarId: 'default',
-          equippedItems: {},
-          buddyId: null,
-          createdAt: FV.serverTimestamp(),
-          updatedAt: FV.serverTimestamp(),
-        });
+      const stored = localStorage.getItem('heroAcademy_student');
+      if (!stored) {
+        console.warn('[RpgBridge] No stored student info, skipping award');
+        return null;
+      }
+      const { nickname, pin } = JSON.parse(stored);
+      if (!nickname || !pin) {
+        console.warn('[RpgBridge] No nickname/pin, skipping award');
+        return null;
       }
 
-      // 2. rpg_wallet: ゴールド加算
-      const walletRef = db.collection('rpg_wallet').doc(rpgUid);
-      await walletRef.set({
-        gold: FV.increment(goldGain),
-        updatedAt: FV.serverTimestamp(),
-      }, { merge: true });
-
-      // 3. rpg_gacha_tickets: スタンダードチケット加算
-      const ticketsRef = db.collection('rpg_gacha_tickets').doc(rpgUid);
-      await ticketsRef.set({
-        standard: FV.increment(ticketGain),
-        updatedAt: FV.serverTimestamp(),
-      }, { merge: true });
-
-      // 4. rpg_daily_stats: 今日の勉強統計
-      const statsRef = db.collection('rpg_daily_stats').doc(rpgUid)
-        .collection('days').doc(today);
-      await statsRef.set({
-        minutes: FV.increment(totalMinutes || 0),
-        pomodoros: FV.increment(pomodoroCount),
-        updatedAt: FV.serverTimestamp(),
-      }, { merge: true });
-
-      // 5. rpg_transactions: 履歴
-      await db.collection('rpg_transactions').add({
-        uid: rpgUid,
-        academyStudentId: academyStudentId,
-        type: 'study_reward',
-        xpGained: xpGain,
-        goldGained: goldGain,
-        ticketsGained: ticketGain,
-        pomodoroCount: pomodoroCount,
-        totalMinutes: totalMinutes || 0,
-        subject: subject || null,
-        createdAt: FV.serverTimestamp(),
+      const url = 'https://us-central1-hero-s-points.cloudfunctions.net/awardStudyRewardByPin';
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: { nickname, pin, pomodoroCount, totalMinutes: totalMinutes || 0, subject: subject || '' } }),
       });
 
-      return {
-        xpGained: xpGain,
-        goldGained: goldGain,
-        ticketsGained: ticketGain,
-        rpgUid: rpgUid,
-      };
+      if (!res.ok) {
+        const errText = await res.text();
+        console.error('[RpgBridge] HTTP error:', res.status, errText);
+        return null;
+      }
+
+      const json = await res.json();
+      console.log('[RpgBridge] awarded:', json.result);
+      return json.result;
     } catch (e) {
       console.error('[RpgBridge] awardForPomodoro failed:', e);
       return null;

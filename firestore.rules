@@ -405,24 +405,29 @@ service cloud.firestore {
     // academy-points を Single Source of Truth とし、academy-rpg 側からは
     // 今後 rules をデプロイしないこと。
 
+    // rpg_profiles: RPGクライアント (Firebase Auth済み) が自分のプロフィールを作成・更新可能
+    // Cloud Functions (Admin SDK) もルールをバイパスして書き込む
     match /rpg_profiles/{uid} {
       allow read: if true;
-      allow write: if true;
+      allow write: if request.auth != null && request.auth.uid == uid;
     }
 
+    // rpg_wallet: Cloud Functions (awardStudyReward) のみ書き込み
     match /rpg_wallet/{uid} {
       allow read: if true;
-      allow write: if true;
+      allow write: if false;
     }
 
+    // rpg_gacha_tickets: Cloud Functions (awardStudyReward, rollGacha) のみ書き込み
     match /rpg_gacha_tickets/{uid} {
       allow read: if true;
-      allow write: if true;
+      allow write: if false;
     }
 
+    // rpg_daily_stats: Cloud Functions (awardStudyReward) のみ書き込み
     match /rpg_daily_stats/{uid}/days/{dateId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if false;
     }
 
     // rpg_inventory: rollGacha (Cloud Function) のみが書き込む
@@ -442,9 +447,10 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // rpg_transactions: 監査ログ — Cloud Functions のみ書き込み
     match /rpg_transactions/{docId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if false;
     }
 
     match /rpg_skill_rates/{uid} {
