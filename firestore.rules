@@ -425,9 +425,11 @@ service cloud.firestore {
       allow write: if true;
     }
 
+    // rpg_inventory: rollGacha (Cloud Function) のみが書き込む
+    // Admin SDK はルールをバイパスするため write: false でも Functions からは書き込み可能
     match /rpg_inventory/{uid}/items/{itemId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if false;
     }
 
     match /rpg_account_links/{academyStudentId} {
@@ -437,7 +439,7 @@ service cloud.firestore {
 
     match /rpg_minigame_results/{docId} {
       allow read: if true;
-      allow write: if true;
+      allow write: if false;
     }
 
     match /rpg_transactions/{docId} {
@@ -447,7 +449,7 @@ service cloud.firestore {
 
     match /rpg_skill_rates/{uid} {
       allow read: if true;
-      allow write: if true;
+      allow write: if false;
     }
   }
 }
