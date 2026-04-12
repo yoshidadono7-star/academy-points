@@ -4446,6 +4446,14 @@ function resumeTimer() {
           showToast('ポモドーロ完了！5分休憩です');
           try { navigator.vibrate && navigator.vibrate(500); } catch(e) {}
           try { BuddySystem.react('pomodoroComplete'); } catch(e) {}
+          // RPG報酬を即反映 (1ポモドーロ分をバックグラウンドで送信)
+          try {
+            if (typeof RpgBridgeDB !== 'undefined' && currentStudent) {
+              RpgBridgeDB.awardForPomodoro(currentStudent.id, 1, 25, studySession.subject || null)
+                .then(r => { if (r) console.log('[RpgBridge] pomodoro awarded:', r); })
+                .catch(e => console.warn('[RpgBridge] pomodoro award failed:', e));
+            }
+          } catch(e) {}
         } else {
           timerState.pomodoroPhase = 'work';
           timerState.pomodoroTime = 25 * 60;
@@ -4730,22 +4738,7 @@ async function stopStudy(save) {
       }
     }
 
-    // Academy RPG 連携: ポモドーロ完走時に Cloud Function awardStudyReward で報酬反映
-    try {
-      if (typeof RpgBridgeDB !== 'undefined' && timerState.pomodoroCount > 0) {
-        const rpgResult = await RpgBridgeDB.awardForPomodoro(
-          currentStudent.id,
-          timerState.pomodoroCount,
-          duration,
-          studySession.subject || null
-        );
-        if (rpgResult) {
-          console.log('[RpgBridge] awarded:', rpgResult);
-        }
-      }
-    } catch (e) {
-      console.warn('[RpgBridge] award failed (non-blocking):', e);
-    }
+    // RPG報酬はポモドーロ完了時に即送信済み (二重付与防止のためここでは送らない)
 
     // B1: ブースト適用されていたら通知
     if (timeBoostLabel) {
@@ -4759,6 +4752,9 @@ async function stopStudy(save) {
     showToast('記録に失敗しました');
     navigate('home');
   }
+  // タイマー状態をリセット (ホームに戻った時に「学習スタート」ボタンに戻る)
+  timerState = { running: false, elapsed: 0, interval: null, pomodoroCount: 0, pomodoroPhase: 'work', pomodoroTime: 0 };
+  studySession = {};
   hideLoading();
 }
 
