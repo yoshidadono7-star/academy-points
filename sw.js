@@ -4,14 +4,16 @@
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js');
 importScripts('https://www.gstatic.com/firebasejs/9.23.0/firebase-messaging-compat.js');
 
-// v5: owner.html を追加 + js/ ヘルパーを追加
-const CACHE_NAME = 'academy-points-v5';
+// v6: briefing.html + guide.html を追加
+const CACHE_NAME = 'academy-points-v6';
 const urlsToCache = [
   '/index.html',
   '/student.html',
   '/teacher.html',
   '/owner.html',
   '/parent.html',
+  '/briefing.html',
+  '/guide.html',
   '/db.js',
   '/firebase-config.js',
   '/manifest.json',
