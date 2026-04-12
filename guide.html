@@ -1,0 +1,479 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HERO'S ACADEMY - 使い方ガイド</title>
+<style>
+  :root {
+    --bg: #0a0e27;
+    --card: #111833;
+    --border: #1e2a4a;
+    --accent: #38bdf8;
+    --accent-dim: #1e6fa0;
+    --text: #e2e8f0;
+    --text-dim: #94a3b8;
+    --success: #22c55e;
+    --warning: #f59e0b;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Helvetica Neue', 'Hiragino Sans', 'Noto Sans JP', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    line-height: 1.7;
+    padding: 0 0 60px;
+  }
+  .hero {
+    text-align: center;
+    padding: 48px 20px 32px;
+    background: linear-gradient(180deg, #0f1a3a 0%, var(--bg) 100%);
+    border-bottom: 1px solid var(--border);
+  }
+  .hero h1 {
+    font-size: 28px;
+    font-weight: 800;
+    letter-spacing: 2px;
+    color: var(--accent);
+  }
+  .hero p { color: var(--text-dim); font-size: 14px; margin-top: 8px; }
+  .toc {
+    max-width: 720px;
+    margin: 32px auto 0;
+    padding: 0 20px;
+  }
+  .toc h2 {
+    font-size: 16px;
+    color: var(--accent);
+    margin-bottom: 12px;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 8px;
+  }
+  .toc-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 10px;
+  }
+  .toc-item {
+    display: block;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 16px;
+    color: var(--text);
+    text-decoration: none;
+    font-size: 14px;
+    font-weight: 600;
+    transition: border-color 0.2s;
+  }
+  .toc-item:hover { border-color: var(--accent); }
+  .toc-item .emoji { font-size: 20px; display: block; margin-bottom: 4px; }
+  .toc-item .sub { font-size: 11px; color: var(--text-dim); font-weight: 400; }
+  .container { max-width: 720px; margin: 0 auto; padding: 0 20px; }
+  .section {
+    margin-top: 48px;
+    scroll-margin-top: 24px;
+  }
+  .section-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding-bottom: 12px;
+    border-bottom: 2px solid var(--accent-dim);
+  }
+  .section-header .icon { font-size: 28px; }
+  .section-header h2 { font-size: 22px; font-weight: 700; }
+  .section-header .badge {
+    font-size: 11px;
+    background: var(--accent-dim);
+    color: #fff;
+    padding: 2px 10px;
+    border-radius: 20px;
+    font-weight: 600;
+  }
+  .login-box {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 20px;
+    font-size: 14px;
+  }
+  .login-box strong { color: var(--accent); }
+  .feature-list { list-style: none; padding: 0; }
+  .feature-list li {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 20px;
+    margin-bottom: 10px;
+  }
+  .feature-list li h3 {
+    font-size: 15px;
+    font-weight: 700;
+    margin-bottom: 4px;
+    color: var(--accent);
+  }
+  .feature-list li p {
+    font-size: 13px;
+    color: var(--text-dim);
+    line-height: 1.6;
+  }
+  .step-list {
+    list-style: none;
+    padding: 0;
+    counter-reset: step;
+  }
+  .step-list li {
+    counter-increment: step;
+    position: relative;
+    padding-left: 40px;
+    margin-bottom: 12px;
+    font-size: 14px;
+  }
+  .step-list li::before {
+    content: counter(step);
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 26px;
+    height: 26px;
+    background: var(--accent-dim);
+    color: #fff;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 13px;
+    font-weight: 700;
+  }
+  .tip {
+    background: #1a2338;
+    border-left: 3px solid var(--warning);
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    margin: 16px 0;
+    font-size: 13px;
+    color: var(--text-dim);
+  }
+  .tip strong { color: var(--warning); }
+  .back-top {
+    display: inline-block;
+    margin-top: 16px;
+    font-size: 12px;
+    color: var(--accent-dim);
+    text-decoration: none;
+  }
+  .back-top:hover { color: var(--accent); }
+  @media (max-width: 600px) {
+    .hero h1 { font-size: 22px; }
+    .toc-grid { grid-template-columns: 1fr 1fr; }
+    .section-header h2 { font-size: 18px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="hero" id="top">
+  <h1>HERO'S ACADEMY</h1>
+  <p>使い方ガイド</p>
+</div>
+
+<div class="toc">
+  <h2>画面一覧</h2>
+  <div class="toc-grid">
+    <a href="#admin" class="toc-item">
+      <span class="emoji">🖥</span>管理画面<br><span class="sub">admin@heros.jp</span>
+    </a>
+    <a href="#student" class="toc-item">
+      <span class="emoji">🎮</span>生徒画面<br><span class="sub">ニックネーム + PIN</span>
+    </a>
+    <a href="#teacher" class="toc-item">
+      <span class="emoji">📝</span>講師画面<br><span class="sub">講師PIN</span>
+    </a>
+    <a href="#parent" class="toc-item">
+      <span class="emoji">👨‍👩‍👧</span>保護者画面<br><span class="sub">ニックネーム + PIN</span>
+    </a>
+    <a href="#owner" class="toc-item">
+      <span class="emoji">👔</span>オーナー画面<br><span class="sub">メール + パスワード</span>
+    </a>
+    <a href="#briefing" class="toc-item">
+      <span class="emoji">📺</span>教室モニター<br><span class="sub">認証不要</span>
+    </a>
+    <a href="#rpg" class="toc-item">
+      <span class="emoji">🚀</span>RPGゲーム<br><span class="sub">ニックネーム + PIN</span>
+    </a>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ==================== 管理画面 ==================== -->
+  <div class="section" id="admin">
+    <div class="section-header">
+      <span class="icon">🖥</span>
+      <h2>管理画面</h2>
+      <span class="badge">管理者専用</span>
+    </div>
+    <div class="login-box">
+      <strong>ログイン方法:</strong> メールアドレス (admin@heros.jp) + パスワード<br>
+      <strong>URL:</strong> hero-s-points.web.app
+    </div>
+    <ul class="feature-list">
+      <li>
+        <h3>デイリー</h3>
+        <p>今日のプラン確認、バディチャット、学習モニター（リアルタイム状況）、生徒コンディション確認、メッセージ送受信を行います。</p>
+      </li>
+      <li>
+        <h3>生徒管理</h3>
+        <p>生徒の登録・編集、教材進捗の確認、学習ルート設定、学習履歴の閲覧、テスト結果の記録、面談記録の管理ができます。</p>
+      </li>
+      <li>
+        <h3>ゲーム</h3>
+        <p>ランキング表示、ギルド管理、レイドボス設定、ストーリー管理、ミッション・イベント作成、タスク管理を行います。</p>
+      </li>
+      <li>
+        <h3>分析</h3>
+        <p>生徒のリスクモニタリング（学習ペースの低下検知）やデータ分析ダッシュボードで、教室全体の状況を把握します。</p>
+      </li>
+      <li>
+        <h3>運営</h3>
+        <p>システム設定、ポイント付与テンプレート、集団目標の管理など、教室運営に関する設定を行います。</p>
+      </li>
+    </ul>
+    <div class="tip">
+      <strong>ヒント:</strong> 管理画面は多機能のため、まずは「デイリー」と「生徒管理」を中心に使い始めるのがおすすめです。
+    </div>
+    <a href="#top" class="back-top">先頭に戻る</a>
+  </div>
+
+  <!-- ==================== 生徒画面 ==================== -->
+  <div class="section" id="student">
+    <div class="section-header">
+      <span class="icon">🎮</span>
+      <h2>生徒画面</h2>
+      <span class="badge">生徒</span>
+    </div>
+    <div class="login-box">
+      <strong>ログイン方法:</strong> ニックネーム + PIN (4桁)<br>
+      <strong>URL:</strong> hero-s-points.web.app/student
+    </div>
+    <h3 style="color:var(--text);font-size:15px;margin-bottom:12px;">ログイン手順</h3>
+    <ol class="step-list">
+      <li>「ニックネーム」を入力（管理画面で登録した名前）</li>
+      <li>4桁のPINコードを入力</li>
+      <li>「ログイン」をタップ</li>
+    </ol>
+    <ul class="feature-list">
+      <li>
+        <h3>バディチャット</h3>
+        <p>AIバディ（ルカ、ミミ、レックスなど8体から選択）と会話できます。勉強の相談や励ましをもらえます。</p>
+      </li>
+      <li>
+        <h3>スペースベース</h3>
+        <p>ポイントを使って宇宙基地に施設を建設できます。学習を頑張るとポイントが貯まります。</p>
+      </li>
+      <li>
+        <h3>ポモドーロ学習</h3>
+        <p>タイマーを使った集中学習モード。完了するとポイント・EXP・ガチャチケットがもらえます。</p>
+      </li>
+      <li>
+        <h3>アバター・バディ選択</h3>
+        <p>自分のアバターをカスタマイズしたり、お気に入りのバディを選んだりできます。</p>
+      </li>
+    </ul>
+    <div class="tip">
+      <strong>ヒント:</strong> ポモドーロ（25分の集中学習）を完了すると、RPGゲームで使えるチケットとゴールドがもらえます。
+    </div>
+    <a href="#top" class="back-top">先頭に戻る</a>
+  </div>
+
+  <!-- ==================== 講師画面 ==================== -->
+  <div class="section" id="teacher">
+    <div class="section-header">
+      <span class="icon">📝</span>
+      <h2>講師画面</h2>
+      <span class="badge">講師</span>
+    </div>
+    <div class="login-box">
+      <strong>ログイン方法:</strong> 講師PIN (4桁)<br>
+      <strong>URL:</strong> hero-s-points.web.app/teacher
+    </div>
+    <ul class="feature-list">
+      <li>
+        <h3>今日のスケジュール</h3>
+        <p>本日の授業予定と担当生徒を確認できます。</p>
+      </li>
+      <li>
+        <h3>生徒コメント記録</h3>
+        <p>授業後に生徒ごとのコメントを記録します。科目・態度・理解度を選択し、バディ共有のオン/オフも設定できます。</p>
+      </li>
+      <li>
+        <h3>AI相談</h3>
+        <p>AIバディに指導方法のアドバイスを相談できます。��徒の状況に応じた対応のヒントが得られます。</p>
+      </li>
+      <li>
+        <h3>家庭学習承認</h3>
+        <p>生徒が提出した家庭学習の成果を確認・承認します。</p>
+      </li>
+      <li>
+        <h3>引継ぎ受信箱</h3>
+        <p>他の講師からの引継ぎ事項を確認できます。</p>
+      </li>
+      <li>
+        <h3>目標承認・シフト確認・統計</h3>
+        <p>生徒の目標設定の承認、自分のシフト確認、指導統計の閲覧ができます。</p>
+      </li>
+    </ul>
+    <a href="#top" class="back-top">先頭に戻る</a>
+  </div>
+
+  <!-- ==================== 保護者画面 ==================== -->
+  <div class="section" id="parent">
+    <div class="section-header">
+      <span class="icon">👨‍👩‍👧</span>
+      <h2>保護者画面</h2>
+      <span class="badge">保護者</span>
+    </div>
+    <div class="login-box">
+      <strong>ログイン方法:</strong> お子さまのニックネーム + PIN (4桁)<br>
+      <strong>URL:</strong> hero-s-points.web.app/parent
+    </div>
+    <ul class="feature-list">
+      <li>
+        <h3>今日のステータス</h3>
+        <p>お子さまの本日の出席状況、現在の学習状況をリアルタイムで確認できます。</p>
+      </li>
+      <li>
+        <h3>学習記録</h3>
+        <p>過去30日間の学習サマリー、ヒートマップ（学習頻度の可視���）、科目別の内訳、教材の進捗状況を確認できます。</p>
+      </li>
+      <li>
+        <h3>成績・バッジ</h3>
+        <p>テスト結果の推移、獲得したバッジ一覧、お子さまのコンディション情報を確認できます。</p>
+      </li>
+      <li>
+        <h3>講師連絡</h3>
+        <p>講師とのメッセージのやり取り、バディチャットの閲覧（読み取り専用��、面談記録の確認ができます。</p>
+      </li>
+    </ul>
+    <div class="tip">
+      <strong>ヒント:</strong> 学習記録のヒートマップで、お子さまの学習習慣のパターンが一目でわかります。
+    </div>
+    <a href="#top" class="back-top">先頭に戻る</a>
+  </div>
+
+  <!-- ==================== オーナー画面 ==================== -->
+  <div class="section" id="owner">
+    <div class="section-header">
+      <span class="icon">👔</span>
+      <h2>オーナー画面</h2>
+      <span class="badge">オーナー</span>
+    </div>
+    <div class="login-box">
+      <strong>ログイン方法:</strong> メールアドレス + パスワード (Firebase Auth)<br>
+      <strong>URL:</strong> hero-s-points.web.app/owner
+    </div>
+    <ul class="feature-list">
+      <li>
+        <h3>KPIダッシュボード</h3>
+        <p>教室数、総生徒数、総講師数、未読の引継ぎ件数をカードで一覧表示します。</p>
+      </li>
+      <li>
+        <h3>教室切替</h3>
+        <p>複数教室を管理している場合、教室カードをタップして切り替えられます。</p>
+      </li>
+      <li>
+        <h3>オーナーバディAI</h3>
+        <p>経営に関する相談をAIバディに行えます。教室・生徒・講師・引継ぎログをもとにアドバイスを提供します。</p>
+      </li>
+      <li>
+        <h3>引継ぎ受信箱</h3>
+        <p>各教室の講師からの引継ぎ・アラートを確認できます。</p>
+      </li>
+    </ul>
+    <a href="#top" class="back-top">先頭に戻る</a>
+  </div>
+
+  <!-- ==================== 教室モニター ==================== -->
+  <div class="section" id="briefing">
+    <div class="section-header">
+      <span class="icon">📺</span>
+      <h2>教室モニター（ブリーフィング）</h2>
+      <span class="badge">認証不要</span>
+    </div>
+    <div class="login-box">
+      <strong>ログイン:</strong> 不要（教室のモニターに常時表示）<br>
+      <strong>URL:</strong> hero-s-points.web.app/briefing
+    </div>
+    <ul class="feature-list">
+      <li>
+        <h3>ミッションパネル</h3>
+        <p>現在進行中の集団ミッションと進捗バーを表示します。</p>
+      </li>
+      <li>
+        <h3>スペースマップ</h3>
+        <p>在席中の生徒一覧がステーションアイコンで表示されます。</p>
+      </li>
+      <li>
+        <h3>ストーリー・ボスパネル</h3>
+        <p>今週のテーマ、学習ルートの進捗、レイドボスのHP状況などが表示されます。</p>
+      </li>
+    </ul>
+    <div class="tip">
+      <strong>使い方:</strong> 教室のテレビやモニターでブラウザを全画面表示にして投影してください。艦長マイケルのブリーフィングが教室の雰囲気を盛り上げます。
+    </div>
+    <a href="#top" class="back-top">先頭に戻る</a>
+  </div>
+
+  <!-- ==================== RPGゲーム ==================== -->
+  <div class="section" id="rpg">
+    <div class="section-header">
+      <span class="icon">🚀</span>
+      <h2>RPGゲーム</h2>
+      <span class="badge">生徒</span>
+    </div>
+    <div class="login-box">
+      <strong>ログイン方法:</strong> ニックネーム + PIN (4桁)（生徒画面と同じ）<br>
+      <strong>URL:</strong> hero-s-points-rpg.web.app
+    </div>
+    <h3 style="color:var(--text);font-size:15px;margin-bottom:12px;">遊び方</h3>
+    <ol class="step-list">
+      <li>塾アプリでポモドーロ学習を完了してチケットとゴールドを獲得</li>
+      <li>RPGにログインしてホームタウン（宇宙ステーション）を探索</li>
+      <li>ショップでガチャを引いて武器・装甲・バディを入手</li>
+      <li>ミニゲームで腕試し</li>
+    </ol>
+    <ul class="feature-list">
+      <li>
+        <h3>ガチャ（ショップ）</h3>
+        <p>3種類のガチャがあります。<br>
+          <strong>スタンダード:</strong> チケット1枚で回せます（コモン〜レジェンド）<br>
+          <strong>プレミアム:</strong> プレミアムチケット1枚（アンコモン〜レジェンド、高レア率）<br>
+          <strong>無料デイリー:</strong> 1日1回無料（コモン〜レア）
+        </p>
+      </li>
+      <li>
+        <h3>ミニゲーム</h3>
+        <p>3種類のミニゲームで遊べます。<br>
+          <strong>MathFlash:</strong> 30秒間の計算チャレンジ<br>
+          <strong>MemoryMatch:</strong> 60秒間の神経衰弱<br>
+          <strong>TypingHero:</strong> 45秒間のタイピングチャレンジ
+        </p>
+      </li>
+      <li>
+        <h3>ホームタウン</h3>
+        <p>宇宙ステーションの施設をタップして探索できます。レベル・EXP・ゴールドなどのステータスもここで確認できます。</p>
+      </li>
+    </ul>
+    <div class="tip">
+      <strong>大事なルール:</strong> RPGは1回のプレイが最大2分。勉強の邪魔をしない「ごほうびゲーム」です。勉強を頑張るほど強くなれます。
+    </div>
+    <a href="#top" class="back-top">先頭に戻る</a>
+  </div>
+
+</div>
+
+</body>
+</html>
